@@ -208,6 +208,12 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   /** Procs run on every application that lands (a resource grant), before its lifecycle events. */
   readonly grants?: readonly G['proc'][];
 
+  /**
+   * The event listeners it owns (§II.3.11): active exactly while it is on its bearer. The aura system never reads
+   * them; a trigger system compiles them at load.
+   */
+  readonly triggers?: readonly G['trigger'][];
+
   /** Cue ids by lifecycle change, which the client plays from what it sees on the wire. */
   readonly cues?: Readonly<Partial<Record<AuraChange, number>>>;
 

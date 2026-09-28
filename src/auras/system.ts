@@ -158,6 +158,9 @@ export interface AuraSystem<G extends AuraTypes> {
   /** Whether the bearer has an aura. */
   readonly has: (bearer: G['bearer'], aura: AuraId) => boolean;
 
+  /** The bearer's auras in list order (registry order, then application order), typed: its state's `list`. */
+  readonly list: (bearer: G['bearer']) => readonly ActiveAura<G>[];
+
   /** The first instance of an aura on the bearer. */
   readonly find: (bearer: G['bearer'], aura: AuraId) => ActiveAura<G> | undefined;
 
@@ -280,6 +283,7 @@ const collectIn = <G extends AuraTypes>(
 /** The read-only queries over a bearer's auras. */
 const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>) => ({
   has: (bearer: G['bearer'], id: AuraId) => findIn(bearer, id) !== undefined,
+  list: (bearer: G['bearer']): readonly ActiveAura<G>[] => setOf<G>(bearer).items,
   find: (bearer: G['bearer'], id: AuraId) => findIn(bearer, id),
 
   stacks: (bearer: G['bearer'], id: AuraId) =>

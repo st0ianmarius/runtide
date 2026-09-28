@@ -19,6 +19,9 @@ export interface AuraTypes {
   /** What hooks return: opaque to the aura system, which hands them to its host to run. */
   readonly proc: unknown;
 
+  /** What `AuraDef.triggers` lists: opaque to the aura system; the trigger system compiles them. */
+  readonly trigger: unknown;
+
   /** The names of the game's stats, which aura modifiers change. */
   readonly stat: string;
 

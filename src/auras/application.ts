@@ -3,28 +3,31 @@ import type { AuraContext } from './active-aura.ts';
 import type { AuraStacking } from './aura-def.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 
-/** One application of an aura: which aura and what the caller says about it. */
+/**
+ * One application of an aura: which aura and what the caller says about it. A field set to `undefined` counts as
+ * absent, so a caller may reuse one application object between calls.
+ */
 export interface AuraApplication<G extends AuraTypes = AuraTypes> {
   /** The aura applied. */
   readonly aura: AuraId;
 
   /** Its length in seconds, in place of the definition's. */
-  readonly duration?: number;
+  readonly duration?: number | undefined;
 
   /** The stacks it adds (or starts at); `max(1, floor(stacks))`, 1 when absent. */
-  readonly stacks?: number;
+  readonly stacks?: number | undefined;
 
   /** Its value, merged into the value already there; the definition's `value` when absent. */
-  readonly value?: number;
+  readonly value?: number | undefined;
 
   /** Who applies it (an entity id); with the default credit it becomes the aura's source. */
-  readonly source?: number;
+  readonly source?: number | undefined;
 
   /** A built-in stacking rule for this application only, in place of the definition's. */
-  readonly stacking?: Exclude<AuraStacking, 'independent'>;
+  readonly stacking?: Exclude<AuraStacking, 'independent'> | undefined;
 
   /** What the aura's `onLand` hook receives (a damage snapshot, a variant). */
-  readonly payload?: G['payload'];
+  readonly payload?: G['payload'] | undefined;
 }
 
 /** What an application did (§II.6 A14). */
