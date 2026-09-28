@@ -154,10 +154,11 @@ npm packages are welcome when they save real work, under five conditions:
 
 The plan adopts these; others follow the same test:
 
-| package              | where               | why                                                                                                                                            |
-| -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `flatbush` (runtime) | `world/MemoryWorld` | a static packed R-tree with `search` and `neighbors`, for the reference world's `inside` and `nearest` queries without writing a spatial index |
-| `fast-check` (dev)   | tests               | property tests on `node:test`: stacking and merge invariants, fold order, keyed-roll independence, tick-order stability, geometry round trips  |
+| package              | where                    | why                                                                                                                                                                          |
+| -------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `flatbush` (runtime) | `world/` static geometry | a packed R-tree for what never moves (walls, colliders, zones): `search` and `neighbors` over static shapes. Moving units use the hand-written uniform grid instead (§I.5.4) |
+| `tinybench` (dev)    | `bench/`                 | the benchmark harness for §I.5.4's budgets, outside the unit tests                                                                                                           |
+| `fast-check` (dev)   | tests                    | property tests on `node:test`: stacking and merge invariants, fold order, keyed-roll independence, tick-order stability, geometry round trips                                |
 
 Hand-written on purpose, since the exact semantics matter more than saving code: the sequential random streams and the keyed-roll mixer (they must match the game and stay frozen), the event bus (payload reuse, `hears`), the modifier fold (float order), and the timeline.
 
@@ -232,11 +233,42 @@ The framework is simulation only. **No player-facing text and no visual or audio
 - **Developer strings are allowed.** Registry names (§I.5) and error or validation messages in English are for developers, never shown to players, and never on the wire.
 - **Enforced.** The framework's definition types carry no string fields except the developer-facing ones listed in a type-level test, and `docs.test.ts` fails if an exported type gains a field named like presentation (`name`, `label`, `text`, `description`, `icon`, `color`, `sound`, `vfx`, `model`, `anim`) outside that list.
 
+### I.5.4 Performance: built for hordes
+
+The framework runs on the server and on every client, every tick, for hundreds of creatures casting, ticking auras and firing procs at once. Every hot path is designed to be **O(1) by numeric id, monomorphic and allocation-free per tick**.
+
+**Registries are dense arrays.**
+
+- A registry is built once, at load, into flat arrays indexed by the numeric id: `SPELLS.defs[id]` is a plain array read, with no `Map`, no string key and no hashing anywhere on a hot path. Name-to-id lookups (`SPELLS.id.blast`) are resolved at module load or in authoring code, never per tick.
+- **Normalised shapes.** Every definition of a kind is normalised at registration into one object shape with every optional field present (`undefined` or a no-op), so V8 sees one hidden class per kind and property reads stay monomorphic.
+- **Hot fields as typed columns.** Numbers read every tick are copied into struct-of-arrays columns: `SPELLS.windup: Float64Array`, `SPELLS.cooldown`, `SPELLS.range`, `AURAS.maxStacks: Uint8Array`, `AURAS.clockKind`, `AURAS.flags: Uint32Array`, and so on. Hot loops read columns, not objects.
+- **Hooks as per-kind dispatch tables.** For each hook, the registry builds an array indexed by id (`SPELLS.onHit[id]`) and a bitset of which ids have it (`SPELLS.has.onHit`), so a missing hook costs one bit test, never an optional call on a megamorphic site.
+- **Tags and sets as bitsets.** Tag ids are dense; an aura's tags, a bearer's active tags and `blockedBy` / `removes` are `Uint32Array` bitsets, so `hasTag`, immunity and cleanse checks are a few word operations.
+- **Proc kinds dispatch on a small integer** (`PROCS.apply[kind](…)`); event subscriptions are arrays indexed by event-kind id, and `hears(kind)` is one array read.
+
+**Nothing allocates per tick.**
+
+- **Pools and free lists** for casts, active auras, constructs, delayed procs and cue events, with generational handles (index plus generation) so a stale reference is detected, never followed.
+- **Scratch buffers** reused for query results (`inside`, `nearest`), proc lists returned by hooks (the runner hands hooks a reusable output array to push into, and plain arrays remain accepted for authoring convenience), and event payloads (the bus already reuses one payload per kind per nesting level).
+- **No closures created per tick** on engine paths, no `Array.prototype` chains (`map` / `filter`) in hot loops, no spreading of objects per call.
+
+**Per-unit and per-world storage.**
+
+- **Auras on a bearer** live in a small inline array sorted by aura id (the registry order the fold needs), with the bearer's tag bitset and a dirty flag. Stat folds are cached per bearer and recomputed only when the flag changes, as swarm's `modifiersFor` cache does.
+- **Constructs** live in struct-of-arrays pools per kind (positions, radii, stamps, owner ids in typed arrays), ticked kind by kind in the pinned order.
+- **Moving units** are indexed each tick in a **uniform spatial grid** (a hash of cells rebuilt or updated incrementally from the positions), which answers `inside`, `nearest` and `densest` over thousands of mobs in near-constant time. Static geometry uses the R-tree (§I.5.1).
+
+**Measured, not assumed.**
+
+- `bench/` holds `tinybench` benchmarks, run with `npm run bench` and kept out of `npm test`: registry lookups, aura application and fold, trigger dispatch, proc runs, the grid's queries, and a horde tick (for example 2,000 creatures, each with three auras and a spell in flight, plus 200 constructs).
+- Each benchmark records a baseline in the repository; CI runs them on a fixed machine type and flags any regression beyond 20%. Absolute budgets per tick are set from the first measurements rather than guessed.
+- Unit tests pin the performance-shaped contracts that can be checked exactly: registries expose typed columns of the right length, hook tables match the definitions, a pooled handle goes stale after release, and a steady-state tick allocates no new casts, auras or constructs (counted through the pools).
+
 ## I.6 The systems
 
 Each is summarised by what it must offer; Part II has the full model.
 
-- **Core.** Random: sequential salted streams (`stream(seed, salt)`, reproducing today's `rng(seed ^ salt)` exactly) and keyed rolls (`roll(seed, salt, ...key)`), with `int`, `pick`, `weighted` and `shuffle` on both. Time: a fixed-step `SimClock` (`tick`, `dt`, `time`; integer-tick mode by default and an accumulating mode for swarm's parity), world and motion kinds, stamps (`stampAt`, `due(stamp)`, `remaining(stamp)`) and the motion clock's `1e-8` snap; `Registry<Def>` assigning branded numeric ids by key order (append-only, tombstones for retired entries, `id` / `name` / `get` lookups, order checks); a typed `Bus` with payload reuse, `hears(kind)` short-circuiting and a nesting cap; `Scope` for owner, damage source and world context, re-entrant and idempotent.
+- **Core.** Random: sequential salted streams (`stream(seed, salt)`, reproducing today's `rng(seed ^ salt)` exactly) and keyed rolls (`roll(seed, salt, ...key)`), with `int`, `pick`, `weighted` and `shuffle` on both. Time: a fixed-step `SimClock` (`tick`, `dt`, `time`; integer-tick mode by default and an accumulating mode for swarm's parity), world and motion kinds, stamps (`stampAt`, `due(stamp)`, `remaining(stamp)`) and the motion clock's `1e-8` snap; `Registry<Def>` assigning branded numeric ids by key order (append-only, tombstones for retired entries, `id` / `name` / `get` lookups, order checks), built into dense arrays, typed hot-field columns, per-hook dispatch tables and bitsets (§I.5.4); pools with generational handles; scratch buffers; a typed `Bus` with payload reuse, `hears(kind)` short-circuiting and a nesting cap; `Scope` for owner, damage source and world context, re-entrant and idempotent.
 - **Math.** Shapes (`circle`, `ring`, `cone`, `lane`, `polygon`, `point`) with `covers(shape, point, radius)`; `sweep(from, to, radius)` against circles; patterns returning point lists with a stagger (`linePoints`, `ringPoints`, `crossPoints`); angle helpers (`wrap`, `turnToward`).
 - **Modifiers.** `defineStats`, `Modifier` (`add | mul | min`, `when`, `scope`), pluggable `Condition` evaluators, ordered sources, `resolve` / `fold`, caps, `explainModifier` returning structured data (stat id, op, value, condition) for the client to phrase.
 - **Auras.** `AuraDef` on any bearer (`AuraBearer`: `auras`, `clocks`, `rev`); stacking; clocks (`world`, `motion`, `global`); `periodic` returning procs; `value` with `merge: 'max' | 'add' | 'replace'` and `keepWhenDepleted` (absorbs); tags, `blockedBy`, `removes`; `grants` through a resource registry; `fold` position; `predicted`; lifecycle procs (`onApplied`, `onExpired`, `onBearerDeath`); damage hooks (`onIncomingDamage`, `onLethal`); lifecycle events and lifecycle cue ids; `view()` for the wire. No `status`, name, icon or colour: the client's aura table, keyed by `AuraId`, draws the tile.
@@ -246,7 +278,7 @@ Each is summarised by what it must offer; Part II has the full model.
 - **Damage.** `Blow` (amount, crushing, true damage, unblockable, lethal, source, kind); an ordered pipeline with game-supplied mitigation stages; aura hooks for shelter, absorbs and lethal prevention; the result (absorbed, lost, prevented), which the host applies to health.
 - **Spells.** `SpellDef` (id, tags, activation, `stats`, `canCast`, `target`, timeline, `begin`, `release`, `onHit`, `onEnd`, spell-scoped triggers, cues); activation kinds (`auto`, `button`, `passive`, `trigger`, `ai`, `event`) with game-typed data; the timeline (windup with `track` helpers `lockBefore`, `lockAtShare`, `lockAtStart`; channels with `breakIf`; recover; interrupts; `onCancel`); the runner (`startSpell`, `releaseSpell`, `castSpell`); a `SpellSystem` that steps casts and delayed procs; spell events on the bus (`spellCast`, `spellHit`, `constructExpired`…); snapshot versus live stats.
 - **Constructs.** `ConstructDef` (shape, lifetime, bound, anchor, limit, tick phase, `frame` as the primitive, then `move`, `every` pulses, `onContact`, `onLand`, `onExpire`, area auras, caster, replication spec); a store with pinned tick order (kind order, then creation order); hit policies (`once-per-cast`, `repeat-share`, `rehit-cooldown`, `pierce`, `budget`, `hottest-per-owner-clock`, `none`); spawning now or next frame.
-- **World.** `WorldQuery` (`inside`, `nearest`, `densest`, `chain`, `sweep`, `lineClear`, `positionOf` with rewind semantics, `velocityOf`, `leadPoint`) with `side` relative to the caster; `MemoryWorld`, a reference implementation for tests and for small games.
+- **World.** `WorldQuery` (`inside`, `nearest`, `densest`, `chain`, `sweep`, `lineClear`, `positionOf` with rewind semantics, `velocityOf`, `leadPoint`) with `side` relative to the caster; `MemoryWorld`, a reference implementation for tests and for small games. `MemoryWorld` indexes moving units in a uniform spatial grid and static geometry in the R-tree (§I.5.4).
 - **Abilities.** `button` activation data: cooldown as an aura (`startsOn`), cost in aura stacks, `requires` / `blockedBy` / `resets` / `applies`; loadouts (`slot → ability`); `canActivate`, `tryActivate`, `landAbility`; the bearer's motion half remains a game hook (`activate`, `travel`).
 - **Prediction.** `MirrorCtx` (the types a mirror-safe hook may read); motion-clock stamps; `seedMirrorAuras`; the rule that an aura the motion step reads must be `predicted`, as a validator the game runs over its registries.
 - **Replication.** `WireTable` (append-only id ↔ key, with a checksum test helper), `ViewSpec` for constructs and auras (fields, rounding, `events-only`, `derived`), projection helpers. No schema library.
@@ -260,20 +292,20 @@ Each is summarised by what it must offer; Part II has the full model.
 - **No end-to-end example game.** Nothing visual and no sample game: completeness is shown by each system's tests covering its contract, including the §I.5 semantics as literal expectations.
 - **Time and randomness in tests** come from the framework's own injected clock and seeded streams or keyed rolls. `mock.timers` and real timers are never needed. The keyed-roll mixer's frozen table is a literal array in its test, not a fixture file.
 - **No fixture files and no goldens.** Expected values sit in the test next to the assertion. The per-platform golden machinery stays in swarm.
-- **Run.** `node --test "tests/**/*.test.ts"` on Node's own type stripping, as the `test` script; optionally `--experimental-test-coverage` locally. `isolation.test.ts` and `docs.test.ts` are unit tests too, and run in the same command.
+- **Run.** `node --test "tests/**/*.test.ts"` on Node's own type stripping, as the `test` script; optionally `--experimental-test-coverage` locally. `isolation.test.ts` and `docs.test.ts` are unit tests too, and run in the same command. Benchmarks (`npm run bench`, §I.5.4) are separate and never part of `npm test`.
 - **Per phase.** Every phase adds the tests for what it builds: stacking modes, clock arithmetic, fold order, dispatch order, chance rolls, depth caps, timeline transitions, hit policies, tick order, pipeline order, and refusals. A phase is not done until its system's contract is covered.
 
 Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` and `npm run format:check` clean, `npm run build` emitting `dist/`, and `isolation.test.ts` and `docs.test.ts` passing.
 
 - **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (latest `typescript` and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `eslint.config.js`, prettier, README skeleton, the CI workflow; `isolation.test.ts` (every import is relative and inside the project, a `node:` built-in in tests, or a package listed in `package.json`; never swarm; no forbidden globals) and `docs.test.ts`.
-- **F1. Core and math.** Sequential streams (tested draw for draw against literal values taken from today's `rng`, since the framework cannot import swarm), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock in both modes and stamps, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), the lint and parser checks for the no-class style, bus, scope; shapes and sweeps.
+- **F1. Core and math.** Sequential streams (tested draw for draw against literal values taken from today's `rng`, since the framework cannot import swarm), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock in both modes and stamps, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), the lint and parser checks for the no-class style, bus, scope; shapes and sweeps. The registry's dense layout, typed columns, dispatch tables and bitsets, the pools, and the first `bench/` baselines land here, so every later system is built on them.
 - **F2. Modifiers.** Ported from swarm's `packages/game/src/modifiers/` with game content removed; tests reproduce the fold's documented float order.
 - **F3. Auras.** Ported from swarm's `packages/game/src/effects/` and generalised to any bearer; add `value` / `merge` / `keepWhenDepleted`, lifecycle procs, damage hooks.
 - **F4. Procs and triggers.** The proc registry (from `spells/procs` on `spell-primitive`) and triggers (from swarm's `packages/game/src/triggers/`), owned by auras only; `do` lists as procs.
 - **F5. Damage pipeline.** Stages, hooks, the true-damage bypass, shelter → absorbs → lethal order.
 - **F6. Cues.** Registry shape, events builder, wire table.
 - **F7. Spells.** Definitions, activations, timeline, runner, `SpellSystem`, delayed procs, spell events (from swarm's `spells/` on `spell-primitive`, extended per Part II).
-- **F8. Constructs and world.** Store, tick order, bounds, limits, pulses, hit policies, spawning; `WorldQuery` and `MemoryWorld`.
+- **F8. Constructs and world.** Store (struct-of-arrays pools), tick order, bounds, limits, pulses, hit policies, spawning; `WorldQuery`, `MemoryWorld` with its uniform grid.
 - **F9. Abilities.** Button activation and loadouts (from swarm's `packages/game/src/abilities/`), with cooldowns and costs as auras.
 - **F10. Prediction and replication contracts.**
 
