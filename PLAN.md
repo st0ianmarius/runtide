@@ -15,7 +15,7 @@ Section references read `§I.n` for Part I and `§II.n` for Part II. Paths such 
 
 Pull every gameplay system that does not depend on Babylon.js, Colyseus or swarm's content into one standalone project, **the framework** (working name; its package name is a decision, §I.9), so that:
 
-- **the framework is the engine**: modifiers, auras, triggers, procs, cues, spells, area triggers, the damage pipeline, abilities, prediction contracts and the deterministic core under them;
+- **the framework is the engine**: modifiers, auras, triggers, procs, cues, spells, area triggers, creature scripts, the damage pipeline, abilities, prediction contracts and the deterministic core under them;
 - **swarm becomes a consumer**, later and from the outside: its `packages/game` supplies content (stats, auras, spells, cards, classes, creatures) and the world adapter (its `Game` class); `packages/protocol`, `packages/sync` and `apps/server` consume the framework's wire-agnostic contracts; `apps/client` renders cues and replicated views;
 - **a future MMO-like game** can start from the framework alone and write only its content, its world and its transport.
 
@@ -52,6 +52,7 @@ The framework has **no dependency on swarm** or any of its packages (not `@swarm
 | world query **interface** (what a spell may ask) + an in-memory reference implementation                                  | the real query implementation over `Game.enemies` / heroes                                            |
 | damage pipeline: blow → mitigation → aura hooks (shelter, absorbs, lethal) → health                                       | the mitigation stats' meaning, hit windows, knockback physics                                         |
 | abilities: button activation, loadouts, cooldowns as auras, costs, `requires` / `blockedBy` / `resets`                    | dodge travel, `stepPlayerInput`, class loadouts                                                       |
+| creature scripts: phases, named timers, summon lists, script hooks, movement intents, composition factories               | every creature's and boss's script and its numbers; steering, pathfinding and the flow field          |
 | prediction contracts: mirror-safe context, motion-clock stamps, seeding a mirror's auras                                  | the reconciler, `LocalSession`, the co-op room                                                        |
 | replication **contracts**: append-only wire ids, view specs, projections                                                  | Colyseus schemas, msgpack codecs, `PROTOCOL_VERSION`                                                  |
 
@@ -82,9 +83,10 @@ framework/                # a sibling of the swarm checkout, its own git reposit
     cues/                 # CueId registry, param schemas, cue events, params wire encoding (no presentation)
     damage/               # Blow, pipeline stages, aura hooks (onIncomingDamage, onLethal), result
     spells/               # SpellDef, activation kinds, timeline, runner, SpellSystem, delayed procs, spell events
-    area triggers/           # AreaTriggerDef, store, tick order, bounds, limits, pulses, hit policies, spawn
+    area-triggers/        # AreaTriggerDef, store, tick order, bounds, limits, pulses, hit policies, spawn
     world/                # WorldQuery interface (inside, nearest, densest, chain, sweep, lineClear, positions, velocities)
     abilities/            # button activation, loadouts, canActivate / tryActivate, cooldown and cost auras
+    creature-scripts/     # CreatureScriptDef, phases, timers on the wheel, summon lists, hooks, movement intents, factories
     prediction/           # MirrorCtx, stamps, seeding, the "predicted" rule
     replication/          # wire tables, view specs, projections (transport-agnostic)
     index.ts
@@ -171,7 +173,7 @@ Hand-written on purpose, since the exact semantics matter more than saving code:
 
 ### I.5.2 Defining resources: plain objects and functions
 
-A **resource** is anything a consumer registers with the framework: stats, auras, triggers, conditions, procs, cues, spells, area triggers, abilities. Every kind has one interface (`AuraDef`, `SpellDef`, `AreaTriggerDef`, …) and one identity helper (`defineAura`, `defineSpell`, …) that only fixes the types. **The rule:**
+A **resource** is anything a consumer registers with the framework: stats, auras, triggers, conditions, procs, cues, spells, area triggers, abilities, creature scripts. Every kind has one interface (`AuraDef`, `SpellDef`, `AreaTriggerDef`, `CreatureScriptDef`, …) and one identity helper (`defineAura`, `defineSpell`, `defineCreatureScript`, …) that only fixes the types. **The rule:**
 
 > A resource is a plain object: data fields and standalone functions. Shared behaviour comes from functions that build or combine those objects, never from classes, `this` or inheritance.
 
@@ -179,7 +181,7 @@ What that means in practice:
 
 - **Hooks are standalone functions.** They receive everything they need as arguments (`ctx`, the target, the hit) and never read `this`. The framework may call a hook detached (`const { release } = def; release(ctx, target)`), and it must still work.
 - **Sharing is by factories and composition.** A family of resources with shared behaviour is a function returning the interface (`telegraphedSpell({ id, shape })`), and variations spread or wrap hooks (`{ ...base, onHit: withBonus(base.onHit) }`). Definitions are plain objects, so spreading is always safe.
-- **Definitions are stateless.** A definition is shared by every cast, aura or area trigger made from it, so per-instance state never lives on it: a cast has its `CastState`, an active aura its `value` and stacks, an area trigger its `State`. Registries freeze definitions in development builds to catch mutation.
+- **Definitions are stateless.** A definition is shared by every cast, aura or area trigger made from it, so per-instance state never lives on it: a cast has its `CastState`, an active aura its `value` and stacks, an area trigger its `State`, a scripted creature its script `State`. Registries freeze definitions in development builds to catch mutation.
 - **Data stays data.** Fields the framework reads as data (ids, tags, durations, modifiers, a trigger's `do`) are plain values, not getters, because explanations, validation and the wire read them.
 - **Registration is by name, identity is by number.** `createRegistry({ name: def, … })`: the key order assigns each definition its numeric id (append-only, §I.5). A definition carries no id of its own; the runtime hands it its id where it needs one (`ctx.spellId`, `aura.id`).
 - **Variants are discriminated unions.** Anything that comes in several shapes says so in a `kind` field (`{ kind: 'circle', r }`), and code narrows on it; nothing is told apart by its prototype.
@@ -279,7 +281,7 @@ The framework runs on the server and on every client, every tick, for hundreds o
 
 **Measured, not assumed.**
 
-- `bench/` holds `tinybench` benchmarks, run with `npm run bench` and kept out of `npm test`: registry lookups, aura application and fold, trigger dispatch, proc runs, the grid's queries, and a horde tick (for example 2,000 creatures, each with three auras and a spell in flight, plus 200 area triggers).
+- `bench/` holds `tinybench` benchmarks, run with `npm run bench` and kept out of `npm test`: registry lookups, aura application and fold, trigger dispatch, proc runs, the grid's queries, and a horde tick (for example 2,000 creatures, each with three auras and a spell in flight, plus 200 area triggers and 20 scripted elites and bosses).
 - Each benchmark records a baseline in the repository; CI runs them on a fixed machine type and flags any regression beyond 20%. Absolute budgets per tick are set from the first measurements rather than guessed.
 - Unit tests pin the performance-shaped contracts that can be checked exactly: registries expose typed columns of the right length, hook tables match the definitions, a pooled handle goes stale after release, and a steady-state tick allocates no new casts, auras or area triggers (counted through the pools).
 
@@ -299,6 +301,7 @@ Each is summarised by what it must offer; Part II has the full model.
 - **Area triggers.** `AreaTriggerDef` (shape, lifetime, bound, anchor, limit, tick phase, `frame` as the primitive, then `move`, `every` pulses, `onContact`, `onLand`, `onExpire`, area auras, caster, replication spec); a store with pinned tick order (kind order, then creation order); hit policies (`once-per-cast`, `repeat-share`, `rehit-cooldown`, `pierce`, `budget`, `hottest-per-owner-clock`, `none`); spawning now or next frame.
 - **World.** `WorldQuery` (`inside`, `nearest`, `densest`, `chain`, `sweep`, `lineClear`, `positionOf` with rewind semantics, `velocityOf`, `leadPoint`) with `side` relative to the caster; `MemoryWorld`, a reference implementation for tests and for small games. `MemoryWorld` indexes moving units in a uniform spatial grid and static geometry in the R-tree (§I.5.4).
 - **Abilities.** `button` activation data: cooldown as an aura (`startsOn`), cost in aura stacks, `requires` / `blockedBy` / `resets` / `applies`; loadouts (`slot → ability`); `canActivate`, `tryActivate`, `landAbility`; the bearer's motion half remains a game hook (`activate`, `travel`).
+- **Creature scripts.** `CreatureScriptDef` (§II.3.12): the one place a creature's behaviour is written. Ordered phases entered on conditions (health thresholds, time, any F12 condition), each with a transition, phase auras, a spell pool and the timers it runs; named timers on the timing wheel with keyed-roll intervals; a summon list (keep, refill, despawn with the creature or the phase); hooks (`spawn`, `engage`, `damaged`, `castEnd`, `summonDied`, `targetLost`, `death`, game events) returning procs; `move` returning a movement intent; `view()` numbers for the wire; the `bossScript` / `withEnrage` / `withAdds` factories. Built on the AI toolkit (F17) and summons (F18).
 - **Prediction.** `MirrorCtx` (the types a mirror-safe hook may read); motion-clock stamps; `seedMirrorAuras`; the rule that an aura the motion step reads must be `predicted`, as a validator the game runs over its registries.
 - **Replication.** `WireTable` (append-only id ↔ key, with a checksum test helper), `ViewSpec` for area triggers and auras (fields, rounding, `events-only`, `derived`), projection helpers. No schema library.
 
@@ -334,18 +337,19 @@ Compared with a WoW server emulator (TrinityCore, AzerothCore), phases F0–F10 
 
 **Tier 1, built now** (each with its consumer in swarm today):
 
-| #   | Feature                                                                                                                                                     | Consumer in swarm today                                                                                                                                                                                                        | Scope now                                                                                   |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| F11 | **Combat log**: a structured stream of every cast, hit, miss, heal, aura applied or removed, and death                                                      | the synced damage meter (`damageBySource`), the balance scripts (`balance:report`, `balance:clear`), the goldens that digest event streams                                                                                     | the full log, with subscribers (meter, tests, analytics)                                    |
-| F12 | **Conditions**: one data-driven predicate system                                                                                                            | modifier conditions (`status`, `tag`, `healthBelow`, `noMapBuff`); trigger filters (`scope`, `source`, `ability`, `critOnly`…); the "objectives" and "unbranded" targeting rules repeated across cards; creature spell weights | the whole module; modifiers, triggers, targeting and AI all read it                         |
-| F13 | **Unit model and states**: one unit shape for heroes, creatures and summons, with state flags derived from aura tags                                        | `frozen`, `stunned`, `rooted`, `invuln`, `downed`, casting (`e.cast`), immunity to pulls (bosses, objectives)                                                                                                                  | the states and the unit shape; factions only as two sides plus "objective"                  |
-| F14 | **Combat roll table and damage kinds**, as damage-pipeline stages                                                                                           | crit (chance and damage stats), block (hero block chance, `unblockable`), crushing blows, and the kinds that bypass armor and the barrier (environmental, blood, lethal)                                                       | crit, block and damage kinds; no misses, dodges or school resistances                       |
-| F15 | **Cooldown model**, as auras                                                                                                                                | ability cooldowns, cooldown reduction, `resets` (Overcharge refunding the dash), attack-clock intervals rescaled by haste                                                                                                      | the basic model plus resets and rescaling; no global cooldown, categories or charges        |
-| F16 | **Cast rules** in `canCast` and the timeline                                                                                                                | range and line-of-sight gates (horde `range` / `sight`, sentry placement), refusals and retries, freeze or stun pausing a creature's cast, death cancelling it, an elite's enrage withdrawing its own telegraphs               | gates, pause and cancel; no pushback or school lockouts                                     |
-| F17 | **AI toolkit**: a timed event scheduler (TrinityCore's `EventMap` / `TaskScheduler`), one weighted anti-repeat spell picker, a movement-generator interface | the elite, Warden and Archmage brains; three copies of the weighted picker; the Warden's named timers (`nextExecute`, `nextRaise`, `nextCharge`…)                                                                              | the scheduler, the picker, the interface (chase, flee, hold range, charge, leap, knockback) |
-| F18 | **Pets and summons**: ownership, stat inheritance, despawn with the owner, follow or assist                                                                 | the Engineer's sentry; the adds raised by the Gravecaller, the Warden and the Archmage (`summonedBy`)                                                                                                                          | ownership, credit, lifetime and bounds, on top of area triggers                             |
+| #   | Feature                                                                                                                                                     | Consumer in swarm today                                                                                                                                                                                                                                                      | Scope now                                                                                       |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| F11 | **Combat log**: a structured stream of every cast, hit, miss, heal, aura applied or removed, and death                                                      | the synced damage meter (`damageBySource`), the balance scripts (`balance:report`, `balance:clear`), the goldens that digest event streams                                                                                                                                   | the full log, with subscribers (meter, tests, analytics)                                        |
+| F12 | **Conditions**: one data-driven predicate system                                                                                                            | modifier conditions (`status`, `tag`, `healthBelow`, `noMapBuff`); trigger filters (`scope`, `source`, `ability`, `critOnly`…); the "objectives" and "unbranded" targeting rules repeated across cards; creature spell weights                                               | the whole module; modifiers, triggers, targeting and AI all read it                             |
+| F13 | **Unit model and states**: one unit shape for heroes, creatures and summons, with state flags derived from aura tags                                        | `frozen`, `stunned`, `rooted`, `invuln`, `downed`, casting (`e.cast`), immunity to pulls (bosses, objectives)                                                                                                                                                                | the states and the unit shape; factions only as two sides plus "objective"                      |
+| F14 | **Combat roll table and damage kinds**, as damage-pipeline stages                                                                                           | crit (chance and damage stats), block (hero block chance, `unblockable`), crushing blows, and the kinds that bypass armor and the barrier (environmental, blood, lethal)                                                                                                     | crit, block and damage kinds; no misses, dodges or school resistances                           |
+| F15 | **Cooldown model**, as auras                                                                                                                                | ability cooldowns, cooldown reduction, `resets` (Overcharge refunding the dash), attack-clock intervals rescaled by haste                                                                                                                                                    | the basic model plus resets and rescaling; no global cooldown, categories or charges            |
+| F16 | **Cast rules** in `canCast` and the timeline                                                                                                                | range and line-of-sight gates (horde `range` / `sight`, sentry placement), refusals and retries, freeze or stun pausing a creature's cast, death cancelling it, an elite's enrage withdrawing its own telegraphs                                                             | gates, pause and cancel; no pushback or school lockouts                                         |
+| F17 | **AI toolkit**: a timed event scheduler (TrinityCore's `EventMap` / `TaskScheduler`), one weighted anti-repeat spell picker, a movement-generator interface | the elite, Warden and Archmage brains; three copies of the weighted picker; the Warden's named timers (`nextExecute`, `nextRaise`, `nextCharge`…)                                                                                                                            | the scheduler, the picker, the interface (chase, flee, hold range, charge, leap, knockback)     |
+| F18 | **Pets and summons**: ownership, stat inheritance, despawn with the owner, follow or assist                                                                 | the Engineer's sentry; the adds raised by the Gravecaller, the Warden and the Archmage (`summonedBy`)                                                                                                                                                                        | ownership, credit, lifetime and bounds, on top of area triggers                                 |
+| F19 | **Creature scripts** (TrinityCore's `ScriptedAI` / `BossAI`, with SmartAI's data form): phases, named timers, summon lists, hooks, movement intents         | the elite step (grace, enrage at half health, shared cast budget), `stepWarden` (three health phases from the wave config, War Cry, named timers, soulfire), `stepArchmage` (health phases, Circle of Fire, blink, repulse and barrage timers, add refills), the horde brain | the whole module (§II.3.12); no evade, leash or instance encounter state (deferred with threat) |
 
-Each is proven by its own unit tests, like the phases before it (§I.7.0).
+Each is proven by its own unit tests, like the phases before it (§I.7.0). F19's cover, with fake hosts: the phase jump across several thresholds in one blow, phase auras swapped and casts interrupted on entry, timer order on the wheel and keyed intervals independent of other creatures, `whileBusy` and pausing auras, summon refills and despawns, factory merging, and registration-time validation.
 
 **Tier 1, deferred** (no consumer yet; each has a reserved place):
 
@@ -398,19 +402,20 @@ At the end everything is one of three things, as in WoW, where talents, racials,
 - an **aura**: what a unit has (a buff, a debuff, a status, a pact, later a passive card), with its modifiers and its procs;
 - a **proc**: what happens, returned by a spell's hooks or fired by an aura on its events.
 
-Area triggers (what a spell leaves in the world) and cues (how it looks) complete the picture.
+Area triggers (what a spell leaves in the world) and cues (how it looks) complete the picture, and a **creature script** (§II.3.12) decides when a creature casts which spell, how it moves between casts and how its fight changes as it goes.
 
-| System            | Answers                                               | Today                                                                                                                          | In this plan                                                                                                              |
-| ----------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| **Activation**    | who pulls the trigger, and whether they may           | attack clocks, `AbilityDef`, four creature brains, the director                                                                | one `activation` block per spell; brains only pick                                                                        |
-| **Stats**         | how strong                                            | `weaponStats`, class constants × `abilityArea`, four `*SpellDamage` helpers                                                    | `stats(ctx)` per cast, fed by the modifier fold with spell tags as scopes                                                 |
-| **Targeting**     | where and at whom                                     | a dozen resolvers (`resolvePrimaryAttack`, `densestCluster`, placements…)                                                      | shared queries on `ctx`, used by the `target` hook                                                                        |
-| **Timeline**      | windup, tracking, release, channel, recover, cancel   | a stage machine per creature family, `game.strikes`, per-card queues                                                           | one cast state machine run by the Spell System                                                                            |
-| **Area triggers** | what persists in the world                            | 20 bespoke arrays and fields (`glaives`, `tempests`, `sanctuaries`, `hazards`, `frostField`…)                                  | one store of spell objects with hooks                                                                                     |
-| **Procs**         | what happens                                          | procs for spells, `TriggerAction` for triggers, direct `Game` calls everywhere else                                            | one vocabulary for spells, area triggers, effects and triggers                                                            |
-| **Auras**         | timed states on a unit (WoW auras: buffs and debuffs) | `effects/`, heroes only; creature statuses are bespoke fields; Cheat Death and the Sanctuary are special cases in `hurtPlayer` | `effects/` on any unit, with hooks into the damage pipeline (§II.3.8)                                                     |
-| **Triggers**      | when something reacts to an event                     | data procs on 10 hero events, from three sources (classes: empty; pacts: Bloodbound; effects)                                  | owned by auras only (§II.3.11): the trigger layer becomes the machinery that runs an aura's procs on events               |
-| **Cues**          | that something should be seen or heard                | 28 cue ids plus ~60 raw `emit` sites                                                                                           | every spell moment names a numeric cue id with numeric params; the client's cue table is how it looks and sounds (§I.5.3) |
+| System               | Answers                                               | Today                                                                                                                                                          | In this plan                                                                                                              |
+| -------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Activation**       | who pulls the trigger, and whether they may           | attack clocks, `AbilityDef`, four creature brains, the director                                                                                                | one `activation` block per spell; brains only pick                                                                        |
+| **Stats**            | how strong                                            | `weaponStats`, class constants × `abilityArea`, four `*SpellDamage` helpers                                                                                    | `stats(ctx)` per cast, fed by the modifier fold with spell tags as scopes                                                 |
+| **Targeting**        | where and at whom                                     | a dozen resolvers (`resolvePrimaryAttack`, `densestCluster`, placements…)                                                                                      | shared queries on `ctx`, used by the `target` hook                                                                        |
+| **Timeline**         | windup, tracking, release, channel, recover, cancel   | a stage machine per creature family, `game.strikes`, per-card queues                                                                                           | one cast state machine run by the Spell System                                                                            |
+| **Area triggers**    | what persists in the world                            | 20 bespoke arrays and fields (`glaives`, `tempests`, `sanctuaries`, `hazards`, `frostField`…)                                                                  | one store of spell objects with hooks                                                                                     |
+| **Procs**            | what happens                                          | procs for spells, `TriggerAction` for triggers, direct `Game` calls everywhere else                                                                            | one vocabulary for spells, area triggers, effects and triggers                                                            |
+| **Auras**            | timed states on a unit (WoW auras: buffs and debuffs) | `effects/`, heroes only; creature statuses are bespoke fields; Cheat Death and the Sanctuary are special cases in `hurtPlayer`                                 | `effects/` on any unit, with hooks into the damage pipeline (§II.3.8)                                                     |
+| **Triggers**         | when something reacts to an event                     | data procs on 10 hero events, from three sources (classes: empty; pacts: Bloodbound; effects)                                                                  | owned by auras only (§II.3.11): the trigger layer becomes the machinery that runs an aura's procs on events               |
+| **Cues**             | that something should be seen or heard                | 28 cue ids plus ~60 raw `emit` sites                                                                                                                           | every spell moment names a numeric cue id with numeric params; the client's cue table is how it looks and sounds (§I.5.3) |
+| **Creature scripts** | when a creature casts what, and how a fight unfolds   | `stepWarden`, `stepArchmage` and the elite step: hand-written stage machines with named timer fields (`nextBlink`, `nextRaise`…), phase checks and add refills | one `CreatureScriptDef` per creature: phases, timers, summons and hooks returning procs (§II.3.12)                        |
 
 ## II.2 Rules the API keeps
 
@@ -658,6 +663,118 @@ What a pact aura needs that ordinary buffs do not:
 
 **Passive cards next, optionally.** Might, Haste, Vitality and the rest are the same shape: a permanent aura whose stacks are the rank, folding at `'passives'`. That is the full "everything is a spell and an aura" end state, but it touches the most sensitive golden (the stat fold, every rank) and the card pool's order, so it is its own later phase.
 
+### II.3.12 Creature scripts: scripted creatures and bosses
+
+A **creature script** is what TrinityCore calls a `CreatureScript` with its `ScriptedAI` / `BossAI` (and what its SmartAI writes as data): the one place a creature's behaviour lives. A spell says what a cast does and an aura what sits on a unit; the script says **when** the creature casts what, how it moves between casts, and how the fight changes as it goes. Scripting a new elite or boss is one `defineCreatureScript` plus its spells and auras: no engine change, no bespoke `step<Boss>` function, no named timer fields on the unit.
+
+```ts
+interface CreatureScriptDef<State = {}> {
+  // no id field: the registry assigns a numeric, branded CreatureScriptId by key order (§I.5)
+  state?(ctx): State; // per-creature scratch, made at spawn from a pool (a trail's last point, a pattern's index)
+  intro?: { seconds: number; auras?: AuraRef[] }; // the grace stage: holds still and casts nothing (untargetable if an aura says so)
+  phases?: readonly PhaseDef[]; // ordered, forward only; phase 0 is where it starts
+  timers?: Record<string, TimerDef<State>>; // named timed events (TrinityCore's EventMap)
+  pick?: PickDef; // the shared picker over the phase's spell pool (F17): gap [min, max] per cast, budget policy
+  summons?: SummonsDef; // adds kept standing: spell, keep n, refill every s, despawn with 'death' | 'phase'
+  move?(ctx): MoveIntent; // between and during casts: chase, holdRange(min, max), hold, flee, strafe, face
+  on?: {
+    spawn?(ctx): Proc[];
+    engage?(ctx, target): Proc[]; // first target acquired: the fight starts, timers start
+    damaged?(ctx, result: DamageResult): Proc[];
+    castEnd?(ctx, spell: SpellId, outcome: CastOutcome): Proc[]; // 'blocked' charge → stagger
+    summonDied?(ctx, add: UnitRef): Proc[];
+    targetLost?(ctx): Proc[];
+    death?(ctx): Proc[];
+    events?: ScriptEventHooks; // any bus event the game registers, filtered to this creature
+  };
+  view?(ctx): ScriptView; // numbers only: phase index, stage; the client's HUD phrases "phase 2/3"
+}
+
+interface PhaseDef {
+  when: Condition; // healthBelow(0.66), after(90), summonsDead, or any F12 condition
+  enter?(ctx): Proc[]; // the transition: castSpell(warCry), spawn(fireRing), a cue
+  auras?: readonly AuraRef[]; // held while the phase lasts: enraged (cooldowns ×0.7, speed), invulnerable during a transition cast
+  spells?: readonly SpellRef[]; // the picker's pool in this phase
+  timers?: readonly string[]; // which named timers run in this phase (EventMap's phase mask)
+  summons?: Partial<SummonsDef>; // a phase may keep more adds
+}
+
+interface TimerDef<State> {
+  first: Seconds | Range; // after its phase is entered (or `engage` for a timer outside phases)
+  every?: Seconds | Range; // repeats; absent fires once per phase entry
+  when?: Condition; // checked when due; false reschedules it (only with a hero in 18 m)
+  whileBusy?: "wait" | "skip" | "run"; // due during a cast: wait for it to end (default), skip this round, or run anyway
+  do(ctx, state: State): Proc[]; // usually castSpell(…)
+}
+```
+
+- **Hooks return procs**, as everywhere (§II.2). A script touches the world only through them and mutates only its own `State`. Casting is `castSpell`, adds are `summon`, yells are cues, and a phase's buffs are auras, so a script adds no world API of its own.
+- **Phases go forward only.** They are checked after damage lands and once per tick; the script moves to the deepest phase whose condition holds and runs only that phase's `enter` (as the Warden and the Archmage jump today when one blow crosses two thresholds). Entering a phase interrupts the creature's cast through the timeline's `interrupts.phase` (its `onCancel` withdraws its own unfired telegraphs), removes the old phase's auras and applies the new ones, and restarts the phase's timers.
+- **Phase state is auras.** An enrage is an aura with modifiers on cooldowns and speed; an invulnerable transition is an aura with the `invulnerable` tag, removed when the transition spell ends. `e.enraged`, `wardenInvulnerable` and `archmageInvulnerable` become conditions on aura tags, and a cue's `evolved` param reads the phase index.
+- **Timers are scheduled, never polled.** Each running timer is one entry on the timing wheel (§I.5.4), so a creature with nothing due costs nothing per tick. A random interval is a keyed roll on `(seed, SCRIPT_STREAM, creature id, timer index, occurrence)`, so one creature's timers never shift another's. Timers run on the creature's clock; an aura with the `pauses` tag (stun, freeze) holds them, the same rule the timeline applies to casts.
+- **One cast at a time.** The script starts casts only through the Spell System; a due pick or timer respects `whileBusy`, and `move` reads `ctx.cast.stage` to hold ground while winding up.
+- **Picking is shared.** `pick` runs the one weighted anti-repeat picker (F17) over the phase's pool, reading each spell's `ai.weight(ctx)` and its cast rules (F16); the budget policy (the horde's points pool, the elites' shared gaps) is named in `pick.budget`. The gap between casts is rolled per cast and scaled by the phase's auras.
+- **Summon lists.** `summons` tracks its adds by generational handle (F18): it refills to `keep` every `every` seconds through the summon spell, reports deaths to `summonDied`, and despawns the adds with the creature or the phase.
+- **Movement is an intent.** `move` returns data; the game's movement generators (F17's interface) steer, and pathfinding, the flow field and physics stay the game's.
+- **Composition, not inheritance.** TrinityCore's `BossAI : ScriptedAI` becomes factories (§I.5.2): `bossScript(spec)` adds the intro, health phases, a summon list and the phase view; `withEnrage(at, aura, roar)` appends a phase; `withAdds(spec)` adds summons. Combining merges `phases` in order and `timers` by name, and a test holds that a combined script calls every part's hooks.
+- **Data or code.** Every field is data or a function returning data, so a simple creature is pure data (SmartAI-style: timers with proc lists and conditions) and a boss uses functions where it decides something. Scripts are validated at registration: every timer a phase names exists, pools hold `ai` spells only, and health thresholds fall from one phase to the next.
+- **Cheap for hordes.** A horde kind needs no script of its own: one shared `hordeScript` (pick from the kind's kit, the points budget) serves every kind, with its picks scheduled rather than polled. Script definitions sit in the dense registry with per-hook dispatch tables (a hook no script defines is never called), and script state comes from pools.
+- **No presentation.** A boss's name, yells, emotes and phase banner are the client's, keyed by `CreatureScriptId`, `CueId` and the `view` numbers (§I.5.3).
+- **Out of scope for now:** threat, evade and leash (deferred with threat, §I.7.1), and instance-level encounter state (doors, encounter done, wipe reset), which belongs to Tier 3.
+
+The Grave Warden, sketched (its numbers come from swarm's `WARDEN` and the wave config's `bossConfig`, never from the framework):
+
+```ts
+export const graveWarden = bossScript({
+  intro: { seconds: WARDEN.grace },
+  pick: { gap: WARDEN.phases[0].cooldown, budget: "boss" },
+  phases: [
+    { when: always, spells: [cleave, leap, barrage], timers: ["raise"] },
+    {
+      when: healthBelow(bossConfig.phases[1].atHpFraction),
+      enter: () => [castSpell(warCry)], // War Cry holds `warden.invulnerable` while it roars
+      auras: ["warden.enraged"],
+      spells: [cleave, leap, charge, whirlwind, barrage],
+      timers: ["raise", "execute"],
+    },
+    {
+      when: healthBelow(bossConfig.phases[2].atHpFraction),
+      enter: () => [castSpell(warCry), spawn(soulfireTrail)], // an owner-anchored area trigger, like the Serpent Coil
+      auras: ["warden.enraged", "warden.evolved"],
+      spells: [cleave, leap, charge, whirlwind, barrage],
+      timers: ["raise", "execute"],
+    },
+  ],
+  timers: {
+    raise: {
+      first: WARDEN.raise.first,
+      every: WARDEN.raise.every,
+      do: () => [castSpell(raiseDead)],
+    },
+    execute: {
+      first: 6,
+      every: [9, 12],
+      when: heroBelow(0.3, { within: 6 }),
+      do: () => [castSpell(execute)],
+    },
+  },
+  move: (ctx) => (ctx.cast ? hold() : chase({ stopAt: WARDEN.melee })),
+  on: {
+    castEnd: (_ctx, spell, outcome) =>
+      outcome === "blocked" ? [applyAura("self", "stagger")] : [],
+  },
+});
+
+export const SCRIPTS = createRegistry({
+  hordeScript,
+  juggernaut,
+  hexblade,
+  gravecaller,
+  graveWarden,
+  archmage,
+});
+```
+
 ## II.4 Every existing spell, mapped
 
 The weird ones first; the rest follow the same parts.
@@ -776,18 +893,26 @@ Tempest needs: an owner-bound roaming area trigger, its own steering state, thre
 | Archmage          | comet and chaos (shots and a lobbed telegraph whose delay is the flight), explosion patterns (points with stagger, aimed `lockAtStart`), repulse, blink (channel: vanish, then `teleport` and cue), Arcane Circle (channel whose clock is the fire-ring area trigger; `invulnerable`; `teleport` heroes; `despawn` adds; `every` barrage)                             |
 | Map events        | `event` activation, caster `'world'`: Inferno (moving lethal wall area trigger, time-derived), Venom Flood (zone area trigger: harm outside, heal inside), Detonation (staggered telegraphs), Blood Horde (`summon` + a death trigger spawning pools), Prison (`summon` walls), Gravebloom (objective summons), Dread Totem (objective with an aura effect on heroes) |
 
+Every family's brain becomes a creature script (§II.3.12), and each row above is that script's spells:
+
+- **Horde:** the shared `hordeScript`: the kind's kit as the pool, the points budget, no phases.
+- **Elites:** one `eliteScript(variant)` factory: the intro grace, the variant's kit, the shared elite budget, and `withEnrage(ELITES.enrageAt, 'elite.enraged', roar)`, whose aura scales every cooldown by `enragedCooldown` and unlocks Whirlwind.
+- **Grave Warden:** `bossScript` with three health phases from the wave config, War Cry as each transition (an `invulnerable` aura while it roars), the named timers (`nextExecute`, `nextRaise`, `nextCharge`…) as script timers, soulfire as a phase's area trigger, and the add raise as a summon list.
+- **Archmage:** `bossScript` with phases at 66% and 33%, the Circle of Fire as a transition (an invulnerable aura, heroes teleported, adds despawned with the phase), blink, repulse and barrage as timers, and the per-phase add count as the phase's `summons.keep`.
+- **Map events** stay `event` spells; a map event's totem or objective that behaves on its own (the Dread Totem) is a small script too.
+
 ## II.5 Migration
 
 Every phase ends with the suite green, balance output identical except the timestamp, network bytes identical (except in phase 9 and pacts phase B), and the goldens held. A golden is recorded on the unchanged code before its family moves, on Linux x64 and arm64, with the macOS arm64 recording as the shared one where it exists.
 
 0. **Safety net.** Add goldens that do not exist yet: every hero ability (both halves, with prediction), every elite spell (plain and enraged), the Warden per phase, the Archmage per phase, and each map event. Extend `wire-order.test.ts` with area trigger tick order.
-1. **Core.** `defineSpell` / `defineAreaTrigger`, the Spell System (casts, timeline, area triggers store with storage adapters, `after`), `ctx.query`, named random streams, idempotent scope. Re-home the existing pilots; Searing Arrow's `run` becomes `after` and patch area triggers.
+1. **Core.** `defineSpell` / `defineAreaTrigger`, the Spell System (casts, timeline, the area trigger store with storage adapters, `after`), `ctx.query`, named random streams, idempotent scope. Re-home the existing pilots; Searing Arrow's `run` becomes `after` and patch area triggers.
 2. **One proc vocabulary.** Trigger `do` lists become procs; spell events join the bus.
 3. **Auras on any unit.** Creature statuses become auras (projected onto today's synced bytes), auras gain proc lifecycles, and the damage pipeline runs aura hooks. Auras gain a `value`, and the barrier becomes an absorb aura (step A: `PlayerSchema.barrier` stays as its projection). Cheat Death, the Sanctuary's shelter and the barrier move out of `hurtPlayer`, and Hexfire's death call out of `hurtEnemy`; the Overcharge golden (which records the barrier every frame) and the Judgement weapon parity hold it.
 4. **Pacts as spells with passive auras** (§II.3.11). Pact auras with `fold: 'pacts'`, sealing as a spell, pacts as a party fact applied on join; triggers compile from auras only (class and pact sources removed). Phase A keeps `pact.owned` as a projection (no protocol move); phase B drops it with the trigger-id change (protocol bump). Held by the stat goldens, `pacts/mods.test.ts`, `pact-sync.test.ts` and the pact card text.
 5. **The Arsenal**, family by family (instant, projectiles, delayed, area triggers, statuses, passives), weapon parity after each. `CARD_MECHANICS` shrinks to nothing.
 6. **Abilities.** `AbilityDef` becomes the `button` activation; `CAST_HANDLERS` and `CAST_VISUALS` go; prediction runs the spell's mirror-safe hooks.
-7. **Creatures.** Elites, then the Warden, then the Archmage onto spells with timelines; the shared picker and budget policy; telegraph area triggers with shapes and `onLand` replace the hazard loop's per-spell special cases.
+7. **Creatures.** Elites, then the Warden, then the Archmage onto creature scripts (§II.3.12) and spells with timelines: the elite step, `stepWarden` and `stepArchmage` become scripts, and `EliteAbility`, `WardenAbility` and `ArchmageAbility` become script state, timers, phase auras and summon lists; the shared picker and budget policy; telegraph area triggers with shapes and `onLand` replace the hazard loop's per-spell special cases. The horde brain moves onto the shared `hordeScript` last, held by the cast golden.
 8. **Cues.** The remaining raw `emit` sites become cue ids (append-only).
 9. **Replication.** One `AreaTriggerSchema` and a client renderer registry replace the per-kind schemas (protocol version bump, measured with `benchmark:network`; pacts phase B can ride along).
 10. **Map events** onto `event` spells (optional; they already have their own clean state).
@@ -796,11 +921,11 @@ Every phase ends with the suite green, balance output identical except the times
 
 ## II.6 Decisions
 
-1. **The name: decided, area trigger.** WoW's name for the same thing (`AreaTrigger`), preferred over area trigger, spell object and entity. In code it is `AreaTriggerDef` / `defineAreaTrigger`, and in prose always the full "area trigger", never a bare "trigger", which stays the event listener an aura owns (§II.3.7).
+1. **The name: decided, area trigger.** WoW's name for the same thing (`AreaTrigger`), preferred over construct, spell object and entity. In code it is `AreaTriggerDef` / `defineAreaTrigger`, and in prose always the full "area trigger", never a bare "trigger", which stays the event listener an aura owns (§II.3.7).
 2. **Snapshot or live stats by default.** The plan snapshots (Searing, Judgement and Tempest do) and lets a spell opt into `live` (Hexfire does today).
 3. **The Spell System owns scope.** Proposed, since area triggers tick outside any trigger; the alternative keeps "the trigger owns the scope" and makes every area trigger re-enter its own.
 4. **Auras on creatures: decided, in phase 3.** Creatures get auras in the same phase as heroes (§II.5 phase 3; F3 in the framework): creature statuses become auras, and Hexfire, Coil, Frost, Cheat Death, the Sanctuary and every creature control move onto them there, instead of writing enemy fields through procs, and `hurtPlayer` loses its special cases.
 5. **Replication unification (phase 9).** With pacts phase B, it is where the protocol moves; it can also be skipped, keeping storage adapters for good.
 6. **Pacts' and the barrier's wire change.** Step B (drop `pact.owned` and `PlayerSchema.barrier`, give `EffectSchema` a `value`, rename trigger ids) is a protocol bump; it can wait for the replication phase so all byte changes land together.
 7. **Passives as auras.** Worth doing for uniformity, but it risks the stat fold for no gameplay change; the plan leaves it last and optional.
-8. **How far brains move.** The plan moves timelines and weights onto spells and keeps movement and positioning in the brains; moving positioning too (keep range, hold ground) would make creature behaviour data as well.
+8. **How far brains move: decided, into creature scripts.** Timelines and weights move onto spells, and everything else a brain does (phases, timers, adds, when to cast, and positioning as a movement intent) moves into the creature's script (§II.3.12). Only steering, pathfinding and the flow field stay the game's.
