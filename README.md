@@ -2,7 +2,7 @@
 
 A deterministic, engine-agnostic gameplay framework for MMO-like games: spells, auras, procs, triggers, modifiers and cues, woven together, in pure TypeScript with no rendering or networking dependencies.
 
-Built so far: the scaffold (phase F0) and the deterministic core and math (phase F1: `spellweave/core`, `spellweave/math`). [`PLAN.md`](PLAN.md) is the single source of truth: the ground rules, the layout, the systems and the phases.
+Built so far: the scaffold (phase F0), the deterministic core and math (phase F1: `spellweave/core`, `spellweave/math`) and modifiers with stat scaling and curves (phase F2: `spellweave/modifiers`). [`PLAN.md`](PLAN.md) is the single source of truth: the ground rules, the layout, the systems and the phases.
 
 ## The model
 
