@@ -66,3 +66,16 @@ Added at F7 (`bench/spells.ts`), measured on a different machine from the rows a
 | instant cast, table stats + release              | 337–357 ns |
 | `after(0)` scheduled + landed, per list          | 328–336 ns |
 | 1,000 `after(0)` lists landing on one tick       | 185–193 µs |
+
+Added at F8 (`bench/world.ts`, `bench/area-triggers.ts`), same Apple Silicon Mac (arm64, Node 25.8.1), range of three full runs. The whole suite now loads more modules, so the F7 rows read higher in a full run than in F7's (the horde tick 140–141 µs); run alone, the horde tick measures 99–101 µs at F7's commit and at F8's, so F8 changed nothing there. The world holds 2,000 units spread evenly at random over 200 m square (about 4.5 m apart, half on each side, 0.5 m bodies), queried for the foes of one of them; the grid's cells are 4 m. A move tick moves every unit a little and updates the point index: the uniform grid in place, or the k-d tree rebuilt (with one query to force the build), which is why the grid is `createMemoryWorld`'s default (§I.5.4: the benchmarks decide it). The area trigger tick steps the clock, the world and 200 area triggers over 2,000 foes: 150 pools 3 m across beating every 0.5 s on their own clocks, and 50 missiles orbiting at 12 m/s whose contacts sweep a 0.5 m body relative to the units' motion and record in a `rehit` ledger of 1 s; every beat or contact that catches a unit runs one prepared `grant`. Over 3,000 ticks the area trigger tick causes about 9 minor GCs above the bench's own setup, and 3,000 grid move ticks (6M unit moves) about 33, which is what V8 boxes; the queries cause 1–4 per 3,000 calls. No area trigger record is made after warm-up.
+
+| benchmark                                               | per op       |
+| ------------------------------------------------------- | ------------ |
+| world: `inside` a 6 m circle, 2,000 units (grid)        | 301–360 ns   |
+| world: `nearest` foe within 10 m (grid)                 | 756–805 ns   |
+| world: `densest` 3 m cluster within 15 m, 16 candidates | 4.4–4.9 µs   |
+| world: `sweep` 40 m with a 0.5 m body (grid)            | 412–453 ns   |
+| world: 2,000 units move, grid updated, per tick         | 77–80 µs     |
+| world: 2,000 units move, k-d tree rebuilt + a query     | 171–179 µs   |
+| `secondsInside` a circle over one tick                  | 84–85 ns     |
+| area triggers: 150 pools + 50 missiles over 2,000 units | 55.7–56.1 µs |

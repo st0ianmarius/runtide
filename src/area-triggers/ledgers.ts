@@ -6,6 +6,9 @@ import type { AreaLedger, AreaLedgerSpec } from './delivery-def.ts';
 import type { AreaEngine } from './engine.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 
+/** The fewest units a `rehit` ledger holds before it forgets the cool ones. */
+const PRUNE_FROM = 64;
+
 /**
  * One hit ledger, pooled (§II.6 W3): the tick each unit (by entity id) was last hit, the claims held on units, and
  * its counts; shared by as many area triggers as its scope joins, and back to the pool when the last lets go.
@@ -28,6 +31,12 @@ export class Ledger {
 
   /** How many area triggers share it. */
   refs = 0;
+
+  /** The area trigger recording in it now, which a claim is held for. */
+  holder: AreaTriggerHandle = NO_AREA_TRIGGER;
+
+  /** How many units a `rehit` ledger holds before it forgets the ones whose cooldown ran. */
+  watermark = PRUNE_FROM;
 
   /** Its handle in the pool. */
   handle: Handle<Ledger> = toHandle<Ledger>(0);
@@ -116,6 +125,7 @@ export class LedgerBook {
     ledger.claims.clear();
     ledger.distinct = 0;
     ledger.hits = 0;
+    ledger.watermark = PRUNE_FROM;
     this.#pool.release(ledger.handle);
   }
 }
@@ -128,21 +138,18 @@ const isCool = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, cooldown: num
 };
 
 /**
- * The share its policy gives a hit on a unit last hit on tick `last` (`undefined`: never), 0 when it refuses it:
- * `claim` lets through whoever holds the unit's claim (anyone when nobody does), the rest always a first hit, and then
- * `repeat` its share and `rehit` a full hit once its cooldown ran.
+ * The share its policy gives the ledger's holder's hit on a unit last hit on tick `last` (`undefined`: never), 0 when
+ * it refuses it: `claim` lets through whoever holds the unit's claim (anyone when nobody does), the rest always a first
+ * hit, and then `repeat` its share and `rehit` a full hit once its cooldown ran.
  */
-const policyShare = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [ledger, holder]: readonly [Ledger, AreaTriggerHandle],
-  [unit, last]: readonly [number, number | undefined],
-): number => {
+const policyShare = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: Ledger, unit: number): number => {
   const { spec } = ledger;
+  const last = ledger.last.get(unit);
 
   if (spec.policy === 'claim') {
     const claimant = ledger.claims.get(unit);
 
-    return claimant === undefined || claimant === holder ? 1 : 0;
+    return claimant === undefined || claimant === ledger.holder ? 1 : 0;
   }
 
   if (last === undefined) {
@@ -156,31 +163,47 @@ const policyShare = <G extends AreaTriggerTypes>(
   return spec.policy === 'rehit' && isCool(engine, spec.cooldown ?? 0, last) ? 1 : 0;
 };
 
-/** The share a hit on a unit takes under a ledger now, 0 when its policy refuses it or it is spent. */
-const shareIn = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  at: readonly [Ledger, AreaTriggerHandle],
-  unit: number,
-): number => {
-  const [ledger] = at;
-  const last = ledger.last.get(unit);
+/**
+ * The share the ledger's holder's hit on a unit takes now, 0 when its policy refuses it or it is spent; set the
+ * ledger's `holder` first.
+ */
+const shareIn = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: Ledger, unit: number): number => {
   const { pierce } = ledger.spec;
 
-  if (ledger.isSpent || (last === undefined && pierce !== undefined && ledger.distinct >= pierce)) {
+  if (ledger.isSpent || (pierce !== undefined && ledger.distinct >= pierce && !ledger.last.has(unit))) {
     return 0;
   }
 
-  return policyShare(engine, at, [unit, last]);
+  return policyShare(engine, ledger, unit);
 };
 
-/** Records a hit on a unit in a ledger (and a claim under `claim`); returns its share, 0 when refused. */
-export const recordIn = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  at: readonly [Ledger, AreaTriggerHandle],
-  unit: number,
-): number => {
-  const share = shareIn(engine, at, unit);
-  const [ledger, holder] = at;
+/**
+ * Forgets the units a `rehit` ledger could hit again anyway (their cooldown ran) once it holds as many as its watermark,
+ * then doubles the watermark over what is left, so a long-lived ledger (a missile orbiting through a horde) keeps a
+ * bounded map. Its `distinct` count still counts them.
+ */
+const prune = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: Ledger): void => {
+  const { spec } = ledger;
+
+  if (spec.policy !== 'rehit' || ledger.last.size < ledger.watermark) {
+    return;
+  }
+
+  for (const [unit, last] of ledger.last) {
+    if (isCool(engine, spec.cooldown ?? 0, last)) {
+      ledger.last.delete(unit);
+    }
+  }
+
+  ledger.watermark = Math.max(PRUNE_FROM, ledger.last.size * 2);
+};
+
+/**
+ * Records the ledger's holder's hit on a unit (and its claim under `claim`); returns its share, 0 when refused. Set the
+ * ledger's `holder` first.
+ */
+export const recordIn = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: Ledger, unit: number): number => {
+  const share = shareIn(engine, ledger, unit);
 
   if (share <= 0) {
     return 0;
@@ -191,10 +214,11 @@ export const recordIn = <G extends AreaTriggerTypes>(
   }
 
   ledger.hits += 1;
+  prune(engine, ledger);
   ledger.last.set(unit, engine.clock.tick);
 
   if (ledger.spec.policy === 'claim') {
-    ledger.claims.set(unit, holder);
+    ledger.claims.set(unit, ledger.holder);
   }
 
   return share;
@@ -255,11 +279,29 @@ export class LedgerView<G extends AreaTriggerTypes> implements AreaLedger<G['bea
 
   readonly has = (unit: G['bearer']): boolean => this.ledger?.last.has(this.#engine.world.idOf(unit)) ?? false;
 
-  readonly shareOf = (unit: G['bearer']): number =>
-    this.ledger === undefined ? 0 : shareIn(this.#engine, [this.ledger, this.holder], this.#engine.world.idOf(unit));
+  readonly shareOf = (unit: G['bearer']): number => {
+    const { ledger } = this;
 
-  readonly record = (unit: G['bearer']): number =>
-    this.ledger === undefined ? 0 : recordIn(this.#engine, [this.ledger, this.holder], this.#engine.world.idOf(unit));
+    if (ledger === undefined) {
+      return 0;
+    }
+
+    ledger.holder = this.holder;
+
+    return shareIn(this.#engine, ledger, this.#engine.world.idOf(unit));
+  };
+
+  readonly record = (unit: G['bearer']): number => {
+    const { ledger } = this;
+
+    if (ledger === undefined) {
+      return 0;
+    }
+
+    ledger.holder = this.holder;
+
+    return recordIn(this.#engine, ledger, this.#engine.world.idOf(unit));
+  };
 
   readonly reserve = (unit: G['bearer']): boolean => {
     const id = this.#engine.world.idOf(unit);

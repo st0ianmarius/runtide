@@ -123,14 +123,14 @@ const leave = <G extends AreaTriggerTypes>(
 const stepAura = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
   const spec = engine.registry.get(area.kind).auras?.[index];
   const aura = engine.areaAuras[area.kind]?.[index];
-  const hit = engine.catcher.take(area, -1);
+  const hit = engine.catcher.take(area, spec, undefined);
 
   try {
     if (spec === undefined || aura === undefined) {
       return;
     }
 
-    catchIn(engine, [{ area, spec, pulse: -1 }, area.shape], hit);
+    catchIn(engine, hit, area.shape);
 
     if (spec.mode === 'refresh') {
       for (const unit of hit.targets) {

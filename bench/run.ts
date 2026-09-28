@@ -28,10 +28,12 @@ import {
   scaled,
   snapshotScaled,
 } from '../src/modifiers/index.ts';
+import { AREA_TASKS, areaCounter, areaStats } from './area-triggers.ts';
 import { CUE_TASKS, CUE_TICK_BYTES, cueCounter } from './cues.ts';
 import { DAMAGE_TASKS, damageCounter } from './damage.ts';
 import { counter, PROC_TRIGGER_TASKS } from './procs-triggers.ts';
 import { SPELL_TASKS, spellCounter, spellHordeStats } from './spells.ts';
+import { WORLD_TASKS, worldCounter } from './world.ts';
 
 /** Operations per task call: single operations are far below the timer's resolution, so each call runs a batch. */
 const BATCH = 1000;
@@ -274,7 +276,7 @@ for (const [name, task] of PROC_TRIGGER_TASKS) {
 }
 
 /** The damage and cue tasks run fewer calls per batch when one call is a burst of many blows or a tick of cues. */
-for (const [name, task, blows] of [...DAMAGE_TASKS, ...CUE_TASKS, ...SPELL_TASKS]) {
+for (const [name, task, blows] of [...DAMAGE_TASKS, ...CUE_TASKS, ...SPELL_TASKS, ...WORLD_TASKS, ...AREA_TASKS]) {
   const calls = Math.max(1, BATCH / blows);
 
   BATCHES.set(name, calls);
@@ -293,9 +295,12 @@ sink +=
   cueCounter.bytes +
   cueCounter.numbers +
   cueCounter.decoded +
-  spellCounter.granted;
+  spellCounter.granted +
+  worldCounter.found +
+  areaCounter.granted;
 
 const horde = spellHordeStats();
+const areas = areaStats();
 
 const rows = bench.tasks.map((task) => {
   const { result } = task;
@@ -308,5 +313,5 @@ const rows = bench.tasks.map((task) => {
 process.stdout.write(
   `${[`${'benchmark'.padEnd(48)}    per op`, ...rows].join('\n')}\n(sink ${sink > 0 ? 'ok' : 'empty'}; ` +
     `one cue tick is ${CUE_TICK_BYTES} bytes; ${horde.inFlight} of 2,000 casters have a spell in flight, ` +
-    `${horde.created} cast records made)\n`,
+    `${horde.created} cast records made; ${areas.live} area triggers live, ${areas.created} records made)\n`,
 );

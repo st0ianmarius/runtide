@@ -6,30 +6,75 @@ import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaCatch, AreaHit } from './delivery-def.ts';
 import type { AreaEngine } from './engine.ts';
-import { recordIn } from './ledgers.ts';
+import { type Ledger, recordIn } from './ledgers.ts';
 
-/** A hit an engine reuses, one per nesting level. */
+/** No units: what a hit that caught nothing hands its hook, so its buffer is never shrunk to nothing. */
+const NO_UNITS: readonly never[] = Object.freeze([]);
+
+/** A hook that receives a hit. */
+export type HitHook<G extends AreaTriggerTypes> = (
+  c: AreaTriggerContext<G>,
+  hit: AreaHit<G>,
+  out: ProcOut<G>,
+) => ProcReturn<G>;
+
+/**
+ * A hit an engine reuses, one per nesting level (§I.5.4): what one catch is for (its area trigger, spec and hook) and
+ * what it caught. Its `targets` and `shares` are exactly as long as the catch; the buffers behind them are never shrunk
+ * to nothing, since that drops their storage and the next catch would allocate it again.
+ */
 export class Hit<G extends AreaTriggerTypes> implements AreaHit<G> {
   /** The units caught, exactly as many as were caught. */
-  readonly targets: G['bearer'][] = [];
+  targets: readonly G['bearer'][] = NO_UNITS;
 
-  /** Each unit's share. */
-  readonly shares: number[] = [];
+  /** Each unit's share, in the order of `targets`. */
+  shares: readonly number[] = NO_UNITS;
+
+  /** The buffer the units are written into. */
+  readonly units: G['bearer'][] = [];
+
+  /** The buffer the shares are written into. */
+  readonly weights: number[] = [];
 
   target: unknown = undefined;
   at: Vec2 | undefined = undefined;
   shape: Shape | undefined = undefined;
   pulse = -1;
 
-  /** Fixes how many units it holds, every share 1. */
-  size(count: number): void {
-    this.targets.length = count;
+  /** The area trigger it catches for. */
+  area: AreaTrigger<G> | undefined = undefined;
 
-    for (let i = 0; i < count; i++) {
-      this.shares[i] = 1;
+  /** Whom it may reach, and the ledger it records in. */
+  spec: AreaCatch<G> | undefined = undefined;
+
+  /** The hook it is handed to. */
+  hook: HitHook<G> | undefined = undefined;
+
+  /** Keeps the first `count` units and shares of the buffers as its targets and shares. */
+  keep(count: number): void {
+    if (count === 0) {
+      this.targets = NO_UNITS;
+      this.shares = NO_UNITS;
+
+      return;
     }
 
-    this.shares.length = count;
+    if (this.units.length !== count) {
+      this.units.length = count;
+      this.weights.length = count;
+    }
+
+    this.targets = this.units;
+    this.shares = this.weights;
+  }
+
+  /** Keeps the first `count` units of the buffer, each at a full share. */
+  fill(count: number): void {
+    for (let i = 0; i < count; i++) {
+      this.weights[i] = 1;
+    }
+
+    this.keep(count);
   }
 }
 
@@ -40,8 +85,10 @@ class CatchOptions<G extends AreaTriggerTypes> implements QueryOptions<G['bearer
   readonly measure = 'edge';
   radius = 0;
   readonly relative = true;
-  area: AreaTrigger<G> | undefined = undefined;
-  spec: AreaCatch<G> | undefined = undefined;
+  hit: Hit<G> | undefined = undefined;
+
+  /** Whether the catch only reaches the area trigger's locked unit. */
+  isLocked = false;
 
   constructor(of: G['bearer']) {
     this.of = of;
@@ -49,29 +96,14 @@ class CatchOptions<G extends AreaTriggerTypes> implements QueryOptions<G['bearer
 
   /** The unit filter: the spec's condition, and the locked unit for a locked contact. */
   readonly filter = (unit: G['bearer']): boolean => {
-    const { area, spec } = this;
+    const area = this.hit?.area;
 
     if (area === undefined || (this.isLocked && area.locked !== unit)) {
       return false;
     }
 
-    return spec?.unitFilter?.(area, unit) ?? true;
+    return this.hit?.spec?.unitFilter?.(area, unit) ?? true;
   };
-
-  /** Whether the catch only reaches the area trigger's locked unit. */
-  isLocked = false;
-}
-
-/** What a catch is: whose, with which spec, in which shape (or along which segment), for which pulse. */
-export interface CatchRequest<G extends AreaTriggerTypes> {
-  /** The area trigger. */
-  readonly area: AreaTrigger<G>;
-
-  /** Whom it may reach. */
-  readonly spec: AreaCatch<G> | undefined;
-
-  /** The pulse it is for, or -1. */
-  readonly pulse: number;
 }
 
 /** The hits and options of one engine, by nesting level. */
@@ -84,35 +116,43 @@ export class Catcher<G extends AreaTriggerTypes> {
 
   #depth = 0;
 
-  /** Takes the hit of the next level, emptied and aimed at the area trigger; give it back with `give`. */
-  take(area: AreaTrigger<G>, pulse: number): Hit<G> {
+  /**
+   * Takes the hit of the next level, emptied and aimed at an area trigger for a spec and a hook; give it back with
+   * `give`.
+   */
+  take(area: AreaTrigger<G>, spec: AreaCatch<G> | undefined, hook: HitHook<G> | undefined): Hit<G> {
     const hit = (this.#hits[this.#depth] ??= new Hit<G>());
 
     this.#depth += 1;
-    hit.size(0);
+    hit.keep(0);
+    hit.area = area;
+    hit.spec = spec;
+    hit.hook = hook;
     hit.target = area.cast?.target;
     hit.at = area.position;
     hit.shape = area.shape;
-    hit.pulse = pulse;
+    hit.pulse = -1;
 
     return hit;
   }
 
   /** Gives back the hit `take` handed out last. */
   give(hit: Hit<G>): void {
-    hit.size(0);
+    hit.keep(0);
+    hit.area = undefined;
+    hit.spec = undefined;
+    hit.hook = undefined;
     hit.target = undefined;
     this.#depth -= 1;
   }
 
-  /** The reused options of the current level, set for a catch. */
-  optionsFor(request: CatchRequest<G>, isLocked: boolean): CatchOptions<G> {
-    const options = (this.#options[this.#depth] ??= new CatchOptions<G>(request.area.owner));
+  /** The reused options of the current level, set for a hit's catch. */
+  optionsFor(hit: Hit<G>, owner: G['bearer'], isLocked: boolean): CatchOptions<G> {
+    const options = (this.#options[this.#depth] ??= new CatchOptions<G>(owner));
 
-    options.side = request.spec?.side ?? 'foes';
-    options.of = request.area.owner;
-    options.area = request.area;
-    options.spec = request.spec;
+    options.side = hit.spec?.side ?? 'foes';
+    options.of = owner;
+    options.hit = hit;
     options.isLocked = isLocked;
 
     return options;
@@ -128,102 +168,106 @@ export class Catcher<G extends AreaTriggerTypes> {
     return this.#segment;
   }
 
-  /** Lets go of what the options of the current level point at. */
+  /** Lets go of the hit the options of the current level point at. */
   release(): void {
     const options = this.#options[this.#depth];
 
     if (options !== undefined) {
-      options.area = undefined;
-      options.spec = undefined;
+      options.hit = undefined;
     }
   }
 }
 
-/** Writes the units in a shape into a hit, as a catch sees them; returns how many. */
-export const catchIn = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [request, shape]: readonly [CatchRequest<G>, Shape],
-  hit: Hit<G>,
-): number => {
-  const count = engine.world.inside(shape, engine.catcher.optionsFor(request, false), hit.targets);
+/** Catches the units in a shape into a hit, as its spec sees them; returns how many. */
+export const catchIn = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit: Hit<G>, shape: Shape): number => {
+  const { area } = hit;
+
+  if (area === undefined) {
+    return 0;
+  }
+
+  const count = engine.world.inside(shape, engine.catcher.optionsFor(hit, area.owner, false), hit.units);
 
   engine.catcher.release();
-  hit.size(count);
+  hit.fill(count);
 
   return count;
 };
 
-/** Writes the units a sweep along its frame's move reaches into a hit, in the order it reaches them. */
-export const catchAlong = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [request, radius]: readonly [CatchRequest<G>, number],
-  hit: Hit<G>,
-): number => {
-  const { area } = request;
-  const options = engine.catcher.optionsFor(request, area.locked !== undefined);
+/** Catches the units a sweep along its frame's move reaches into a hit, in the order it reaches them. */
+export const catchAlong = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit: Hit<G>, radius: number): number => {
+  const { area } = hit;
+
+  if (area === undefined) {
+    return 0;
+  }
+
+  const options = engine.catcher.optionsFor(hit, area.owner, area.locked !== undefined);
 
   options.radius = radius;
 
-  const count = engine.world.sweep(engine.catcher.segmentOf(area), options, hit.targets);
+  const count = engine.world.sweep(engine.catcher.segmentOf(area), options, hit.units);
 
   engine.catcher.release();
-  hit.size(count);
+  hit.fill(count);
 
   return count;
 };
 
+/** The ledger a hit's spec names, as its area trigger holds it; none for a catch that names none. */
+const ledgerOf = <G extends AreaTriggerTypes>(hit: Hit<G>): Ledger | undefined => {
+  const name = hit.spec?.ledger;
+
+  return name === undefined ? undefined : hit.area?.ledgers.get(name);
+};
+
 /**
- * Records a hit in the ledger its catch names (§II.6 W3): the units its policy refuses leave the hit, the rest keep
+ * Records a hit in the ledger its spec names (§II.6 W3): the units its policy refuses leave the hit, the rest keep
  * their shares in order; a ledger that is spent after it (or was already) ends the area trigger as `spent` once the
  * running part is done. Nothing for a catch that names no ledger.
  */
-export const recordHit = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [area, name]: readonly [AreaTrigger<G>, string | undefined],
-  hit: Hit<G>,
-): void => {
-  const ledger = name === undefined ? undefined : area.ledgers.get(name);
+export const recordHit = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit: Hit<G>): void => {
+  const { area } = hit;
+  const ledger = ledgerOf(hit);
 
-  if (ledger === undefined) {
+  if (area === undefined || ledger === undefined) {
     return;
   }
 
+  const count = hit.targets.length;
   let kept = 0;
 
-  for (const unit of hit.targets) {
-    const share = recordIn(engine, [ledger, area.handle], engine.world.idOf(unit));
+  ledger.holder = area.handle;
 
-    if (share > 0) {
-      hit.targets[kept] = unit;
-      hit.shares[kept] = share;
+  for (let i = 0; i < count; i++) {
+    const unit = hit.units[i];
+    const share = unit === undefined ? 0 : recordIn(engine, ledger, engine.world.idOf(unit));
+
+    if (unit !== undefined && share > 0) {
+      hit.units[kept] = unit;
+      hit.weights[kept] = share * (hit.weights[i] ?? 1);
       kept += 1;
     }
   }
 
-  hit.targets.length = kept;
-  hit.shares.length = kept;
+  hit.keep(kept);
 
   if (ledger.isSpent) {
     area.pending ??= 'spent';
   }
 };
 
-/** A hook that receives a hit. */
-type HitHook<G extends AreaTriggerTypes> = (
-  c: AreaTriggerContext<G>,
-  hit: AreaHit<G>,
-  out: ProcOut<G>,
-) => ProcReturn<G>;
-
 /**
- * Hands a hit to a hook and runs its procs, then to the area trigger's cast when its kind says so (`hitsCast`: the
+ * Hands a hit to its hook and runs its procs, then to the area trigger's cast when its kind says so (`hitsCast`: the
  * cast's `onHit`, cue and event).
  */
-export const deliver = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [area, hook]: readonly [AreaTrigger<G>, HitHook<G> | undefined],
-  hit: Hit<G>,
-): void => {
+export const deliver = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit: Hit<G>): void => {
+  const { area, hook } = hit;
+
+  if (area === undefined) {
+    return;
+  }
+
   if (hook !== undefined) {
     const list = engine.takeList();
 

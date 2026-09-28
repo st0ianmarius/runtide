@@ -98,6 +98,9 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   /** The seconds to its next own cast, for a kind that casts. */
   castBeat = 0;
 
+  /** The time this frame's parts run over (all of the frame once armed). */
+  frameTime = 0;
+
   /** The hit ledgers it holds, by name. */
   readonly ledgers = new Map<string, Ledger>();
 

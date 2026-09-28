@@ -96,6 +96,44 @@ describe('hit policies (§II.3.4, §II.6 W3)', () => {
     assert.deepEqual(hits(game.log), ['hit 1 0.25: 100x1', 'hit 1 1: 100x1', 'hit 1 1.75: 100x1']);
   });
 
+  it('keeps its rehits right while it forgets the units whose cooldown ran, over a crowd', () => {
+    const counts: number[] = [];
+
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          pool: pool(
+            { policy: 'rehit', cooldown: 0.5 },
+            {
+              shape: circle(20),
+              every: [
+                {
+                  seconds: 0.25,
+                  ledger: 'hits',
+
+                  onPulse: (_c, hit) => {
+                    counts.push(hit.targets.length);
+
+                    return undefined;
+                  },
+                },
+              ],
+            },
+          ),
+        },
+      },
+    );
+
+    for (let i = 0; i < 70; i++) {
+      game.place(game.unit(100 + i), vec2((i % 10) - 5, Math.floor(i / 10) - 3));
+    }
+
+    game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 6);
+    assert.deepEqual(counts, [70, 0, 70, 0, 70, 0]);
+  });
+
   it('is spent after its budget of hits, ending the area trigger as spent', () => {
     const game = makeSpellGame({}, { areaTriggers: { pool: pool({ policy: 'repeat', budget: 3 }) } });
 

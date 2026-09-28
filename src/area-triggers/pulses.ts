@@ -5,6 +5,9 @@ import type { AreaPulse } from './delivery-def.ts';
 import type { AreaEngine } from './engine.ts';
 import { catchIn, deliver, type Hit, recordHit } from './hits.ts';
 
+/** No pulses. */
+const NO_PULSES: readonly never[] = Object.freeze([]);
+
 /** A clock shared by several area triggers (§II.6 W2): its owner's instances of a kind, or all of the kind. */
 export class SharedClock {
   /** The seconds to its next beat. */
@@ -44,33 +47,32 @@ const sharedClockOf = <G extends AreaTriggerTypes>(
   return (clocks[slot] ??= new SharedClock());
 };
 
-/** Catches a pulse's units for one area trigger into a hit: its placed shape, a shape of its own, or none. */
-const catchPulse = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [area, index]: readonly [AreaTrigger<G>, number],
-  hit: Hit<G>,
-): number => {
-  const pulse = engine.registry.get(area.kind).every?.[index];
+/** Catches a pulse's units for its hit's area trigger: its placed shape, a shape of its own, or none. */
+const catchPulse = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit: Hit<G>, index: number): number => {
+  const { area } = hit;
+  const pulse = area === undefined ? undefined : engine.registry.get(area.kind).every?.[index];
 
-  if (pulse === undefined || pulse.hits === 'none') {
+  hit.pulse = index;
+
+  if (area === undefined || pulse === undefined || pulse.hits === 'none') {
     return 0;
   }
 
   const shape =
     pulse.hits === undefined ? area.shape : area.placerFor(index).place(pulse.hits, area.position, area.heading);
 
-  return catchIn(engine, [{ area, spec: pulse, pulse: index }, shape], hit);
+  return catchIn(engine, hit, shape);
 };
 
-/** One beat of a pulse for one area trigger: what it catches, handed to `onPulse`. */
+/** One beat of a pulse for one area trigger: what it catches, recorded in its ledger and handed to `onPulse`. */
 const beat = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
   const pulse = engine.registry.get(area.kind).every?.[index];
-  const hit = engine.catcher.take(area, index);
+  const hit = engine.catcher.take(area, pulse, pulse?.onPulse);
 
   try {
-    catchPulse(engine, [area, index], hit);
-    recordHit(engine, [area, pulse?.ledger], hit);
-    deliver(engine, [area, pulse?.onPulse], hit);
+    catchPulse(engine, hit, index);
+    recordHit(engine, hit);
+    deliver(engine, hit);
   } finally {
     engine.catcher.give(hit);
   }
@@ -112,18 +114,27 @@ const isHottest = <Unit>(caught: Caught<Unit>, i: number): boolean => {
   return true;
 };
 
+/** A shared beat's members and what they caught. */
+interface Beat<G extends AreaTriggerTypes> {
+  /** The members, in creation order. */
+  readonly members: AreaTrigger<G>[];
+
+  /** What they caught. */
+  readonly caught: Caught<G['bearer']>;
+
+  /** The pulse beating. */
+  readonly index: number;
+}
+
 /** Catches what one member of a shared beat catches, noting its heat and its place among the members. */
-const catchMember = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [member, index]: readonly [AreaTrigger<G>, number],
-  beat: { readonly members: AreaTrigger<G>[]; readonly caught: Caught<G['bearer']> },
-): void => {
+const catchMember = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, member: AreaTrigger<G>, beat: Beat<G>) => {
+  const index = beat.index;
   const pulse = engine.registry.get(member.kind).every?.[index];
   const heat = pulse?.heat?.(member) ?? member.remaining;
-  const hit = engine.catcher.take(member, index);
+  const hit = engine.catcher.take(member, pulse, undefined);
 
   try {
-    catchPulse(engine, [member, index], hit);
+    catchPulse(engine, hit, index);
 
     for (const unit of hit.targets) {
       beat.caught.units.push(unit);
@@ -135,44 +146,30 @@ const catchMember = <G extends AreaTriggerTypes>(
   }
 };
 
-/** Gathers the members of a shared beat (judged now, in creation order) and what each catches. */
-const gatherBeat = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [first, index]: readonly [AreaTrigger<G>, number],
-  beat: { readonly members: AreaTrigger<G>[]; readonly caught: Caught<G['bearer']> },
-): void => {
-  const pulse = engine.registry.get(first.kind).every?.[index];
-  const owner = pulse?.clock === 'global' ? undefined : first.owner;
-
-  for (let walk = engine.kindHeads[first.kind]; walk !== undefined; walk = walk.kindNext) {
-    if (isMember(engine, walk, owner)) {
-      catchMember(engine, [walk, index], beat);
-      beat.members.push(walk);
-    }
-  }
-};
-
 /** Hands one member of a shared beat what it kept: all it caught, or with `hottest` the units it was hottest for. */
-const deliverMember = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [member, m, index]: readonly [AreaTrigger<G>, number, number],
-  caught: Caught<G['bearer']>,
-): void => {
+const deliverMember = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, member: AreaTrigger<G>, beat: Beat<G>) => {
+  const { caught, index } = beat;
+  const m = beat.members.indexOf(member);
   const pulse = engine.registry.get(member.kind).every?.[index];
   const isHot = pulse?.pick === 'hottest';
-  const hit = engine.catcher.take(member, index);
+  const hit = engine.catcher.take(member, pulse, pulse?.onPulse);
+  let count = 0;
+
+  hit.pulse = index;
 
   try {
-    for (const [i, unit] of caught.units.entries()) {
-      if (caught.of[i] === m && (!isHot || isHottest(caught, i))) {
-        hit.targets.push(unit);
-        hit.shares.push(1);
+    for (let i = 0; i < caught.units.length; i++) {
+      const unit = caught.units[i];
+
+      if (unit !== undefined && caught.of[i] === m && (!isHot || isHottest(caught, i))) {
+        hit.units[count] = unit;
+        count += 1;
       }
     }
 
-    recordHit(engine, [member, pulse?.ledger], hit);
-
-    deliver(engine, [member, pulse?.onPulse], hit);
+    hit.fill(count);
+    recordHit(engine, hit);
+    deliver(engine, hit);
   } finally {
     engine.catcher.give(hit);
   }
@@ -183,42 +180,69 @@ const deliverMember = <G extends AreaTriggerTypes>(
  * its units; with `hottest`, a unit several members caught goes only to the hottest of them; then each member's
  * `onPulse` runs with what it kept.
  */
-const sharedBeat = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, at: readonly [AreaTrigger<G>, number]): void => {
-  const members: AreaTrigger<G>[] = [];
-  const caught: Caught<G['bearer']> = { units: [], heats: [], of: [] };
-  const beat = { members, caught };
+const sharedBeat = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, first: AreaTrigger<G>, index: number): void => {
+  const pulse = engine.registry.get(first.kind).every?.[index];
+  const owner = pulse?.clock === 'global' ? undefined : first.owner;
+  const beat: Beat<G> = { members: [], caught: { units: [], heats: [], of: [] }, index };
 
-  gatherBeat(engine, at, beat);
+  for (let walk = engine.kindHeads[first.kind]; walk !== undefined; walk = walk.kindNext) {
+    if (isMember(engine, walk, owner)) {
+      catchMember(engine, walk, beat);
+      beat.members.push(walk);
+    }
+  }
 
-  for (const [m, member] of beat.members.entries()) {
+  for (const member of beat.members) {
     if (!member.isEnding) {
-      deliverMember(engine, [member, m, at[1]], beat.caught);
+      deliverMember(engine, member, beat);
     }
   }
 };
 
-/** Counts a clock down by `dt` and runs its due beats, rescheduling each as its pulse says; returns its new time. */
-const countBeats = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [area, index, remaining]: readonly [AreaTrigger<G>, number, number],
-  fire: () => void,
-): number => {
+/**
+ * The time to a pulse's next beat after one that fired with `left` to spare (0 or below): the previous due time plus
+ * its seconds (`cadence`, the leftover carried), or its seconds (`restart`).
+ */
+const rescheduled = <G extends AreaTriggerTypes>(pulse: AreaPulse<G>, area: AreaTrigger<G>, left: number): number =>
+  pulse.reschedule === 'restart' ? secondsOf(pulse, area) : left + secondsOf(pulse, area);
+
+/** Runs an own-clock pulse's beats due after counting `dt` down; they catch up unless told not to. */
+const ownBeats = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
   const pulse = engine.registry.get(area.kind).every?.[index];
   const rule = engine.clock.countdown;
-  let left = remaining;
   let fired = 0;
 
-  while (isRunOut(left, rule) && !area.isEnding && pulse !== undefined) {
+  while (pulse !== undefined && isRunOut(area.beats[index] ?? 0, rule) && !area.isEnding) {
     if (fired > 0 && pulse.catchUp === false) {
-      return secondsOf(pulse, area);
+      area.beats[index] = secondsOf(pulse, area);
+
+      return;
     }
 
-    fire();
+    beat(engine, area, index);
     fired += 1;
-    left = pulse.reschedule === 'restart' ? secondsOf(pulse, area) : left + secondsOf(pulse, area);
+    area.beats[index] = rescheduled(pulse, area, area.beats[index] ?? 0);
   }
+};
 
-  return left;
+/** Runs a shared clock's beats due after counting `dt` down, from the member stepping it. */
+const sharedBeats = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
+  const pulse = engine.registry.get(area.kind).every?.[index];
+  const clock = sharedClockOf(engine, area, index);
+  const rule = engine.clock.countdown;
+  let fired = 0;
+
+  while (pulse !== undefined && isRunOut(clock.remaining, rule) && !area.isEnding) {
+    if (fired > 0 && pulse.catchUp === false) {
+      clock.remaining = secondsOf(pulse, area);
+
+      return;
+    }
+
+    sharedBeat(engine, area, index);
+    fired += 1;
+    clock.remaining = rescheduled(pulse, area, clock.remaining);
+  }
 };
 
 /**
@@ -230,15 +254,14 @@ export const stepPulses = <G extends AreaTriggerTypes>(
   area: AreaTrigger<G>,
   dt: number,
 ): void => {
-  const pulses = engine.registry.get(area.kind).every ?? [];
+  const pulses = engine.registry.get(area.kind).every ?? NO_PULSES;
 
   for (let index = 0; index < pulses.length && !area.isEnding; index++) {
     const pulse = pulses[index];
 
     if (pulse === undefined || (pulse.clock ?? 'own') === 'own') {
-      area.beats[index] = countBeats(engine, [area, index, (area.beats[index] ?? 0) - dt], () => {
-        beat(engine, area, index);
-      });
+      area.beats[index] = (area.beats[index] ?? 0) - dt;
+      ownBeats(engine, area, index);
 
       continue;
     }
@@ -247,9 +270,8 @@ export const stepPulses = <G extends AreaTriggerTypes>(
 
     if (clock.steppedTick !== engine.clock.tick) {
       clock.steppedTick = engine.clock.tick;
-      clock.remaining = countBeats(engine, [area, index, clock.remaining - dt], () => {
-        sharedBeat(engine, [area, index]);
-      });
+      clock.remaining -= dt;
+      sharedBeats(engine, area, index);
     }
   }
 };

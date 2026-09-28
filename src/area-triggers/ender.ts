@@ -16,12 +16,12 @@ const land = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigg
     return;
   }
 
-  const hit = engine.catcher.take(area, -1);
+  const hit = engine.catcher.take(area, def.land, engine.registry.hooks.onLand[area.kind]);
 
   try {
-    catchIn(engine, [{ area, spec: def.land, pulse: -1 }, area.shape], hit);
-    recordHit(engine, [area, def.land?.ledger], hit);
-    deliver(engine, [area, engine.registry.hooks.onLand[area.kind]], hit);
+    catchIn(engine, hit, area.shape);
+    recordHit(engine, hit);
+    deliver(engine, hit);
   } finally {
     engine.catcher.give(hit);
   }

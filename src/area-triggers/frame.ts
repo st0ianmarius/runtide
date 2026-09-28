@@ -46,26 +46,24 @@ const runContact = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
   }
 
   const radius = typeof contact.radius === 'function' ? contact.radius(area) : contact.radius;
-  const hit = engine.catcher.take(area, -1);
+  const hit = engine.catcher.take(area, contact, engine.registry.hooks.onContact[area.kind]);
 
   try {
-    catchAlong(engine, [{ area, spec: contact, pulse: -1 }, radius], hit);
-    recordHit(engine, [area, contact.ledger], hit);
+    catchAlong(engine, hit, radius);
+    recordHit(engine, hit);
 
     if (hit.targets.length > 0) {
-      deliver(engine, [area, engine.registry.hooks.onContact[area.kind]], hit);
+      deliver(engine, hit);
     }
   } finally {
     engine.catcher.give(hit);
   }
 };
 
-/** Runs one part of a frame. */
-const runPhase = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [area, phase]: readonly [AreaTrigger<G>, AreaPhase],
-  dt: number,
-): void => {
+/** Runs one part of a frame, over the frame's time. */
+const runPhase = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, phase: AreaPhase): void => {
+  const dt = area.frameTime;
+
   switch (phase) {
     case 'move':
       engine.registry.hooks.move[area.kind]?.(area, dt);
@@ -127,11 +125,12 @@ export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: A
   area.previous.z = area.position.z;
   placeShape(engine, area);
 
-  const time = armedTime(engine, area, dt);
   const order = registry.get(area.kind).order ?? DEFAULT_ORDER;
 
-  for (let i = 0; i < order.length && time > 0 && !area.isEnding; i++) {
-    runPhase(engine, [area, order[i] ?? 'frame'], time);
+  area.frameTime = armedTime(engine, area, dt);
+
+  for (let i = 0; i < order.length && area.frameTime > 0 && !area.isEnding; i++) {
+    runPhase(engine, area, order[i] ?? 'frame');
 
     if (area.pending !== undefined && !area.isEnding) {
       endArea(engine, area, { reason: area.pending });
