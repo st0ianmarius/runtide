@@ -28,6 +28,9 @@ export interface EscapeReport {
 
   /** The game's own activation kinds, and core kinds it replaced, in registry order (hatch 2). */
   readonly activationKinds: readonly string[];
+
+  /** The game's own world-query extensions (`WorldQuery & GameQuery`), in declaration order (hatch 5). */
+  readonly queryExtensions: readonly string[];
 }
 
 /**
@@ -52,6 +55,12 @@ export interface EscapeSpells {
 
   /** The game's own activation kinds. */
   readonly gameActivations: readonly string[];
+}
+
+/** What the escape report reads from a world (a `WorldQuery` is one): the names of the game's query extensions. */
+export interface EscapeWorld {
+  /** The game's own query extensions. */
+  readonly extensions: readonly string[];
 }
 
 /** The framework's kinds, by name. */
@@ -82,6 +91,9 @@ export const escapeReport = <G extends ProcTypes>(registries: {
 
   /** The game's spell system, if it has one. */
   readonly spells?: EscapeSpells;
+
+  /** The game's world, if it asks one. */
+  readonly world?: EscapeWorld;
 }): EscapeReport => {
   const { kinds, runs } = registries.procs;
   const { damage, spells } = registries;
@@ -91,5 +103,6 @@ export const escapeReport = <G extends ProcTypes>(registries: {
     runs: [...runs].map(([hatch, count]) => ({ hatch, count })),
     stages: damage?.gameStages ?? [],
     activationKinds: spells?.gameActivations ?? [],
+    queryExtensions: registries.world?.extensions ?? [],
   };
 };

@@ -1,0 +1,242 @@
+import type { Box, Shape, Vec2 } from '../math/index.ts';
+import { Placement } from './placement.ts';
+import { GridIndex, KdIndex, type PointIndex } from './point-index.ts';
+import type {
+  BodyMove,
+  ChainOptions,
+  Cluster,
+  DensestOptions,
+  PointPick,
+  QueryOptions,
+  RangeOptions,
+  SweepOptions,
+  WorldQuery,
+} from './query.ts';
+import { chain, densest, leadPoint, type SearchParts, sweep } from './searches.ts';
+import { Selection } from './selection.ts';
+import { Selector } from './selector.ts';
+import { StaticGeometry, type StaticShape } from './statics.ts';
+import { type UnitSpec, UnitTable } from './unit-table.ts';
+
+/** What a memory world is created with. */
+export interface MemoryWorldOptions {
+  /** The world's bounds: the grid covers them, and bodies stay inside them. */
+  readonly bounds: Box;
+
+  /** The point index: a uniform grid updated as units move (the default), or a k-d tree rebuilt when they did. */
+  readonly index?: 'grid' | 'kd';
+
+  /** The grid's cell size; 4 by default. Near the typical query radius is a good size. */
+  readonly cell?: number;
+
+  /** The tick's length in seconds, which velocities are measured over; 1 by default. */
+  readonly dt?: number;
+
+  /** The static geometry (walls, pillars), indexed once in an R-tree. */
+  readonly statics?: readonly StaticShape[];
+}
+
+/**
+ * A reference world (§I.6): every `WorldQuery` over units the host adds, moves and removes, with a point index for the
+ * moving units and an R-tree for static geometry (§I.5.4). For tests and small games; a game with a world of its own
+ * implements `WorldQuery` over it instead. The host calls `tick` at the start of each tick, so previous positions and
+ * velocities cover the tick's moves.
+ */
+export interface MemoryWorld<Unit> extends WorldQuery<Unit> {
+  /** How many units are in the world. */
+  readonly size: number;
+
+  /** Whether a unit is in the world. */
+  readonly has: (unit: Unit) => boolean;
+
+  /** Adds a unit; throws when it is already here. */
+  readonly add: (unit: Unit, spec: UnitSpec) => void;
+
+  /** Removes a unit; false when it was not here. */
+  readonly remove: (unit: Unit) => boolean;
+
+  /** Moves a unit to `at` now. */
+  readonly place: (unit: Unit, at: Vec2) => void;
+
+  /** Starts a tick: every unit's previous position becomes its current one. */
+  readonly tick: () => void;
+}
+
+/** A memory world: a class for fast properties, its functions arrow fields so they work detached. */
+class World<Unit> implements MemoryWorld<Unit> {
+  readonly bounds: Box;
+  extensions: readonly string[] = Object.freeze([]);
+  readonly isPositionClear: (p: Vec2, radius: number) => boolean;
+  readonly lineClear: (from: Vec2, to: Vec2, radius?: number) => boolean;
+  readonly clamp: (p: Vec2, radius?: number) => Vec2;
+  readonly moveBody: (segment: readonly [Vec2, Vec2], radius: number) => BodyMove;
+  readonly pickPoint: (pick: PointPick) => Vec2 | undefined;
+  readonly #table = new UnitTable<Unit>();
+  readonly #index: PointIndex;
+  readonly #selector: Selector<Unit>;
+  readonly #selection = new Selection<Unit>();
+  readonly #parts: SearchParts<Unit>;
+  readonly #dt: number;
+
+  constructor(options: MemoryWorldOptions) {
+    const placement = new Placement(options.bounds, new StaticGeometry(options.statics ?? []));
+
+    this.bounds = options.bounds;
+    this.#dt = options.dt ?? 1;
+    this.#index =
+      options.index === 'kd'
+        ? new KdIndex(this.#table)
+        : new GridIndex(this.#table, { bounds: options.bounds, cell: options.cell ?? 4 });
+    this.#selector = new Selector(this.#table, this.#index);
+    this.#parts = { table: this.#table, selector: this.#selector, selection: this.#selection, slots: [] };
+    this.isPositionClear = placement.isPositionClear;
+    this.lineClear = placement.lineClear;
+    this.clamp = placement.clamp;
+    this.moveBody = placement.moveBody;
+    this.pickPoint = placement.pickPoint;
+  }
+
+  get size(): number {
+    return this.#table.size;
+  }
+
+  readonly has = (unit: Unit): boolean => this.#table.find(unit) >= 0;
+
+  readonly add = (unit: Unit, spec: UnitSpec): void => {
+    const slot = this.#table.add(unit, spec);
+
+    this.#selector.maxRadius = Math.max(this.#selector.maxRadius, spec.radius ?? 0);
+    this.#index.insert(slot);
+  };
+
+  readonly remove = (unit: Unit): boolean => {
+    const slot = this.#table.remove(unit);
+
+    if (slot >= 0) {
+      this.#index.remove(slot);
+    }
+
+    return slot >= 0;
+  };
+
+  readonly place = (unit: Unit, at: Vec2): void => {
+    const table = this.#table;
+    const slot = table.slotOf(unit);
+    const motion = Math.hypot(at.x - (table.px[slot] ?? 0), at.z - (table.pz[slot] ?? 0));
+
+    table.x[slot] = at.x;
+    table.z[slot] = at.z;
+    this.#selector.maxMotion = Math.max(this.#selector.maxMotion, motion);
+    this.#index.move(slot);
+  };
+
+  readonly tick = (): void => {
+    const table = this.#table;
+
+    table.px.set(table.x);
+    table.pz.set(table.z);
+    this.#selector.maxMotion = 0;
+  };
+
+  readonly positionOf = (unit: Unit): Vec2 => {
+    const slot = this.#table.slotOf(unit);
+
+    return { x: this.#table.x[slot] ?? 0, z: this.#table.z[slot] ?? 0 };
+  };
+
+  readonly previousOf = (unit: Unit): Vec2 => {
+    const slot = this.#table.slotOf(unit);
+
+    return { x: this.#table.px[slot] ?? 0, z: this.#table.pz[slot] ?? 0 };
+  };
+
+  readonly velocityOf = (unit: Unit): Vec2 => {
+    const table = this.#table;
+    const slot = table.slotOf(unit);
+
+    return {
+      x: ((table.x[slot] ?? 0) - (table.px[slot] ?? 0)) / this.#dt,
+      z: ((table.z[slot] ?? 0) - (table.pz[slot] ?? 0)) / this.#dt,
+    };
+  };
+
+  readonly radiusOf = (unit: Unit): number => this.#table.radius[this.#table.slotOf(unit)] ?? 0;
+  readonly sideOf = (unit: Unit): number => this.#table.side[this.#table.slotOf(unit)] ?? 0;
+  readonly idOf = (unit: Unit): number => this.#table.id[this.#table.slotOf(unit)] ?? 0;
+
+  readonly inside = (shape: Shape, options: QueryOptions<Unit>, out: (Unit | undefined)[]): number =>
+    this.#selector.write(this.#selection.over(shape, options), out);
+
+  readonly all = (options: QueryOptions<Unit>, out: (Unit | undefined)[]): number =>
+    this.#selector.write(this.#selection.over(undefined, options), out);
+
+  readonly count = (shape: Shape | undefined, options: QueryOptions<Unit>): number =>
+    this.#selector.run(this.#selection.over(shape, options));
+
+  readonly nearest = (from: Vec2, options: RangeOptions<Unit>, out: (Unit | undefined)[]): number =>
+    this.#selector.write(this.#selection.around(from, options), out);
+
+  readonly densest = (from: Vec2, options: DensestOptions<Unit>, out: Cluster<Unit>): Cluster<Unit> =>
+    densest(this.#parts, [from, options], out);
+
+  readonly chain = (from: Vec2, options: ChainOptions<Unit>, out: (Unit | undefined)[]): number =>
+    chain(this.#parts, [from, options], out);
+
+  readonly sweep = (segment: readonly [Vec2, Vec2], options: SweepOptions<Unit>, out: (Unit | undefined)[]): number =>
+    sweep(this.#parts, [segment, options], out);
+
+  readonly leadPoint = (unit: Unit, from: Vec2, speed: number): Vec2 =>
+    leadPoint([this.positionOf(unit), this.velocityOf(unit)], from, speed);
+}
+
+/** The game's own query extensions: named functions over the world (§I.5.6 hatch 5). */
+export type QueryExtensions = Readonly<Record<string, (...args: never[]) => unknown>>;
+
+/** `createMemoryWorld`'s two forms: without extensions, and with the game's own. */
+export interface CreateMemoryWorld {
+  /** A memory world with the framework's queries only. */
+  <Unit>(options: MemoryWorldOptions): MemoryWorld<Unit>;
+
+  /** A memory world with the game's own query extensions, made over it. */
+  <Unit, Ext extends QueryExtensions>(
+    options: MemoryWorldOptions,
+    extend: (world: MemoryWorld<Unit>) => Ext,
+  ): MemoryWorld<Unit> & Ext;
+}
+
+/** Whether a world carries every extension it was given (all of none, when it was given none). */
+const isExtended = <Unit, Ext extends QueryExtensions>(
+  world: MemoryWorld<Unit>,
+  ext: Ext | undefined,
+): world is MemoryWorld<Unit> & Ext =>
+  ext === undefined || Object.keys(ext).every((name) => Object.hasOwn(world, name));
+
+/**
+ * Creates a memory world (§I.6): `createMemoryWorld<Unit>({ bounds })`, or with the game's own query extensions
+ * (`WorldQuery & GameQuery`: a passage search, a site reservation), made over the world and listed by name in its
+ * `extensions` for the escape report: `createMemoryWorld({ bounds }, (world) => ({ squareClear: … }))`.
+ */
+export const createMemoryWorld: CreateMemoryWorld = <Unit, Ext extends QueryExtensions>(
+  options: MemoryWorldOptions,
+  extend?: (world: MemoryWorld<Unit>) => Ext,
+): MemoryWorld<Unit> & Ext => {
+  const world = new World<Unit>(options);
+  const ext = extend?.(world);
+
+  if (ext !== undefined) {
+    const names = Object.keys(ext);
+
+    if (names.some((name) => name in world)) {
+      throw new RangeError(`A query extension may not replace a world query: ${names.join(', ')}.`);
+    }
+
+    Object.assign(world, ext);
+    world.extensions = Object.freeze(names);
+  }
+
+  if (!isExtended(world, ext)) {
+    throw new TypeError('A query extension was lost.');
+  }
+
+  return Object.freeze(world);
+};

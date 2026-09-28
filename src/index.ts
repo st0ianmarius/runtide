@@ -14,3 +14,4 @@ export * from './modifiers/index.ts';
 export * from './procs/index.ts';
 export * from './spells/index.ts';
 export * from './triggers/index.ts';
+export * from './world/index.ts';

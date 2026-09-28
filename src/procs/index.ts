@@ -21,7 +21,16 @@ export {
 } from './builders.ts';
 
 export { CORE_PROCS, type CoreProcKind, type CoreProcName } from './core-procs.ts';
-export { type EscapeDamage, type EscapeReport, escapeReport, type EscapeRun, type EscapeSpells } from './escape.ts';
+
+export {
+  type EscapeDamage,
+  type EscapeReport,
+  escapeReport,
+  type EscapeRun,
+  type EscapeSpells,
+  type EscapeWorld,
+} from './escape.ts';
+
 export { explainProc, type ProcExplanation, type ProcTargetKind } from './explain.ts';
 
 export type {

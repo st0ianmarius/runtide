@@ -1,9 +1,11 @@
 /**
- * Geometry on the ground plane (§I.6): `Vec2`, angles, shapes as data with `covers`, shape algebra, the segment-circle
- * sweep, polygon tests and point patterns. Nothing here reads a world; the world query builds on it.
+ * Geometry on the ground plane (§I.6): `Vec2`, angles, shapes as data with `covers`, shape algebra, bounds, the
+ * segment-circle sweep, the swept path tests, polygon tests and point patterns. Nothing here reads a world; the world
+ * query builds on it.
  */
 
 export { angleDelta, directionOf, headingOf, turnToward, wrap } from './angles.ts';
+export { boundsOf, type Box, emptyBox, type MutableBox } from './bounds.ts';
 export { covers } from './covers.ts';
 
 export {
@@ -16,6 +18,17 @@ export {
   ringPoints,
   type RingSpec,
 } from './patterns.ts';
+
+export {
+  type ExposureOptions,
+  type PathCrossing,
+  pathCrossings,
+  pathIntervals,
+  secondsInside,
+  type ShapeAt,
+  type TickPath,
+  type TimeWindow,
+} from './path.ts';
 
 export {
   type Crossing,

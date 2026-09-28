@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import { checkOrder } from '../../src/core/index.ts';
 import { CORE_PROCS, createProcRegistry, escapeReport, explainProc } from '../../src/procs/index.ts';
+import { createMemoryWorld } from '../../src/world/index.ts';
 import { aura, type Game, makeGame, mark, STRIKE } from '../helpers/trigger-game.ts';
 
 const CORE_ORDER = [
@@ -65,7 +66,19 @@ describe('the escape report (§I.5.6)', () => {
       ],
       stages: [],
       activationKinds: [],
+      queryExtensions: [],
     });
+  });
+
+  it('lists the world’s query extensions', () => {
+    const { procs } = makeGame({ mark: aura({ duration: 1 }) });
+
+    const world = createMemoryWorld({ bounds: { minX: 0, minZ: 0, maxX: 1, maxZ: 1 } }, () => ({
+      squareClear: () => true,
+      passage: () => undefined,
+    }));
+
+    assert.deepEqual(escapeReport({ procs, world }).queryExtensions, ['squareClear', 'passage']);
   });
 });
 
