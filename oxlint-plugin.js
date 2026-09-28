@@ -4,29 +4,7 @@
  */
 
 /** Built-ins that have no form other than `new` (§I.5.2). */
-const CONSTRUCTIBLE_BUILT_INS = new Set([
-  'ArrayBuffer',
-  'BigInt64Array',
-  'BigUint64Array',
-  'DataView',
-  'Error',
-  'Float32Array',
-  'Float64Array',
-  'Int16Array',
-  'Int32Array',
-  'Int8Array',
-  'Map',
-  'Set',
-  'Uint16Array',
-  'Uint32Array',
-  'Uint8Array',
-  'Uint8ClampedArray',
-  'WeakMap',
-  'WeakSet',
-]);
 
-const NO_CLASS = 'No classes: use plain objects and factory functions (§I.5.2).';
-const NO_THIS = 'No `this`: hooks receive what they need as arguments (§I.5.2).';
 const CAMEL_CASE = /^_?[a-z][a-zA-Z0-9]*$/;
 const PASCAL_CASE = /^[A-Z][a-zA-Z0-9]*$/;
 const UPPER_CASE = /^[A-Z][A-Z0-9_]*$/;
@@ -34,40 +12,6 @@ const IDENTIFIER_NAME = /^[A-Za-z_$][\w$]*$/;
 
 /** Compares two strings the way `simple-import-sort` does: case-insensitive, numbers by value. */
 const compareNames = (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base', numeric: true }) || (a < b ? -1 : 1);
-
-/** No `class`, no `this`, no `instanceof` (§I.5.2). */
-const noClassStyle = {
-  meta: { type: 'problem', schema: [] },
-
-  create: (context) => ({
-    ClassDeclaration: (node) => context.report({ node, message: NO_CLASS }),
-    ClassExpression: (node) => context.report({ node, message: NO_CLASS }),
-    ThisExpression: (node) => context.report({ node, message: NO_THIS }),
-    TSThisType: (node) => context.report({ node, message: NO_THIS }),
-
-    BinaryExpression: (node) => {
-      if (node.operator === 'instanceof') {
-        context.report({ node, message: 'No `instanceof`: narrow on a `kind` field or a type guard (§I.5.2).' });
-      }
-    },
-  }),
-};
-
-/** `new` only for the built-in allowlist; the adapter modules switch this rule off (§I.5.2). */
-const noForeignNew = {
-  meta: { type: 'problem', schema: [] },
-
-  create: (context) => ({
-    NewExpression: (node) => {
-      if (node.callee.type !== 'Identifier' || !CONSTRUCTIBLE_BUILT_INS.has(node.callee.name)) {
-        context.report({
-          node,
-          message: '`new` only for Map, Set, WeakMap, WeakSet, typed arrays, ArrayBuffer, DataView and Error (§I.5.2).',
-        });
-      }
-    },
-  }),
-};
 
 /** A to-do comment names its issue, as `TODO(#12)` does (§I.4.2). */
 const todoWithIssue = {
@@ -550,8 +494,6 @@ const exportOrder = {
 export default {
   meta: { name: 'spellweave' },
   rules: {
-    'no-class-style': noClassStyle,
-    'no-foreign-new': noForeignNew,
     'todo-with-issue': todoWithIssue,
     'padded-statements': paddedStatements,
     'padded-object-functions': paddedObjectFunctions,

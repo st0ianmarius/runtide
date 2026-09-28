@@ -69,7 +69,7 @@ framework/                # a sibling of the swarm checkout, its own git reposit
   tsconfig.json           # the strict base (§I.4.1) for src: ECMAScript lib only, types: [], no emit
   tsconfig.test.json      # extends it for tests: adds types ["node"]
   tsconfig.build.json     # emits dist/ (ESM JS + .d.ts) from src only
-  .oxlintrc.json          # oxlint: the §I.4.2 rules and the §I.5.2 bans, type-aware through oxlint-tsgolint
+  .oxlintrc.json          # oxlint: the §I.4.2 rules, type-aware through oxlint-tsgolint
   oxlint-plugin.js        # the project's own lint rules, for what oxlint has no native rule for
   .prettierrc.json        # the style of §I.4.2
   .editorconfig
@@ -113,7 +113,7 @@ framework/                # a sibling of the swarm checkout, its own git reposit
 - **Compiler options** (the strict end of what TypeScript 7 offers): `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (no enums, namespaces or parameter properties, so every source runs under Node's type stripping, which also fits §I.5.2), `module` and `moduleResolution` `nodenext`, `target` and `lib` at the newest ECMAScript year that the compiler, the Node LTS and the evergreen browsers all support. **`src/` sees neither Node nor the DOM**: its config has `lib` ECMAScript only and `types: []`, so a stray `process`, `Buffer` or `window` fails the typecheck; only `tsconfig.test.json` adds `types: ["node"]` for `node:test`.
 - **Imports** use explicit `.ts` extensions (`allowImportingTsExtensions`), which Node runs as they are; the build rewrites them to `.js` (`rewriteRelativeImportExtensions`) and emits declarations.
 - **Scripts**: `typecheck` (`tsc --noEmit`), `build` (`tsc -p tsconfig.build.json`), `test` (`node --test "tests/**/*.test.ts"`), `lint` (`oxlint`), `format` / `format:check` (`prettier`). No bundler, and no `tsx`: Node's type stripping runs the TypeScript directly.
-- **Lint**: oxlint, with the type-aware rules of `typescript-eslint`'s strict and stylistic type-checked presets that it has, run by `oxlint-tsgolint` (built on TypeScript 7's compiler), and the §I.5.2 bans through the project's own rules in `oxlint-plugin.js`. `typescript-eslint` does not support TypeScript 7, so ESLint is not used.
+- **Lint**: oxlint, with the type-aware rules of `typescript-eslint`'s strict and stylistic type-checked presets that it has, run by `oxlint-tsgolint` (built on TypeScript 7's compiler), and the project's own rules in `oxlint-plugin.js` (doc blocks, naming, import order, blank lines, presentation fields). `typescript-eslint` does not support TypeScript 7, so ESLint is not used.
 
 ### I.4.2 Code quality and style
 
@@ -242,12 +242,7 @@ export const blast = telegraphedSpell({
 export const SPELLS = createRegistry({ frostNova, blast }); // SPELLS.id.frostNova === 0, SPELLS.id.blast === 1
 ```
 
-**The framework's own code follows the same style**: modules of functions over plain data, with factories (`createAuraSystem(…)`) returning objects of functions closed over their state, as swarm's `effectSystem(registry)` does today.
-
-- **No `class`, no `this`, no `instanceof`.** Narrowing uses `kind` fields and type guards.
-- **`new` only for built-ins** that have no other form: `Map`, `Set`, `WeakMap`, typed arrays, `Error`.
-- **A third-party class** (for example `flatbush`'s index) is constructed in exactly one adapter module that exposes plain functions, so the rest of the framework never sees it.
-- **Enforced by lint.** The project's lint rules ban `class` declarations and expressions, `this`, `instanceof`, and `new` outside the built-in allowlist and the adapter modules.
+**Inside the framework, the implementer chooses.** The rule above is about the public surface: what a game writes and what it gets back are plain objects and functions, so a game never writes `new Spell()`, `new Aura()` or `extends CreatureScript`, and a hook never depends on `this`. The framework's own internals are free to use whatever reads best and runs fastest (factories closed over state, as swarm's `effectSystem(registry)` does today, or a class, `instanceof` or `new` where that is clearer), as long as none of it leaks into the API a game sees. This is a guideline for review, not a lint rule.
 
 A unit test per kind registers a resource, calls every hook detached, and holds that the framework never mutates it.
 
@@ -365,8 +360,8 @@ Each is summarised by what it must offer; Part II has the full model.
 
 Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` and `npm run format:check` clean, and `npm run build` emitting `dist/`.
 
-- **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (TypeScript 7 and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `.oxlintrc.json` and `oxlint-plugin.js` with every rule of §I.4.2 that oxlint can hold (the §I.5.2 bans, doc blocks on exports, no presentation fields, no swarm imports, no Node built-ins or globals in `src/`), `.prettierrc.json`, `.editorconfig`, the pre-commit hook, `npm run check`, README skeleton, the CI workflow with `knip`. The Node-free rule (§I.5.5) is in place from the start: the split `tsconfig.json` / `tsconfig.test.json`, the lint bans on Node built-ins and globals in `src/`, and the CI browser-bundle check.
-- **F1. Core and math.** Sequential streams (tested draw for draw against literal values taken from today's `rng`, since the framework cannot import swarm), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock in both modes and stamps, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), the lint checks for the no-class style, bus, scope; shapes and sweeps. The registry's dense layout, typed columns, dispatch tables and bitsets, the pools, and the first `bench/` baselines land here, so every later system is built on them.
+- **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (TypeScript 7 and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `.oxlintrc.json` and `oxlint-plugin.js` with every rule of §I.4.2 that oxlint can hold (doc blocks on exports, no presentation fields, no swarm imports, no Node built-ins or globals in `src/`), `.prettierrc.json`, `.editorconfig`, the pre-commit hook, `npm run check`, README skeleton, the CI workflow with `knip`. The Node-free rule (§I.5.5) is in place from the start: the split `tsconfig.json` / `tsconfig.test.json`, the lint bans on Node built-ins and globals in `src/`, and the CI browser-bundle check.
+- **F1. Core and math.** Sequential streams (tested draw for draw against literal values taken from today's `rng`, since the framework cannot import swarm), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock in both modes and stamps, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), bus, scope; shapes and sweeps. The registry's dense layout, typed columns, dispatch tables and bitsets, the pools, and the first `bench/` baselines land here, so every later system is built on them.
 - **F2. Modifiers.** Ported from swarm's `packages/game/src/modifiers/` with game content removed; tests reproduce the fold's documented float order. Adds stat kinds, curves and scaled values (§II.3.13), tested on the fixed evaluation order, the share-of-1 rule, per-rank ratios, bonus and target terms, and the load-time checks.
 - **F3. Auras.** Ported from swarm's `packages/game/src/effects/` and generalised to any bearer; add `value` / `merge` / `keepWhenDepleted`, lifecycle procs, damage hooks.
 - **F4. Procs and triggers.** The proc registry (from `spells/procs` on `spell-primitive`) and triggers (from swarm's `packages/game/src/triggers/`), owned by auras only; `do` lists as procs.

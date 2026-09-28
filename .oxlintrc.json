@@ -34,9 +34,7 @@
     "spellweave/export-docs": "error",
     "spellweave/presentation-fields": ["error", { "allow": [] }],
 
-    // No classes and determinism (§I.5, §I.5.2).
-    "spellweave/no-class-style": "error",
-    "spellweave/no-foreign-new": "error",
+    // Determinism and isolation (§I.5, §I.5.1).
     "no-restricted-imports": [
       "error",
       { "patterns": [{ "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages (§I.5.1)." }] }
@@ -86,7 +84,6 @@
     "typescript/no-empty-object-type": "error",
     "typescript/no-explicit-any": "error",
     "typescript/no-extra-non-null-assertion": "error",
-    "typescript/no-extraneous-class": "error",
     "typescript/no-for-in-array": "error",
     "typescript/no-implied-eval": "error",
     "typescript/no-invalid-void-type": "error",
@@ -183,9 +180,9 @@
       }
     },
     {
-      // Adapter modules: the only files that may construct a third-party class or cast (§I.5.2).
+      // Adapter modules: the only files that may cast (§I.5.2).
       "files": ["src/**/*-adapter.ts"],
-      "rules": { "spellweave/no-foreign-new": "off", "typescript/consistent-type-assertions": "off" }
+      "rules": { "typescript/consistent-type-assertions": "off" }
     },
     {
       "files": ["tests/**/*.ts", "bench/**/*.ts"],
