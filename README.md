@@ -20,18 +20,19 @@ spellweave is `"private": true` and is never published to npm or any other regis
 
 ## Development
 
-Requires Node `^22.22.2 || >=24.15.0`: Node's built-in type stripping runs the `.ts` sources and tests directly, and the lint toolchain (`eslint-plugin-jsdoc`, `lint-staged`) sets that floor.
+Requires Node `^22.22.2 || >=24.15.0`: Node's built-in type stripping runs the `.ts` sources and tests directly, and the dev toolchain (`lint-staged`) sets that floor.
 
 ```sh
 npm ci
 npm run check         # typecheck, lint, format check, tests, build
 npm run knip          # no unused files, exports or dependencies
 npm run bundle:check  # src/ bundles for the browser without any Node built-in
-npm run format        # eslint --fix, then prettier --write
+npm run format        # oxlint --fix, then prettier --write
 ```
 
 `npm ci` installs a pre-commit hook (`simple-git-hooks` running `lint-staged`) that lints and formats the staged files.
 
-### Why TypeScript 6.0.3, not 7
+### Toolchain
 
-The plan asks for the latest stable TypeScript. At F0 that is 7.0.2, the native port, but its npm package ships only the native `tsc`: `require('typescript')` exposes nothing but `version`, so there is no `ts.createSourceFile` for `isolation.test.ts` and `docs.test.ts`, and `typescript-eslint` 8.70.1 declares `typescript >=4.8.4 <6.1.0` and refuses to load under 7 ("typescript-eslint does not support TS 7.0"). The project therefore pins **6.0.3**, the latest 6.x, which has every compiler option the plan relies on (`erasableSyntaxOnly`, `rewriteRelativeImportExtensions`, `allowImportingTsExtensions`, `nodenext`). Upgrade to 7 once `typescript-eslint` supports it ([typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)) and TypeScript 7 publishes a stable JavaScript API that the tests can parse with.
+- **TypeScript 7.0.2**, the native compiler (`tsc` from the `typescript` package). `tsconfig.json` typechecks `src/` with no Node or DOM types, `tsconfig.test.json` adds Node types for tests, and `tsconfig.build.json` emits `dist/`.
+- **oxlint** lints, with type-aware rules run by `oxlint-tsgolint`, which is built on TypeScript 7's compiler. `.oxlintrc.json` holds the rules; `oxlint-plugin.js` adds the project rules oxlint has no native rule for (no classes, `new` only for built-ins, doc blocks on exports, naming, import order, blank lines); oxlint's JS plugin API is still alpha, which is one more reason every tool is pinned exactly. `tests/tsconfig.json` only points the linter at `tsconfig.test.json`, so tests are linted with Node types.

@@ -23,8 +23,8 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
     "test": "node --test \"tests/**/*.test.ts\"",
-    "lint": "eslint . --max-warnings 0",
-    "format": "eslint . --fix && prettier --write .",
+    "lint": "oxlint --max-warnings 0",
+    "format": "oxlint --fix && prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
     "bundle:check": "esbuild src/index.ts --bundle --platform=browser --format=esm --log-level=warning --outfile=/dev/null",
@@ -36,7 +36,7 @@
   },
   "lint-staged": {
     "*.{ts,js}": [
-      "eslint --fix --max-warnings 0",
+      "oxlint --fix --max-warnings 0",
       "prettier --write"
     ],
     "*.{json,md,yml,yaml}": "prettier --write"
@@ -48,21 +48,16 @@
     "typedfastbitset": "0.8.0"
   },
   "devDependencies": {
-    "@eslint/js": "10.0.1",
-    "@stylistic/eslint-plugin": "5.10.0",
     "@types/node": "26.6.3",
     "esbuild": "0.28.2",
-    "eslint": "10.11.0",
-    "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-jsdoc": "64.5.4",
-    "eslint-plugin-simple-import-sort": "14.0.0",
     "fast-check": "4.10.2",
     "knip": "6.38.0",
     "lint-staged": "17.6.0",
+    "oxlint": "1.86.0",
+    "oxlint-tsgolint": "7.0.2003",
     "prettier": "3.9.9",
     "simple-git-hooks": "2.14.0",
     "tinybench": "6.2.0",
-    "typescript": "6.0.3",
-    "typescript-eslint": "8.70.1"
+    "typescript": "7.0.2"
   }
 }

@@ -69,7 +69,8 @@ framework/                # a sibling of the swarm checkout, its own git reposit
   tsconfig.json           # the strict base (§I.4.1) for src: ECMAScript lib only, types: [], no emit
   tsconfig.test.json      # extends it for tests: adds types ["node"]
   tsconfig.build.json     # emits dist/ (ESM JS + .d.ts) from src only
-  eslint.config.js        # flat config: typescript-eslint strict type-checked + the §I.5.2 style bans
+  .oxlintrc.json          # oxlint: the §I.4.2 rules and the §I.5.2 bans, type-aware through oxlint-tsgolint
+  oxlint-plugin.js        # the project's own lint rules, for what oxlint has no native rule for
   .prettierrc.json        # the style of §I.4.2
   .editorconfig
   README.md               # the engine's model: spell, aura, proc, area trigger, cue; how a game plugs in
@@ -100,37 +101,37 @@ framework/                # a sibling of the swarm checkout, its own git reposit
     index.ts
   tests/
     <system>/*.test.ts    # unit tests per system
-    isolation.test.ts     # no import leaves the project except listed deps; no forbidden globals; the §I.5.2 style
-    docs.test.ts          # every exported type, field and hook has a /** */ block
+    tsconfig.json         # extends tsconfig.test.json, so the type-aware linter sees Node types in tests
     helpers/              # fake hosts and bearers shared by the tests (not exported)
 ```
 
 `package.json` exports one entry per system (`<name>/auras`, `<name>/spells`, …) and `.` for the whole, each with a `types` and a `default` condition pointing into `dist/`. The package manager is npm, as in swarm.
 
-### I.4.1 Toolchain on the latest TypeScript
+### I.4.1 Toolchain on TypeScript 7
 
-- **Compiler options** (the strict end of what the current TypeScript offers): `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (no enums, namespaces or parameter properties, so every source runs under Node's type stripping, which also fits §I.5.2), `module` and `moduleResolution` `nodenext`, `target` and `lib` at the newest ECMAScript year that the compiler, the Node LTS and the evergreen browsers all support. **`src/` sees neither Node nor the DOM**: its config has `lib` ECMAScript only and `types: []`, so a stray `process`, `Buffer` or `window` fails the typecheck; only `tsconfig.test.json` adds `types: ["node"]` for `node:test`.
+- **TypeScript 7**, the native compiler, pinned exactly; its `typescript` package ships `tsc`. It has no JavaScript compiler API yet, so no tool here depends on one.
+- **Compiler options** (the strict end of what TypeScript 7 offers): `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (no enums, namespaces or parameter properties, so every source runs under Node's type stripping, which also fits §I.5.2), `module` and `moduleResolution` `nodenext`, `target` and `lib` at the newest ECMAScript year that the compiler, the Node LTS and the evergreen browsers all support. **`src/` sees neither Node nor the DOM**: its config has `lib` ECMAScript only and `types: []`, so a stray `process`, `Buffer` or `window` fails the typecheck; only `tsconfig.test.json` adds `types: ["node"]` for `node:test`.
 - **Imports** use explicit `.ts` extensions (`allowImportingTsExtensions`), which Node runs as they are; the build rewrites them to `.js` (`rewriteRelativeImportExtensions`) and emits declarations.
-- **Scripts**: `typecheck` (`tsc --noEmit`), `build` (`tsc -p tsconfig.build.json`), `test` (`node --test "tests/**/*.test.ts"`), `lint` (`eslint .`), `format` / `format:check` (`prettier`). No bundler, and no `tsx`: Node's type stripping runs the TypeScript directly.
-- **Lint**: ESLint flat config with `typescript-eslint`'s strict type-checked presets, plus the §I.5.2 bans through `no-restricted-syntax`.
+- **Scripts**: `typecheck` (`tsc --noEmit`), `build` (`tsc -p tsconfig.build.json`), `test` (`node --test "tests/**/*.test.ts"`), `lint` (`oxlint`), `format` / `format:check` (`prettier`). No bundler, and no `tsx`: Node's type stripping runs the TypeScript directly.
+- **Lint**: oxlint, with the type-aware rules of `typescript-eslint`'s strict and stylistic type-checked presets that it has, run by `oxlint-tsgolint` (built on TypeScript 7's compiler), and the §I.5.2 bans through the project's own rules in `oxlint-plugin.js`. `typescript-eslint` does not support TypeScript 7, so ESLint is not used.
 
 ### I.4.2 Code quality and style
 
 The bar is code a reviewer reads without friction: one style everywhere, enforced by tools rather than by memory, and the same as swarm's, so moving between the two repositories costs nothing. CI fails on any finding: `lint` runs with `--max-warnings 0`, and `format:check`, `typecheck` and the tests must pass.
 
-- **Prettier owns formatting, entirely.** `.prettierrc.json` is swarm's: `singleQuote: true`, `printWidth: 120`, `trailingComma: 'all'`, `semi: true`. It formats `src/`, `tests/`, `bench/`, `docs/` and every Markdown file; `eslint-config-prettier` switches off every lint rule that would fight it, and `.editorconfig` matches it for editors.
-- **ESLint owns what Prettier cannot**, through `@stylistic/eslint-plugin` as in swarm, all autofixable:
+- **Prettier owns formatting, entirely.** `.prettierrc.json` is swarm's: `singleQuote: true`, `printWidth: 120`, `trailingComma: 'all'`, `semi: true`. It formats `src/`, `tests/`, `bench/`, `docs/` and every Markdown file; the lint config enables no rule that would fight it, and `.editorconfig` matches it for editors.
+- **oxlint owns what Prettier cannot**, through its native `curly` and the project rules in `oxlint-plugin.js`, all autofixable:
   - `curly: 'all'`;
   - a blank line before and after every function and every multi-line export (`padding-line-between-statements`), and between object-literal functions in factories and definitions;
   - a blank line after the import block and before a doc comment; never two blank lines in a row;
-  - imports grouped (packages, then relative) and sorted (`eslint-plugin-simple-import-sort`).
-- **Type safety** (`typescript-eslint` strict type-checked): no `any`, no non-null assertions, `as` casts only in the adapters and the branded-id constructors, `consistent-type-imports`, `explicit-module-boundary-types`, exhaustive `switch` over every `kind`, `readonly` on every field a hook must not write.
-- **Naming** (`@typescript-eslint/naming-convention`): `camelCase` for functions, variables and fields; `PascalCase` for types; `UPPER_SNAKE_CASE` for module-level tables; `kebab-case` file names; booleans read as questions (`isFrozen`, `hasTag`, `canCast`); definitions end in `Def`; factories start with `create` or `define`.
+  - imports grouped (packages, then relative) and sorted, as `simple-import-sort` does (a project rule, with oxlint's `sort-imports` for the names inside each import).
+- **Type safety** (oxlint's port of `typescript-eslint`'s strict type-checked rules): no `any`, no non-null assertions, `as` casts only in the adapters and the branded-id constructors, `consistent-type-imports`, `explicit-module-boundary-types`, exhaustive `switch` over every `kind`, `readonly` on every field a hook must not write.
+- **Naming** (a project rule after `@typescript-eslint/naming-convention`, without the type-aware boolean check, which review holds): `camelCase` for functions, variables and fields; `PascalCase` for types; `UPPER_SNAKE_CASE` for module-level tables; `kebab-case` file names; booleans read as questions (`isFrozen`, `hasTag`, `canCast`); definitions end in `Def`; factories start with `create` or `define`.
 - **Small, flat code.** Named exports only; one concept per file; each system's `index.ts` is its whole public API. Functions stay short (`max-lines-per-function` 60, `complexity` 12, `max-depth` 3, `max-params` 3, with more arguments passed as one options object) and files under 400 lines (data tables and tests exempt). Early returns over nesting, no nested ternaries, `eqeqeq`, `prefer-const`.
 - **No noise.** No `console`, no commented-out code, no `TODO` without an issue reference, no dead exports (`knip` in CI).
-- **Doc blocks.** Every exported type, field, function and hook has a `/** */` block (`docs.test.ts`, and `eslint-plugin-jsdoc` for the form) that says what it guarantees, in full sentences; inline comments explain only a non-obvious why.
+- **Doc blocks.** Every exported type, field, function and hook has a `/** */` block (a project lint rule, which also holds the form: full sentences) that says what it guarantees, in full sentences; inline comments explain only a non-obvious why.
 - **Tests follow the same rules**: one `describe` per contract, test names that state the behaviour (`'a refresh keeps the beat'`), literal expectations beside the assertion, and no state shared between tests.
-- **One command.** `npm run check` runs typecheck, lint, format check, tests and build, and passes before every commit; a pre-commit hook (`simple-git-hooks` with `lint-staged`) runs Prettier and ESLint on the staged files. `npm run format` fixes what can be fixed (`eslint --fix`, then `prettier --write`).
+- **One command.** `npm run check` runs typecheck, lint, format check, tests and build, and passes before every commit; a pre-commit hook (`simple-git-hooks` with `lint-staged`) runs Prettier and oxlint on the staged files. `npm run format` fixes what can be fixed (`oxlint --fix`, then `prettier --write`).
 
 ## I.5 How it stays generic, and exact
 
@@ -163,7 +164,7 @@ Vectors are the framework's own `Vec2` (`{ x, z }`), structurally compatible wit
 - **Triggers:** dispatch order is owner, then party listeners; within a bearer, aura order then authored order (gathered into a scratch list before any runs); conditions, then chance (rolled only when `0 < chance < 1`, on the triggers' own stream), then internal cooldown (so a failed roll never starts it), then actions in order; a filter the event does not carry fails; depth cap 3, with subscribers still hearing events past it.
 - **Procs:** applied in list order, each seeing the results of the ones before it (§II.6.1 rule 2); a proc aimed at a unit the list already killed does nothing; an always-proc rolls nothing; `chance` rolls on the procs' own stream; depth cap as in `spells/cast.ts`.
 - **Cues:** a cue event is a `CueId`, an anchor position, an owner and numeric params, in the order the simulation fires them; only params that differ from the cue's declared defaults cross the wire. What the cue shows (swarm today: its parts in the order vfx, sound, text) is the client's.
-- **Determinism:** no `Math.random`, `Date.now`, `performance.now` or iteration over unordered keys. `isolation.test.ts` scans for them. Every random draw comes from the run's seed, through the host, in one of the two forms below.
+- **Determinism:** no `Math.random`, `Date.now`, `performance.now` or iteration over unordered keys. The lint config bans them (`no-restricted-properties`); iteration order is held by review. Every random draw comes from the run's seed, through the host, in one of the two forms below.
 - **Time is a fixed-step simulation clock, never wall time.** The simulation advances in fixed ticks; `time = tick × dt` is derived from an integer tick count, not accumulated, so it never drifts and two runs agree to the bit. The host owns the clock and hands `tick`, `dt` and `time` to every system; the framework never reads a real clock. Rendering interpolates between ticks on its own side. Deadlines are **stamps** (an absolute tick or time at which something ends or fires) by default, so they need no syncing and cannot drift; aura remaining times, script timers and pulse clocks also run in a **countdown mode** (decremented, as `effects/system.ts` does) where parity needs it, chosen per registry, and every due comparison takes its epsilon from its clock (§II.6 K3); the motion clock (co-op prediction) is a second fixed-step clock counted in motion steps, with the same rule. Swarm accumulates `game.time += dt` today, so the port keeps an **accumulating mode** for parity and the integer-tick mode is the default for new games; the clock's tests pin both.
 - **Two kinds of random, both from the run's seed:**
   - **Sequential streams** (`stream(seed, salt)`), each salted so a roll added in one system never shifts another. Their draws depend on call order, so reordering two hits changes every later roll on that stream. The port uses them wherever swarm does today, bit for bit (crits on the main stream, `volley`, `horde`, `trigger`, `proc`…).
@@ -179,7 +180,7 @@ npm packages are welcome when they save real work, under five conditions:
 1. **Pure and portable.** Plain JavaScript or TypeScript with no DOM, no Node-only runtime API, no native addon and no side effects on import, so the framework still runs in a browser, on a server and in a worker (§I.5.5); the CI browser bundle proves it.
 2. **Deterministic.** No hidden randomness, clocks or unordered iteration on a path the simulation depends on.
 3. **Small and maintained.** A permissive licence (MIT, ISC, BSD, Apache-2.0), few or no transitive dependencies, recent releases.
-4. **Pinned and declared.** An exact version in the project's `package.json`, and never swarm or any of its packages. `isolation.test.ts` allows exactly the packages listed there.
+4. **Pinned and declared.** An exact version in the project's `package.json`, and never swarm or any of its packages. `knip` fails on an import of a package that is not listed, and the lint config rejects any swarm import.
 5. **Behind the framework's own API.** A dependency is an implementation detail: consumers never import it or see its types, so it can be replaced without a breaking change.
 
 The plan adopts these; others follow the same test:
@@ -246,7 +247,7 @@ export const SPELLS = createRegistry({ frostNova, blast }); // SPELLS.id.frostNo
 - **No `class`, no `this`, no `instanceof`.** Narrowing uses `kind` fields and type guards.
 - **`new` only for built-ins** that have no other form: `Map`, `Set`, `WeakMap`, typed arrays, `Error`.
 - **A third-party class** (for example `flatbush`'s index) is constructed in exactly one adapter module that exposes plain functions, so the rest of the framework never sees it.
-- **Enforced by lint and a test.** The package's ESLint config bans `ClassDeclaration`, `ClassExpression`, `ThisExpression`, `instanceof`, and `new` outside the built-in allowlist and the adapter modules (`no-restricted-syntax`). `isolation.test.ts` repeats the check with the TypeScript parser, so it holds even where lint is not run.
+- **Enforced by lint.** The project's lint rules ban `class` declarations and expressions, `this`, `instanceof`, and `new` outside the built-in allowlist and the adapter modules.
 
 A unit test per kind registers a resource, calls every hook detached, and holds that the framework never mutates it.
 
@@ -260,14 +261,14 @@ The framework is simulation only. **No player-facing text and no visual or audio
 - **Floating numbers and callouts** (a damage number, an absorbed "(−N)", "STAGGERED") are cues with numeric params; the client's cue table owns the wording and the colour.
 - **Completeness is the game's test, not the framework's.** A consuming game checks that every id in its registries has a presentation entry, for example with a `satisfies Record<SpellName, …>` table or a unit test over `SPELLS.id`.
 - **Developer strings are allowed.** Registry names (§I.5) and error or validation messages in English are for developers, never shown to players, and never on the wire.
-- **Enforced.** The framework's definition types carry no string fields except the developer-facing ones listed in a type-level test, and `docs.test.ts` fails if an exported type gains a field named like presentation (`name`, `label`, `text`, `description`, `icon`, `color`, `sound`, `vfx`, `model`, `anim`) outside that list.
+- **Enforced.** The framework's definition types carry no string fields except the developer-facing ones listed in a type-level test, and a project lint rule fails if an exported type gains a field named like presentation (`name`, `label`, `text`, `description`, `icon`, `color`, `sound`, `vfx`, `model`, `anim`) outside its allowlist.
 
 ### I.5.5 Runs anywhere: no Node.js at runtime
 
 spellweave runs on the server (Node), in the browser (swarm's "local play" runs the whole simulation client-side) and in a Web Worker. Node.js is a **development tool** here (tests, build, benchmarks), never a runtime dependency.
 
 - **`src/` uses ECMAScript only.** No `node:` imports; no `process`, `Buffer`, `global`, `require`, `module`, `__dirname`, `setImmediate` or `fs`; no DOM or `window` either. Timers, randomness and clocks come from the host (§I.5), so nothing needs a platform API. Typed arrays, `Math.imul`, `Map` / `Set` / `WeakMap` and `BigInt` are ECMAScript and allowed.
-- **Checked three ways.** The `src/` compiler config has no Node or DOM types (§I.4.1); `isolation.test.ts` rejects any `node:` import and any reference to the Node globals above inside `src/`; and CI bundles `src/` for the browser (`esbuild --platform=browser --bundle`, a dev dependency) and fails if anything reaches for a Node built-in.
+- **Checked three ways.** The `src/` compiler config has no Node or DOM types (§I.4.1); the lint config rejects any Node built-in import and any reference to the Node globals above inside `src/` (`import/no-nodejs-modules`, `no-restricted-globals`); and CI bundles `src/` for the browser (`esbuild --platform=browser --bundle`, a dev dependency) and fails if anything reaches for a Node built-in.
 - **Dependencies meet the same bar** (§I.5.1, condition 1): `flatbush`, `flatqueue`, `kdbush` and `typedfastbitset` are plain ESM with no Node imports. The browser bundle check covers them too.
 - **Built as ESM for any bundler.** `dist/` (built locally or by the consumer, never published, §I.2) is standard ES modules with `.js` extensions and declarations, `"sideEffects": false` for tree-shaking, and `exports` with only `types` and `default` conditions, so Vite, esbuild, webpack and Node all resolve it the same way.
 - **Tests stay on `node:test`.** The unit tests and benchmarks run on Node, which is fine: they exercise the same ECMAScript code the browser runs. `node:` imports are allowed under `tests/` and `bench/` only.
@@ -322,7 +323,7 @@ The hatches, from lightest to heaviest:
 What keeps the hatches honest:
 
 - **Declared, not scattered.** Hatch code sits in the content's own module (`cards/coil/`, `events/prison/`) or in a named game system, never inside `Game.step`'s plumbing or the world adapter.
-- **Deterministic by the same rules** (§I.5): no `Math.random`, no wall clock, streams through `ctx.random`; `isolation.test.ts`'s scan runs over hatch code too.
+- **Deterministic by the same rules** (§I.5): no `Math.random`, no wall clock, streams through `ctx.random`; the lint bans cover hatch code too.
 - **Counted.** The framework can list every game proc kind, `run` name, pipeline stage, query extension and game-owned slot a game registered (`escapeReport(registries)`); swarm prints it in CI, and a hatch that several mechanics start to share is a candidate to become a framework feature.
 - **Typed.** Hatches get the same types as framework code (`ctx`, `Proc`, `ext`), so moving a hatch into the framework later is a refactor, not a rewrite.
 
@@ -359,13 +360,13 @@ Each is summarised by what it must offer; Part II has the full model.
 - **No end-to-end example game.** Nothing visual and no sample game: completeness is shown by each system's tests covering its contract, including the §I.5 semantics as literal expectations.
 - **Time and randomness in tests** come from the framework's own injected clock and seeded streams or keyed rolls. `mock.timers` and real timers are never needed. The keyed-roll mixer's frozen table is a literal array in its test, not a fixture file.
 - **No fixture files and no goldens.** Expected values sit in the test next to the assertion. The per-platform golden machinery stays in swarm.
-- **Run.** `node --test "tests/**/*.test.ts"` on Node's own type stripping, as the `test` script; optionally `--experimental-test-coverage` locally. `isolation.test.ts` and `docs.test.ts` are unit tests too, and run in the same command. Benchmarks (`npm run bench`, §I.5.4) are separate and never part of `npm test`.
+- **Run.** `node --test "tests/**/*.test.ts"` on Node's own type stripping, as the `test` script; optionally `--experimental-test-coverage` locally. Benchmarks (`npm run bench`, §I.5.4) are separate and never part of `npm test`.
 - **Per phase.** Every phase adds the tests for what it builds: stacking modes, clock arithmetic, fold order, dispatch order, chance rolls, depth caps, timeline transitions, hit policies, tick order, pipeline order, and refusals. A phase is not done until its system's contract is covered.
 
-Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` and `npm run format:check` clean, `npm run build` emitting `dist/`, and `isolation.test.ts` and `docs.test.ts` passing.
+Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` and `npm run format:check` clean, and `npm run build` emitting `dist/`.
 
-- **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (latest `typescript` and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `eslint.config.js` and `.prettierrc.json` with every rule of §I.4.2, `.editorconfig`, the pre-commit hook, `npm run check`, README skeleton, the CI workflow; `isolation.test.ts` (every import is relative and inside the project, a `node:` built-in in tests, or a package listed in `package.json`; never swarm; no forbidden globals) and `docs.test.ts`. The Node-free rule (§I.5.5) is in place from the start: the split `tsconfig.json` / `tsconfig.test.json`, the Node-globals scan in `isolation.test.ts`, and the CI browser-bundle check.
-- **F1. Core and math.** Sequential streams (tested draw for draw against literal values taken from today's `rng`, since the framework cannot import swarm), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock in both modes and stamps, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), the lint and parser checks for the no-class style, bus, scope; shapes and sweeps. The registry's dense layout, typed columns, dispatch tables and bitsets, the pools, and the first `bench/` baselines land here, so every later system is built on them.
+- **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (TypeScript 7 and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `.oxlintrc.json` and `oxlint-plugin.js` with every rule of §I.4.2 that oxlint can hold (the §I.5.2 bans, doc blocks on exports, no presentation fields, no swarm imports, no Node built-ins or globals in `src/`), `.prettierrc.json`, `.editorconfig`, the pre-commit hook, `npm run check`, README skeleton, the CI workflow with `knip`. The Node-free rule (§I.5.5) is in place from the start: the split `tsconfig.json` / `tsconfig.test.json`, the lint bans on Node built-ins and globals in `src/`, and the CI browser-bundle check.
+- **F1. Core and math.** Sequential streams (tested draw for draw against literal values taken from today's `rng`, since the framework cannot import swarm), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock in both modes and stamps, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), the lint checks for the no-class style, bus, scope; shapes and sweeps. The registry's dense layout, typed columns, dispatch tables and bitsets, the pools, and the first `bench/` baselines land here, so every later system is built on them.
 - **F2. Modifiers.** Ported from swarm's `packages/game/src/modifiers/` with game content removed; tests reproduce the fold's documented float order. Adds stat kinds, curves and scaled values (§II.3.13), tested on the fixed evaluation order, the share-of-1 rule, per-rank ratios, bonus and target terms, and the load-time checks.
 - **F3. Auras.** Ported from swarm's `packages/game/src/effects/` and generalised to any bearer; add `value` / `merge` / `keepWhenDepleted`, lifecycle procs, damage hooks.
 - **F4. Procs and triggers.** The proc registry (from `spells/procs` on `spell-primitive`) and triggers (from swarm's `packages/game/src/triggers/`), owned by auras only; `do` lists as procs.
@@ -419,7 +420,7 @@ The coverage audit (§II.6) widens F1–F19 as well: each catalogue entry names 
 
 - **Short and succinct.** Each document fits on a screen or two (about 150 lines at most) and follows one template: what the system is for (two or three sentences), its concepts, a minimal example, the guarantees it pins (order, clocks, randomness, parity rules), how a game extends it, and pitfalls. Reference detail stays in the `/** */` blocks, which the documents link to rather than repeat.
 - **Examples compile.** Every example is a `.ts` file under `docs/examples/`, typechecked and linted with the rest, and included in the Markdown; none is written only in prose.
-- **Kept true.** `docs.test.ts` fails when a system under `src/` has no document, when a document links to a missing export, or when an example does not typecheck; the documents are formatted by Prettier like the code.
+- **Kept true.** Review holds that every system under `src/` has a document, that no document links to a missing export and that every example typechecks; the documents are formatted by Prettier like the code.
 
 **Tier 3, server infrastructure** (a separate server-side project or package beside the framework, never its core): interest management (area-of-interest grids, per-field visibility for owner, party and public); maps, instances and phasing; persistence with versioned migrations; content loading, validation and hot reload; server-side input validation and anti-cheat; party, raid, guild and chat. Party membership is the one piece the core needs, for `hears: 'party'` and later loot, and it takes it as a host fact.
 

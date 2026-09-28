@@ -1,0 +1,251 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Every rule of §I.4.2 and §I.5.2 that oxlint can hold: its native rules (the type-aware ones run on tsgolint, built on
+  // TypeScript 7's native compiler), plus the project rules in oxlint-plugin.js for what it has no native rule for.
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import"],
+  "jsPlugins": ["./oxlint-plugin.js"],
+  "categories": { "correctness": "error" },
+  "options": { "typeAware": true, "reportUnusedDisableDirectives": "error" },
+  "ignorePatterns": ["dist/", "coverage/", "node_modules/"],
+  "rules": {
+    // Style and size (§I.4.2).
+    "curly": ["error", "all"],
+    "eqeqeq": ["error", "always"],
+    "prefer-const": "error",
+    "no-console": "error",
+    "no-nested-ternary": "error",
+    "no-var": "error",
+    "import/no-default-export": "error",
+    "import/no-duplicates": "error",
+    "import/first": "error",
+    "sort-imports": ["error", { "ignoreCase": true, "ignoreDeclarationSort": true }],
+    "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }],
+    "max-lines": ["error", { "max": 400 }],
+    "complexity": ["error", 12],
+    "max-depth": ["error", 3],
+    "max-params": ["error", 3],
+    "spellweave/todo-with-issue": "error",
+    "spellweave/padded-statements": "error",
+    "spellweave/padded-object-functions": "error",
+    "spellweave/blank-line-before-block-comment": "error",
+    "spellweave/import-order": "error",
+    "spellweave/export-order": "error",
+    "spellweave/naming": "error",
+    "spellweave/export-docs": "error",
+    "spellweave/presentation-fields": ["error", { "allow": [] }],
+
+    // No classes and determinism (§I.5, §I.5.2).
+    "spellweave/no-class-style": "error",
+    "spellweave/no-foreign-new": "error",
+    "no-restricted-imports": [
+      "error",
+      { "patterns": [{ "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages (§I.5.1)." }] }
+    ],
+    "no-restricted-properties": [
+      "error",
+      { "object": "Math", "property": "random", "message": "Deterministic: randomness comes from the host (§I.5)." },
+      { "object": "Date", "property": "now", "message": "Deterministic: time comes from the host (§I.5)." },
+      { "object": "performance", "property": "now", "message": "Deterministic: time comes from the host (§I.5)." },
+      {
+        "object": "crypto",
+        "property": "getRandomValues",
+        "message": "Deterministic: randomness comes from the host (§I.5)."
+      },
+      {
+        "object": "crypto",
+        "property": "randomUUID",
+        "message": "Deterministic: randomness comes from the host (§I.5)."
+      }
+    ],
+
+    // Type safety: typescript-eslint's strict and stylistic type-checked presets, as far as oxlint has them.
+    "typescript/consistent-type-imports": ["error", { "fixStyle": "inline-type-imports" }],
+    "typescript/explicit-module-boundary-types": "error",
+    "typescript/switch-exhaustiveness-check": [
+      "error",
+      { "considerDefaultExhaustiveForUnions": false, "requireDefaultForNonUnion": true }
+    ],
+    "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "allowForKnownSafeCalls": [
+          { "from": "package", "package": "node:test", "name": ["describe", "it", "suite", "test"] }
+        ]
+      }
+    ],
+    "typescript/await-thenable": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-array-delete": "error",
+    "typescript/no-base-to-string": "error",
+    "typescript/no-confusing-non-null-assertion": "error",
+    "typescript/no-confusing-void-expression": "error",
+    "typescript/no-deprecated": "error",
+    "typescript/no-duplicate-type-constituents": "error",
+    "typescript/no-dynamic-delete": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-extra-non-null-assertion": "error",
+    "typescript/no-extraneous-class": "error",
+    "typescript/no-for-in-array": "error",
+    "typescript/no-implied-eval": "error",
+    "typescript/no-invalid-void-type": "error",
+    "typescript/no-meaningless-void-operator": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/no-misused-spread": "error",
+    "typescript/no-namespace": "error",
+    "typescript/no-non-null-asserted-nullish-coalescing": "error",
+    "typescript/no-non-null-asserted-optional-chain": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-redundant-type-constituents": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-unnecessary-boolean-literal-compare": "error",
+    "typescript/no-unnecessary-template-expression": "error",
+    "typescript/no-unnecessary-type-arguments": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-unnecessary-type-parameters": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-enum-comparison": "error",
+    "typescript/no-unsafe-function-type": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/no-unsafe-unary-minus": "error",
+    "typescript/no-useless-default-assignment": "error",
+    "typescript/no-wrapper-object-types": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/prefer-as-const": "error",
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/prefer-reduce-type-parameter": "error",
+    "typescript/prefer-return-this-type": "error",
+    "typescript/related-getter-setter-pairs": "error",
+    "typescript/require-await": "error",
+    "typescript/restrict-plus-operands": "error",
+    "typescript/restrict-template-expressions": "error",
+    "typescript/return-await": "error",
+    "typescript/triple-slash-reference": "error",
+    "typescript/unbound-method": "error",
+    "typescript/unified-signatures": "error",
+    "typescript/use-unknown-in-catch-callback-variable": "error",
+    "typescript/adjacent-overload-signatures": "error",
+    "typescript/array-type": "error",
+    "typescript/consistent-generic-constructors": "error",
+    "typescript/consistent-indexed-object-style": "error",
+    "typescript/consistent-type-definitions": "error",
+    "typescript/dot-notation": "error",
+    "typescript/no-inferrable-types": "error",
+    "typescript/non-nullable-type-assertion-style": "error",
+    "typescript/prefer-find": "error",
+    "typescript/prefer-for-of": "error",
+    "typescript/prefer-function-type": "error",
+    "typescript/prefer-includes": "error",
+    "typescript/prefer-nullish-coalescing": "error",
+    "typescript/prefer-regexp-exec": "error",
+    "typescript/prefer-string-starts-ends-with": "error"
+  },
+  "overrides": [
+    {
+      // src/ runs anywhere (§I.5.5): no Node built-in, no import from tests or benchmarks, no Node or DOM globals.
+      "files": ["src/**/*.ts"],
+      "rules": {
+        "import/no-nodejs-modules": "error",
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages (§I.5.1)." },
+              { "regex": "^\\.\\.?/(.*/)?(tests|bench)(/|$)", "message": "src/ never imports tests or benchmarks." }
+            ]
+          }
+        ],
+        "no-restricted-globals": [
+          "error",
+          { "name": "Buffer", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "__dirname", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "__filename", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          {
+            "name": "clearImmediate",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)."
+          },
+          { "name": "document", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "exports", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "global", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "module", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "process", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "require", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "setImmediate", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "setInterval", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "setTimeout", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "window", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." }
+        ]
+      }
+    },
+    {
+      // Adapter modules: the only files that may construct a third-party class or cast (§I.5.2).
+      "files": ["src/**/*-adapter.ts"],
+      "rules": { "spellweave/no-foreign-new": "off", "typescript/consistent-type-assertions": "off" }
+    },
+    {
+      "files": ["tests/**/*.ts", "bench/**/*.ts"],
+      "rules": { "max-lines-per-function": "off", "max-lines": "off" }
+    },
+    {
+      // Tooling in plain JavaScript: an oxlint plugin needs a default export, and without types every type-aware rule is
+      // noise, so they are all off here.
+      "files": ["*.js"],
+      "rules": {
+        "import/no-default-export": "off",
+        "max-lines": "off",
+        "typescript/explicit-module-boundary-types": "off",
+        "spellweave/naming": "off",
+        "typescript/await-thenable": "off",
+        "typescript/dot-notation": "off",
+        "typescript/no-array-delete": "off",
+        "typescript/no-base-to-string": "off",
+        "typescript/no-confusing-void-expression": "off",
+        "typescript/no-deprecated": "off",
+        "typescript/no-duplicate-type-constituents": "off",
+        "typescript/no-floating-promises": "off",
+        "typescript/no-for-in-array": "off",
+        "typescript/no-implied-eval": "off",
+        "typescript/no-meaningless-void-operator": "off",
+        "typescript/no-misused-promises": "off",
+        "typescript/no-misused-spread": "off",
+        "typescript/no-redundant-type-constituents": "off",
+        "typescript/no-unnecessary-boolean-literal-compare": "off",
+        "typescript/no-unnecessary-template-expression": "off",
+        "typescript/no-unnecessary-type-arguments": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
+        "typescript/no-unnecessary-type-parameters": "off",
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-enum-comparison": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/no-unsafe-unary-minus": "off",
+        "typescript/no-useless-default-assignment": "off",
+        "typescript/non-nullable-type-assertion-style": "off",
+        "typescript/only-throw-error": "off",
+        "typescript/prefer-find": "off",
+        "typescript/prefer-includes": "off",
+        "typescript/prefer-nullish-coalescing": "off",
+        "typescript/prefer-promise-reject-errors": "off",
+        "typescript/prefer-reduce-type-parameter": "off",
+        "typescript/prefer-regexp-exec": "off",
+        "typescript/prefer-return-this-type": "off",
+        "typescript/prefer-string-starts-ends-with": "off",
+        "typescript/related-getter-setter-pairs": "off",
+        "typescript/require-await": "off",
+        "typescript/restrict-plus-operands": "off",
+        "typescript/restrict-template-expressions": "off",
+        "typescript/return-await": "off",
+        "typescript/switch-exhaustiveness-check": "off",
+        "typescript/unbound-method": "off",
+        "typescript/use-unknown-in-catch-callback-variable": "off"
+      }
+    }
+  ]
+}
