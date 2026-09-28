@@ -27,7 +27,7 @@ export const STATS_TABLE = 2;
 export const STATS_FUNCTION = 4;
 
 /** Flag bit: the caster holds an aura while it casts. */
-export const CAST_AURA = 8;
+const CAST_AURA = 8;
 
 /** The hooks every spell registry builds dispatch tables and `has` bitsets for (§I.5.4). */
 export const SPELL_HOOKS = ['state', 'canCast', 'target', 'begin', 'release', 'onHit', 'onEnd'] as const;

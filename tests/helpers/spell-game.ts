@@ -53,7 +53,7 @@ import {
 import { createTriggerSystem, type TriggerDef, type TriggerTypes } from '../../src/triggers/index.ts';
 
 /** A test unit: an entity id, a place, health, a stat column per stat, its auras and its casts. */
-export interface Unit extends SpellCaster {
+interface Unit extends SpellCaster {
   /** Its entity id. */
   readonly id: number;
 
@@ -83,13 +83,13 @@ export interface Charged extends ActivationShape {
 }
 
 /** The test game's own host services. */
-export interface GameHost {
+interface GameHost {
   /** What happened, as lines. */
   readonly log: string[];
 }
 
 /** A cast's game fields (§I.5.6 hatch 4). */
-export interface CastFields {
+interface CastFields {
   /** A counter the tests write. */
   hits: number;
 }
@@ -229,7 +229,7 @@ const KINDS = defineDamageKinds({ physical: {} });
 const TAGS = defineAuraTags(['busy']);
 
 /** The test clock's step: a quarter second, so a second is four steps. */
-export const STEP = 0.25;
+const STEP = 0.25;
 
 /** The test bus: the four spell events. */
 const makeBus = () =>

@@ -158,7 +158,7 @@ const admit = <G extends SpellTypes>(
 };
 
 /** Enters a stage: its seconds read now (a function reads the cast), its clock reset. Throws for bad seconds. */
-export const enterStage = <G extends SpellTypes>(
+const enterStage = <G extends SpellTypes>(
   cast: Cast<G>,
   stage: Exclude<CastStage, 'ended'>,
   seconds: CastSeconds<G> | undefined,
