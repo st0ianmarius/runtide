@@ -14,6 +14,8 @@ Built so far: the scaffold (phase F0), the deterministic core and math (phase F1
 
 A game plugs in by defining its resources as plain objects and functions, registering them (each gets a dense numeric id), and implementing narrow host interfaces: the world query, the clock, the random streams, the damage sink and cue output. Everything runs on a fixed-step clock and seeded randomness, so two runs agree to the bit, on the server, in the browser and in a worker.
 
+spellweave is built for MMO-like games in general, not around any one game. Every behaviour it ships is a documented contract with a sensible default. Where a game needs a rule of its own (a countdown epsilon, a stacking or merge rule, how a derived stat measures its gain, a curve), it writes that rule in its own code on a declared escape hatch: hooks, pluggable rules and functions, custom curves, host interfaces and typed `ext` slots. The framework grows a hatch when a game needs one, never a mode for one game.
+
 ## Not published
 
 spellweave is `"private": true` and is never published to npm or any other registry. Consume it straight from this repository (a git dependency or a local folder); see §I.8 of the plan.
