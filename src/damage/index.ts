@@ -9,6 +9,7 @@
 
 export type { Blow, BlowSpec, BlowStep } from './blow.ts';
 export { DAMAGE_STAGES, FORCE_STAGES, HEAL_STAGES } from './compile.ts';
+export type { DamageCues } from './cues.ts';
 
 export type {
   BlowStatus,

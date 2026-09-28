@@ -88,6 +88,9 @@ const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, name: string, t
 
     default: {
       return (heal: HealRecord<G>) => {
+        const cues = engine.options.cues;
+
+        cues?.heal?.(heal, cues.out);
         raiseHealed(engine, heal);
 
         return undefined;

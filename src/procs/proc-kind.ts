@@ -1,4 +1,5 @@
 import type { AuraId, AuraTagId } from '../auras/index.ts';
+import type { CueId, CueRegistry } from '../cues/index.ts';
 import type { Proc } from './proc-data.ts';
 import type { ProcContext, ProcOutcome, ProcShape, ProcTarget, ProcTypes } from './proc-types.ts';
 
@@ -12,6 +13,12 @@ export interface ProcResolver<G extends ProcTypes> {
 
   /** An aura tag's id, from its name or its id. */
   readonly tag: (tag: G['tag'] | AuraTagId) => AuraTagId;
+
+  /** A cue's id, from its name or its id. */
+  readonly cue: (cue: G['cueName'] | CueId) => CueId;
+
+  /** The cue registry of the system's buffer; throws when the system has none. */
+  readonly cues: () => CueRegistry;
 
   /** A resource's id (its position in the system's `resources`), from its name or its id. */
   readonly resource: (resource: G['resource'] | number) => number;

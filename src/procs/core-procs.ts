@@ -1,8 +1,10 @@
 import { pick } from '../core/index.ts';
+import { CUE_KIND } from './cue-kind.ts';
 import { frameOf } from './frame.ts';
 import type {
   AndThenProc,
   ApplyAuraProc,
+  CueProc,
   EventProc,
   GrantProc,
   GroupProc,
@@ -52,6 +54,9 @@ interface CoreProcMap<G extends ProcTypes> {
 
   /** The game's own code. */
   readonly run: RunProc<G>;
+
+  /** Fires a cue. */
+  readonly cue: CueProc<G>;
 }
 
 /** The name of one of the framework's proc kinds. */
@@ -265,9 +270,10 @@ const runKind: CoreProcKind<'run'> = {
 };
 
 /**
- * The framework's proc kinds (§I.6, §II.3.6), the ones that need no host beyond the aura system: `applyAura`,
- * `removeAura`, `removeByTag`, `grant`, `event`, and the control kinds `group`, `andThen`, `pickOne` and `run`. A game
- * registers them with its own: `createProcRegistry({ ...CORE_PROCS, ...GAME_PROCS })`.
+ * The framework's proc kinds (§I.6, §II.3.6), the ones that need no host beyond the aura system and the framework's own
+ * services: `applyAura`, `removeAura`, `removeByTag`, `grant`, `event`, the control kinds `group`, `andThen`, `pickOne`
+ * and `run`, and `cue` (appended last, so the kinds before it keep their ids). A game registers them with its own:
+ * `createProcRegistry({ ...CORE_PROCS, ...GAME_PROCS })`.
  */
 export const CORE_PROCS: { readonly [Kind in CoreProcName]: CoreProcKind<Kind> } = Object.freeze({
   applyAura: applyAuraKind,
@@ -279,4 +285,5 @@ export const CORE_PROCS: { readonly [Kind in CoreProcName]: CoreProcKind<Kind> }
   andThen: andThenKind,
   pickOne: pickOneKind,
   run: runKind,
+  cue: CUE_KIND,
 });

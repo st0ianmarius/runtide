@@ -1,4 +1,5 @@
 import type { CountdownRule } from '../core/index.ts';
+import type { CueId } from '../cues/index.ts';
 import type { Modifier } from '../modifiers/index.ts';
 import type { AuraContext } from './active-aura.ts';
 import type { AuraApplication } from './application.ts';
@@ -214,8 +215,12 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
    */
   readonly triggers?: readonly G['trigger'][];
 
-  /** Cue ids by lifecycle change, which the client plays from what it sees on the wire. */
-  readonly cues?: Readonly<Partial<Record<AuraChange, number>>>;
+  /**
+   * Cues by lifecycle change (§II.3.9, §II.6 A7), each a `self` or `entity` cue that sits on the bearer: the client
+   * plays them from what it sees of the aura on the wire (zero bytes), or a local game fires them from the aura events
+   * (`auraCue`). The aura system never reads them; `checkAuraCues` holds them against the cue registry at load.
+   */
+  readonly cues?: Readonly<Partial<Record<AuraChange, CueId>>>;
 
   /** The game's own data, which the framework never reads. */
   readonly data?: G['data'];

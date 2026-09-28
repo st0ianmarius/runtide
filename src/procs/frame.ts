@@ -1,5 +1,7 @@
 import { type ActiveAura, type AuraId, type AuraSystem, NO_SOURCE } from '../auras/index.ts';
 import type { Random } from '../core/index.ts';
+import type { CueBuffer } from '../cues/index.ts';
+import type { CueFiring } from './cue-kind.ts';
 import type { Proc } from './proc-data.ts';
 import type { ProcResolver } from './proc-kind.ts';
 import type { ProcBus, ProcContext, ProcHost, ProcOrigin, ProcOutcome, ProcStatus, ProcTypes } from './proc-types.ts';
@@ -54,6 +56,9 @@ export interface FrameShared<G extends ProcTypes> {
   /** The bus `event` procs raise on. */
   readonly bus: ProcBus | undefined;
 
+  /** The buffer `cue` procs fire into. */
+  readonly cues: CueBuffer | undefined;
+
   /** The system. */
   readonly runner: FrameRunner<G>;
 
@@ -75,6 +80,7 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
   readonly auras: AuraSystem<G>;
   readonly host: ProcHost<G> & G['host'];
   readonly bus: ProcBus | undefined;
+  readonly cues: CueBuffer | undefined;
   readonly resolve: ProcResolver<G>;
 
   /** The units the list killed, valid up to `killedCount`; never shrunk, so a reused frame allocates nothing. */
@@ -84,6 +90,10 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
   killedCount = 0;
 
   application: ReusedApplication<G> | undefined = undefined;
+
+  /** The spec and place a `cue` proc fires with, made on the first one. */
+  firing: CueFiring | undefined = undefined;
+
   readonly #runner: FrameRunner<G>;
 
   constructor(shared: FrameShared<G>, depth: number, origin: ProcOrigin<G>) {
@@ -91,6 +101,7 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
     this.auras = shared.auras;
     this.host = shared.host;
     this.bus = shared.bus;
+    this.cues = shared.cues;
     this.resolve = shared.resolve;
     this.#runner = shared.runner;
     this.self = origin.self;

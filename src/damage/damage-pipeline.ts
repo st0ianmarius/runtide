@@ -90,6 +90,10 @@ const afterStages = <G extends DamageTypes>(engine: DamageEngine<G>, walks: Blow
     },
 
     outcome: (blow: BlowRecord<G>) => {
+      const cues = engine.options.cues;
+
+      cues?.blow?.(blow, cues.out);
+
       if (blow.status !== 'ignored') {
         raiseBlow(engine, blow.attacker === undefined ? undefined : events?.dealt, blow);
         raiseBlow(engine, events?.taken, blow);

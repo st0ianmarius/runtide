@@ -2,6 +2,7 @@
 /* oxlint-disable typescript/prefer-for-of */
 import type { ActiveAura, AuraContext, AuraSystem } from '../auras/index.ts';
 import type { Random } from '../core/index.ts';
+import type { CueBuffer } from '../cues/index.ts';
 import { createApplier, missing } from './apply.ts';
 import { type FrameRunner, type FrameShared, ProcFrame } from './frame.ts';
 import type { Proc } from './proc-data.ts';
@@ -49,6 +50,9 @@ export interface ProcSystemOptions<G extends ProcTypes> {
 
   /** The bus `event` procs raise on. */
   readonly bus?: ProcBus;
+
+  /** The buffer `cue` procs fire into (the tick's cue events, §II.3.9). */
+  readonly cues?: CueBuffer;
 
   /** The most proc lists nested at once (a list set off by a list set off by …); deeper ones drop. 4 by default. */
   readonly maxDepth?: number;
@@ -191,6 +195,7 @@ const createRunner = <G extends ProcTypes>(
     auras: options.auras,
     host: options.host,
     bus: options.bus,
+    cues: options.cues,
     runner,
     resolve,
   }));
@@ -256,6 +261,7 @@ const partsOf = <G extends ProcTypes>(options: ProcSystemOptions<G>, state: Runn
   auras: options.auras,
   kinds: options.kinds,
   resources: options.resources ?? [],
+  cues: options.cues?.registry,
 
   noteHatch: (name: string) => {
     if (!state.runs.has(name)) {

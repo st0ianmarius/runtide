@@ -1,5 +1,7 @@
 import type { AuraId, AuraTagId } from '../auras/index.ts';
 import type { EventKind } from '../core/index.ts';
+import type { CueId, CueParamValue } from '../cues/index.ts';
+import type { Vec2 } from '../math/index.ts';
 import type { ProcContext, ProcShape, ProcTarget, ProcTypes } from './proc-types.ts';
 
 /** Lands an aura (`auras.apply`), credited to the list's source. */
@@ -80,6 +82,30 @@ export interface EventProc<G extends ProcTypes> extends ProcShape {
   fill(this: void, payload: unknown, ctx: ProcContext<G>): void;
 }
 
+/**
+ * Fires a cue into the proc system's buffer (§II.3.9): presentation only, so it changes nothing and plays even on a
+ * unit its list killed. A `self` cue sits on the procs' self and is that unit's; any other sits on `on` (the list's
+ * target when absent; `party` fires one per member) or at `at`, and is credited to the list's source (a `world` cue is
+ * nobody's). Checked at load (§II.6 P7): a live cue, its own params with values of their kinds, and no `on` or `at`
+ * on a `self` cue, no `at` on an `entity` cue.
+ */
+export interface CueProc<G extends ProcTypes> extends ProcShape {
+  /** The discriminant. */
+  readonly kind: 'cue';
+
+  /** The cue: its name in data, its id in code. */
+  readonly cue: G['cueName'] | CueId;
+
+  /** The unit it sits on, or whose position is its point. */
+  readonly on?: ProcTarget<G>;
+
+  /** The point it sits at, in place of a unit's position. */
+  readonly at?: Vec2;
+
+  /** Its params by name; a param left out keeps its default. */
+  readonly params?: Readonly<Record<string, CueParamValue>>;
+}
+
 /** Several procs behind one `chance` (all or nothing), applied in order in the same list. */
 export interface GroupProc<G extends ProcTypes> extends ProcShape {
   /** The discriminant. */
@@ -138,6 +164,7 @@ export type CoreProc<G extends ProcTypes> =
   | RemoveByTagProc<G>
   | GrantProc<G>
   | EventProc<G>
+  | CueProc<G>
   | GroupProc<G>
   | AndThenProc<G>
   | PickOneProc<G>

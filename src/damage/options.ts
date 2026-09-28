@@ -2,6 +2,7 @@ import type { AuraContext, AuraSystem } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import type { StatId, StatTable, StatView } from '../modifiers/index.ts';
 import type { Blow } from './blow.ts';
+import type { DamageCues } from './cues.ts';
 import type { BlowStop, DamageTypes, RollSlot } from './damage-types.ts';
 import type { Death } from './death.ts';
 import type { DamageEvents } from './events.ts';
@@ -199,6 +200,9 @@ export interface DamageSystemOptions<G extends DamageTypes> {
 
   /** The bus and kinds the system raises its events on. */
   readonly events?: DamageEvents<G>;
+
+  /** The game's mapping from outcomes to cues; no cue is fired when absent. */
+  readonly cues?: DamageCues<G>;
 
   /**
    * A game's own roll rule for a slot (§I.5.6 hatch 2), in place of the default: no draw at a chance of 0 or less or

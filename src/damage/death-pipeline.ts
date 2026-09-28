@@ -56,6 +56,9 @@ export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: D
   engine.depth += 1;
 
   try {
+    const cues = engine.options.cues;
+
+    cues?.death?.(death, cues.out);
     engine.auras.bearerDied(spec.unit);
 
     if (!death.isInert) {

@@ -1,4 +1,5 @@
 import type { AuraId, AuraSystem, AuraTagId } from '../auras/index.ts';
+import type { CueId, CueRegistry } from '../cues/index.ts';
 import type { Proc } from './proc-data.ts';
 import type { ProcResolver } from './proc-kind.ts';
 import type { ProcTypes } from './proc-types.ts';
@@ -14,6 +15,9 @@ export interface ResolverParts<G extends ProcTypes> {
 
   /** The resource names, by id. */
   readonly resources: readonly string[];
+
+  /** The cue registry of the system's buffer, if it has one. */
+  readonly cues: CueRegistry | undefined;
 
   /** Notes a hatch name for the escape report. */
   readonly noteHatch: (name: string) => void;
@@ -51,6 +55,10 @@ const checkedAura = <G extends ProcTypes>(auras: AuraSystem<G>, id: AuraId, what
   return id;
 };
 
+/** A cue id checked against the registry at load: a live id, not a tombstone or a number outside it. */
+const checkedCue = (cues: CueRegistry, id: CueId, what: string | undefined): CueId =>
+  cues.schemas[id] === undefined ? fail(what, `${id} is not a live cue id.`) : id;
+
 /**
  * A resolver over a system's tables. With `what` (at load) every id is checked and every error names what was being
  * prepared; without it (when a proc applies) ids pass through as they are and names are looked up.
@@ -79,6 +87,20 @@ export const createResolver = <G extends ProcTypes>(
 
       return tagIds[tag] ?? fail(what, `unknown aura tag ${tag}.`);
     },
+
+    cue: (cue) => {
+      const cues = parts.cues ?? fail(what, 'a cue proc needs the proc system to have cues.');
+
+      if (typeof cue !== 'string') {
+        return isChecked ? checkedCue(cues, cue, what) : cue;
+      }
+
+      const ids: Readonly<Record<string, CueId | undefined>> = cues.id;
+
+      return ids[cue] ?? fail(what, `unknown cue ${cue}.`);
+    },
+
+    cues: () => parts.cues ?? fail(what, 'a cue proc needs the proc system to have cues.'),
 
     resource: (resource) => {
       const id = typeof resource === 'number' ? resource : parts.resources.indexOf(resource);

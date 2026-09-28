@@ -1,8 +1,10 @@
 import type { AuraId, AuraTagId } from '../auras/index.ts';
 import type { EventKind } from '../core/index.ts';
+import type { CueId } from '../cues/index.ts';
 import type {
   AndThenProc,
   ApplyAuraProc,
+  CueProc,
   EventProc,
   GrantProc,
   GroupProc,
@@ -57,6 +59,12 @@ export const raise = <Payload, G extends ProcTypes = ProcTypes>(
   fill: (payload: Payload, ctx: ProcContext<G>) => void,
   options: ChanceOption = {},
 ): EventProc<G> => ({ ...options, kind: 'event', event, fill });
+
+/** A `cue` proc: `cue('flash', { on: 'eventUnit', params: { size: 2 } })`. */
+export const cue = <G extends ProcTypes = ProcTypes>(
+  id: G['cueName'] | CueId,
+  options: Omit<CueProc<G>, 'kind' | 'cue'> = {},
+): CueProc<G> => ({ ...options, kind: 'cue', cue: id });
 
 /** A `group`: several procs behind one chance, all or nothing. */
 export const group = <G extends ProcTypes = ProcTypes>(

@@ -5,17 +5,28 @@ import { checkOrder } from '../../src/core/index.ts';
 import { CORE_PROCS, createProcRegistry, escapeReport, explainProc } from '../../src/procs/index.ts';
 import { aura, type Game, makeGame, mark, STRIKE } from '../helpers/trigger-game.ts';
 
-const CORE_ORDER = ['applyAura', 'removeAura', 'removeByTag', 'grant', 'event', 'group', 'andThen', 'pickOne', 'run'];
+const CORE_ORDER = [
+  'applyAura',
+  'removeAura',
+  'removeByTag',
+  'grant',
+  'event',
+  'group',
+  'andThen',
+  'pickOne',
+  'run',
+  'cue',
+];
 
 describe('the proc registry (§I.5.4, §I.5.6 hatch 1)', () => {
   it('gives each kind its id by key order, the core kinds first when spread first', () => {
     const kinds = createProcRegistry<Game>({ ...CORE_PROCS, strike: STRIKE });
 
     checkOrder(kinds, [...CORE_ORDER, 'strike']);
-    assert.equal(kinds.id['strike'], 9);
+    assert.equal(kinds.id['strike'], 10);
     assert.equal(kinds.kindOf({ kind: 'andThen' }), 6);
-    assert.deepEqual(Array.from(kinds.isTargeted), [1, 1, 1, 1, 0, 0, 0, 0, 0, 1]);
-    assert.equal(kinds.defs[9], STRIKE);
+    assert.deepEqual(Array.from(kinds.isTargeted), [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1]);
+    assert.equal(kinds.defs[10], STRIKE);
   });
 
   it('refuses an unknown kind and a kind with no apply', () => {
@@ -79,7 +90,7 @@ describe('explainProc (§I.5.3)', () => {
         values: {},
         procs: [
           { kind: 'proc', proc: 0, chance: 1, to: 'eventUnit', values: { aura: id.mark, duration: 3 }, procs: [] },
-          { kind: 'proc', proc: 9, chance: 1, to: 'target', values: { amount: 40 }, procs: [] },
+          { kind: 'proc', proc: 10, chance: 1, to: 'target', values: { amount: 40 }, procs: [] },
           { kind: 'proc', proc: 3, chance: 1, to: 'party', values: { resource: 1, amount: 2 }, procs: [] },
         ],
       },

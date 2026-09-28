@@ -94,7 +94,10 @@ export const createForcePipeline = <G extends DamageTypes>(engine: DamageEngine<
     }
 
     try {
+      const cues = engine.options.cues;
+
       runForceStages(engine, runs, force);
+      cues?.force?.(force, cues.out);
     } finally {
       engine.leave();
     }

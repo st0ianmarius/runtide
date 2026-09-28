@@ -26,6 +26,7 @@ export {
 
 export type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
 export type { AuraClock, AuraModifiers } from './compile.ts';
+export { auraCue, checkAuraCues } from './cues.ts';
 export type { AuraDamageHooks, BlowChange, ForceChange, LethalOutcome } from './damage-hooks.ts';
 
 export {

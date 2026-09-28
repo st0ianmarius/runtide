@@ -1,5 +1,7 @@
 import type { ActiveAura, AuraSystem, AuraTypes } from '../auras/index.ts';
 import type { EventKind, Random } from '../core/index.ts';
+import type { CueBuffer } from '../cues/index.ts';
+import type { Vec2 } from '../math/index.ts';
 import type { Proc } from './proc-data.ts';
 
 /**
@@ -25,6 +27,9 @@ export interface ProcShape {
 export interface ProcTypes extends AuraTypes {
   /** The names of the game's auras, by which data procs name them before the registry exists (`string` when open). */
   readonly auraName: string;
+
+  /** The names of the game's cues, by which data `cue` procs name them before the registry exists. */
+  readonly cueName: string;
 
   /** The names of the game's resources, which `grant` procs hand out. */
   readonly resource: string;
@@ -99,6 +104,9 @@ export interface ProcHost<G extends ProcTypes> {
 
   /** Hands out an amount of a resource (its id: its position in the system's `resources`) to a unit. */
   readonly grant?: (unit: G['bearer'], resource: number, amount: number) => void;
+
+  /** Where a unit stands now: where a `cue` proc on it sits, unless the proc names a point. */
+  readonly positionOf?: (unit: G['bearer']) => Vec2;
 }
 
 /**
@@ -152,6 +160,9 @@ export interface ProcContext<G extends ProcTypes> {
 
   /** The bus `event` procs raise on, if the system has one. */
   readonly bus: ProcBus | undefined;
+
+  /** The buffer `cue` procs fire into, if the system has one: a `run` hatch may fire into it too. */
+  readonly cues: CueBuffer | undefined;
 
   /** A random source: the procs' own stream, or a named stream of the host's table. */
   readonly random: (stream?: G['stream']) => Random;
