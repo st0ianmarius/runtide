@@ -33,6 +33,22 @@ describe('the block stage', () => {
     assert.deepEqual(log, ['roll block 0.4', 'roll block 0.6']);
   });
 
+  it('rolls before the attacker’s crit, so a blocked blow rolls no crit (the roll table’s independent order)', () => {
+    const { damage, unit, set, rolls, log } = makeDamageGame(
+      {},
+      { block: { chance: 'blockChance' }, crit: { chance: 'critChance', damage: 'critDamage' } },
+    );
+
+    const [target, attacker] = [unit(1), unit(2)];
+
+    set(target, 'blockChance', 0.5);
+    set(attacker, 'critChance', 0.5);
+    rolls.push(0.4, 0.6, 0.1);
+    damage.hit({ target, attacker, amount: 10 });
+    damage.hit({ target, attacker, amount: 10 });
+    assert.deepEqual(log, ['roll block 0.4', 'roll block 0.6', 'roll crit 0.1']);
+  });
+
   it('is skipped by an unblockable blow and by a kind that bypasses it, with no draw', () => {
     const { damage, unit, set, log } = makeDamageGame({}, { block: { chance: 'blockChance' } });
     const target = unit(1);

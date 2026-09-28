@@ -11,9 +11,9 @@ describe('the damage pipeline order (§II.6 D1)', () => {
 
     assert.deepEqual(damage.stages, [
       'ignore',
+      'block',
       'outgoing',
       'crit',
-      'block',
       'crushing',
       'mitigation',
       'absorb',
@@ -44,7 +44,7 @@ describe('the damage pipeline order (§II.6 D1)', () => {
       },
     );
 
-    assert.deepEqual(damage.stages.slice(0, 7), ['window', 'grace', 'ignore', 'shelter', 'wound', 'horde', 'outgoing']);
+    assert.deepEqual(damage.stages.slice(0, 7), ['window', 'grace', 'ignore', 'shelter', 'wound', 'horde', 'block']);
     assert.deepEqual(damage.stages.slice(13, 16), ['health', 'shove', 'dealt']);
     assert.deepEqual(damage.gameStages, [
       'damage.window',
@@ -66,9 +66,9 @@ describe('the damage pipeline order (§II.6 D1)', () => {
       trace.map((step) => `${step.stage}:${step.amount}:${step.status}`),
       [
         'ignore:30:landed',
+        'block:30:landed',
         'outgoing:30:landed',
         'crit:30:landed',
-        'block:30:landed',
         'crushing:30:landed',
         'mitigation:30:landed',
         'absorb:30:landed',

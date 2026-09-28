@@ -1,9 +1,9 @@
 /**
  * Damage, healing and force (§I.6, §II.3.8, §II.3.14, §II.6 D1–D6): one side-agnostic damage pipeline for any unit,
- * in a documented stage order a game extends with its own named stages (§I.5.6 hatch 5): the ignore gates, the
- * attacker's outgoing multipliers and crit, the block roll, crushing, the mitigation rows, absorbs, `onLethal` and
- * health, then the after-stages (`onDealt`, the events, the knockback, the death pipeline). Damage kinds bypass the
- * stages they name (true damage skips block, mitigation and absorbs). A heal pipeline, a force pipeline and the death
+ * in a documented stage order a game extends with its own named stages (§I.5.6 hatch 5): the ignore gates, the block
+ * roll, the attacker's outgoing multipliers and crit, crushing, the mitigation rows, absorbs, `onLethal` and health,
+ * then the after-stages (`onDealt`, the events, the knockback, the death pipeline). Damage kinds bypass the stages
+ * they name (true damage skips block, mitigation and absorbs). A heal pipeline, a force pipeline and the death
  * pipeline with its reward slots sit beside it, and the `damage`, `heal` and `setHealth` proc kinds reach them all.
  */
 
