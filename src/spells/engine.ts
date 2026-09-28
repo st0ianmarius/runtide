@@ -88,6 +88,9 @@ export interface EngineParts<G extends SpellTypes> {
   /** The view a cast reads when the host has no `statsOf`. */
   readonly baseView: StatView;
 
+  /** The pause bit of every interrupt, by name. */
+  readonly interruptBits: ReadonlyMap<string, number>;
+
   /** Makes the game's fields of a pooled cast. */
   readonly createExt: () => G['castExt'];
 
@@ -121,6 +124,9 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   /** What `stats` functions are called with, reused. */
   readonly statsCall = new StatsCall<G>();
 
+  /** The pause bit of every interrupt a spell's timeline names, from bit 1 up, by name. */
+  readonly interruptBits: ReadonlyMap<string, number>;
+
   /** The cast whose hook's procs are running now, which a delayed or `castSpell` proc belongs to; none outside. */
   current: Cast<G> | undefined = undefined;
 
@@ -129,6 +135,8 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   readonly #streams: EngineParts<G>['streams'];
   readonly #resetExt: EngineParts<G>['resetExt'];
   readonly #lists: ProcList<G>[] = [];
+  readonly #handles: CastHandle[][] = [];
+  #handleDepth = 0;
   readonly #place = new CasterPlace();
   #application: CastAuraApplication | undefined = undefined;
   #depth = 0;
@@ -145,6 +153,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     this.castAuras = parts.castAuras;
     this.boxes = parts.boxes;
     this.baseView = parts.baseView;
+    this.interruptBits = parts.interruptBits;
     this.#procs = parts.procs;
     this.#random = parts.random;
     this.#streams = parts.streams;
@@ -231,6 +240,24 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   giveList(list: ProcList<G>): void {
     list.clear();
     this.#depth -= 1;
+  }
+
+  /** Takes the reusable handle list of the next nesting level; give it back with `giveHandles`. */
+  takeHandles(): CastHandle[] {
+    const handles = (this.#handles[this.#handleDepth] ??= []);
+
+    this.#handleDepth += 1;
+
+    return handles;
+  }
+
+  /** Gives back the handle list `takeHandles` handed out last, clearing its first `used` entries. */
+  giveHandles(handles: CastHandle[], used: number): void {
+    for (let i = 0; i < used; i++) {
+      handles[i] = NO_CAST;
+    }
+
+    this.#handleDepth -= 1;
   }
 
   /**

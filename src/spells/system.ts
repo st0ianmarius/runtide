@@ -18,10 +18,11 @@ import {
   Report,
   startCast,
 } from './runner.ts';
-import type { AnySpellDef, SpellContext, SpellHit } from './spell-def.ts';
+import type { AnySpellDef, CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
 import type { SpellHost } from './spell-host.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import { baseView, StatsBoxes } from './stats-box.ts';
+import { cancelCast, finishCast, interruptCaster, MANUAL_PAUSE, setPause, stepCaster } from './stepper.ts';
 
 /** What a spell system is built from (§I.5): the game's spells, the systems they run on, the clock and the host. */
 export interface SpellSystemBase<G extends SpellTypes> {
@@ -123,6 +124,37 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly castsOf: (caster: G['bearer'], out: CastHandle[]) => number;
 
   /**
+   * Steps every cast a caster runs by one step of the clock, in the order they started (§II.3.3): windups count down,
+   * track and release, channels beat, recoveries end. The host calls it for each caster in its own order; a paused
+   * cast does not count down.
+   */
+  readonly step: (caster: G['bearer']) => void;
+
+  /** Pauses a running cast: its stage stops counting until `resume`; false for a stale or ended cast. */
+  readonly pause: (cast: CastHandle) => boolean;
+
+  /** Resumes a cast `pause` paused (an interrupt's own pause stays until the interrupt ends). */
+  readonly resume: (cast: CastHandle) => boolean;
+
+  /** Cancels a running cast: `onCancel`, `onEnd` and the end event, with no recovery; false for a stale or ended one. */
+  readonly cancel: (cast: CastHandle) => boolean;
+
+  /**
+   * Ends a running cast's payload now with an outcome (a charge into a wall ends `blocked`, a lost tether `broken`):
+   * no release for a windup, the channel stops, and its recovery follows; false when there is no payload to end.
+   */
+  readonly finish: (cast: CastHandle, outcome: Exclude<CastOutcome, 'cancelled'>) => boolean;
+
+  /**
+   * An interrupt hits a caster (F16: a stun, a freeze, a death): each running cast answers it as its timeline says,
+   * pausing until `endInterrupt` or cancelling; returns how many answered.
+   */
+  readonly interrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
+
+  /** An interrupt on a caster ends: the casts it paused count down again (unless something else pauses them). */
+  readonly endInterrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
+
+  /**
    * A spell's share of an outgoing multiplier stat (§II.3.13: `SpellDef.scaling`), or `undefined` for a share of 1:
    * what the damage host's `shareOf` answers with (`shareOf: spells.shareOf`).
    */
@@ -187,6 +219,20 @@ const checkCues = <G extends SpellTypes>(options: SpellSystemOptions<G>): void =
   }
 };
 
+/** The most interrupts the spells may name: each pauses by a bit of its own, above the manual pause's. */
+const MAX_INTERRUPTS = 30;
+
+/** The pause bit of every interrupt a spell's timeline names, in the order the registry first names them. */
+const interruptBitsOf = <G extends SpellTypes>(registry: SpellRegistry<G>): ReadonlyMap<string, number> => {
+  const names = new Set(registry.defs.flatMap((def) => Object.keys(def?.timeline?.interrupts ?? {})));
+
+  if (names.size > MAX_INTERRUPTS) {
+    throw new RangeError(`The spells name ${names.size} interrupts; at most ${MAX_INTERRUPTS} can pause a cast.`);
+  }
+
+  return new Map([...names].map((name, index) => [name, 2 ** (index + 1)]));
+};
+
 /** Builds the engine over the options, every table resolved. */
 const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): SpellEngine<G> => {
   const { registry } = options;
@@ -207,6 +253,7 @@ const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): SpellEn
     castAuras: registry.defs.map((def, id) => castAuraOf(options.auras, def, registry.names[id] ?? '')),
     boxes: new StatsBoxes(registry.compiled),
     baseView: baseView(registry.stats),
+    interruptBits: interruptBitsOf(registry),
     createExt: extFactory(options),
     resetExt: options.resetExt,
   });
@@ -295,6 +342,23 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
     return record.count;
   };
+
+  readonly step = (caster: G['bearer']): void => {
+    stepCaster(this.#engine, caster);
+  };
+
+  readonly pause = (cast: CastHandle): boolean => setPause(this.#engine, cast, { bits: MANUAL_PAUSE, isOn: true });
+  readonly resume = (cast: CastHandle): boolean => setPause(this.#engine, cast, { bits: MANUAL_PAUSE, isOn: false });
+  readonly cancel = (cast: CastHandle): boolean => cancelCast(this.#engine, cast);
+
+  readonly finish = (cast: CastHandle, outcome: Exclude<CastOutcome, 'cancelled'>): boolean =>
+    finishCast(this.#engine, cast, outcome);
+
+  readonly interrupt = (caster: G['bearer'], reason: G['interrupt']): number =>
+    interruptCaster(this.#engine, caster, { reason, isOn: true });
+
+  readonly endInterrupt = (caster: G['bearer'], reason: G['interrupt']): number =>
+    interruptCaster(this.#engine, caster, { reason, isOn: false });
 
   readonly shareOf = (spell: SpellId, stat: StatId): number | undefined => {
     const share = this.registry.shares[spell]?.[stat];
