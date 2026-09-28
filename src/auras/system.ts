@@ -179,8 +179,12 @@ export interface AuraSystem<G extends AuraTypes> {
   /** An aura's own length for one application on a bearer; throws for an aura with none. */
   readonly lengthOf: (aura: AuraId, bearer: G['bearer']) => number;
 
-  /** Fills `out` with the bearer's auras that have a pipeline hook, in list order, and returns it. */
-  readonly collect: (bearer: G['bearer'], hook: AuraPipelineHook, out: ActiveAura<G>[]) => ActiveAura<G>[];
+  /**
+   * Writes the bearer's auras that have a pipeline hook into `out` from index 0, in list order, and returns how many.
+   * `out` keeps its storage (it is never shrunk, so a reused array allocates nothing); entries past the count that an
+   * earlier call wrote are cleared to `undefined`, so it keeps no references.
+   */
+  readonly collect: (bearer: G['bearer'], hook: AuraPipelineHook, out: (ActiveAura<G> | undefined)[]) => number;
 
   /** A context for calling one aura's hook from a pipeline; a new object, which the caller may keep for the call. */
   readonly context: (bearer: G['bearer'], aura: ActiveAura<G>) => AuraContext<G>;
@@ -258,26 +262,31 @@ const remainingIn = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bear
   return left;
 };
 
-/** Fills `out` with the auras that have a pipeline hook. */
+/** Writes the auras that have a pipeline hook into `out` by index, clears what an earlier call left, and counts. */
 const collectIn = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  at: { readonly hook: AuraPipelineHook; readonly out: ActiveAura<G>[] },
-): ActiveAura<G>[] => {
+  at: { readonly hook: AuraPipelineHook; readonly out: (ActiveAura<G> | undefined)[] },
+): number => {
   const { items } = setOf<G>(bearer);
   const has = engine.registry.has[at.hook];
-
-  at.out.length = 0;
+  const { out } = at;
+  let count = 0;
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
 
     if (item !== undefined && has.has(item.id)) {
-      at.out.push(item);
+      out[count] = item;
+      count += 1;
     }
   }
 
-  return at.out;
+  for (let i = count; i < out.length && out[i] !== undefined; i++) {
+    out[i] = undefined;
+  }
+
+  return count;
 };
 
 /** The read-only queries over a bearer's auras. */
@@ -294,7 +303,7 @@ const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>) => ({
   hasTag: (bearer: G['bearer'], tag: AuraTagId) => setOf<G>(bearer).tags.has(tag),
   lengthOf: (id: AuraId, bearer: G['bearer']) => engine.lengthOf(id, bearer),
 
-  collect: (bearer: G['bearer'], hook: AuraPipelineHook, out: ActiveAura<G>[]) =>
+  collect: (bearer: G['bearer'], hook: AuraPipelineHook, out: (ActiveAura<G> | undefined)[]) =>
     collectIn(engine, bearer, { hook, out }),
 
   context: (bearer: G['bearer'], aura: ActiveAura<G>): AuraContext<G> => {

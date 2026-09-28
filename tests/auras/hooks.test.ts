@@ -73,26 +73,27 @@ describe('damage hook declarations (§II.3.8)', () => {
     });
 
     const u = unit();
-    const out: ActiveAura<TestAuras>[] = [];
+    const out: (ActiveAura<TestAuras> | undefined)[] = [];
 
     for (const name of ['escape', 'plain', 'guard', 'shield'] as const) {
       auras.apply(u, id[name]);
     }
 
-    const collected = auras.collect(u, 'onIncomingDamage', out);
-
-    assert.equal(collected, out);
+    assert.equal(auras.collect(u, 'onIncomingDamage', out), 2);
     assert.deepEqual(
-      out.map((a) => a.id),
+      out.map((a) => a?.id),
       [id.shield, id.guard],
     );
     assert.deepEqual(
-      out.map((a) => auras.registry.get(a.id).onIncomingDamage?.(auras.context(u, a), 80)),
+      out.map((a) =>
+        a === undefined ? undefined : auras.registry.get(a.id).onIncomingDamage?.(auras.context(u, a), 80),
+      ),
       [{ absorb: 50 }, { scale: 0.5 }],
     );
+    assert.equal(auras.collect(u, 'onLethal', out), 1);
     assert.deepEqual(
-      auras.collect(u, 'onLethal', out).map((a) => a.id),
-      [id.escape],
+      out.map((a) => a?.id),
+      [id.escape, undefined],
     );
     assert.equal(auras.registry.has.onIgnore.has(id.guard), true);
   });

@@ -1,22 +1,30 @@
 /**
- * Reusable scratch lists, one per nesting level (§I.5.4): a caller takes the list for its level, fills it, reads it,
- * and gives it back, so a nested caller (a trigger that raises an event that runs triggers) gets its own list and
- * nothing is allocated once every level has been reached once.
+ * Reusable scratch storage, one array per nesting level (§I.5.4): a caller takes the array for its level, fills it
+ * by index while counting how many entries it wrote, reads those entries, and gives it back, so a nested caller (a
+ * trigger that raises an event that runs triggers) gets its own array. An array keeps its storage between uses (it is
+ * never shrunk, since shrinking an array to 0 drops its backing store and the next fill allocates it again), so
+ * nothing is allocated once every level has been reached at its largest size.
  */
 export interface Scratch<Item> {
-  /** How many lists are taken right now. */
+  /** How many arrays are taken right now. */
   readonly depth: number;
 
-  /** Takes the list of the next level, emptied. */
-  readonly take: () => Item[];
+  /**
+   * Takes the array of the next level. It holds whatever its last user left past index 0, so the caller writes by
+   * index and reads only what it wrote.
+   */
+  readonly take: () => (Item | undefined)[];
 
-  /** Gives the most recently taken list back and empties it, so it holds no references. */
-  readonly give: () => void;
+  /**
+   * Gives the most recently taken array back, clearing its first `used` entries (0 by default) so it keeps no
+   * references to them.
+   */
+  readonly give: (used?: number) => void;
 }
 
-/** Creates an empty stack of scratch lists. */
+/** Creates an empty stack of scratch arrays. */
 export const createScratch = <Item>(): Scratch<Item> => {
-  const levels: Item[][] = [];
+  const levels: (Item | undefined)[][] = [];
   let depth = 0;
 
   return {
@@ -29,22 +37,21 @@ export const createScratch = <Item>(): Scratch<Item> => {
 
       levels[depth] = list;
       depth += 1;
-      list.length = 0;
 
       return list;
     },
 
-    give: () => {
+    give: (used = 0) => {
       if (depth === 0) {
-        throw new RangeError('No scratch list is taken.');
+        throw new RangeError('No scratch array is taken.');
       }
 
       depth -= 1;
 
-      const list = levels[depth];
+      const list = levels[depth] ?? [];
 
-      if (list !== undefined) {
-        list.length = 0;
+      for (let i = 0; i < used; i++) {
+        list[i] = undefined;
       }
     },
   };

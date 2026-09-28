@@ -77,14 +77,14 @@ export const createApplier = <G extends ProcTypes>(parts: ApplyParts<G>): Applie
   };
 
   const applyTo = (frame: ProcFrame<G>, proc: Proc<G>, unit: G['bearer']): ProcOutcome => {
-    if (frame.killed.includes(unit)) {
+    if (frame.hasKilled(unit)) {
       return PROC_SKIPPED;
     }
 
     const outcome = kinds.defs[kinds.kindOf(proc)]?.apply(proc, frame, unit) ?? PROC_LANDED;
 
     if (outcome.hasKilled) {
-      frame.killed.push(unit);
+      frame.noteKill(unit);
     }
 
     return outcome;

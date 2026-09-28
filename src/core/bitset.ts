@@ -66,7 +66,8 @@ class WordBitset implements Bitset {
   }
 
   clear(): void {
-    this.#set.clear();
+    // Zeroes the words in place: the library's own `clear` allocates a new word array on every call.
+    this.#set.words.fill(0);
   }
 
   isEmpty(): boolean {

@@ -1,5 +1,3 @@
-// Hot path (§I.4.2, §I.5.4): the queue is walked on every operation, so the loops are indexed.
-/* oxlint-disable typescript/prefer-for-of */
 import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
 import { explainModifier } from '../modifiers/index.ts';
 import { type ActiveAura, type AuraItem, MutableContext } from './active-aura.ts';
@@ -108,20 +106,25 @@ const ownProduct = <G extends AuraTypes>(tables: AuraTables, item: AuraItem<G>, 
 export class AuraEvents<G extends AuraTypes> {
   readonly #parts: EventParts<G>;
   readonly #codes: number[] = [];
-  readonly #bearers: G['bearer'][] = [];
-  readonly #items: AuraItem<G>[] = [];
+  readonly #bearers: (G['bearer'] | undefined)[] = [];
+  readonly #items: (AuraItem<G> | undefined)[] = [];
   readonly #handles: number[] = [];
   readonly #weights: number[] = [];
   readonly #ops: number[] = [];
   readonly #causes: AuraCause[] = [];
   readonly #openOps: number[] = [];
   readonly #openCauses: AuraCause[] = [];
-  readonly #retired: AuraItem<G>[] = [];
+  readonly #retired: (AuraItem<G> | undefined)[] = [];
   readonly #contexts: MutableContext<G>[] = [];
   readonly #heard: readonly Bitset[];
   #contextDepth = 0;
   #dispatching = 0;
   #serial = 0;
+
+  // The columns and the retired list keep their storage between operations and are filled by index up to these
+  // counts: shrinking an array to 0 drops its backing store, so every operation would allocate it again (§I.5.4).
+  #count = 0;
+  #retiredCount = 0;
 
   constructor(parts: EventParts<G>) {
     this.#parts = parts;
@@ -140,7 +143,7 @@ export class AuraEvents<G extends AuraTypes> {
     this.#openOps.push(this.#serial);
     this.#openCauses.push(cause);
 
-    return this.#codes.length;
+    return this.#count;
   }
 
   /** Changes the cause of the open operation's next events (an application's cleanse and eviction). */
@@ -167,14 +170,16 @@ export class AuraEvents<G extends AuraTypes> {
 
   /** Queues a beat for a bearer that is not silent. */
   beat(bearer: G['bearer'], item: AuraItem<G>, weight: number): void {
-    this.#queue(BEAT, bearer, item);
-    this.#weights[this.#weights.length - 1] = weight;
+    if (this.#queue(BEAT, bearer, item)) {
+      this.#weights[this.#count - 1] = weight;
+    }
   }
 
   /** Marks an aura as off its bearer; its slot goes back to the pool once no dispatch is running. */
   retire(item: AuraItem<G>): void {
     item.isActive = false;
-    this.#retired.push(item);
+    this.#retired[this.#retiredCount] = item;
+    this.#retiredCount += 1;
   }
 
   /**
@@ -182,11 +187,11 @@ export class AuraEvents<G extends AuraTypes> {
    * operation that queued nothing and retired nothing costs two comparisons.
    */
   finish(from: number): void {
-    if (this.#codes.length > from) {
+    if (this.#count > from) {
       this.#flush(from);
     }
 
-    if (this.#dispatching === 0 && this.#retired.length > 0) {
+    if (this.#dispatching === 0 && this.#retiredCount > 0) {
       this.#releaseRetired();
     }
   }
@@ -224,19 +229,24 @@ export class AuraEvents<G extends AuraTypes> {
     return this.#heard[code]?.has(id) === true || events?.bus.hears(events.kind) === true;
   }
 
-  /** Queues one event, unless the bearer is silent. */
-  #queue(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
+  /** Queues one event, unless the bearer is silent; true when it was queued. */
+  #queue(code: number, bearer: G['bearer'], item: AuraItem<G>): boolean {
     if (setOf<G>(bearer).isSilent) {
-      return;
+      return false;
     }
 
-    this.#codes.push(code);
-    this.#bearers.push(bearer);
-    this.#items.push(item);
-    this.#handles.push(item.handle);
-    this.#weights.push(1);
-    this.#ops.push(this.#openOps.at(-1) ?? 0);
-    this.#causes.push(this.#openCauses.at(-1) ?? 'apply');
+    const i = this.#count;
+
+    this.#codes[i] = code;
+    this.#bearers[i] = bearer;
+    this.#items[i] = item;
+    this.#handles[i] = item.handle;
+    this.#weights[i] = 1;
+    this.#ops[i] = this.#openOps.at(-1) ?? 0;
+    this.#causes[i] = this.#openCauses.at(-1) ?? 'apply';
+    this.#count = i + 1;
+
+    return true;
   }
 
   /** Dispatches queued event `i`. */
@@ -345,33 +355,40 @@ export class AuraEvents<G extends AuraTypes> {
     this.#dispatching += 1;
 
     try {
-      for (let i = from; i < this.#codes.length; i++) {
+      for (let i = from; i < this.#count; i++) {
         this.#dispatch(i);
       }
     } finally {
-      this.#codes.length = from;
-      this.#bearers.length = from;
-      this.#items.length = from;
-      this.#handles.length = from;
-      this.#weights.length = from;
-      this.#ops.length = from;
-      this.#causes.length = from;
+      this.#drop(from);
       this.#dispatching -= 1;
     }
+  }
+
+  /** Drops the queued events from `from` on, keeping the columns' storage and letting go of their references. */
+  #drop(from: number): void {
+    for (let i = from; i < this.#count; i++) {
+      this.#bearers[i] = undefined;
+      this.#items[i] = undefined;
+    }
+
+    this.#count = from;
   }
 
   /** Gives every retired slot back to the pool, in the order they were retired. */
   #releaseRetired(): void {
     const retired = this.#retired;
 
-    for (let i = 0; i < retired.length; i++) {
+    // Released one by one and counted down only at the end, so a release that retires more is still walked.
+    for (let i = 0; i < this.#retiredCount; i++) {
       const item = retired[i];
+
+      retired[i] = undefined;
 
       if (item !== undefined) {
         this.#parts.release(item);
       }
     }
 
-    retired.length = 0;
+    this.#retiredCount = 0;
   }
 }

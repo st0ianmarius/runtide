@@ -52,7 +52,7 @@ const IDS: readonly Id<'spells'>[] = SPELLS.ids;
 const TAGS = createBitset(Array.from({ length: 64 }, (_unused, index) => index * 3));
 const IMMUNE = createBitset([7, 190]);
 const WHEEL = createTimingWheel<number>({ horizon: 256 });
-const FIRED: number[] = [];
+const FIRED: (number | undefined)[] = [];
 const SCRATCH_KEY = [0, 0, 0, 0];
 const MAIN = stream(12_345);
 let tick = 0;
@@ -207,7 +207,7 @@ bench
     }
 
     tick += 1;
-    sink += WHEEL.collect(tick, FIRED).length;
+    sink += WHEEL.collect(tick, FIRED);
   })
   .add('keyed roll, 5-part key (spread)', () => {
     for (let i = 0; i < BATCH; i++) {

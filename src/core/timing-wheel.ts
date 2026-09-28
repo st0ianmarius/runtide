@@ -30,27 +30,67 @@ export interface TimingWheel<Item extends Defined> {
   readonly schedule: (at: number, item: Item) => void;
 
   /**
-   * Empties `out`, then fills it with every item due up to and including tick `through`, tick by tick, each tick's
-   * items in scheduling order, and moves the cursor past `through`. Returns `out`.
+   * Writes every item due up to and including tick `through` into `out` from index 0, tick by tick, each tick's items
+   * in scheduling order, moves the cursor past `through`, and returns how many it wrote. `out` keeps its storage (it
+   * is never shrunk, so a reused array allocates nothing); entries past the count that a previous call wrote are
+   * cleared to `undefined`, so it keeps no references.
    */
-  readonly collect: (through: number, out: Item[]) => Item[];
+  readonly collect: (through: number, out: (Item | undefined)[]) => number;
 }
 
 /** The smallest power of two at or above `n`, and at least 1. */
 const powerOfTwo = (n: number): number => 2 ** Math.ceil(Math.log2(Math.max(1, n)));
 
+/** Clears the entries of `out` from `from` up to the first one already clear. */
+const clearFrom = (out: unknown[], from: number): void => {
+  for (let i = from; i < out.length && out[i] !== undefined; i++) {
+    out[i] = undefined;
+  }
+};
+
+/**
+ * One tick's items: filled by index up to its count and never shrunk, since shrinking an array to 0 drops its
+ * backing store and the next tick that lands here would allocate it again.
+ */
+interface Bucket<Item> {
+  /** The items, valid up to `count`. */
+  readonly items: (Item | undefined)[];
+
+  /** How many items the bucket holds. */
+  count: number;
+}
+
 /** Creates an empty timing wheel. */
 export const createTimingWheel = <Item extends Defined>(options: TimingWheelOptions = {}): TimingWheel<Item> => {
   const horizon = powerOfTwo(options.horizon ?? 256);
-  const buckets: Item[][] = Array.from({ length: horizon }, () => []);
+  const buckets: Bucket<Item>[] = Array.from({ length: horizon }, () => ({ items: [], count: 0 }));
   const overflow = createOverflow<Item>();
   let cursor = options.start ?? 0;
   let size = 0;
 
-  const bucketAt = (tick: number): Item[] => buckets[tick % horizon] ?? [];
-
   const place = (tick: number, item: Item): void => {
-    bucketAt(tick).push(item);
+    const bucket = buckets[tick % horizon];
+
+    if (bucket !== undefined) {
+      bucket.items[bucket.count] = item;
+      bucket.count += 1;
+    }
+  };
+
+  /** Moves one bucket's items into `out` from `at`, clearing the bucket; returns the next free index of `out`. */
+  const drainBucket = (bucket: Bucket<Item>, out: (Item | undefined)[], at: number): number => {
+    let next = at;
+
+    for (let i = 0; i < bucket.count; i++) {
+      out[next] = bucket.items[i];
+      bucket.items[i] = undefined;
+      next += 1;
+    }
+
+    size -= bucket.count;
+    bucket.count = 0;
+
+    return next;
   };
 
   return {
@@ -72,29 +112,29 @@ export const createTimingWheel = <Item extends Defined>(options: TimingWheelOpti
       size += 1;
 
       if (tick - cursor < horizon) {
-        bucketAt(tick).push(item);
+        place(tick, item);
       } else {
         overflow.push(tick, item);
       }
     },
 
     collect: (through, out) => {
-      out.length = 0;
+      let count = 0;
 
       while (cursor <= through) {
-        const bucket = bucketAt(cursor);
+        const bucket = buckets[cursor % horizon];
 
-        for (const item of bucket) {
-          out.push(item);
+        if (bucket !== undefined) {
+          count = drainBucket(bucket, out, count);
         }
 
-        size -= bucket.length;
-        bucket.length = 0;
         cursor += 1;
         overflow.drain(cursor + horizon, place);
       }
 
-      return out;
+      clearFrom(out, count);
+
+      return count;
     },
   };
 };
@@ -133,6 +173,10 @@ const createOverflow = <Item extends Defined>(): Overflow<Item> => {
     },
 
     drain: (limit, admit) => {
+      if (heap.length === 0 || (heap.peekValue() ?? limit) >= limit) {
+        return;
+      }
+
       batch.length = 0;
 
       while (heap.length > 0 && (heap.peekValue() ?? limit) < limit) {

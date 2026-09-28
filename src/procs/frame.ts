@@ -76,7 +76,13 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
   readonly host: ProcHost<G> & G['host'];
   readonly bus: ProcBus | undefined;
   readonly resolve: ProcResolver<G>;
-  readonly killed: G['bearer'][] = [];
+
+  /** The units the list killed, valid up to `killedCount`; never shrunk, so a reused frame allocates nothing. */
+  readonly killed: (G['bearer'] | undefined)[] = [];
+
+  /** How many units the list killed. */
+  killedCount = 0;
+
   application: ReusedApplication<G> | undefined = undefined;
   readonly #runner: FrameRunner<G>;
 
@@ -105,10 +111,29 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
     this.source = origin.source ?? this.host.idOf?.(origin.self) ?? NO_SOURCE;
     this.aura = origin.aura;
 
-    // Emptied only when a kill filled it: shrinking an array to 0 drops its storage, and lists run all the time.
-    if (this.killed.length > 0) {
-      this.killed.length = 0;
+    // Cleared by index, never shrunk: shrinking an array to 0 drops its storage, and lists run all the time.
+    for (let i = 0; i < this.killedCount; i++) {
+      this.killed[i] = undefined;
     }
+
+    this.killedCount = 0;
+  }
+
+  /** Whether the list killed a unit. */
+  hasKilled(unit: G['bearer']): boolean {
+    for (let i = 0; i < this.killedCount; i++) {
+      if (this.killed[i] === unit) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /** Notes that the list killed a unit. */
+  noteKill(unit: G['bearer']): void {
+    this.killed[this.killedCount] = unit;
+    this.killedCount += 1;
   }
 
   /** Counts one run of a hatch. */

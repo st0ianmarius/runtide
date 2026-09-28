@@ -20,10 +20,14 @@ const BEARER_DEATH = CHANGES.indexOf('bearerDeath');
 /** The code of the `independent` stacking rule. */
 const INDEPENDENT = STACKINGS.indexOf('independent');
 
-/** Takes the aura at `index` off its bearer's list, shifting the rest down (no array is made). */
+/**
+ * Takes the aura at `index` off its bearer's list, shifting the rest down (no array is made). The last slot goes with
+ * `pop`, never by setting the length: a length set to 0 drops the list's storage, and the bearer's next aura would
+ * allocate it again, where `pop` keeps a small list's storage.
+ */
 const cut = <G extends AuraTypes>(set: AuraSet<G>, index: number): void => {
   set.items.copyWithin(index, index + 1);
-  set.items.length -= 1;
+  set.items.pop();
 };
 
 /** Takes the aura at `index` off its bearer and queues `change` (`removed` or `expired`) for it. */
@@ -45,19 +49,45 @@ export const takeOff = <G extends AuraTypes>(
   engine.events.raise(at.change, bearer, item);
 };
 
+/**
+ * Whether a removal takes an aura, given the removal's numeric argument. Matchers are module-level functions with the
+ * argument passed in, so a removal allocates no closure (§I.5.4).
+ */
+type Match<G extends AuraTypes> = (engine: AuraEngine<G>, item: AuraItem<G>, arg: number) => boolean;
+
+/** Takes every instance of the aura `id`. */
+const byId = <G extends AuraTypes>(_engine: AuraEngine<G>, item: AuraItem<G>, id: number): boolean => item.id === id;
+
+/** Takes every aura granting the tag `tag`. */
+const byTag = <G extends AuraTypes>(engine: AuraEngine<G>, item: AuraItem<G>, tag: number): boolean =>
+  engine.tables.tagBits[item.id]?.has(tag) === true;
+
+/** Takes every aura whose `removedOn` holds the state bit `bit`. */
+const byState = <G extends AuraTypes>(engine: AuraEngine<G>, item: AuraItem<G>, bit: number): boolean =>
+  ((engine.tables.removedOn[item.id] ?? 0) & (1 << bit)) !== 0;
+
+/** Takes every aura bound to the source `source`. */
+const bySource = <G extends AuraTypes>(engine: AuraEngine<G>, item: AuraItem<G>, source: number): boolean =>
+  item.source === source && ((engine.flags[item.id] ?? 0) & BOUND_TO_SOURCE) !== 0;
+
+/** A removal: which auras it takes, with its argument. */
+interface Removal<G extends AuraTypes> {
+  /** The matcher. */
+  readonly match: Match<G>;
+
+  /** Its argument. */
+  readonly arg: number;
+}
+
 /** Removes every aura `match` accepts, in list order, each raising `removed`; how many went. Dispatches nothing. */
-const strip = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
-  bearer: G['bearer'],
-  match: (item: AuraItem<G>) => boolean,
-): number => {
+const strip = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], removal: Removal<G>): number => {
   const set = setOf<G>(bearer);
   let removed = 0;
 
   for (let i = 0; i < set.items.length; i++) {
     const item = set.items[i];
 
-    if (item !== undefined && match(item)) {
+    if (item !== undefined && removal.match(engine, item, removal.arg)) {
       takeOff(engine, bearer, { index: i, change: REMOVED });
       i -= 1;
       removed += 1;
@@ -75,10 +105,10 @@ const strip = <G extends AuraTypes>(
 const removeWhere = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  removal: { readonly cause: AuraCause; readonly match: (item: AuraItem<G>) => boolean },
+  removal: Removal<G> & { readonly cause: AuraCause },
 ): number => {
   const from = engine.events.open(removal.cause);
-  const removed = strip(engine, bearer, removal.match);
+  const removed = strip(engine, bearer, removal);
 
   engine.events.close(from);
 
@@ -87,14 +117,11 @@ const removeWhere = <G extends AuraTypes>(
 
 /** Removes every instance of an aura; true when there was one. */
 export const removeAura = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], id: AuraId): boolean =>
-  removeWhere(engine, bearer, { cause: 'remove', match: (item) => item.id === id }) > 0;
+  removeWhere(engine, bearer, { cause: 'remove', match: byId, arg: id }) > 0;
 
 /** Removes every aura granting a tag (a cleanse or dispel); how many went. */
 export const removeByTag = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], tag: AuraTagId): number =>
-  removeWhere(engine, bearer, {
-    cause: 'removeByTag',
-    match: (item) => engine.tables.tagBits[item.id]?.has(tag) === true,
-  });
+  removeWhere(engine, bearer, { cause: 'removeByTag', match: byTag, arg: tag });
 
 /** Removes every aura whose `removedOn` names the state the bearer enters; how many went. */
 export const enterState = <G extends AuraTypes>(
@@ -108,23 +135,23 @@ export const enterState = <G extends AuraTypes>(
     throw new RangeError(`There is no bearer state ${state}.`);
   }
 
-  return removeWhere(engine, bearer, {
-    cause: 'enterState',
-    match: (item) => ((engine.tables.removedOn[item.id] ?? 0) & (1 << bit)) !== 0,
-  });
+  return removeWhere(engine, bearer, { cause: 'enterState', match: byState, arg: bit });
 };
 
 /** Removes every aura bound to a source that is gone; how many went. */
 export const sourceGone = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], source: number): number =>
-  removeWhere(engine, bearer, {
-    cause: 'sourceGone',
-    match: (item) => item.source === source && ((engine.flags[item.id] ?? 0) & BOUND_TO_SOURCE) !== 0,
-  });
+  removeWhere(engine, bearer, { cause: 'sourceGone', match: bySource, arg: source });
 
 /** The cleanse of an application: every tag its aura `removes`, tag by tag, each in list order. Dispatches nothing. */
 export const cleanse = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], id: AuraId): void => {
-  for (const tag of engine.tables.removes[id] ?? []) {
-    strip(engine, bearer, (item) => engine.tables.tagBits[item.id]?.has(tag) === true);
+  const tags = engine.tables.removes[id];
+
+  if (tags === undefined) {
+    return;
+  }
+
+  for (let i = 0; i < tags.length; i++) {
+    strip(engine, bearer, { match: byTag, arg: tags[i] ?? -1 });
   }
 };
 

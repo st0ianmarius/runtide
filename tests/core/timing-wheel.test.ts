@@ -3,7 +3,15 @@ import { describe, it } from 'node:test';
 
 import fc from 'fast-check';
 
-import { createTimingWheel } from '../../src/core/index.ts';
+import { createTimingWheel, type TimingWheel } from '../../src/core/index.ts';
+
+/** Collects through a tick into a fresh array, trimmed to what was written. */
+const due = <Item extends NonNullable<unknown>>(wheel: TimingWheel<Item>, through: number): Item[] => {
+  const out: (Item | undefined)[] = [];
+  const count = wheel.collect(through, out);
+
+  return out.slice(0, count).filter((item): item is Item => item !== undefined);
+};
 
 describe('the timing wheel', () => {
   it('fires items due on the same tick in scheduling order', () => {
@@ -14,9 +22,9 @@ describe('the timing wheel', () => {
     wheel.schedule(3, 'c');
     wheel.schedule(1, 'd');
 
-    assert.deepEqual(wheel.collect(0, []), []);
-    assert.deepEqual(wheel.collect(1, []), ['b', 'd']);
-    assert.deepEqual(wheel.collect(5, []), ['a', 'c']);
+    assert.deepEqual(due(wheel, 0), []);
+    assert.deepEqual(due(wheel, 1), ['b', 'd']);
+    assert.deepEqual(due(wheel, 5), ['a', 'c']);
     assert.equal(wheel.cursor, 6);
     assert.equal(wheel.size, 0);
   });
@@ -27,32 +35,39 @@ describe('the timing wheel', () => {
     wheel.schedule(10, 'far-1');
     wheel.schedule(9, 'nearer');
     wheel.schedule(10, 'far-2');
-    wheel.collect(7, []);
+    due(wheel, 7);
     wheel.schedule(10, 'late-3');
 
     assert.equal(wheel.size, 4);
-    assert.deepEqual(wheel.collect(9, []), ['nearer']);
-    assert.deepEqual(wheel.collect(10, []), ['far-1', 'far-2', 'late-3']);
+    assert.deepEqual(due(wheel, 9), ['nearer']);
+    assert.deepEqual(due(wheel, 10), ['far-1', 'far-2', 'late-3']);
   });
 
   it('fires a late item at the next collect, after the items already due', () => {
     const wheel = createTimingWheel<number>();
 
-    wheel.collect(4, []);
+    due(wheel, 4);
     wheel.schedule(5, 1);
     wheel.schedule(2, 2);
 
-    assert.deepEqual(wheel.collect(5, []), [1, 2]);
+    assert.deepEqual(due(wheel, 5), [1, 2]);
   });
 
-  it('empties the output list before filling it', () => {
+  it('writes from index 0, keeps the output storage and clears what an earlier call left past the count', () => {
     const wheel = createTimingWheel<number>();
-    const out = [99];
+    const out: (number | undefined)[] = [];
 
     wheel.schedule(0, 1);
+    wheel.schedule(0, 2);
+    wheel.schedule(0, 3);
+    wheel.schedule(1, 4);
 
-    assert.equal(wheel.collect(0, out), out);
-    assert.deepEqual(out, [1]);
+    assert.equal(wheel.collect(0, out), 3);
+    assert.deepEqual(out, [1, 2, 3]);
+    assert.equal(wheel.collect(1, out), 1);
+    assert.deepEqual(out, [4, undefined, undefined]);
+    assert.equal(wheel.collect(2, out), 0);
+    assert.deepEqual(out, [undefined, undefined, undefined]);
   });
 
   it('refuses a tick that is not finite', () => {
@@ -73,7 +88,7 @@ describe('the timing wheel', () => {
         const fired: number[] = [];
 
         for (let tick = 0; tick <= 40; tick++) {
-          fired.push(...wheel.collect(tick, []));
+          fired.push(...due(wheel, tick));
         }
 
         const expected = ticks
