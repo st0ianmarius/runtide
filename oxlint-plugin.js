@@ -293,7 +293,7 @@ const presentationFields = {
 
       for (const { declaration } of exportedDeclarations(program)) {
         forEachMember(typeBody(declaration), (member) => {
-          const field = context.sourceCode.getText(member.key).replace(/['"]/g, '');
+          const field = context.sourceCode.getText(member.key).replaceAll(/['"]/g, '');
           const qualified = `${declaredName(declaration)}.${field}`;
 
           if (PRESENTATION_FIELDS.has(field.toLowerCase()) && !allowed.has(qualified)) {

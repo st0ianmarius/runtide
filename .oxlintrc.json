@@ -18,6 +18,7 @@
     "import/no-default-export": "error",
     "import/no-duplicates": "error",
     "import/first": "error",
+    "import/no-commonjs": "error",
     "sort-imports": ["error", { "ignoreCase": true, "ignoreDeclarationSort": true }],
     "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }],
     "max-lines": ["error", { "max": 400 }],
@@ -32,7 +33,61 @@
     "spellweave/export-order": "error",
     "spellweave/naming": "error",
     "spellweave/export-docs": "error",
-    "spellweave/presentation-fields": ["error", { "allow": [] }],
+    // Developer strings, never shown to players (§I.5.3): a registry's lookup of the name an id was registered under.
+    "spellweave/presentation-fields": ["error", { "allow": ["Registry.name"] }],
+
+    // Modern syntax (ES2024, the newest year Node 22, the evergreen browsers and TypeScript 7 all support): the rules
+    // that point at a newer form of the same code. Hot paths keep indexed loops, so there is no rule against them.
+    "prefer-object-has-own": "error",
+    "prefer-spread": "error",
+    "prefer-rest-params": "error",
+    "prefer-exponentiation-operator": "error",
+    "prefer-object-spread": "error",
+    "prefer-template": "error",
+    "prefer-numeric-literals": "error",
+    "object-shorthand": "error",
+    "logical-assignment-operators": ["error", "always", { "enforceForIfStatements": true }],
+    "no-array-constructor": "error",
+    "no-object-constructor": "error",
+    "no-new-wrappers": "error",
+    "no-useless-rename": "error",
+    "no-useless-computed-key": "error",
+    "no-useless-concat": "error",
+    "no-useless-constructor": "error",
+    "no-lonely-if": "error",
+    "unicorn/prefer-at": "error",
+    "unicorn/prefer-string-replace-all": "error",
+    "unicorn/prefer-structured-clone": "error",
+    "unicorn/prefer-global-this": "error",
+    "unicorn/prefer-array-flat": "error",
+    "unicorn/prefer-array-flat-map": "error",
+    "unicorn/prefer-array-find": "error",
+    "unicorn/prefer-array-some": "error",
+    "unicorn/prefer-array-index-of": "error",
+    "unicorn/prefer-includes": "error",
+    "unicorn/prefer-set-has": "error",
+    "unicorn/prefer-set-size": "error",
+    "unicorn/prefer-object-from-entries": "error",
+    "unicorn/prefer-negative-index": "error",
+    "unicorn/prefer-string-slice": "error",
+    "unicorn/prefer-string-starts-ends-with": "error",
+    "unicorn/prefer-string-trim-start-end": "error",
+    "unicorn/prefer-regexp-test": "error",
+    "unicorn/prefer-math-trunc": "error",
+    "unicorn/prefer-math-min-max": "error",
+    "unicorn/prefer-modern-math-apis": "error",
+    "unicorn/prefer-number-properties": "error",
+    "unicorn/prefer-optional-catch-binding": "error",
+    "unicorn/prefer-class-fields": "error",
+    "unicorn/prefer-node-protocol": "error",
+    "unicorn/prefer-date-now": "error",
+    "unicorn/no-instanceof-array": "error",
+    "unicorn/no-new-array": "error",
+    "unicorn/no-typeof-undefined": "error",
+    "unicorn/no-useless-spread": "error",
+    "unicorn/new-for-builtins": "error",
+    "unicorn/throw-new-error": "error",
+    "typescript/prefer-optional-chain": "error",
 
     // Determinism and isolation (§I.5, §I.5.1).
     "no-restricted-imports": [
@@ -180,8 +235,8 @@
       }
     },
     {
-      // Adapter modules: the only files that may cast (§I.5.2).
-      "files": ["src/**/*-adapter.ts"],
+      // Adapter modules and branded-id constructors: the only files that may cast (§I.4.2, §I.5.2).
+      "files": ["src/**/*-adapter.ts", "src/**/ids.ts"],
       "rules": { "typescript/consistent-type-assertions": "off" }
     },
     {
