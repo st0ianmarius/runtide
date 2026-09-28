@@ -33,7 +33,8 @@ The framework has **no dependency on swarm** or any of its packages (not `@swarm
 
    **Port the logic, not the content**: keep the semantics exact (§I.5), drop every game id, tuning number and class name, and restyle it to §I.5.2.
 
-5. **Swarm keeps running unchanged.** Moving swarm onto the framework is a later, separate effort (§I.8). The framework ships as a project nobody imports yet, proven by its own unit tests only (§I.7.0): no example game, nothing visual.
+5. **Never published.** The project is implemented and pushed to its own repository, and that is all: no npm, no GitHub Packages, no other registry, no release pipeline. `package.json` carries `"private": true` so `npm publish` refuses it, there is no `publishConfig`, no release or publish CI job, and no version tags are required. Anything that consumes it (swarm, later) takes it straight from the repository or a local folder (§I.8).
+6. **Swarm keeps running unchanged.** Moving swarm onto the framework is a later, separate effort (§I.8). The framework ships as a project nobody imports yet, proven by its own unit tests only (§I.7.0): no example game, nothing visual.
 
 ## I.3 What goes in, what stays out
 
@@ -60,7 +61,7 @@ A rule of thumb for borderline code: if it names a class, a card, a creature, a 
 
 ```
 framework/                # a sibling of the swarm checkout, its own git repository
-  package.json            # name per §I.9, "type": "module", "sideEffects": false, ESM exports per system (no Node-only conditions), engines (dev tooling only), scripts; vetted deps only (§I.5.1)
+  package.json            # name per §I.9, "private": true (never published, §I.2), "type": "module", "sideEffects": false, ESM exports per system (no Node-only conditions), engines (dev tooling only), scripts; vetted deps only (§I.5.1)
   tsconfig.json           # the strict base (§I.4.1) for src: ECMAScript lib only, types: [], no emit
   tsconfig.test.json      # extends it for tests: adds types ["node"]
   tsconfig.build.json     # emits dist/ (ESM JS + .d.ts) from src only
@@ -246,7 +247,7 @@ spellweave runs on the server (Node), in the browser (swarm's "local play" runs 
 - **`src/` uses ECMAScript only.** No `node:` imports; no `process`, `Buffer`, `global`, `require`, `module`, `__dirname`, `setImmediate` or `fs`; no DOM or `window` either. Timers, randomness and clocks come from the host (§I.5), so nothing needs a platform API. Typed arrays, `Math.imul`, `Map` / `Set` / `WeakMap` and `BigInt` are ECMAScript and allowed.
 - **Checked three ways.** The `src/` compiler config has no Node or DOM types (§I.4.1); `isolation.test.ts` rejects any `node:` import and any reference to the Node globals above inside `src/`; and CI bundles `src/` for the browser (`esbuild --platform=browser --bundle`, a dev dependency) and fails if anything reaches for a Node built-in.
 - **Dependencies meet the same bar** (§I.5.1, condition 1): `flatbush`, `flatqueue`, `kdbush` and `typedfastbitset` are plain ESM with no Node imports. The browser bundle check covers them too.
-- **Published as ESM for any bundler.** `dist/` is standard ES modules with `.js` extensions and declarations, `"sideEffects": false` for tree-shaking, and `exports` with only `types` and `default` conditions, so Vite, esbuild, webpack and Node all resolve it the same way.
+- **Built as ESM for any bundler.** `dist/` (built locally or by the consumer, never published, §I.2) is standard ES modules with `.js` extensions and declarations, `"sideEffects": false` for tree-shaking, and `exports` with only `types` and `default` conditions, so Vite, esbuild, webpack and Node all resolve it the same way.
 - **Tests stay on `node:test`.** The unit tests and benchmarks run on Node, which is fine: they exercise the same ECMAScript code the browser runs. `node:` imports are allowed under `tests/` and `bench/` only.
 
 ### I.5.4 Performance: built for hordes
@@ -367,20 +368,20 @@ Each is proven by its own unit tests, like the phases before it (§I.7.0).
 
 ## I.8 Afterwards (not in this project's first milestone)
 
-Once the framework's first release is tagged, swarm consumes it from the outside, as any other game would:
+Once the framework is ready, swarm consumes it from the outside, as any other game would, and only ever straight from the source (it is never published, §I.2):
 
-- **During development**, as a `file:` or git dependency (or `npm link`) from swarm's `packages/game`.
-- **Once it settles**, as a published package (npm or GitHub Packages, per §I.9), on a pinned version.
+- **During development**, as a `file:` dependency on the sibling checkout (or `npm link`) from swarm's `packages/game`.
+- **Once it settles**, as a git dependency on `st0ianmarius/spellweave` pinned to a commit.
 
 Swarm's `packages/game` then moves onto it in the phases of §II.5, each held by the game's goldens: modifiers and auras first, then triggers and procs, cues, spells and constructs, abilities, creatures. `packages/protocol` and `packages/sync` adopt the replication contracts when the construct schema unifies. Swarm's own `effects/`, `modifiers/`, `triggers/`, `cues/`, `abilities/` and `spells/` folders then shrink to content. Swarm's older TypeScript config needs no change to consume the framework's emitted `dist/` and declarations.
 
 ## I.9 Decisions to take before starting
 
-1. **The name: decided, `spellweave`.** Repository `spellweave`, npm package `spellweave` (free on npm when chosen), with room for scoped siblings (`@spellweave/server`) later. Wherever this plan says "the framework" or `<name>`, read `spellweave`.
+1. **The name: decided, `spellweave`.** Repository `spellweave`, package name `spellweave` (a private package, never published), with room for sibling packages (`@spellweave/server`) later. Wherever this plan says "the framework" or `<name>`, read `spellweave`.
 2. **Shared types.** The framework owns `Vec2` and its ids and depends on nothing. `@swarm/types` stays swarm's wire types, and swarm adapts at the boundary.
 3. **Physics.** Swarm's `packages/physics` (Havok) stays out; the framework asks the world through `WorldQuery.sweep` / `lineClear`. A later `framework-physics` adapter could implement `WorldQuery` over Havok for any game.
 4. **Navigation.** The flow field and mob navigation are fairly generic, but they are grid- and arena-shaped; they stay in swarm and are a candidate for a later framework module.
-5. **How it ships.** Where it lives is decided (`st0ianmarius/spellweave`, MIT). Still open: the registry it publishes to (npm or GitHub Packages), and whether it stays private until swarm consumes it.
+5. **How it ships: decided, it does not.** It lives in `st0ianmarius/spellweave` (MIT) and is never published to npm, GitHub Packages or any other registry (§I.2). Consumers take it from the repository or a local folder (§I.8).
 6. **The keyed-roll mixer: decided, 32-bit.** A Murmur3-finalizer chain over 32-bit integers, using only `Math.imul`, `^`, `>>>` and `| 0`, so it is fast and identical on every platform, with no `BigInt`. Each key part (seed, the stream's salt, then the key's integers in order) is folded in as `h = fmix32(h ^ mix(part))`, with `mix(k) = Math.imul(rotl(Math.imul(k, 0xcc9e2d51), 15), 0x1b873593)` and `fmix32` the Murmur3 finalizer. The result is divided by 2³² for a float in `[0, 1)`. Non-integer or out-of-range key parts are rejected. Once content depends on it the mixer is frozen: F1's unit test holds a literal table of rolls for fixed keys, and any change to the mixer fails it.
 
 # Part II. The model: the Spell API
