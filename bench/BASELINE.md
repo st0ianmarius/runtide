@@ -30,3 +30,11 @@ Added at F3 (same container, Node 22.22.2, range of the runs). "Apply ×3 + fold
 | --------------------------------------------- | ---------- |
 | aura apply ×3 + fold two stats                | 690–855 ns |
 | aura tick, 2,000 bearers × 3 auras (per tick) | 177–291 µs |
+
+Added at F4 (same container, Node 22.22.2, range of three runs; `bench/procs-triggers.ts`). Trigger dispatch raises one `hit` about the first unit of a party whose every unit holds three auras: one with two self triggers, one with a `party` trigger, one with none. Every trigger passes a filter and runs one `grant` through the host, so one event fires 7 triggers in a party of 5 and 27 in a party of 25; the time is per event. The proc list runs 8 prepared procs (two aura landings that refresh or stack, a cleanse, grants to self, the event unit and the party, and a group behind one roll), per list.
+
+| benchmark                                    | per op       |
+| -------------------------------------------- | ------------ |
+| trigger dispatch, owner + 4 party listeners  | 1.10–1.35 µs |
+| trigger dispatch, owner + 24 party listeners | 4.56–5.55 µs |
+| proc list run, 8 prepared procs              | 2.19–2.86 µs |

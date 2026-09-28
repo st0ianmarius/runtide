@@ -28,6 +28,7 @@ import {
   scaled,
   snapshotScaled,
 } from '../src/modifiers/index.ts';
+import { counter, PROC_TRIGGER_TASKS } from './procs-triggers.ts';
 
 /** Operations per task call: single operations are far below the timer's resolution, so each call runs a batch. */
 const BATCH = 1000;
@@ -261,7 +262,17 @@ bench
     }
   });
 
+for (const [name, task] of PROC_TRIGGER_TASKS) {
+  bench.add(name, () => {
+    for (let i = 0; i < BATCH; i++) {
+      task();
+    }
+  });
+}
+
 await bench.run();
+
+sink += counter.granted;
 
 const rows = bench.tasks.map((task) => {
   const { result } = task;
