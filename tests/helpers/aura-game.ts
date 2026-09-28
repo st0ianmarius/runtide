@@ -76,7 +76,7 @@ export interface TestAuras extends AuraTypes {
 }
 
 /** The step of both test clocks: an exact binary fraction, so every stamp is exact. */
-export const DT = 0.125;
+const DT = 0.125;
 
 /** The rule of both test clocks: `max(0, t − dt)`, due at zero; exact on the binary step. */
 const EXACT = defineCountdown({ snap: false, epsilon: 0 });
