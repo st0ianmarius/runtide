@@ -38,3 +38,12 @@ Added at F4 (same container, Node 22.22.2, range of three runs; `bench/procs-tri
 | trigger dispatch, owner + 4 party listeners  | 1.10–1.35 µs |
 | trigger dispatch, owner + 24 party listeners | 4.56–5.55 µs |
 | proc list run, 8 prepared procs              | 2.19–2.86 µs |
+
+After the buffer fix (F5's first commit: hot reused arrays keep their storage and fill by index up to a count, instead of `length = 0`, which drops V8's backing store; bitset `clear` zeroes in place; aura removals use no closure), same container, range of three runs: timing wheel schedule + collect 41–65 ns, aura apply ×3 + fold 669–817 ns, aura tick 156–232 µs, proc list run 1.67–2.09 µs, trigger dispatch 1.09–1.38 µs and 3.82–4.56 µs. Outside tinybench, 1M aura apply + remove on one bearer went from 762 garbage collections to 43 with a bus listener (383 to 28 without), and from about 1.5–2.2 µs to 0.5–0.8 µs per pair.
+
+Added at F5 (same container, Node 22.22.2, range of three runs; `bench/damage.ts`). "Full pipeline" is one blow by an attacker (an outgoing multiplier, a crit roll on a sequential stream, both at a spell's share) on a target whose three auras hook it (an ignore gate that passes, an absorb that spends its value, a damage-taken scale), through a block roll, two mitigation rows (hyperbolic armor, damage taken), health and one `taken` subscriber, per blow. The burst deals one such blow to each of 100 targets, per burst. A blow allocates only what V8 boxes and what the absorb hook returns: 28 minor GCs over 1M blows.
+
+| benchmark                                | per op     |
+| ---------------------------------------- | ---------- |
+| blow, full pipeline, 3 hooking auras     | 490–740 ns |
+| burst of 100 blows on 100 hooked targets | 54–71 µs   |

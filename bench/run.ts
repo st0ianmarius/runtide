@@ -28,6 +28,7 @@ import {
   scaled,
   snapshotScaled,
 } from '../src/modifiers/index.ts';
+import { DAMAGE_TASKS, damageCounter } from './damage.ts';
 import { counter, PROC_TRIGGER_TASKS } from './procs-triggers.ts';
 
 /** Operations per task call: single operations are far below the timer's resolution, so each call runs a batch. */
@@ -270,9 +271,21 @@ for (const [name, task] of PROC_TRIGGER_TASKS) {
   });
 }
 
+/** The damage tasks run fewer calls per batch when one call is a burst of many blows. */
+for (const [name, task, blows] of DAMAGE_TASKS) {
+  const calls = Math.max(1, BATCH / blows);
+
+  BATCHES.set(name, calls);
+  bench.add(name, () => {
+    for (let i = 0; i < calls; i++) {
+      task();
+    }
+  });
+}
+
 await bench.run();
 
-sink += counter.granted;
+sink += counter.granted + damageCounter.taken;
 
 const rows = bench.tasks.map((task) => {
   const { result } = task;
