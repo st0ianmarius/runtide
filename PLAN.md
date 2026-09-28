@@ -114,7 +114,15 @@ const procs = createProcRegistry({ ...CORE_PROCS, ...GAME_PROCS });            /
 const spells = createSpellSystem({ procs, auras, triggers, cues, world: adapter });
 ```
 
-Ids are the game's string unions, inferred from its `const` registries; the framework never names one. Vectors are the framework's own `Vec2` (`{ x, z }`), structurally compatible with the game's `Vec`.
+**Ids are numbers.** Every resource and every entity is a small integer at runtime and on the wire; strings exist for authors only, so the network carries a byte or two where a string would carry ten.
+
+- **Resource ids come from the registry.** `createRegistry({ frostNova, blast })` gives each definition a dense id, its position in the registry: `SPELLS.id.frostNova === 0`, `SPELLS.id.blast === 1`. Hooks, procs, active auras, events, conditions, keyed rolls and the wire all carry the number, and `SPELLS.get(id)` is an array index.
+- **Branded per registry.** `SpellId = number & { readonly __registry: 'spells' }`, `AuraId`, `CueId`… so the compiler refuses an aura id where a spell id is expected, at no runtime cost. The framework never names a game's id; the types are inferred from the game's registries.
+- **Names are for people.** The object key is the definition's name, used in code (`SPELLS.id.blast`), logs, validation messages and card-text lookups, and returned by `SPELLS.name(id)`. A name never crosses the wire and never sits on a hot path.
+- **Append-only order.** Because the number is the position, registries only grow: a retired definition keeps its slot as a tombstone, and each consuming game pins its order in a test (swarm's `wire-order.test.ts` pattern). The replication layer sizes the field to the registry: a `uint8` up to 256 entries, a `uint16` or a varint beyond.
+- **Entities too.** Units, casts, constructs and auras in flight get integer ids from the host's allocator. A game with string ids (swarm's player ids, `'local'`, `'p0'`) maps them to numbers at its boundary. Integer ids are also exactly what keyed rolls hash (below).
+
+Vectors are the framework's own `Vec2` (`{ x, z }`), structurally compatible with the game's `Vec`.
 
 **Hosts are narrow interfaces the game implements**, as `CastHost`, `TriggerHost` and `EffectTarget` are today: the world query, the damage sink, the random streams, the clock, cue output, spawning. The framework never reaches into a concrete world.
 
@@ -165,13 +173,12 @@ What that means in practice:
 - **Sharing is by factories and composition.** A family of resources with shared behaviour is a function returning the interface (`telegraphedSpell({ id, shape })`), and variations spread or wrap hooks (`{ ...base, onHit: withBonus(base.onHit) }`). Definitions are plain objects, so spreading is always safe.
 - **Definitions are stateless.** A definition is shared by every cast, aura or construct made from it, so per-instance state never lives on it: a cast has its `CastState`, an active aura its `value` and stacks, a construct its `State`. Registries freeze definitions in development builds to catch mutation.
 - **Data stays data.** Fields the framework reads as data (ids, tags, durations, modifiers, a trigger's `do`) are plain values, not getters, because card text, validation and the wire read them.
-- **Registration is by key.** `createRegistry({ key: def, … })`: the object's key order is the registry order and the wire order (append-only), and a definition's `id`, when it has one, must equal its key (checked at creation).
+- **Registration is by name, identity is by number.** `createRegistry({ name: def, … })`: the key order assigns each definition its numeric id (append-only, §I.5). A definition carries no id of its own; the runtime hands it its id where it needs one (`ctx.spellId`, `aura.id`).
 - **Variants are discriminated unions.** Anything that comes in several shapes says so in a `kind` field (`{ kind: 'circle', r }`), and code narrows on it; nothing is told apart by its prototype.
 
 ```ts
 // A resource: data plus functions
 export const frostNova = defineSpell({
-  id: "frostNova",
   activation: { kind: "button" },
   release: (ctx) => [areaHit(ctx.caster, 4)],
   onHit: (_ctx, { targets }) =>
@@ -180,12 +187,10 @@ export const frostNova = defineSpell({
 
 // Shared behaviour: a factory, not a base class
 const telegraphedSpell = (spec: {
-  id: string;
   windup: number;
   shape: (aim: Aim) => Shape;
 }) =>
   defineSpell({
-    id: spec.id,
     activation: {
       kind: "ai",
       windup: spec.windup,
@@ -199,12 +204,11 @@ const telegraphedSpell = (spec: {
     release: () => [], // the telegraph lands by itself
   });
 export const blast = telegraphedSpell({
-  id: "blast",
   windup: 1.2,
   shape: (aim) => circle(1.5, aim.point),
 });
 
-export const SPELLS = createRegistry({ frostNova, blast });
+export const SPELLS = createRegistry({ frostNova, blast }); // SPELLS.id.frostNova === 0, SPELLS.id.blast === 1
 ```
 
 **The framework's own code follows the same style**: modules of functions over plain data, with factories (`createAuraSystem(…)`) returning objects of functions closed over their state, as swarm's `effectSystem(registry)` does today.
@@ -220,7 +224,7 @@ A unit test per kind registers a resource, calls every hook detached, and holds 
 
 Each is summarised by what it must offer; Part II has the full model.
 
-- **Core.** Random: sequential salted streams (`stream(seed, salt)`, reproducing today's `rng(seed ^ salt)` exactly) and keyed rolls (`roll(seed, salt, ...key)`), with `int`, `pick`, `weighted` and `shuffle` on both. Time: a fixed-step `SimClock` (`tick`, `dt`, `time`; integer-tick mode by default and an accumulating mode for swarm's parity), world and motion kinds, stamps (`stampAt`, `due(stamp)`, `remaining(stamp)`) and the motion clock's `1e-8` snap; `Registry<Id, Def>` with append-only numeric wire ids and order checks; a typed `Bus` with payload reuse, `hears(kind)` short-circuiting and a nesting cap; `Scope` for owner, damage source and world context, re-entrant and idempotent.
+- **Core.** Random: sequential salted streams (`stream(seed, salt)`, reproducing today's `rng(seed ^ salt)` exactly) and keyed rolls (`roll(seed, salt, ...key)`), with `int`, `pick`, `weighted` and `shuffle` on both. Time: a fixed-step `SimClock` (`tick`, `dt`, `time`; integer-tick mode by default and an accumulating mode for swarm's parity), world and motion kinds, stamps (`stampAt`, `due(stamp)`, `remaining(stamp)`) and the motion clock's `1e-8` snap; `Registry<Def>` assigning branded numeric ids by key order (append-only, tombstones for retired entries, `id` / `name` / `get` lookups, order checks); a typed `Bus` with payload reuse, `hears(kind)` short-circuiting and a nesting cap; `Scope` for owner, damage source and world context, re-entrant and idempotent.
 - **Math.** Shapes (`circle`, `ring`, `cone`, `lane`, `polygon`, `point`) with `covers(shape, point, radius)`; `sweep(from, to, radius)` against circles; patterns returning point lists with a stagger (`linePoints`, `ringPoints`, `crossPoints`); angle helpers (`wrap`, `turnToward`).
 - **Modifiers.** `defineStats`, `Modifier` (`add | mul | min`, `when`, `scope`), pluggable `Condition` evaluators, ordered sources, `resolve` / `fold`, caps, `describeModifier` with game-supplied labels and number formats.
 - **Auras.** `AuraDef` on any bearer (`AuraBearer`: `auras`, `clocks`, `rev`); stacking; clocks (`world`, `motion`, `global`); `periodic` returning procs; `value` with `merge: 'max' | 'add' | 'replace'` and `keepWhenDepleted` (absorbs); tags, `blockedBy`, `removes`; `grants` through a resource registry; `fold` position; `predicted`; lifecycle procs (`onApplied`, `onExpired`, `onBearerDeath`); damage hooks (`onIncomingDamage`, `onLethal`); lifecycle events; `view()` for the wire; `status` metadata passed through untouched for the game's HUD.
@@ -319,7 +323,7 @@ Swarm's `packages/game` then moves onto it in the phases of §II.5, each held by
 
 # Part II. The model: the Spell API
 
-_Written against swarm's code (the co-op ARPG this framework comes out of) from a survey of every Arsenal weapon, hero ability, creature spell and map event in it. Its porting tables (§II.4) and migration phases (§II.5) are swarm's; the model (§II.1–§II.3) is the framework's._
+_The sketches below write names such as `id: 'tempest'` for readability; in spellweave the name is the registry key and the id a number (§I.5). Written against swarm's code (the co-op ARPG this framework comes out of) from a survey of every Arsenal weapon, hero ability, creature spell and map event in it. Its porting tables (§II.4) and migration phases (§II.5) are swarm's; the model (§II.1–§II.3) is the framework's._
 
 ## II.1 The idea
 
@@ -379,7 +383,7 @@ export const tempest = defineSpell({
 
 ```ts
 interface SpellDef<Stats, Target, CastState> {
-  id: SpellKey; // registry key; its wire id is the registry index (append-only)
+  // no id field: the registry assigns a numeric, branded SpellId by key order (§I.5)
   tags: readonly SpellTag[]; // 'arsenal' | 'ability' | 'creature' | 'area' | 'projectile' | 'fire' | 'frost' | …
   activation: Activation; // §II.3.2
   stats(ctx): Stats; // numbers for this cast: rank, legendary, links, area, duration, damage share
