@@ -7,8 +7,9 @@ import { MutableContext } from './active-aura.ts';
 import type { ApplyResult, AuraApplication, AuraHost } from './application.ts';
 import { applyAura } from './apply.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
+import { type AuraPipelineHook, collectIn } from './collect.ts';
 import { type AuraClock, type AuraModifiers, compileAuras } from './compile.ts';
-import type { AuraHookName, AuraRegistry } from './define-auras.ts';
+import type { AuraRegistry } from './define-auras.ts';
 import { AuraEngine } from './engine.ts';
 import type { AuraEvent, AuraEventBus } from './events.ts';
 import { type AuraExplanation, explainIn } from './explain.ts';
@@ -26,12 +27,6 @@ import { AuraSet, type AuraState, setOf } from './state.ts';
 import type { AuraTagTable } from './tags.ts';
 import { tickAuras } from './tick.ts';
 import { type AuraView, viewAuras, type ViewOptions } from './view.ts';
-
-/** The damage and force hooks, which a pipeline collects auras for. */
-export type AuraPipelineHook = Extract<
-  AuraHookName,
-  'onIgnore' | 'onIncomingDamage' | 'onLethal' | 'onDealt' | 'onIncomingForce'
->;
 
 /** What an aura system is built from (§I.5): the game's registries and its host. */
 export interface AuraSystemBase<G extends AuraTypes> {
@@ -189,6 +184,15 @@ export interface AuraSystem<G extends AuraTypes> {
   /** A context for calling one aura's hook from a pipeline; a new object, which the caller may keep for the call. */
   readonly context: (bearer: G['bearer'], aura: ActiveAura<G>) => AuraContext<G>;
 
+  /**
+   * The reused hook context of the next nesting level, filled for one aura: what a pipeline calls a hook with when it
+   * must not allocate (§I.5.4). Give it back with `giveContext` once the hook and the procs it returned are done.
+   */
+  readonly takeContext: (bearer: G['bearer'], aura: ActiveAura<G>) => AuraContext<G>;
+
+  /** Gives back the context `takeContext` handed out last. */
+  readonly giveContext: () => void;
+
   /** The bearer's auras as views for the wire. */
   readonly view: (bearer: G['bearer'], options?: ViewOptions) => AuraView[];
 }
@@ -262,33 +266,6 @@ const remainingIn = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bear
   return left;
 };
 
-/** Writes the auras that have a pipeline hook into `out` by index, clears what an earlier call left, and counts. */
-const collectIn = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
-  bearer: G['bearer'],
-  at: { readonly hook: AuraPipelineHook; readonly out: (ActiveAura<G> | undefined)[] },
-): number => {
-  const { items } = setOf<G>(bearer);
-  const has = engine.registry.has[at.hook];
-  const { out } = at;
-  let count = 0;
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-
-    if (item !== undefined && has.has(item.id)) {
-      out[count] = item;
-      count += 1;
-    }
-  }
-
-  for (let i = count; i < out.length && out[i] !== undefined; i++) {
-    out[i] = undefined;
-  }
-
-  return count;
-};
-
 /** The read-only queries over a bearer's auras. */
 const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>) => ({
   has: (bearer: G['bearer'], id: AuraId) => findIn(bearer, id) !== undefined,
@@ -312,6 +289,12 @@ const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>) => ({
     context.stats = engine.host.statsOf?.(bearer);
 
     return context;
+  },
+
+  takeContext: (bearer: G['bearer'], aura: ActiveAura<G>): AuraContext<G> => engine.events.take(bearer, aura),
+
+  giveContext: () => {
+    engine.events.give();
   },
 
   view: (bearer: G['bearer'], options?: ViewOptions) => viewAuras(engine, bearer, options),

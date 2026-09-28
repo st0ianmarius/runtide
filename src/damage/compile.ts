@@ -1,0 +1,191 @@
+import type { AuraTagId } from '../auras/index.ts';
+import type { StatId, StatTable } from '../modifiers/index.ts';
+import type { DamageTypes } from './damage-types.ts';
+import type { DamageKindTable } from './kinds.ts';
+import { type CompiledRow, compileMitigation } from './mitigation.ts';
+import type { DamageSystemOptions } from './options.ts';
+import { compileStageOrder, type StageDef, type StageOrder } from './stage-order.ts';
+
+/**
+ * The damage pipeline's built-in stages, in their documented order (§II.6 D1, D2): the ignore gates, the attacker's
+ * outgoing multipliers and crit, the block roll, crushing, the mitigation rows, absorbs, `onLethal` and health; then the
+ * after-stages every blow runs however it ended: the attacker's `onDealt` hooks, the events, the knockback and the
+ * death pipeline.
+ */
+export const DAMAGE_STAGES = Object.freeze([
+  'ignore',
+  'outgoing',
+  'crit',
+  'block',
+  'crushing',
+  'mitigation',
+  'absorb',
+  'lethal',
+  'health',
+  'dealt',
+  'outcome',
+  'knock',
+  'death',
+] as const);
+
+/**
+ * The heal pipeline's built-in stages (§II.6 D3): heal-block tags, the healer's healing done, the target's healing
+ * received and health; then the event.
+ */
+export const HEAL_STAGES = Object.freeze(['block', 'done', 'received', 'health', 'outcome'] as const);
+
+/** The force pipeline's built-in stages (§II.6 D4): the `onIncomingForce` hooks, then the host moves the unit. */
+export const FORCE_STAGES = Object.freeze(['resist', 'apply'] as const);
+
+/** The stats and tags the built-in stages read, resolved to ids (`undefined` when not configured). */
+export interface StageStats {
+  /** The outgoing multiplier stats. */
+  readonly outgoing: readonly StatId[];
+
+  /** The crit chance stat. */
+  readonly critChance: StatId | undefined;
+
+  /** The crit damage stat. */
+  readonly critDamage: StatId | undefined;
+
+  /** The block chance stat. */
+  readonly blockChance: StatId | undefined;
+
+  /** The healing received stat. */
+  readonly healReceived: StatId | undefined;
+
+  /** The healing done stat. */
+  readonly healDone: StatId | undefined;
+
+  /** The regeneration stat. */
+  readonly regeneration: StatId | undefined;
+
+  /** The heal-block tags. */
+  readonly healBlock: readonly AuraTagId[];
+}
+
+/** Throws a load-time error about the damage system's options. */
+const refuse = (problem: string): never => {
+  throw new RangeError(`Damage system: ${problem}`);
+};
+
+/** Resolves a stat name, checking its kind. */
+const statIn = (stats: StatTable | undefined, name: string | undefined, isMultiplier: boolean): StatId | undefined => {
+  if (name === undefined) {
+    return undefined;
+  }
+
+  const id = (stats ?? refuse(`stat ${name} needs the game's stat table (stats).`)).index.idOf(name);
+
+  if (id === undefined) {
+    return refuse(`there is no stat ${name}.`);
+  }
+
+  if (stats?.index.isMultiplier(id) !== isMultiplier) {
+    refuse(`${name} must be a ${isMultiplier ? 'multiplier' : 'flat'} stat.`);
+  }
+
+  return id;
+};
+
+/** Resolves the heal-block tags. */
+const healBlockOf = <G extends DamageTypes>(options: DamageSystemOptions<G>): readonly AuraTagId[] => {
+  const ids: Readonly<Record<string, AuraTagId | undefined>> = options.auras.tags.id;
+
+  return Object.freeze(
+    (options.heal?.blockedBy ?? []).map((tag) => ids[tag] ?? refuse(`there is no aura tag ${tag}.`)),
+  );
+};
+
+/** Resolves every stat and tag the built-in stages read, checking each one's kind. */
+export const compileStats = <G extends DamageTypes>(options: DamageSystemOptions<G>): StageStats => {
+  const { stats } = options;
+  const outgoing = (options.outgoing ?? []).map((name) => statIn(stats, name, true));
+
+  return {
+    outgoing: outgoing.filter((id): id is StatId => id !== undefined),
+    critChance: statIn(stats, options.crit?.chance, false),
+    critDamage: statIn(stats, options.crit?.damage, true),
+    blockChance: statIn(stats, options.block?.chance, false),
+    healReceived: statIn(stats, options.heal?.received, true),
+    healDone: statIn(stats, options.heal?.done, true),
+    regeneration: statIn(stats, options.heal?.regeneration, false),
+    healBlock: healBlockOf(options),
+  };
+};
+
+/** Checks that the host has what the configured stages need. */
+export const checkHost = <G extends DamageTypes>(options: DamageSystemOptions<G>, stats: StageStats): void => {
+  const { host } = options;
+
+  const readsStats =
+    stats.outgoing.length > 0 ||
+    [stats.critChance, stats.blockChance, stats.healReceived, stats.healDone, stats.regeneration].some(
+      (stat) => stat !== undefined,
+    ) ||
+    options.mitigation !== undefined;
+
+  if (typeof host.health !== 'function' || typeof host.setHealth !== 'function') {
+    refuse('the host needs health and setHealth.');
+  }
+
+  if (readsStats && host.statsOf === undefined) {
+    refuse('stages that read stats need host.statsOf.');
+  }
+
+  if (
+    (stats.critChance !== undefined || stats.blockChance !== undefined) &&
+    host.roll === undefined &&
+    options.rollChance === undefined
+  ) {
+    refuse('crit and block need host.roll or rollChance.');
+  }
+};
+
+/** The stages each kind skips, as one flag per kind and stage position, checked against the stage order. */
+export const compileBypass = (kinds: DamageKindTable, order: StageOrder<unknown>): Uint8Array => {
+  const size = order.names.length;
+  const flags = new Uint8Array(kinds.size * size);
+
+  for (const kind of kinds.ids) {
+    for (const stage of kinds.get(kind).bypass ?? []) {
+      const at = order.names.indexOf(stage);
+
+      if (at < 0 || at >= order.afterFrom - 1) {
+        refuse(`damage kind ${kinds.name(kind)} cannot skip ${stage}: no such stage before health.`);
+      }
+
+      flags[kind * size + at] = 1;
+    }
+  }
+
+  return flags;
+};
+
+/** Compiles one pipeline's stage order with the game's stages. */
+export const orderOf = <Run>(
+  what: string,
+  parts: { readonly builtIn: readonly string[]; readonly boundary: string },
+  game: Readonly<Record<string, StageDef<Run>>> | undefined,
+): StageOrder<Run> => compileStageOrder({ what, builtIn: parts.builtIn, boundary: parts.boundary, game });
+
+/** Compiles the mitigation rows, if any, checking every kind that does not skip mitigation is covered. */
+export const rowsOf = <G extends DamageTypes>(
+  options: DamageSystemOptions<G>,
+  parts: { readonly bypass: Uint8Array; readonly order: StageOrder<unknown> },
+): readonly CompiledRow[] => {
+  const { mitigation, stats } = options;
+
+  if (mitigation === undefined) {
+    return [];
+  }
+
+  const at = parts.order.names.indexOf('mitigation');
+  const size = parts.order.names.length;
+
+  return compileMitigation(mitigation, {
+    stats: stats ?? refuse('mitigation needs the game stat table (stats).'),
+    kinds: options.kinds,
+    skips: (kind) => parts.bypass[kind * size + at] === 1,
+  });
+};
