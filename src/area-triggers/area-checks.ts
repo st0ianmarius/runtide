@@ -3,7 +3,10 @@ import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaTagTable } from './tags.ts';
 
 /** The hooks a definition may carry, each a function when present. */
-const HOOK_FIELDS = ['state', 'init', 'move', 'frame', 'onExpire', 'onEnd'] as const;
+const HOOK_FIELDS = ['state', 'init', 'move', 'frame', 'onContact', 'onLand', 'onExpire', 'onEnd'] as const;
+
+/** The parts of a frame an `order` may list. */
+const PHASES: ReadonlySet<string> = new Set(['move', 'contact', 'frame', 'pulses']);
 
 /** The shape kinds a definition may hold. */
 const SHAPE_KINDS: ReadonlySet<string> = new Set([
@@ -107,6 +110,76 @@ const checkLimit = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
   }
 };
 
+/** Whether seconds are sound: a finite number above 0 (from 0 when `zero`), or a function. */
+const isSoundSeconds = (seconds: unknown, zero = false): boolean =>
+  typeof seconds === 'function' ||
+  (typeof seconds === 'number' && Number.isFinite(seconds) && (zero ? seconds >= 0 : seconds > 0));
+
+/** Checks the frame's order, its arming and its contact. */
+const checkFrame = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTriggerDef<G>): void => {
+  const { order, contact } = def;
+
+  if (order !== undefined && (new Set(order).size !== order.length || order.some((phase) => !PHASES.has(phase)))) {
+    fail(name, "its order lists 'move', 'contact', 'frame' and 'pulses', each at most once.");
+  }
+
+  if (def.arming !== undefined && !isSoundSeconds(def.arming, true)) {
+    fail(name, 'it arms for a finite number of seconds from 0.');
+  }
+
+  if (contact !== undefined && !isSoundSeconds(contact.radius, true)) {
+    fail(name, 'its contact radius is a finite number from 0, or a function.');
+  }
+
+  if (
+    def.caster !== undefined &&
+    (!isSoundSeconds(def.caster.seconds) || !isSoundSeconds(def.caster.first ?? 1, true))
+  ) {
+    fail(name, 'it casts every finite number of seconds above 0, the first after seconds from 0.');
+  }
+};
+
+/** Checks one pulse's seconds, modes and hook, throwing a message naming it. */
+const checkBeat = <G extends AreaTriggerTypes>(
+  pulse: NonNullable<AnyAreaTriggerDef<G>['every']>[number],
+): string | undefined => {
+  if (!isSoundSeconds(pulse.seconds) || !isSoundSeconds(pulse.first ?? 1, true)) {
+    return 'beats every finite number of seconds above 0, the first after seconds from 0.';
+  }
+
+  const modes = [
+    isOneOf(pulse.clock, ['own', 'owner-shared', 'global']),
+    isOneOf(pulse.reschedule, ['cadence', 'restart']),
+    isOneOf(pulse.whenEmpty, ['reset', 'survive']),
+    isOneOf(pulse.pick, ['all', 'hottest']),
+  ];
+
+  if (modes.includes(false)) {
+    return 'has an unknown clock, reschedule, whenEmpty or pick.';
+  }
+
+  if (pulse.pick === 'hottest' && (pulse.clock ?? 'own') === 'own') {
+    return 'picks the hottest only on a shared clock.';
+  }
+
+  const isShape = pulse.hits === undefined || pulse.hits === 'none' || SHAPE_KINDS.has(pulse.hits.kind);
+
+  return typeof pulse.onPulse === 'function' && isShape
+    ? undefined
+    : 'needs an onPulse function, and hits a shape, or none.';
+};
+
+/** Checks every pulse. */
+const checkPulse = <G extends AreaTriggerTypes>(name: string, pulses: AnyAreaTriggerDef<G>['every']): void => {
+  for (const [index, pulse] of (pulses ?? []).entries()) {
+    const problem = checkBeat(pulse);
+
+    if (problem !== undefined) {
+      fail(name, `its pulse ${index} ${problem}`);
+    }
+  }
+};
+
 /** Checks the tags and the hooks. */
 const checkTagsAndHooks = <G extends AreaTriggerTypes>(
   name: string,
@@ -135,7 +208,8 @@ const checkTagsAndHooks = <G extends AreaTriggerTypes>(
 
 /**
  * Checks one area trigger kind at load, throwing a `RangeError` naming it: its shape, lifetime, modes, bound, limit,
- * tags and hooks. Its tick slot and owner aura are checked against the system's slots and auras when it is built.
+ * frame order, arming, contact, cast clock, pulses, tags and hooks. Its tick slot, owner aura and spell are checked
+ * against the system's slots, auras and spells when it is built.
  */
 export const checkAreaTrigger = <G extends AreaTriggerTypes>(
   name: string,
@@ -146,5 +220,7 @@ export const checkAreaTrigger = <G extends AreaTriggerTypes>(
   checkModes(name, def);
   checkBound(name, def);
   checkLimit(name, def);
+  checkFrame(name, def);
+  checkPulse(name, def.every);
   checkTagsAndHooks(name, def, tags);
 };

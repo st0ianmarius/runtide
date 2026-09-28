@@ -77,6 +77,16 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   parent: AreaTriggerHandle = NO_AREA_TRIGGER;
   state: unknown = undefined;
   readonly ext: G['areaExt'];
+  locked: G['bearer'] | undefined = undefined;
+
+  /** The seconds to each own-clock pulse's next beat, by pulse index. */
+  readonly beats: number[] = [];
+
+  /** The seconds of arming left; 0 once armed. */
+  arming = 0;
+
+  /** The seconds to its next own cast, for a kind that casts. */
+  castBeat = 0;
 
   /** The cast it holds alive; none outside a cast. */
   castHandle: CastHandle = NO_CAST;
@@ -121,6 +131,9 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
 
   /** Its placed shape. */
   readonly placer = new ShapePlacer();
+
+  /** The placers of its pulses' own shapes, by pulse index, made on first use. */
+  readonly #pulsePlacers: ShapePlacer[] = [];
 
   readonly #services: AreaServices<G>;
   readonly #key = [0, 0, 0, 0, 0];
@@ -171,6 +184,15 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   readonly despawn = (reason: 'self' | 'spent' = 'self'): void => {
     this.pending ??= reason;
   };
+
+  readonly lock = (unit: G['bearer'] | undefined): void => {
+    this.locked = unit;
+  };
+
+  /** The placer of a pulse's own shape. */
+  placerFor(index: number): ShapePlacer {
+    return (this.#pulsePlacers[index] ??= new ShapePlacer());
+  }
 
   /** Moves it to a point: where it spawns, or its owner's position for an owner-anchored one. */
   moveTo(at: Vec2): void {

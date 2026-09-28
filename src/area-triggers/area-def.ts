@@ -4,8 +4,8 @@ import type { CueSpec } from '../cues/index.ts';
 import type { Shape, Vec2 } from '../math/index.ts';
 import type { ScaledSnapshot } from '../modifiers/index.ts';
 import type { Proc, ProcOutcome } from '../procs/index.ts';
-import type { ProcOut, ProcReturn, SpellContext } from '../spells/index.ts';
-import type { WorldQuery } from '../world/index.ts';
+import type { ProcOut, ProcReturn, SpellContext, SpellHit, SpellId } from '../spells/index.ts';
+import type { QuerySide, WorldQuery } from '../world/index.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import type { AreaTriggerHandle } from './ids.ts';
@@ -127,7 +127,101 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
 
   /** Ends it once the running hook returns (§II.6 W1): as `self` by default, or `spent`. */
   readonly despawn: (reason?: 'self' | 'spent') => void;
+
+  /** The one unit its contacts may reach, when it is locked on one (§II.6 W3: a homing missile); none when absent. */
+  readonly locked: G['bearer'] | undefined;
+
+  /** Locks its contacts onto one unit, or frees them with `undefined`. */
+  readonly lock: (unit: G['bearer'] | undefined) => void;
 }
+
+/**
+ * What a delivery of an area trigger caught (§II.3.4), handed to `onContact`, `onPulse` and `onLand` in one call:
+ * every unit, in the world's order (a sweep's in the order it reached them), at its position and in its shape. It is a
+ * spell hit, so it is the cast's hit too when the kind says so (`hitsCast`). Reused: read it, never keep it.
+ */
+export interface AreaHit<G extends AreaTriggerTypes> extends SpellHit<G> {
+  /** Each unit's share of the hit, in the order of `targets`: 1 for a full hit (§II.6 W3's ledgers lower it). */
+  readonly shares: readonly number[];
+
+  /** The pulse that caught them (its index in `every`), or -1 for a contact or a landing. */
+  readonly pulse: number;
+}
+
+/** Which units a delivery catches: a side relative to the owner, and a condition. */
+export interface AreaCatch<G extends AreaTriggerTypes, State = unknown> {
+  /** Which side, relative to its owner; `foes` by default. */
+  readonly side?: QuerySide;
+
+  /** A condition a unit must meet (line of sight from it, not branded yet). */
+  unitFilter?(this: void, c: AreaTriggerContext<G, State>, unit: G['bearer']): boolean;
+}
+
+/** Its swept contacts along its move (§II.3.4: missiles, blades, waves): its body's radius and whom it may reach. */
+export interface AreaContact<G extends AreaTriggerTypes, State = unknown> extends AreaCatch<G, State> {
+  /** Its body's radius, around its position; a function read at each frame. */
+  readonly radius: number | AreaFn<G, State, number>;
+}
+
+/**
+ * A pulse (§II.3.4, §II.6 W2): a beat on a clock that catches the units in its shape and hands them to `onPulse`. Its
+ * clock is its own, or shared by its owner's instances of the kind, or by every instance of the kind. A shared clock
+ * counts down in the step of its first member to step each tick and beats every member at once, in creation order,
+ * from there (a member later in the order is seen as it stood before its own frame that tick); a unit several members
+ * catch on that beat can go to the hottest only.
+ */
+export interface AreaPulse<G extends AreaTriggerTypes, State = unknown> extends AreaCatch<G, State> {
+  /** The seconds between beats: a number, or read from its stats at every reschedule. */
+  readonly seconds: number | AreaFn<G, State, number>;
+
+  /** The seconds to its first beat (a shared clock's, from its first member); `seconds` by default. */
+  readonly first?: number;
+
+  /**
+   * How the next beat is set: by cadence (the default: the previous beat plus the seconds, so the leftover carries), or
+   * by restart (now plus the seconds).
+   */
+  readonly reschedule?: 'cadence' | 'restart';
+
+  /** Whether a step behind by several beats runs them all (true, the default) or one. */
+  readonly catchUp?: boolean;
+
+  /** Whose clock it beats on: its own (the default), its owner's shared with the kind's, or the kind's. */
+  readonly clock?: 'own' | 'owner-shared' | 'global';
+
+  /** What a shared clock does once it has no members: starts again with the next (`reset`, the default) or keeps its time. */
+  readonly whenEmpty?: 'reset' | 'survive';
+
+  /** What it catches: the units in its placed shape (the default), in a shape of its own (relative to it), or none. */
+  readonly hits?: Shape | 'none';
+
+  /** Whether a unit several members catch on one shared beat goes to each (`all`, the default) or the hottest only. */
+  readonly pick?: 'all' | 'hottest';
+
+  /** How hot a member is, for `hottest`: the highest wins, the first on ties; its time left by default. */
+  heat?(this: void, c: AreaTriggerContext<G, State>): number;
+
+  /** The beat: what it does to the units caught (none, when it catches none). */
+  onPulse(this: void, c: AreaTriggerContext<G, State>, hit: AreaHit<G>, out: ProcOut<G>): ProcReturn<G>;
+}
+
+/** An area trigger that casts its own spell on its own clock (§II.3.4: the sentry), as its owner, credited to it. */
+export interface AreaCaster<G extends AreaTriggerTypes, State = unknown> {
+  /** The spell: its name in data, its id in code. */
+  readonly spell: G['spellName'] | SpellId;
+
+  /** The seconds between casts: a number, or read from its stats at every cast. */
+  readonly seconds: number | AreaFn<G, State, number>;
+
+  /** The seconds to its first cast; `seconds` by default. */
+  readonly first?: number;
+
+  /** What each cast is handed (its position, its locked unit); nothing when absent. */
+  input?(this: void, c: AreaTriggerContext<G, State>): G['input'] | undefined;
+}
+
+/** A part of an area trigger's frame, in the order `order` runs them. */
+export type AreaPhase = 'move' | 'contact' | 'frame' | 'pulses';
 
 /**
  * What ends an area trigger early, or suspends it (§II.6 W1). Each part is optional; the owner's presence and standing
@@ -222,6 +316,33 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   /** The cues it fires. */
   readonly cues?: AreaCues<G, State>;
 
+  /**
+   * The order of its frame's parts (§II.6 W2), each at most once: `move` (then its shape is placed again), `contact`
+   * (the sweep along this frame's move), `frame` and `pulses`. `['move', 'contact', 'frame', 'pulses']` by default.
+   */
+  readonly order?: readonly AreaPhase[];
+
+  /**
+   * The seconds before its frame's parts start (§II.6 W2: the sentry arming): its lifetime counts meanwhile, and the
+   * tick it arms on runs them with the time left over.
+   */
+  readonly arming?: number;
+
+  /** Its swept contacts, which `onContact` receives. */
+  readonly contact?: AreaContact<G, State>;
+
+  /** Its pulses, in the order they beat within a frame. */
+  readonly every?: readonly AreaPulse<G, State>[];
+
+  /** What `onLand` catches as it expires (a telegraph firing); its foes when absent. */
+  readonly land?: AreaCatch<G, State>;
+
+  /** Whether each of its hits is also its cast's (`spells.hit`: the cast's `onHit`, its cue and its event). */
+  readonly hitsCast?: boolean;
+
+  /** The spell it casts on its own clock. */
+  readonly caster?: AreaCaster<G, State>;
+
   /** Makes an instance's own state, once per spawn; `undefined` when absent (or its parent's, when shared). */
   state?(this: void): State;
 
@@ -233,6 +354,12 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
 
   /** The primitive: one pass per frame over its `dt`, returning procs (§II.3.4). */
   frame?(this: void, c: AreaTriggerContext<G, State>, dt: number, out: ProcOut<G>): ProcReturn<G>;
+
+  /** Its sweep along this frame's move reached units, in the order it reached them. */
+  onContact?(this: void, c: AreaTriggerContext<G, State>, hit: AreaHit<G>, out: ProcOut<G>): ProcReturn<G>;
+
+  /** Its lifetime ran out, with the units in its shape (a telegraph firing, a hammer), before `onExpire`. */
+  onLand?(this: void, c: AreaTriggerContext<G, State>, hit: AreaHit<G>, out: ProcOut<G>): ProcReturn<G>;
 
   /** Its lifetime ran out (the fling, the collapse, the dome's burst), before `onEnd`. */
   onExpire?(this: void, c: AreaTriggerContext<G, State>, out: ProcOut<G>): ProcReturn<G>;

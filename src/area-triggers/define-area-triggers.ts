@@ -29,7 +29,16 @@ const LIFETIME_KINDS = ['seconds', 'owner', 'spent', 'function'] as const;
 const EXPIRY_MODES = ['after', 'before', 'clip'] as const;
 
 /** The hooks every area trigger registry builds dispatch tables and `has` bitsets for (§I.5.4). */
-export const AREA_TRIGGER_HOOKS = ['state', 'init', 'move', 'frame', 'onExpire', 'onEnd'] as const;
+export const AREA_TRIGGER_HOOKS = [
+  'state',
+  'init',
+  'move',
+  'frame',
+  'onContact',
+  'onLand',
+  'onExpire',
+  'onEnd',
+] as const;
 
 /** The name of one hook an area trigger registry dispatches. */
 export type AreaTriggerHookName = (typeof AREA_TRIGGER_HOOKS)[number];
@@ -168,6 +177,8 @@ const buildHooks = <G extends AreaTriggerTypes>(
   init: tableOf(slots, 'init'),
   move: tableOf(slots, 'move'),
   frame: tableOf(slots, 'frame'),
+  onContact: tableOf(slots, 'onContact'),
+  onLand: tableOf(slots, 'onLand'),
   onExpire: tableOf(slots, 'onExpire'),
   onEnd: tableOf(slots, 'onEnd'),
 });

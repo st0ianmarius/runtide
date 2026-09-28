@@ -3,12 +3,15 @@ import { type CastHandle, NO_CAST } from '../spells/index.ts';
 import type { AnyAreaTriggerDef, Lifetime } from './area-def.ts';
 import { type AreaTrigger, NO_SCALED, NO_STATS } from './area-trigger.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
+import { castSecondsOf } from './caster.ts';
 import { AFTER_PARENT, ANCHOR_OWNER } from './define-area-triggers.ts';
 import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
+import { placeShape } from './frame.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import { linkKind, linkTick } from './order.ts';
-import { placeShape, stepArea } from './stepper.ts';
+import { joinPulses } from './pulses.ts';
+import { stepArea } from './stepper.ts';
 
 /** What a spawn is asked with (§II.3.4): who owns it, where, and what it starts with. */
 export interface SpawnSpec<G extends AreaTriggerTypes> {
@@ -166,6 +169,9 @@ const enter = <G extends AreaTriggerTypes>(
   engine.count(area.owner, [area.kind, 1]);
   placeShape(engine, area);
   registry.hooks.init[area.kind]?.(area, area.input);
+  area.arming = def.arming ?? 0;
+  area.castBeat = def.caster === undefined ? 0 : (def.caster.first ?? castSecondsOf(def.caster, area));
+  joinPulses(engine, area);
   engine.holdOwnerAura(area, true);
   engine.fire(area, def.cues?.spawn?.(area));
   engine.raise('spawned', area);

@@ -1,6 +1,7 @@
 import type { AuraId, AuraSystem } from '../auras/index.ts';
 import type { AnyAreaTriggerDef } from './area-def.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
+import { casterSpellOf } from './caster.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import { AreaEngine } from './engine.ts';
 import { BIND_PRESENT, BIND_SILENT, BIND_STANDING, BIND_SUSPEND } from './stepper.ts';
@@ -93,6 +94,21 @@ const bindingOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G> | undef
   );
 };
 
+/** Each kind's first slot among every kind's pulses, in kind order. */
+const pulseBaseOf = <G extends AreaTriggerTypes>(registry: AreaTriggerRegistry<G>): readonly number[] => {
+  let next = 0;
+
+  return Object.freeze(
+    registry.defs.map((def) => {
+      const base = next;
+
+      next += def?.every?.length ?? 0;
+
+      return base;
+    }),
+  );
+};
+
 /** Checks at load that kinds with cues have a buffer to fire into. */
 const checkCues = <G extends AreaTriggerTypes>(options: AreaTriggerSystemOptions<G>): void => {
   const { registry } = options;
@@ -124,6 +140,8 @@ export const areaEngineOf = <G extends AreaTriggerTypes>(options: AreaTriggerSys
     ownerAuras: registry.defs.map((def, id) => ownerAuraOf(options.auras, def, registry.names[id] ?? '')),
     slotKinds: slotKindsOf(registry, options.slots?.size ?? 1),
     bindings: Uint8Array.from(registry.defs, bindingOf),
+    pulseBase: pulseBaseOf(registry),
+    casterSpells: registry.defs.map((def, id) => casterSpellOf(options, def?.caster, registry.names[id] ?? '')),
     createExt: extFactory(options),
     resetExt: options.resetExt,
   });

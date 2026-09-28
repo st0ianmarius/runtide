@@ -1,92 +1,22 @@
-import { type AuraApplication, type AuraId, type AuraSystem, NO_SOURCE } from '../auras/index.ts';
+import type { AuraId, AuraSystem } from '../auras/index.ts';
 import { toHandle } from '../core/ids.ts';
 import { createPool, createScratch, type Pool, type Random, type Scratch } from '../core/index.ts';
-import { type CueBuffer, type CuePlace, type CueSpec, fireCue } from '../cues/index.ts';
+import { type CueBuffer, type CueSpec, fireCue } from '../cues/index.ts';
 import type { Proc, ProcOutcome, ProcSystem } from '../procs/index.ts';
-import type { ProcReturn, SpellClock, SpellSystem } from '../spells/index.ts';
+import type { ProcReturn, SpellClock, SpellId, SpellSystem } from '../spells/index.ts';
 import { ProcList } from '../spells/proc-out.ts';
 import type { WorldQuery } from '../world/index.ts';
 import type { EndReason } from './area-def.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import { type AreaServices, AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
+import { AreaCastOptions } from './caster.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
+import { type AreaEngineParts, AreaPlace, missing, OwnerAuraApplication } from './engine-parts.ts';
 import type { AreaTriggerEvent, AreaTriggerEvents } from './events.ts';
+import { Catcher } from './hits.ts';
 import { type AreaTriggerHandle, toAreaTriggerHandle } from './ids.ts';
-
-/** Throws for a service an operation needs but the system was not given. */
-const missing = (what: string): never => {
-  throw new RangeError(`This area trigger system has no ${what}.`);
-};
-
-/** The application an owner aura lands with, reused. */
-class OwnerAuraApplication implements AuraApplication {
-  aura: AuraId;
-  source = NO_SOURCE;
-
-  constructor(aura: AuraId) {
-    this.aura = aura;
-  }
-}
-
-/** Where an area trigger's cues sit: at its position, credited to its owner. */
-class AreaPlace implements CuePlace {
-  owner = 0;
-  entity = 0;
-  x = 0;
-  z = 0;
-}
-
-/** What an engine is built from: the resolved options and tables of a system. */
-export interface AreaEngineParts<G extends AreaTriggerTypes> {
-  /** The kinds. */
-  readonly registry: AreaTriggerRegistry<G>;
-
-  /** The spell system, whose casts area triggers belong to. */
-  readonly spells: SpellSystem<G>;
-
-  /** The aura system owner auras land through. */
-  readonly auras: AuraSystem<G>;
-
-  /** The proc system hooks' procs run through, or a function returning it. */
-  readonly procs: ProcSystem<G> | (() => ProcSystem<G>);
-
-  /** The world. */
-  readonly world: WorldQuery<G['bearer']>;
-
-  /** The clock. */
-  readonly clock: SpellClock;
-
-  /** The host. */
-  readonly host: AreaTriggerHost<G> & G['host'];
-
-  /** The system's own stream. */
-  readonly random: Random | undefined;
-
-  /** The host's named streams, keyed by an area trigger's key. */
-  readonly streams: ((stream: G['stream'], key: readonly number[]) => Random) | undefined;
-
-  /** The events. */
-  readonly events: AreaTriggerEvents<G> | undefined;
-
-  /** The cue buffer. */
-  readonly cues: CueBuffer | undefined;
-
-  /** Each kind's owner aura; `undefined` for none. */
-  readonly ownerAuras: readonly (AuraId | undefined)[];
-
-  /** The kinds each tick slot steps, in kind order. */
-  readonly slotKinds: readonly (readonly number[])[];
-
-  /** Each kind's binding bits (what its bound makes of its owner leaving or going down). */
-  readonly bindings: Uint8Array;
-
-  /** Makes the game's fields of a pooled area trigger. */
-  readonly createExt: () => G['areaExt'];
-
-  /** Clears the game's fields as an area trigger's slot goes back to the pool. */
-  readonly resetExt: ((ext: G['areaExt']) => void) | undefined;
-}
+import type { SharedClock } from './pulses.ts';
 
 /**
  * The area trigger machinery's shared state (§I.5.4): the registry and its resolved tables, the pool, each kind's
@@ -119,6 +49,21 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   /** The snapshots of handles a step walks, one per nesting level. */
   readonly handles: Scratch<AreaTriggerHandle> = createScratch();
 
+  /** Each kind's first slot among every kind's pulses, which a shared clock is found at. */
+  readonly pulseBase: readonly number[];
+
+  /** Each kind's own spell, for a kind that casts. */
+  readonly casterSpells: readonly (SpellId | undefined)[];
+
+  /** The options an area trigger casts with, reused. */
+  readonly castOptions = new AreaCastOptions<G>();
+
+  /** The clocks shared by every instance of a kind, by pulse slot. */
+  readonly globalClocks: (SharedClock | undefined)[] = [];
+
+  /** The hits and world query options of catches, by nesting level. */
+  readonly catcher = new Catcher<G>();
+
   /** The area trigger whose hook's procs are running now, which a spawn names as its parent; none outside. */
   current: AreaTrigger<G> | undefined = undefined;
 
@@ -127,6 +72,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   readonly #streams: AreaEngineParts<G>['streams'];
   readonly #resetExt: AreaEngineParts<G>['resetExt'];
   readonly #counts = new Map<G['bearer'], Uint16Array>();
+  readonly #ownerClocks = new Map<G['bearer'], (SharedClock | undefined)[]>();
   readonly #lists: ProcList<G>[] = [];
   readonly #place = new AreaPlace();
   #depth = 0;
@@ -148,6 +94,8 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.ownerAuras = parts.ownerAuras;
     this.slotKinds = parts.slotKinds;
     this.bindings = parts.bindings;
+    this.pulseBase = parts.pulseBase;
+    this.casterSpells = parts.casterSpells;
     this.tickHeads = Array.from({ length: kinds }, () => undefined);
     this.tickTails = Array.from({ length: kinds }, () => undefined);
     this.kindHeads = Array.from({ length: kinds }, () => undefined);
@@ -221,6 +169,18 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     return id;
   }
 
+  /** The clocks an owner's instances share, by pulse slot, made on first use. */
+  ownerClocks(owner: G['bearer']): (SharedClock | undefined)[] {
+    let clocks = this.#ownerClocks.get(owner);
+
+    if (clocks === undefined) {
+      clocks = [];
+      this.#ownerClocks.set(owner, clocks);
+    }
+
+    return clocks;
+  }
+
   /** How many area triggers of a kind an owner has. */
   countOf(owner: G['bearer'], kind: number): number {
     return this.#counts.get(owner)?.[kind] ?? 0;
@@ -253,6 +213,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.kindNext = undefined;
     area.kindPrev = undefined;
     area.lastChild = undefined;
+    area.locked = undefined;
     area.placer.clear();
     this.pool.release(toHandle<AreaTrigger<G>>(area.handle));
   }

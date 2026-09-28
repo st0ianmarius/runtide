@@ -1,21 +1,14 @@
 import { countDown, isRunOut } from '../core/index.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
-import { ANCHOR_OWNER } from './define-area-triggers.ts';
 import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
+import { frame } from './frame.ts';
 import { NO_AREA_TRIGGER } from './ids.ts';
 
 /** The expiry modes' codes, as the `expiry` column holds them. */
 const EXPIRY_BEFORE = 1;
 const EXPIRY_CLIP = 2;
-
-/** Places an area trigger's shape at its position and heading: its kind's shape, or what its shape function says. */
-export const placeShape = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
-  const { shape } = engine.registry.get(area.kind);
-
-  area.placer.place(typeof shape === 'function' ? shape(area) : shape, area.position, area.heading);
-};
 
 /** Binding bit: it ends as `source-gone` when its owner leaves the world. */
 export const BIND_PRESENT = 1;
@@ -88,47 +81,6 @@ const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
   }
 
   return true;
-};
-
-/** Runs its `frame` hook with the reusable proc list. */
-const runFrame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): void => {
-  const frame = engine.registry.hooks.frame[area.kind];
-
-  if (frame === undefined) {
-    return;
-  }
-
-  const list = engine.takeList();
-
-  try {
-    engine.run(area, frame(area, dt, list), list);
-  } finally {
-    engine.giveList(list);
-  }
-};
-
-/**
- * One frame over `dt` (§II.3.4, §II.6 W2): it ages, an owner-anchored one moves onto its owner, it notes where it
- * was, runs `move`, places its shape, runs `frame`, and ends when a hook asked it to.
- */
-const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): void => {
-  const { registry } = engine;
-
-  area.age += dt;
-
-  if (((registry.columns.flags[area.kind] ?? 0) & ANCHOR_OWNER) !== 0) {
-    area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner));
-  }
-
-  area.previous.x = area.position.x;
-  area.previous.z = area.position.z;
-  registry.hooks.move[area.kind]?.(area, dt);
-  placeShape(engine, area);
-  runFrame(engine, area, dt);
-
-  if (area.pending !== undefined && !area.isEnding) {
-    endArea(engine, area, { reason: area.pending });
-  }
 };
 
 /**
