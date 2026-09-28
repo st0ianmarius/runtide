@@ -40,6 +40,14 @@ export type { SpellClock } from './engine.ts';
 
 export { CAST_OUTCOMES, createSpellEvent, type SpellEvent, type SpellEvents, spellTriggerEvent } from './events.ts';
 
+export {
+  explainSpell,
+  type PreviewOptions,
+  previewStats,
+  type SpellExplanation,
+  type SpellStatExplanation,
+} from './explain.ts';
+
 export { type CastHandle, NO_CAST } from './ids.ts';
 export type { ProcOut } from './proc-out.ts';
 
