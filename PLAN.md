@@ -208,7 +208,7 @@ A **resource** is anything a consumer registers with the framework: stats, auras
 What that means in practice:
 
 - **Hooks are standalone functions.** They receive everything they need as arguments (`ctx`, the target, the hit) and never read `this`. The framework may call a hook detached (`const { release } = def; release(ctx, target)`), and it must still work.
-- **Sharing is by factories and composition.** A family of resources with shared behaviour is a function returning the interface (`telegraphedSpell({ id, shape })`), and variations spread or wrap hooks (`{ ...base, onHit: withBonus(base.onHit) }`). Definitions are plain objects, so spreading is always safe.
+- **Sharing is by factories and composition.** A family of resources with shared behaviour is a function returning the interface (`telegraphedSpell({ windup, shape })`), and variations spread or wrap hooks (`{ ...base, onHit: withBonus(base.onHit) }`). Definitions are plain objects, so spreading is always safe.
 - **Definitions are stateless.** A definition is shared by every cast, aura or area trigger made from it, so per-instance state never lives on it: a cast has its `CastState`, an active aura its `value` and stacks, an area trigger its `State`, a scripted creature its script `State`. Registries freeze definitions in development builds to catch mutation.
 - **Data stays data.** Fields the framework reads as data (ids, tags, durations, modifiers, a trigger's `do`) are plain values, not getters, because explanations, validation and the wire read them.
 - **Registration is by name, identity is by number.** `createRegistry({ name: def, … })`: the key order assigns each definition its numeric id (append-only, §I.5). A definition carries no id of its own; the runtime hands it its id where it needs one (`ctx.spellId`, `aura.id`).
@@ -440,7 +440,7 @@ Swarm's `packages/game` then moves onto it in the phases of §II.5, each held by
 
 # Part II. The model: the Spell API
 
-_The sketches below write names such as `id: 'tempest'` for readability; in spellweave the name is the registry key and the id a number (§I.5), and any visual or text it mentions belongs to the client (§I.5.3). Written against swarm's code (the co-op ARPG this framework comes out of) from a survey of every Arsenal weapon, hero ability, creature spell and map event in it. Its porting tables (§II.4) and migration phases (§II.5) are swarm's; the model (§II.1–§II.3) is the framework's._
+_Definitions carry no id: the name is the key they are registered under (`createRegistry({ tempest, cyclone })`), the id is the number the registry gives them (§I.5), and code that needs a definition refers to the object itself (`spawn(cyclone, …)`). Any visual or text a sketch mentions belongs to the client (§I.5.3). Written against swarm's code (the co-op ARPG this framework comes out of) from a survey of every Arsenal weapon, hero ability, creature spell and map event in it. Its porting tables (§II.4) and migration phases (§II.5) are swarm's; the model (§II.1–§II.3) is the framework's._
 
 ## II.1 The idea
 
@@ -480,7 +480,6 @@ Area triggers (what a spell leaves in the world) and cues (how it looks) complet
 
 ```ts
 export const tempest = defineSpell({
-  id: 'tempest',
   tags: ['arsenal', 'area', 'wind', 'summon'], // modifier scopes, trigger filters, class of the spell
   activation: { kind: 'auto' }, // the attack clock reads stats.interval
   stats: (ctx) => ctx.weaponStats('tempest'), // one snapshot per cast
@@ -571,7 +570,6 @@ The line between the two persistent things: an **aura sits on a unit** and goes 
 
 ```ts
 interface AreaTriggerDef<State, Stats> {
-  id: AreaTriggerKey;
   shape(c): Shape; // circle | ring | cone | lane | polygon | point (§II.3.5)
   lifetime(c): number | 'owner' | 'spent'; // seconds, while the owner lives, or until a hit budget is spent
   bound?: Bound; // what ends it early (owner standing or present, source alive, a condition), or suspends it; fade or silent
@@ -608,7 +606,7 @@ interface AreaTriggerDef<State, Stats> {
 - `nearest(from, range, n, { distinct, exclude })`, `densest(from, range, radius, excluded)` (Singularity, Tempest, Chakram), `chain(from, jumps, range, falloff)` (Spark's links, one at a time through `ctx.apply`; Hexfire's leap is `nearest` with an unbranded filter), `sweep(from, to, radius)` (missiles, charges, waves), `lineClear`, `placement(input, { range, walls, snap })`.
 - `positionOf(target)` is rewound only while the cast is aimed and in its cast frame, and it returns copies, never scratch. `velocityOf(target)` supports leads (`leadPoint(target, speed)` replaces `archmageLead` / `predictedBlast`).
 - Every query takes the options of §II.6 W10 (centre or edge distance, inclusive bounds, id tie-breaks, filters, `minSeparation`), and the world also answers `isPositionClear`, bounds and `clamp`, a body sweep against static geometry, a sample-and-score point picker, and queries over area triggers.
-- Shape builders return data: `circle(r)`, `ring(inner, outer)`, `cone(r, half, dir)`, `lane(len, width, dir)`, `polygon(points, { band })`, `outside(shape)`, `union` and `difference`, and patterns (`linePoints`, `ringPoints`, `crossPoints`, `eruptionLine`) that return point lists with a stagger.
+- Shape builders return data and carry their position, defaulting to the origin (an area trigger's shape is placed at its position): `circle(r, at?)`, `ring(inner, outer, at?)`, `cone({ r, half, dir, at?, apex? })`, `lane({ length, width, dir, at?, back? })` (one options object each, within the three-parameter rule), `polygon(points, band?)`, `point(at)`, `outside(shape)`, `union` and `difference`, and patterns (`linePoints`, `ringPoints`, `crossPoints`, `eruptionLine`) that return point lists with a stagger.
 
 ### II.3.6 Procs: one vocabulary
 
@@ -705,7 +703,7 @@ A pact's parts are already an aura's parts:
 | its buff tile on the HUD                       | the client's tile for the pact aura's `AuraId`                                    |
 | sealing it at the Pact Sigil                   | casting the pact's spell, whose release is `applyEffect(pact aura)` on every hero |
 
-So a pact is `defineSpell({ id: 'pact.glassCannon', activation: { kind: 'event' /* the Sigil vote */ }, release: (ctx) => party(ctx).map((hero) => applyEffect(hero, 'pact.glassCannon')) })` plus one `EffectDef` holding its numbers, text and tile. The same rule holds for class triggers: there are none today, and a future one is a class's passive aura.
+So a pact is a spell registered as `glassCannon`, `defineSpell({ activation: { kind: 'event' /* the Sigil vote */ }, release: (ctx) => party(ctx).map((hero) => applyEffect(hero, 'pact.glassCannon')) })` plus one `EffectDef` holding its numbers, text and tile. The same rule holds for class triggers: there are none today, and a future one is a class's passive aura.
 
 **One-off grants belong to the sealing spell, not the aura.** Gambler's Oath's three rerolls are a `grant` proc in the pact spell's release; as an aura grant they would be handed out again to every hero who joins mid-run.
 
@@ -1020,7 +1018,6 @@ const cyclone = defineAreaTrigger<{
   nextRetarget: number;
   nextStrike: number;
 }>({
-  id: 'tempest.cyclone',
   shape: (c) => circle(c.stats.radius),
   lifetime: (c) => c.stats.duration,
   bound: 'owner-standing', // a downed or gone owner takes it away, silently
