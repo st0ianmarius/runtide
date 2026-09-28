@@ -2,11 +2,11 @@
 
 A deterministic, engine-agnostic gameplay framework for MMO-like games: spells, auras, procs, triggers, modifiers and cues, woven together, in pure TypeScript with no rendering or networking dependencies.
 
-Built so far: the scaffold (phase F0), the deterministic core and math (phase F1: `spellweave/core`, `spellweave/math`), modifiers with stat scaling and curves (phase F2: `spellweave/modifiers`), auras on any bearer (phase F3: `spellweave/auras`), procs and triggers (phase F4: `spellweave/procs`, `spellweave/triggers`), the damage, heal, force and death pipelines (phase F5: `spellweave/damage`), and cues with their wire encoding (phase F6: `spellweave/cues`). [`PLAN.md`](PLAN.md) is the single source of truth: the ground rules, the layout, the systems and the phases.
+Built so far: the scaffold (phase F0), the deterministic core and math (phase F1: `spellweave/core`, `spellweave/math`), modifiers with stat scaling and curves (phase F2: `spellweave/modifiers`), auras on any bearer (phase F3: `spellweave/auras`), procs and triggers (phase F4: `spellweave/procs`, `spellweave/triggers`), the damage, heal, force and death pipelines (phase F5: `spellweave/damage`), cues with their wire encoding (phase F6: `spellweave/cues`), and spells with their activations, timeline, runner, delayed procs and auto clocks (phase F7: `spellweave/spells`). [`PLAN.md`](PLAN.md) is the single source of truth: the ground rules, the layout, the systems and the phases.
 
 ## The model
 
-- A **spell** is the container: an activation (an auto-attack clock, a button, a passive, a trigger, an AI brain, a world event), a timeline of stages, and the procs it runs when it lands.
+- A **spell** is the container: an activation (an auto-attack clock, a button, a passive, a trigger, an AI brain, a world event), a timeline of stages the host steps per caster, and the procs it runs at each moment, now or later (`after`).
 - An **aura** is a stateful effect on any unit: stacks, clocks, periodic beats, modifiers, damage hooks, and the triggers it owns.
 - A **proc** is one outcome (damage, apply an aura, spawn an area trigger, …); games add their own kinds.
 - An **area trigger** is what persists in the world: a shape with a lifetime, pulses and hit policies.
