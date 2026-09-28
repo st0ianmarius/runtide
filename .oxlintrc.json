@@ -141,7 +141,8 @@
     "typescript/no-extra-non-null-assertion": "error",
     "typescript/no-for-in-array": "error",
     "typescript/no-implied-eval": "error",
-    "typescript/no-invalid-void-type": "error",
+    // `this: void` marks a hook written as a method (for its bivariant parameters) as callable detached (§I.5.2).
+    "typescript/no-invalid-void-type": ["error", { "allowAsThisParameter": true }],
     "typescript/no-meaningless-void-operator": "error",
     "typescript/no-misused-promises": "error",
     "typescript/no-misused-spread": "error",

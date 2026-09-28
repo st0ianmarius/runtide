@@ -1,0 +1,130 @@
+import { type ActiveAura, type AuraId, type AuraSystem, NO_SOURCE } from '../auras/index.ts';
+import type { Random } from '../core/index.ts';
+import type { Proc } from './proc-data.ts';
+import type { ProcResolver } from './proc-kind.ts';
+import type { ProcBus, ProcContext, ProcHost, ProcOrigin, ProcOutcome, ProcTypes } from './proc-types.ts';
+
+/** An aura application a frame reuses for every `applyAura` it lands (a field set to `undefined` counts as absent). */
+export interface ReusedApplication<G extends ProcTypes> {
+  /** The aura. */
+  aura: AuraId;
+
+  /** Its length. */
+  duration: number | undefined;
+
+  /** Its stacks. */
+  stacks: number | undefined;
+
+  /** Its value. */
+  value: number | undefined;
+
+  /** Its source. */
+  source: number | undefined;
+
+  /** Its stacking override. */
+  stacking: 'refresh' | 'extend' | 'stack' | 'highest' | 'keep' | undefined;
+
+  /** Its payload. */
+  payload: G['payload'] | undefined;
+}
+
+/** What a frame calls back into: the system that owns it. */
+export interface FrameRunner<G extends ProcTypes> {
+  /** Applies one proc within a frame's list. */
+  readonly applyIn: (frame: ProcFrame<G>, proc: Proc<G>) => ProcOutcome;
+
+  /** Runs a list one level deeper for a frame's origin. */
+  readonly deeper: (frame: ProcFrame<G>, procs: readonly Proc<G>[]) => number;
+
+  /** A random source for a frame. */
+  readonly randomFor: (frame: ProcFrame<G>, stream: G['stream'] | undefined) => Random;
+
+  /** Counts one run of a hatch. */
+  readonly countRun: (hatch: string) => void;
+}
+
+/** What every frame of one system shares. */
+export interface FrameShared<G extends ProcTypes> {
+  /** The aura system. */
+  readonly auras: AuraSystem<G>;
+
+  /** The host. */
+  readonly host: ProcHost<G> & G['host'];
+
+  /** The bus `event` procs raise on. */
+  readonly bus: ProcBus | undefined;
+
+  /** The system. */
+  readonly runner: FrameRunner<G>;
+
+  /** Resolves names procs carry. */
+  readonly resolve: ProcResolver<G>;
+}
+
+/**
+ * One running proc list's context, pooled per nesting level: the origin's fields, the units the list killed, and a
+ * reused aura application (made on the first `applyAura`). Its functions are arrow fields, so they work detached.
+ */
+export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
+  self: G['bearer'];
+  target: G['bearer'];
+  eventUnit: G['bearer'] | undefined = undefined;
+  source = NO_SOURCE;
+  aura: ActiveAura<G> | undefined = undefined;
+  readonly depth: number;
+  readonly auras: AuraSystem<G>;
+  readonly host: ProcHost<G> & G['host'];
+  readonly bus: ProcBus | undefined;
+  readonly resolve: ProcResolver<G>;
+  readonly killed: G['bearer'][] = [];
+  application: ReusedApplication<G> | undefined = undefined;
+  readonly #runner: FrameRunner<G>;
+
+  constructor(shared: FrameShared<G>, depth: number, origin: ProcOrigin<G>) {
+    this.depth = depth;
+    this.auras = shared.auras;
+    this.host = shared.host;
+    this.bus = shared.bus;
+    this.resolve = shared.resolve;
+    this.#runner = shared.runner;
+    this.self = origin.self;
+    this.target = origin.self;
+  }
+
+  readonly apply = (proc: Proc<G>): ProcOutcome => this.#runner.applyIn(this, proc);
+
+  readonly run = (procs: readonly Proc<G>[]): number => this.#runner.deeper(this, procs);
+
+  readonly random = (stream?: G['stream']): Random => this.#runner.randomFor(this, stream);
+
+  /** Takes an origin's fields and forgets the last list's kills. */
+  reset(origin: ProcOrigin<G>): void {
+    this.self = origin.self;
+    this.target = origin.target ?? origin.self;
+    this.eventUnit = origin.eventUnit;
+    this.source = origin.source ?? this.host.idOf?.(origin.self) ?? NO_SOURCE;
+    this.aura = origin.aura;
+
+    // Emptied only when a kill filled it: shrinking an array to 0 drops its storage, and lists run all the time.
+    if (this.killed.length > 0) {
+      this.killed.length = 0;
+    }
+  }
+
+  /** Counts one run of a hatch. */
+  countRun(hatch: string): void {
+    this.#runner.countRun(hatch);
+  }
+}
+
+/** Whether a context is a system's frame. */
+const isFrame = <G extends ProcTypes>(ctx: ProcContext<G>): ctx is ProcFrame<G> => ctx instanceof ProcFrame;
+
+/** The frame behind a context a proc kind was handed, refusing one made elsewhere. */
+export const frameOf = <G extends ProcTypes>(ctx: ProcContext<G>): ProcFrame<G> => {
+  if (!isFrame(ctx)) {
+    throw new TypeError('A proc context must come from a proc system.');
+  }
+
+  return ctx;
+};
