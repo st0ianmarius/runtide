@@ -20,6 +20,7 @@ import { Catcher } from './hits.ts';
 import { type AreaTriggerHandle, toAreaTriggerHandle } from './ids.ts';
 import { LedgerBook, LedgerView } from './ledgers.ts';
 import type { SharedClock } from './pulses.ts';
+import { AreaQueryApi } from './queries.ts';
 
 /**
  * The area trigger machinery's shared state (§I.5.4): the registry and its resolved tables, the pool, each kind's
@@ -51,6 +52,12 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
 
   /** The snapshots of handles a step walks, one per nesting level. */
   readonly handles: Scratch<AreaTriggerHandle> = createScratch();
+
+  /** The records a query collects, one list per nesting level. */
+  readonly records: Scratch<AreaTrigger<G>> = createScratch();
+
+  /** The queries over the area triggers, which hooks read as `c.areas`. */
+  readonly queries: AreaQueryApi<G>;
 
   /** Each kind's first slot among every kind's pulses, which a shared clock is found at. */
   readonly pulseBase: readonly number[];
@@ -110,6 +117,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.pulseBase = parts.pulseBase;
     this.casterSpells = parts.casterSpells;
     this.areaAuras = parts.areaAuras;
+    this.queries = new AreaQueryApi<G>(this);
     this.tickHeads = Array.from({ length: kinds }, () => undefined);
     this.tickTails = Array.from({ length: kinds }, () => undefined);
     this.kindHeads = Array.from({ length: kinds }, () => undefined);

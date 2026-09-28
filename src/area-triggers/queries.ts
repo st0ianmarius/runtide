@@ -1,7 +1,10 @@
-import type { AreaTriggerContext } from './area-def.ts';
+import { covers, pathIntervals, type Vec2 } from '../math/index.ts';
+import type { AreaTriggerContext, EndReason } from './area-def.ts';
+import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
+import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
-import type { AreaTriggerHandle } from './ids.ts';
+import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 
 /** Which live area triggers a query keeps (§II.6 W5); every part is optional. */
 export interface AreaQuery<G extends AreaTriggerTypes> {
@@ -16,6 +19,45 @@ export interface AreaQuery<G extends AreaTriggerTypes> {
 
   /** A condition on the area trigger (its state, its position). */
   readonly filter?: (c: AreaTriggerContext<G>) => boolean;
+}
+
+/** A query for what covers a point or a path: a query, and the radius of the body tested. */
+export interface CoverQuery<G extends AreaTriggerTypes> extends AreaQuery<G> {
+  /** The body's radius; 0 (a bare point) by default. */
+  readonly radius?: number;
+}
+
+/** Where a path first meets an area trigger (§II.6 W5: a projectile tested against domes before walls). Reused. */
+export interface AreaInterception {
+  /** The area trigger it meets first; `NO_AREA_TRIGGER` when it meets none. */
+  handle: AreaTriggerHandle;
+
+  /** The share along the path where it meets it (0 when it starts inside); 1 when it meets none. */
+  share: number;
+}
+
+/**
+ * What any code may ask of the area triggers (§II.6 W5), hooks included (`c.areas`): pure reads over the live ones, in
+ * kind order and creation order.
+ */
+export interface AreaQueries<G extends AreaTriggerTypes> {
+  /** Writes the handles a query keeps into `out` from index 0; returns how many. */
+  readonly query: (query: AreaQuery<G>, out: AreaTriggerHandle[]) => number;
+
+  /** A live area trigger's context; `undefined` once it ended. */
+  readonly get: (handle: AreaTriggerHandle) => AreaTriggerContext<G> | undefined;
+
+  /** A live area trigger's declared view (`AreaTriggerDef.view`); `undefined` for none, or once it ended. */
+  readonly viewOf: (handle: AreaTriggerHandle) => Readonly<Record<string, number>> | undefined;
+
+  /**
+   * The first area trigger a query keeps whose shape covers a point (for a body of `radius`): the Sanctuary's shelter
+   * tested at a blow's ignore stage. `NO_AREA_TRIGGER` when none does.
+   */
+  readonly coveredBy: (point: Vec2, query: CoverQuery<G>) => AreaTriggerHandle;
+
+  /** Where a path from `from` to `to` first meets an area trigger a query keeps, written into `out`. */
+  readonly intercept: (segment: readonly [Vec2, Vec2], query: CoverQuery<G>, out: AreaInterception) => AreaInterception;
 }
 
 /** A tag's id from its name, throwing for an unknown one. */
@@ -34,16 +76,21 @@ const tagIdOf = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, tag: G['area
 const isKindKept = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   [query, kind, tag]: readonly [AreaQuery<G>, number, number],
-) => (query.kind === undefined || query.kind === kind) && (tag < 0 || engine.registry.tagSets[kind]?.has(tag) === true);
+): boolean =>
+  (query.kind === undefined || query.kind === kind) && (tag < 0 || engine.registry.tagSets[kind]?.has(tag) === true);
+
+/** Whether one live area trigger passes a query's owner and condition. */
+const isKept = <G extends AreaTriggerTypes>(area: AreaTrigger<G>, query: AreaQuery<G>): boolean =>
+  !area.isEnding && (query.owner === undefined || area.owner === query.owner) && (query.filter?.(area) ?? true);
 
 /**
- * Writes the handles of the live area triggers a query keeps into `out` from index 0 (§II.6 W5), kind by kind in
- * registry order and each kind in creation order, and returns how many.
+ * Writes the live area triggers a query keeps into `out` from index 0, kind by kind in registry order and each kind in
+ * creation order, and returns how many.
  */
-export const queryAreas = <G extends AreaTriggerTypes>(
+const collect = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   query: AreaQuery<G>,
-  out: AreaTriggerHandle[],
+  out: (AreaTrigger<G> | undefined)[],
 ): number => {
   const tag = query.tag === undefined ? -1 : tagIdOf(engine, query.tag);
   let count = 0;
@@ -54,11 +101,8 @@ export const queryAreas = <G extends AreaTriggerTypes>(
     }
 
     for (let walk = engine.kindHeads[kind]; walk !== undefined; walk = walk.kindNext) {
-      const isKept =
-        !walk.isEnding && (query.owner === undefined || walk.owner === query.owner) && (query.filter?.(walk) ?? true);
-
-      if (isKept) {
-        out[count] = walk.handle;
+      if (isKept(walk, query)) {
+        out[count] = walk;
         count += 1;
       }
     }
@@ -66,3 +110,102 @@ export const queryAreas = <G extends AreaTriggerTypes>(
 
   return count;
 };
+
+/** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended (§II.6 W5). */
+export const despawnWhere = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  query: AreaQuery<G>,
+  reason: EndReason,
+): number => {
+  const handles: AreaTriggerHandle[] = [];
+  const count = engine.queries.query(query, handles);
+  let ended = 0;
+
+  for (let i = 0; i < count; i++) {
+    const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
+
+    if (area !== undefined) {
+      endArea(engine, area, { reason });
+      ended += 1;
+    }
+  }
+
+  return ended;
+};
+
+/** The queries over one engine's area triggers, reusing their scratch. */
+export class AreaQueryApi<G extends AreaTriggerTypes> implements AreaQueries<G> {
+  readonly #engine: AreaEngine<G>;
+  readonly #times: number[] = [];
+
+  constructor(engine: AreaEngine<G>) {
+    this.#engine = engine;
+  }
+
+  readonly query = (query: AreaQuery<G>, out: AreaTriggerHandle[]): number => {
+    const found = this.#engine.records.take();
+    const count = collect(this.#engine, query, found);
+
+    for (let i = 0; i < count; i++) {
+      out[i] = found[i]?.handle ?? NO_AREA_TRIGGER;
+    }
+
+    this.#engine.records.give(count);
+
+    return count;
+  };
+
+  readonly get = (handle: AreaTriggerHandle): AreaTriggerContext<G> | undefined => this.#engine.areaOf(handle);
+
+  readonly viewOf = (handle: AreaTriggerHandle): Readonly<Record<string, number>> | undefined => {
+    const area = this.#engine.areaOf(handle);
+
+    return area === undefined ? undefined : this.#engine.registry.get(area.kind).view?.(area);
+  };
+
+  readonly coveredBy = (point: Vec2, query: CoverQuery<G>): AreaTriggerHandle => {
+    const found = this.#engine.records.take();
+    const count = collect(this.#engine, query, found);
+    let handle = NO_AREA_TRIGGER;
+
+    for (let i = 0; i < count && handle === NO_AREA_TRIGGER; i++) {
+      const area = found[i];
+
+      if (area !== undefined && covers(area.shape, point, query.radius ?? 0)) {
+        handle = area.handle;
+      }
+    }
+
+    this.#engine.records.give(count);
+
+    return handle;
+  };
+
+  readonly intercept = (
+    [from, to]: readonly [Vec2, Vec2],
+    query: CoverQuery<G>,
+    out: AreaInterception,
+  ): AreaInterception => {
+    const found = this.#engine.records.take();
+    const count = collect(this.#engine, query, found);
+    const path = { from, to, t0: 0, t1: 1, radius: query.radius ?? 0 };
+
+    out.handle = NO_AREA_TRIGGER;
+    out.share = 1;
+
+    for (let i = 0; i < count; i++) {
+      const area = found[i];
+      const meets = area === undefined ? 0 : pathIntervals(area.shape, path, this.#times);
+      const share = this.#times[0] ?? 1;
+
+      if (area !== undefined && meets > 0 && (out.handle === NO_AREA_TRIGGER || share < out.share)) {
+        out.handle = area.handle;
+        out.share = share;
+      }
+    }
+
+    this.#engine.records.give(count);
+
+    return out;
+  };
+}

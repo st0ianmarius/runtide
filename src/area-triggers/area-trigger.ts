@@ -13,6 +13,7 @@ import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import type { AreaLedger } from './delivery-def.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import type { Ledger } from './ledgers.ts';
+import type { AreaQueries } from './queries.ts';
 import { ShapePlacer } from './shape-placer.ts';
 
 /** No stats: an area trigger spawned outside a cast. */
@@ -43,6 +44,9 @@ export interface AreaServices<G extends AreaTriggerTypes> {
 
   /** The reused view of one of an area trigger's ledgers. */
   readonly ledgerFor: (area: AreaTrigger<G>, name: string) => AreaLedger<G['bearer']>;
+
+  /** The queries over the area triggers. */
+  readonly queries: AreaQueries<G>;
 }
 
 /** Who an area trigger's procs run for: its owner, credited to its source. */
@@ -175,6 +179,10 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
 
   get world(): WorldQuery<G['bearer']> {
     return this.#services.world;
+  }
+
+  get areas(): AreaQueries<G> {
+    return this.#services.queries;
   }
 
   readonly apply = (proc: Proc<G>): ProcOutcome => this.#services.applyFor(this, proc);

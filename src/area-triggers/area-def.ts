@@ -20,6 +20,7 @@ import type {
   AreaPulse,
 } from './delivery-def.ts';
 import type { AreaTriggerHandle } from './ids.ts';
+import type { AreaQueries } from './queries.ts';
 
 /**
  * Why an area trigger ended (§II.6 W1): `expired` (its lifetime ran out), `spent` (its hit budget ran out), `self` (a
@@ -126,6 +127,9 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
 
   /** The world it asks. */
   readonly world: WorldQuery<G['bearer']>;
+
+  /** The area triggers it may ask about (§II.6 W5: another tempest's goal, the domes a shot meets). */
+  readonly areas: AreaQueries<G>;
 
   /** Applies one proc now, as its owner's and credited to it, and returns what it did (§II.6.1 rule 2). */
   readonly apply: (proc: Proc<G>) => ProcOutcome;
@@ -278,6 +282,12 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
 
   /** The auras it keeps on the units in its shape (§II.6 A10). */
   readonly auras?: readonly AreaAura<G, State>[];
+
+  /**
+   * Its declared view (§II.6 W5): the numbers other code may read about an instance (`areas.viewOf`: a goal, a
+   * charge), so no one reads its state directly.
+   */
+  view?(this: void, c: AreaTriggerContext<G, State>): Readonly<Record<string, number>>;
 
   /** Makes an instance's own state, once per spawn; `undefined` when absent (or its parent's, when shared). */
   state?(this: void): State;

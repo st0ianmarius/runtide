@@ -1,5 +1,5 @@
 import type { TickSlotId } from '../core/index.ts';
-import type { AreaTriggerContext, EndReason } from './area-def.ts';
+import type { EndReason } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import { areaEngineOf } from './build-engine.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
@@ -8,7 +8,7 @@ import type { AreaEngine } from './engine.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import { createAreaTriggerProcKinds } from './proc-kinds.ts';
 import type { AreaTriggerProcKinds } from './procs.ts';
-import { type AreaQuery, queryAreas } from './queries.ts';
+import { type AreaQueries, type AreaQuery, despawnWhere } from './queries.ts';
 import { spawnArea, type SpawnSpec } from './spawner.ts';
 import { stepSlot } from './stepper.ts';
 import type { AreaTriggerSystemOptions } from './system-options.ts';
@@ -19,7 +19,7 @@ import type { AreaTriggerSystemOptions } from './system-options.ts';
  * their lifetimes, checks their bounds, runs their hooks' procs as their owners' and their casts', and ends them with
  * a reason.
  */
-export interface AreaTriggerSystem<G extends AreaTriggerTypes> {
+export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueries<G> {
   /** The game's area trigger kinds. */
   readonly registry: AreaTriggerRegistry<G>;
 
@@ -56,9 +56,6 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> {
   /** Steps one owner's area triggers of a tick slot (the first when absent), in the same order: a per-owner stepper. */
   readonly stepOwner: (owner: G['bearer'], slot?: TickSlotId) => number;
 
-  /** A live area trigger's context; `undefined` once it ended. */
-  readonly get: (handle: AreaTriggerHandle) => AreaTriggerContext<G> | undefined;
-
   /** Whether an area trigger is live. */
   readonly isLive: (handle: AreaTriggerHandle) => boolean;
 
@@ -68,11 +65,8 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> {
   /** How many area triggers of a kind an owner has live. */
   readonly countOf: (owner: G['bearer'], kind: AreaTriggerId) => number;
 
-  /**
-   * Writes the handles of the live area triggers a query keeps (by kind, owner, tag and condition) into `out` from
-   * index 0, kind by kind in registry order and each kind in creation order, and returns how many (§II.6 W5).
-   */
-  readonly query: (query: AreaQuery<G>, out: AreaTriggerHandle[]) => number;
+  /** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended (§II.6 W5). */
+  readonly despawnWhere: (query: AreaQuery<G>, reason?: EndReason) => number;
 }
 
 /** An area trigger system: a class for fast properties, its functions arrow fields so they work detached. */
@@ -80,6 +74,11 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
   readonly registry: AreaTriggerRegistry<G>;
   readonly pool: AreaTriggerSystem<G>['pool'];
   readonly procKinds: AreaTriggerProcKinds<G>;
+  readonly query: AreaQueries<G>['query'];
+  readonly get: AreaQueries<G>['get'];
+  readonly viewOf: AreaQueries<G>['viewOf'];
+  readonly coveredBy: AreaQueries<G>['coveredBy'];
+  readonly intercept: AreaQueries<G>['intercept'];
   readonly #engine: AreaEngine<G>;
 
   constructor(engine: AreaEngine<G>) {
@@ -100,6 +99,11 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
       },
     };
     this.procKinds = createAreaTriggerProcKinds(engine);
+    this.query = engine.queries.query;
+    this.get = engine.queries.get;
+    this.viewOf = engine.queries.viewOf;
+    this.coveredBy = engine.queries.coveredBy;
+    this.intercept = engine.queries.intercept;
   }
 
   get current(): AreaTriggerHandle {
@@ -115,8 +119,6 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
   readonly step = (slot?: TickSlotId): number => stepSlot(this.#engine, slot ?? 0, undefined);
 
   readonly stepOwner = (owner: G['bearer'], slot?: TickSlotId): number => stepSlot(this.#engine, slot ?? 0, owner);
-
-  readonly get = (handle: AreaTriggerHandle): AreaTriggerContext<G> | undefined => this.#engine.areaOf(handle);
 
   readonly isLive = (handle: AreaTriggerHandle): boolean => this.#engine.areaOf(handle) !== undefined;
 
@@ -134,7 +136,8 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
 
   readonly countOf = (owner: G['bearer'], kind: AreaTriggerId): number => this.#engine.countOf(owner, kind);
 
-  readonly query = (query: AreaQuery<G>, out: AreaTriggerHandle[]): number => queryAreas(this.#engine, query, out);
+  readonly despawnWhere = (query: AreaQuery<G>, reason: EndReason = 'self'): number =>
+    despawnWhere(this.#engine, query, reason);
 }
 
 /**

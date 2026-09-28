@@ -3,7 +3,7 @@ import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaTagTable } from './tags.ts';
 
 /** The hooks a definition may carry, each a function when present. */
-const HOOK_FIELDS = ['state', 'init', 'move', 'frame', 'onContact', 'onLand', 'onExpire', 'onEnd'] as const;
+const HOOK_FIELDS = ['state', 'init', 'move', 'frame', 'onContact', 'onLand', 'onExpire', 'onEnd', 'view'] as const;
 
 /** The parts of a frame an `order` may list. */
 const PHASES: ReadonlySet<string> = new Set(['move', 'contact', 'frame', 'pulses', 'auras']);

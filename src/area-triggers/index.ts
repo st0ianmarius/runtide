@@ -54,7 +54,7 @@ export {
 
 export { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 export { type AreaTriggerProcKinds, type AreaTriggerProcs, spawn, type SpawnProc } from './procs.ts';
-export type { AreaQuery } from './queries.ts';
+export type { AreaInterception, AreaQueries, AreaQuery, CoverQuery } from './queries.ts';
 export type { SpawnSpec } from './spawner.ts';
 export { type AreaTriggerSystem, createAreaTriggerSystem } from './system.ts';
 export type { AreaTriggerSystemBase, AreaTriggerSystemOptions } from './system-options.ts';
