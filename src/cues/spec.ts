@@ -1,3 +1,5 @@
+// Hot path (§I.4.2, §I.5.4): every cue fired from a spec writes its params here, so the loop is indexed.
+/* oxlint-disable typescript/prefer-for-of */
 import type { Vec2 } from '../math/index.ts';
 import type { CueBuffer } from './buffer.ts';
 import type { CueParamDef, CueParamValue } from './cue-def.ts';
@@ -67,6 +69,9 @@ export interface CuePlace {
   readonly z: number;
 }
 
+/** The fields of a cue that has none. */
+const NO_FIELDS: readonly CueField[] = Object.freeze([]);
+
 /** Whether a param value is a list of points. */
 const isPoints = (value: CueParamValue): value is readonly Vec2[] => Array.isArray(value);
 
@@ -93,10 +98,13 @@ const writeParam = (event: CueEvent, field: CueField, value: CueParamValue): voi
 
 /** Writes a spec's params into an event, in the cue's param order; names it does not declare are ignored. */
 const writeParams = (event: CueEvent, registry: CueRegistry, params: Readonly<Record<string, CueParamValue>>) => {
-  for (const field of registry.schemas[event.cue]?.fields ?? []) {
-    const value = params[field.param];
+  const fields = registry.schemas[event.cue]?.fields ?? NO_FIELDS;
 
-    if (value !== undefined) {
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i];
+    const value = field === undefined ? undefined : params[field.param];
+
+    if (field !== undefined && value !== undefined) {
       writeParam(event, field, value);
     }
   }

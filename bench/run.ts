@@ -28,6 +28,7 @@ import {
   scaled,
   snapshotScaled,
 } from '../src/modifiers/index.ts';
+import { CUE_TASKS, CUE_TICK_BYTES, cueCounter } from './cues.ts';
 import { DAMAGE_TASKS, damageCounter } from './damage.ts';
 import { counter, PROC_TRIGGER_TASKS } from './procs-triggers.ts';
 
@@ -271,8 +272,8 @@ for (const [name, task] of PROC_TRIGGER_TASKS) {
   });
 }
 
-/** The damage tasks run fewer calls per batch when one call is a burst of many blows. */
-for (const [name, task, blows] of DAMAGE_TASKS) {
+/** The damage and cue tasks run fewer calls per batch when one call is a burst of many blows or a tick of cues. */
+for (const [name, task, blows] of [...DAMAGE_TASKS, ...CUE_TASKS]) {
   const calls = Math.max(1, BATCH / blows);
 
   BATCHES.set(name, calls);
@@ -285,7 +286,7 @@ for (const [name, task, blows] of DAMAGE_TASKS) {
 
 await bench.run();
 
-sink += counter.granted + damageCounter.taken;
+sink += counter.granted + damageCounter.taken + cueCounter.bytes + cueCounter.numbers + cueCounter.decoded;
 
 const rows = bench.tasks.map((task) => {
   const { result } = task;
@@ -296,5 +297,6 @@ const rows = bench.tasks.map((task) => {
 });
 
 process.stdout.write(
-  `${[`${'benchmark'.padEnd(48)}    per op`, ...rows].join('\n')}\n(sink ${sink > 0 ? 'ok' : 'empty'})\n`,
+  `${[`${'benchmark'.padEnd(48)}    per op`, ...rows].join('\n')}\n(sink ${sink > 0 ? 'ok' : 'empty'}; ` +
+    `one cue tick is ${CUE_TICK_BYTES} bytes)\n`,
 );

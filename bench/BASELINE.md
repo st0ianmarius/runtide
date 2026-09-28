@@ -47,3 +47,11 @@ Added at F5 (same container, Node 22.22.2, range of three runs; `bench/damage.ts
 | ---------------------------------------- | ---------- |
 | blow, full pipeline, 3 hooking auras     | 490–740 ns |
 | burst of 100 blows on 100 hooked targets | 54–71 µs   |
+
+Added at F6 (same container, Node 22.22.2, range of three runs; `bench/cues.ts`). One tick fires 200 cues (120 impacts on units with a facing, 60 owner-only numbers, 15 casts with three params, 5 chains of four points), then encodes the batch; the time is per tick. "Specs" is the authoring path (`fireCue` with reused spec objects, params by name); "by slot" is the hot path (`emit`, then the params' slots resolved at load). The decoder reads one tick's bytes into a client buffer. One tick is 2,294 bytes (11.5 per cue). Over 20M cues the slot path and the decoder cause under 200 minor GCs, what V8 boxes; the spec path about 470, from reading the params by name.
+
+| benchmark                                  | per tick |
+| ------------------------------------------ | -------- |
+| fire 200 specs + encode as bytes           | 54–58 µs |
+| emit 200 by slot + encode as numbers       | 31–35 µs |
+| decode 200 events from bytes into a buffer | 31–37 µs |
