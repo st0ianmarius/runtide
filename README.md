@@ -2,7 +2,7 @@
 
 A deterministic, engine-agnostic gameplay framework for MMO-like games: spells, auras, procs, triggers, modifiers and cues, woven together, in pure TypeScript with no rendering or networking dependencies.
 
-Nothing is built yet beyond the scaffold (phase F0). [`PLAN.md`](PLAN.md) is the single source of truth: the ground rules, the layout, the systems and the phases.
+Built so far: the scaffold (phase F0) and the deterministic core and math (phase F1: `spellweave/core`, `spellweave/math`). [`PLAN.md`](PLAN.md) is the single source of truth: the ground rules, the layout, the systems and the phases.
 
 ## The model
 
@@ -27,6 +27,7 @@ npm ci
 npm run check         # typecheck, lint, format check, tests, build
 npm run knip          # no unused files, exports or dependencies
 npm run bundle:check  # src/ bundles for the browser without any Node built-in
+npm run bench         # tinybench benchmarks (bench/BASELINE.md), never part of npm test
 npm run format        # oxlint --fix, then prettier --write
 ```
 
