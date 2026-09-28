@@ -1,0 +1,263 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+import { aura, makeDamageGame } from '../helpers/damage-game.ts';
+
+/** Heal stats: healing received and done, a wound tag that blocks heals, regeneration. */
+const HEALING = {
+  heal: { received: 'healing', done: 'healingDone', blockedBy: ['wound'], regeneration: 'regen' },
+} as const;
+
+describe('the heal pipeline (§II.6 D3)', () => {
+  it('multiplies by the healer’s healing done and the target’s healing received, up to maximum health', () => {
+    const { damage, unit, set } = makeDamageGame({}, HEALING);
+    const [target, healer] = [unit(1), unit(2)];
+
+    target.hp = 50;
+    set(healer, 'healingDone', 1.5);
+    set(target, 'healing', 2);
+
+    const healed = damage.heal({ target, healer, amount: 10 });
+
+    assert.deepEqual([healed.status, healed.amount, healed.overheal, target.hp], ['landed', 30, 0, 80]);
+
+    const capped = damage.heal({ target, amount: 30 });
+
+    assert.deepEqual([capped.amount, capped.overheal, capped.healthAfter, target.hp], [20, 40, 100, 100]);
+  });
+
+  it('is blocked by a heal-block tag, skipped on a dead unit or with no or an infinite amount', () => {
+    const { damage, auras, id, unit } = makeDamageGame({ wounded: aura({ duration: 5, tags: ['wound'] }) }, HEALING);
+    const target = unit(1);
+    const dead = unit(2);
+
+    target.hp = 50;
+    dead.hp = 0;
+
+    assert.equal(damage.heal({ target: dead, amount: 10 }).status, 'skipped');
+    assert.equal(damage.heal({ target, amount: Infinity }).status, 'skipped');
+    assert.equal(damage.heal({ target, amount: 0 }).status, 'skipped');
+    auras.apply(target, id.wounded);
+    assert.deepEqual([damage.heal({ target, amount: 10 }).status, target.hp], ['blocked', 50]);
+  });
+
+  it('takes game stages at their positions', () => {
+    const { damage, unit } = makeDamageGame(
+      {},
+      {
+        healStages: {
+          downed: { before: 'block', run: (heal) => (heal.target.id === 9 ? 'blocked' : undefined) },
+
+          halve: {
+            before: 'health',
+
+            run: (heal) => {
+              heal.amount /= 2;
+
+              return undefined;
+            },
+          },
+        },
+      },
+    );
+
+    const [target, downed] = [unit(1), unit(9)];
+
+    target.hp = 50;
+    downed.hp = 50;
+
+    assert.deepEqual(damage.healStages, ['downed', 'block', 'done', 'received', 'halve', 'health', 'outcome']);
+    assert.equal(damage.heal({ target, amount: 10 }).amount, 5);
+    assert.equal(damage.heal({ target: downed, amount: 10 }).status, 'blocked');
+  });
+
+  it('raises the heal event for a landed heal', () => {
+    const { damage, unit, bus, log } = makeDamageGame({});
+    const target = unit(1);
+
+    bus.on(bus.kind.healed, (event) => log.push(`healed ${event.heal?.amount}@${event.heal?.target.id}`));
+    target.hp = 90;
+    damage.heal({ target, amount: 20 });
+    assert.deepEqual(log, ['healed 10@1']);
+  });
+
+  it('regenerates by the regeneration stat for the seconds given', () => {
+    const { damage, unit, set } = makeDamageGame({}, HEALING);
+    const target = unit(1);
+
+    target.hp = 10;
+    set(target, 'regen', 4);
+
+    assert.equal(damage.regenerate(target, 0.5).amount, 2);
+    assert.equal(target.hp, 12);
+  });
+});
+
+describe('setHealth', () => {
+  it('bypasses the heal stages', () => {
+    const { damage, auras, id, unit, set } = makeDamageGame(
+      { wounded: aura({ duration: 5, tags: ['wound'] }) },
+      HEALING,
+    );
+
+    const target = unit(1);
+
+    set(target, 'healing', 0.5);
+    auras.apply(target, id.wounded);
+
+    assert.equal(damage.setHealth(target, 40).status, 'landed');
+    assert.equal(target.hp, 40);
+  });
+
+  it('runs the death pipeline when it kills, credited as given, and skips a dead unit', () => {
+    const { damage, unit, bus, log } = makeDamageGame({});
+    const [target, killer] = [unit(1), unit(2)];
+
+    bus.on(bus.kind.kill, (event) => log.push(`kill ${event.death?.unit.id} by ${event.death?.killer?.id}`));
+
+    assert.equal(damage.setHealth(target, 0, { attacker: killer }).hasKilled, true);
+    assert.equal(damage.setHealth(target, 50).status, 'skipped');
+    assert.deepEqual(log, ['kill 1 by 2', 'remove@1']);
+  });
+});
+
+describe('the force pipeline (§II.6 D4)', () => {
+  it('goes through the target’s onIncomingForce hooks, then the host moves the unit', () => {
+    const { damage, auras, id, unit, log } = makeDamageGame({
+      heavy: aura({ duration: 5, onIncomingForce: () => ({ scale: 0.5 }) }),
+      rooted: aura({ duration: 5, onIncomingForce: (_ctx, force) => ({ isCancelled: force.kind === 'pull' }) }),
+    });
+
+    const target = unit(1);
+
+    auras.apply(target, id.heavy);
+    auras.apply(target, id.rooted);
+
+    assert.deepEqual(
+      [damage.force({ target, strength: 4 }).amount, damage.force({ target, strength: 4, kind: 'pull' }).status],
+      [2, 'ignored'],
+    );
+    assert.equal(damage.force({ target, strength: 0 }).status, 'skipped');
+    assert.deepEqual(log, ['force knock 2@1']);
+  });
+
+  it('takes game stages (an immunity trait, a resist cap)', () => {
+    const { damage, unit, log } = makeDamageGame(
+      {},
+      {
+        forceStages: {
+          immovable: { before: 'resist', run: (force) => (force.target.id === 7 ? 'ignored' : undefined) },
+
+          cap: {
+            before: 'apply',
+
+            run: (force) => {
+              force.amount = Math.min(force.amount, 1.5);
+
+              return undefined;
+            },
+          },
+        },
+      },
+    );
+
+    damage.force({ target: unit(7), strength: 3 });
+    damage.force({ target: unit(1), strength: 3 });
+    assert.deepEqual(log, ['force knock 1.5@1']);
+  });
+
+  it('carries a blow’s knockback, from the blow’s origin, unless the blow was blocked', () => {
+    const origins: string[] = [];
+
+    const { damage, unit } = makeDamageGame(
+      {},
+      {
+        forceStages: {
+          probe: {
+            before: 'apply',
+
+            run: (force) => {
+              origins.push(`${force.from?.x},${force.from?.z} ${force.source}`);
+
+              return undefined;
+            },
+          },
+        },
+      },
+    );
+
+    damage.hit({ target: unit(1), attacker: unit(2), amount: 5, knock: 1, from: { x: 3, z: 4 } });
+    assert.deepEqual(origins, ['3,4 2']);
+  });
+});
+
+describe('the death pipeline (§II.6 D5)', () => {
+  it('runs the death burst, the rewards before, the death and kill events, the rewards after, then removal', () => {
+    const order: string[] = [];
+
+    const { damage, id, unit, bus, log } = makeDamageGame(
+      {
+        brand: aura({
+          duration: 5,
+
+          onBearerDeath: () => {
+            order.push('burst');
+
+            return undefined;
+          },
+        }),
+      },
+      {
+        death: {
+          before: [(death) => order.push(`souls ${death.unit.id}`)],
+          after: [(death) => order.push(`loot ${death.blow?.dealt}`)],
+        },
+      },
+    );
+
+    const [target, killer] = [unit(1), unit(2)];
+
+    bus.on(bus.kind.death, (event) => order.push(`death ${event.death?.unit.id}`));
+    bus.on(bus.kind.kill, (event) => order.push(`kill ${event.death?.killer?.id}`));
+    damage.auras.apply(target, id.brand);
+    damage.hit({ target, attacker: killer, amount: 150 });
+
+    assert.deepEqual(order, ['burst', 'souls 1', 'death 1', 'kill 2', 'loot 100']);
+    assert.deepEqual(log, ['remove@1']);
+  });
+
+  it('gives an inert unit no rewards and no events, and still removes it', () => {
+    const order: string[] = [];
+
+    const { damage, unit, bus, log } = makeDamageGame(
+      {},
+      { death: { before: [() => order.push('souls')] } },
+      { isInert: (target) => target.id === 1 },
+    );
+
+    const wall = unit(1);
+
+    bus.on(bus.kind.death, () => order.push('death'));
+    damage.hit({ target: wall, amount: 150, attacker: unit(2) });
+
+    assert.deepEqual(order, []);
+    assert.deepEqual(log, ['remove@1']);
+  });
+
+  it('never runs for a blow that did not kill, nor twice for one target', () => {
+    const deaths: number[] = [];
+    const { damage, unit, bus } = makeDamageGame({});
+    const target = unit(1);
+
+    bus.on(bus.kind.death, (event) => deaths.push(event.death?.unit.id ?? -1));
+    bus.on(bus.kind.taken, (event) => {
+      if (event.blow?.hasKilled === false) {
+        damage.hit({ target, amount: 100 });
+      }
+    });
+
+    damage.hit({ target, amount: 10 });
+    damage.hit({ target, amount: 10 });
+    assert.deepEqual(deaths, [1]);
+  });
+});
