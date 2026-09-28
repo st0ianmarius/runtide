@@ -5,7 +5,7 @@ A deterministic, engine-agnostic gameplay framework for MMO-like games: spells, 
 This is the whole plan in one file. Nothing here is built yet.
 
 - **Part I, the framework plan**: what spellweave is, its ground rules, layout and toolchain, the rules that keep it generic and exact, its systems, and the implementation phases (F0 onwards).
-- **Part II, the model**: the Spell API design it implements (spells as the container that orchestrates every system; auras, procs, triggers, constructs, cues), with every spell of swarm, the game it comes out of, mapped onto it.
+- **Part II, the model**: the Spell API design it implements (spells as the container that orchestrates every system; auras, procs, triggers, area triggers, cues), with every spell of swarm, the game it comes out of, mapped onto it.
 
 Section references read `§I.n` for Part I and `§II.n` for Part II. Paths such as `packages/game/src/…` and branch names such as `spell-primitive` refer to the swarm repository (`st0ianmarius/cryptwave`), which is the design reference, read-only.
 
@@ -15,7 +15,7 @@ Section references read `§I.n` for Part I and `§II.n` for Part II. Paths such 
 
 Pull every gameplay system that does not depend on Babylon.js, Colyseus or swarm's content into one standalone project, **the framework** (working name; its package name is a decision, §I.9), so that:
 
-- **the framework is the engine**: modifiers, auras, triggers, procs, cues, spells, constructs, the damage pipeline, abilities, prediction contracts and the deterministic core under them;
+- **the framework is the engine**: modifiers, auras, triggers, procs, cues, spells, area triggers, the damage pipeline, abilities, prediction contracts and the deterministic core under them;
 - **swarm becomes a consumer**, later and from the outside: its `packages/game` supplies content (stats, auras, spells, cards, classes, creatures) and the world adapter (its `Game` class); `packages/protocol`, `packages/sync` and `apps/server` consume the framework's wire-agnostic contracts; `apps/client` renders cues and replicated views;
 - **a future MMO-like game** can start from the framework alone and write only its content, its world and its transport.
 
@@ -27,7 +27,7 @@ The framework has **no dependency on swarm** or any of its packages (not `@swarm
 2. **The latest TypeScript.** The latest stable `typescript` on npm at the time the project starts (`npm view typescript version`), pinned exactly, upgraded deliberately. The project is written to that version's strictest settings (§I.4.1), not to swarm's older config.
 3. **The current Node LTS.** `engines.node` is the current LTS major and later. Its built-in type stripping runs the `.ts` sources and tests directly, and its built-in test runner runs the tests (§I.7.0).
 4. **Reference swarm, never import it.** The designs to realise live in swarm, read-only. Clone it next to the project (or use the existing checkout) and read with `git -C <swarm> show origin/spell-primitive:<path>`:
-   - Part II of this document (written as swarm's `docs/spell-api.md`): the spell / aura / proc / construct model, pacts as passive auras, the barrier as an absorb aura;
+   - Part II of this document (written as swarm's `docs/spell-api.md`): the spell / aura / proc / area trigger model, pacts as passive auras, the barrier as an absorb aura;
    - `packages/game/src/spells/`: the working runner and proc registry;
    - on `master` too: `packages/game/src/{effects,modifiers,triggers,cues,abilities}/` and their READMEs.
 
@@ -47,7 +47,7 @@ The framework has **no dependency on swarm** or any of its packages (not `@swarm
 | procs: registry, chance, groups, depth cap, the generic kinds                                                             | game proc kinds (`shoot` with its shot table, `telegraph` with its hazard shapes)                     |
 | cues: numeric cue ids, their numeric params, cue events, the params' wire encoding                                        | everything a cue looks and sounds like: the client's cue table (VFX, sounds, texts), Babylon playback |
 | spells: `SpellDef`, activation kinds, timeline, runner, delayed procs, spell events                                       | every spell, weapon, ability and creature spell                                                       |
-| constructs: definition, store, tick order, lifetime and bounds, pulses, hit policies, spawning                            | every construct kind, replication onto Colyseus schemas                                               |
+| area triggers: definition, store, tick order, lifetime and bounds, pulses, hit policies, spawning                         | every area trigger kind, replication onto Colyseus schemas                                            |
 | shapes and geometry: circle, ring, cone, lane, polygon, segment-circle sweep, patterns                                    | the world's spatial index, collision, pathfinding, physics (Havok)                                    |
 | world query **interface** (what a spell may ask) + an in-memory reference implementation                                  | the real query implementation over `Game.enemies` / heroes                                            |
 | damage pipeline: blow → mitigation → aura hooks (shelter, absorbs, lethal) → health                                       | the mitigation stats' meaning, hit windows, knockback physics                                         |
@@ -67,7 +67,7 @@ framework/                # a sibling of the swarm checkout, its own git reposit
   tsconfig.build.json     # emits dist/ (ESM JS + .d.ts) from src only
   eslint.config.js        # flat config: typescript-eslint strict type-checked + the §I.5.2 style bans
   .prettierrc
-  README.md               # the engine's model: spell, aura, proc, construct, cue; how a game plugs in
+  README.md               # the engine's model: spell, aura, proc, area trigger, cue; how a game plugs in
   LICENSE
   .github/workflows/ci.yml  # install, typecheck, lint, format check, test on the Node LTS (once the remote exists)
   src/
@@ -82,7 +82,7 @@ framework/                # a sibling of the swarm checkout, its own git reposit
     cues/                 # CueId registry, param schemas, cue events, params wire encoding (no presentation)
     damage/               # Blow, pipeline stages, aura hooks (onIncomingDamage, onLethal), result
     spells/               # SpellDef, activation kinds, timeline, runner, SpellSystem, delayed procs, spell events
-    constructs/           # ConstructDef, store, tick order, bounds, limits, pulses, hit policies, spawn
+    area triggers/           # AreaTriggerDef, store, tick order, bounds, limits, pulses, hit policies, spawn
     world/                # WorldQuery interface (inside, nearest, densest, chain, sweep, lineClear, positions, velocities)
     abilities/            # button activation, loadouts, canActivate / tryActivate, cooldown and cost auras
     prediction/           # MirrorCtx, stamps, seeding, the "predicted" rule
@@ -122,7 +122,7 @@ const spells = createSpellSystem({ procs, auras, triggers, cues, world: adapter 
 - **Branded per registry.** `SpellId = number & { readonly __registry: 'spells' }`, `AuraId`, `CueId`… so the compiler refuses an aura id where a spell id is expected, at no runtime cost. The framework never names a game's id; the types are inferred from the game's registries.
 - **Names are for people.** The object key is the definition's name, used in code (`SPELLS.id.blast`), logs and validation messages, and returned by `SPELLS.name(id)`. It is a developer identifier, never a player-facing name (§I.5.3), never crosses the wire and never sits on a hot path.
 - **Append-only order.** Because the number is the position, registries only grow: a retired definition keeps its slot as a tombstone, and each consuming game pins its order in a test (swarm's `wire-order.test.ts` pattern). The replication layer sizes the field to the registry: a `uint8` up to 256 entries, a `uint16` or a varint beyond.
-- **Entities too.** Units, casts, constructs and auras in flight get integer ids from the host's allocator. A game with string ids (swarm's player ids, `'local'`, `'p0'`) maps them to numbers at its boundary. Integer ids are also exactly what keyed rolls hash (below).
+- **Entities too.** Units, casts, area triggers and auras in flight get integer ids from the host's allocator. A game with string ids (swarm's player ids, `'local'`, `'p0'`) maps them to numbers at its boundary. Integer ids are also exactly what keyed rolls hash (below).
 
 Vectors are the framework's own `Vec2` (`{ x, z }`), structurally compatible with the game's `Vec`.
 
@@ -171,7 +171,7 @@ Hand-written on purpose, since the exact semantics matter more than saving code:
 
 ### I.5.2 Defining resources: plain objects and functions
 
-A **resource** is anything a consumer registers with the framework: stats, auras, triggers, conditions, procs, cues, spells, constructs, abilities. Every kind has one interface (`AuraDef`, `SpellDef`, `ConstructDef`, …) and one identity helper (`defineAura`, `defineSpell`, …) that only fixes the types. **The rule:**
+A **resource** is anything a consumer registers with the framework: stats, auras, triggers, conditions, procs, cues, spells, area triggers, abilities. Every kind has one interface (`AuraDef`, `SpellDef`, `AreaTriggerDef`, …) and one identity helper (`defineAura`, `defineSpell`, …) that only fixes the types. **The rule:**
 
 > A resource is a plain object: data fields and standalone functions. Shared behaviour comes from functions that build or combine those objects, never from classes, `this` or inheritance.
 
@@ -179,7 +179,7 @@ What that means in practice:
 
 - **Hooks are standalone functions.** They receive everything they need as arguments (`ctx`, the target, the hit) and never read `this`. The framework may call a hook detached (`const { release } = def; release(ctx, target)`), and it must still work.
 - **Sharing is by factories and composition.** A family of resources with shared behaviour is a function returning the interface (`telegraphedSpell({ id, shape })`), and variations spread or wrap hooks (`{ ...base, onHit: withBonus(base.onHit) }`). Definitions are plain objects, so spreading is always safe.
-- **Definitions are stateless.** A definition is shared by every cast, aura or construct made from it, so per-instance state never lives on it: a cast has its `CastState`, an active aura its `value` and stacks, a construct its `State`. Registries freeze definitions in development builds to catch mutation.
+- **Definitions are stateless.** A definition is shared by every cast, aura or area trigger made from it, so per-instance state never lives on it: a cast has its `CastState`, an active aura its `value` and stacks, an area trigger its `State`. Registries freeze definitions in development builds to catch mutation.
 - **Data stays data.** Fields the framework reads as data (ids, tags, durations, modifiers, a trigger's `do`) are plain values, not getters, because explanations, validation and the wire read them.
 - **Registration is by name, identity is by number.** `createRegistry({ name: def, … })`: the key order assigns each definition its numeric id (append-only, §I.5). A definition carries no id of its own; the runtime hands it its id where it needs one (`ctx.spellId`, `aura.id`).
 - **Variants are discriminated unions.** Anything that comes in several shapes says so in a `kind` field (`{ kind: 'circle', r }`), and code narrows on it; nothing is told apart by its prototype.
@@ -232,8 +232,8 @@ A unit test per kind registers a resource, calls every hook detached, and holds 
 
 The framework is simulation only. **No player-facing text and no visual or audio information lives in it**, and none of its types has a field for one: no names, descriptions, tooltips or localised strings; no icons, colours, models, animations, VFX or sound ids; no HUD layout, number formatting or units. Gameplay speaks in **numeric ids and numbers**, and the client turns them into what players see and hear.
 
-- **What the simulation emits.** Ids and numbers only: cue events (`CueId`, position, owner, numeric params such as direction, duration, radius, amount), and state views carrying `SpellId`, `AuraId`, `ConstructKindId`, `StatId`, stacks, values and stamps.
-- **What the client holds.** Presentation tables keyed by those ids: `SPELL_PRESENTATION[SpellId]` (name, description, icon, cast VFX), `AURA_PRESENTATION[AuraId]` (tile, icon, colour, name, text), `CUE_PRESENTATION[CueId]` (VFX, sound, floating-text template), `CONSTRUCT_PRESENTATION[ConstructKindId]` (model, renderer), and its locale strings. It imports the game's id registries (or tables generated from them) and nothing else from the simulation's content.
+- **What the simulation emits.** Ids and numbers only: cue events (`CueId`, position, owner, numeric params such as direction, duration, radius, amount), and state views carrying `SpellId`, `AuraId`, `AreaTriggerKindId`, `StatId`, stacks, values and stamps.
+- **What the client holds.** Presentation tables keyed by those ids: `SPELL_PRESENTATION[SpellId]` (name, description, icon, cast VFX), `AURA_PRESENTATION[AuraId]` (tile, icon, colour, name, text), `CUE_PRESENTATION[CueId]` (VFX, sound, floating-text template), `AREA_TRIGGER_PRESENTATION[AreaTriggerKindId]` (model, renderer), and its locale strings. It imports the game's id registries (or tables generated from them) and nothing else from the simulation's content.
 - **Text that shows numbers.** Card and tooltip text must print the real numbers, so the framework gives the client **structured explanations**: `explainModifier`, `explainAura`, `explainTrigger` return data such as `{ kind: 'modifier', stat: StatId, op: 'mul', value: 1.3, when?: ConditionData }`, and the client phrases it with its own words, formats and language. The numbers come from the simulation; the words never do.
 - **Floating numbers and callouts** (a damage number, an absorbed "(−N)", "STAGGERED") are cues with numeric params; the client's cue table owns the wording and the colour.
 - **Completeness is the game's test, not the framework's.** A consuming game checks that every id in its registries has a presentation entry, for example with a `satisfies Record<SpellName, …>` table or a unit test over `SPELLS.id`.
@@ -265,23 +265,23 @@ The framework runs on the server and on every client, every tick, for hundreds o
 
 **Nothing allocates per tick.**
 
-- **Pools and free lists** for casts, active auras, constructs, delayed procs and cue events, with generational handles (index plus generation) so a stale reference is detected, never followed.
+- **Pools and free lists** for casts, active auras, area triggers, delayed procs and cue events, with generational handles (index plus generation) so a stale reference is detected, never followed.
 - **Scratch buffers** reused for query results (`inside`, `nearest`), proc lists returned by hooks (the runner hands hooks a reusable output array to push into, and plain arrays remain accepted for authoring convenience), and event payloads (the bus already reuses one payload per kind per nesting level).
 - **No closures created per tick** on engine paths, no `Array.prototype` chains (`map` / `filter`) in hot loops, no spreading of objects per call.
 
-**Timers are a timing wheel.** Delayed procs (`after`), aura expiries, cast stages, construct lifetimes, AI scheduler events and telegraph landings are due at a tick; with the fixed-step clock (§I.5) they go into a hand-written timing wheel (one FIFO bucket per tick over a fixed horizon), so scheduling and firing are O(1) and events due on the same tick fire in the order they were scheduled, deterministically. Anything beyond the horizon waits in a `flatqueue` heap keyed by tick and is moved into the wheel, in scheduling order, as its tick comes into range.
+**Timers are a timing wheel.** Delayed procs (`after`), aura expiries, cast stages, area trigger lifetimes, AI scheduler events and telegraph landings are due at a tick; with the fixed-step clock (§I.5) they go into a hand-written timing wheel (one FIFO bucket per tick over a fixed horizon), so scheduling and firing are O(1) and events due on the same tick fire in the order they were scheduled, deterministically. Anything beyond the horizon waits in a `flatqueue` heap keyed by tick and is moved into the wheel, in scheduling order, as its tick comes into range.
 
 **Per-unit and per-world storage.**
 
 - **Auras on a bearer** live in a small inline array sorted by aura id (the registry order the fold needs), with the bearer's tag bitset and a dirty flag. Stat folds are cached per bearer and recomputed only when the flag changes, as swarm's `modifiersFor` cache does.
-- **Constructs** live in struct-of-arrays pools per kind (positions, radii, stamps, owner ids in typed arrays), ticked kind by kind in the pinned order.
+- **Area triggers** live in struct-of-arrays pools per kind (positions, radii, stamps, owner ids in typed arrays), ticked kind by kind in the pinned order.
 - **Moving units** are indexed each tick in a **uniform spatial grid** (a hash of cells rebuilt or updated incrementally from the positions), which answers `inside`, `nearest` and `densest` over thousands of mobs in near-constant time. For large, sparse worlds the point index can be a per-tick `kdbush` instead; the choice is the host's, behind the same `WorldQuery`, and the benchmarks decide the default. Static geometry uses the R-tree (§I.5.1).
 
 **Measured, not assumed.**
 
-- `bench/` holds `tinybench` benchmarks, run with `npm run bench` and kept out of `npm test`: registry lookups, aura application and fold, trigger dispatch, proc runs, the grid's queries, and a horde tick (for example 2,000 creatures, each with three auras and a spell in flight, plus 200 constructs).
+- `bench/` holds `tinybench` benchmarks, run with `npm run bench` and kept out of `npm test`: registry lookups, aura application and fold, trigger dispatch, proc runs, the grid's queries, and a horde tick (for example 2,000 creatures, each with three auras and a spell in flight, plus 200 area triggers).
 - Each benchmark records a baseline in the repository; CI runs them on a fixed machine type and flags any regression beyond 20%. Absolute budgets per tick are set from the first measurements rather than guessed.
-- Unit tests pin the performance-shaped contracts that can be checked exactly: registries expose typed columns of the right length, hook tables match the definitions, a pooled handle goes stale after release, and a steady-state tick allocates no new casts, auras or constructs (counted through the pools).
+- Unit tests pin the performance-shaped contracts that can be checked exactly: registries expose typed columns of the right length, hook tables match the definitions, a pooled handle goes stale after release, and a steady-state tick allocates no new casts, auras or area triggers (counted through the pools).
 
 ## I.6 The systems
 
@@ -295,12 +295,12 @@ Each is summarised by what it must offer; Part II has the full model.
 - **Procs.** `Proc`, `ProcDef`, `createProcRegistry`; `chance` and `group`; the depth cap; core kinds that need only framework hosts: `damage`, `heal`, `applyAura`, `removeAura`, `castSpell`, `after`, `spawn`, `cue`, `event`, `run`. A game adds kinds by registering more.
 - **Cues.** `defineCues` registers cue ids with their param schema (which numeric params a cue takes, their defaults and their wire quantisation) and nothing else; `CueEvent` (`cue: CueId`, `at`, `owner`, `params`) is what the simulation emits; the params' wire encoding. Presentation only, and none of it inside: nothing in the engine reads a cue, and what a cue looks and sounds like is the client's (§I.5.3).
 - **Damage.** `Blow` (amount, crushing, true damage, unblockable, lethal, source, kind); an ordered pipeline with game-supplied mitigation stages; aura hooks for shelter, absorbs and lethal prevention; the result (absorbed, lost, prevented), which the host applies to health.
-- **Spells.** `SpellDef` (id, tags, activation, `stats`, `canCast`, `target`, timeline, `begin`, `release`, `onHit`, `onEnd`, spell-scoped triggers, cues); activation kinds (`auto`, `button`, `passive`, `trigger`, `ai`, `event`) with game-typed data; the timeline (windup with `track` helpers `lockBefore`, `lockAtShare`, `lockAtStart`; channels with `breakIf`; recover; interrupts; `onCancel`); the runner (`startSpell`, `releaseSpell`, `castSpell`); a `SpellSystem` that steps casts and delayed procs; spell events on the bus (`spellCast`, `spellHit`, `constructExpired`…); snapshot versus live stats.
-- **Constructs.** `ConstructDef` (shape, lifetime, bound, anchor, limit, tick phase, `frame` as the primitive, then `move`, `every` pulses, `onContact`, `onLand`, `onExpire`, area auras, caster, replication spec); a store with pinned tick order (kind order, then creation order); hit policies (`once-per-cast`, `repeat-share`, `rehit-cooldown`, `pierce`, `budget`, `hottest-per-owner-clock`, `none`); spawning now or next frame.
+- **Spells.** `SpellDef` (id, tags, activation, `stats`, `canCast`, `target`, timeline, `begin`, `release`, `onHit`, `onEnd`, spell-scoped triggers, cues); activation kinds (`auto`, `button`, `passive`, `trigger`, `ai`, `event`) with game-typed data; the timeline (windup with `track` helpers `lockBefore`, `lockAtShare`, `lockAtStart`; channels with `breakIf`; recover; interrupts; `onCancel`); the runner (`startSpell`, `releaseSpell`, `castSpell`); a `SpellSystem` that steps casts and delayed procs; spell events on the bus (`spellCast`, `spellHit`, `areaTriggerExpired`…); snapshot versus live stats.
+- **Area triggers.** `AreaTriggerDef` (shape, lifetime, bound, anchor, limit, tick phase, `frame` as the primitive, then `move`, `every` pulses, `onContact`, `onLand`, `onExpire`, area auras, caster, replication spec); a store with pinned tick order (kind order, then creation order); hit policies (`once-per-cast`, `repeat-share`, `rehit-cooldown`, `pierce`, `budget`, `hottest-per-owner-clock`, `none`); spawning now or next frame.
 - **World.** `WorldQuery` (`inside`, `nearest`, `densest`, `chain`, `sweep`, `lineClear`, `positionOf` with rewind semantics, `velocityOf`, `leadPoint`) with `side` relative to the caster; `MemoryWorld`, a reference implementation for tests and for small games. `MemoryWorld` indexes moving units in a uniform spatial grid and static geometry in the R-tree (§I.5.4).
 - **Abilities.** `button` activation data: cooldown as an aura (`startsOn`), cost in aura stacks, `requires` / `blockedBy` / `resets` / `applies`; loadouts (`slot → ability`); `canActivate`, `tryActivate`, `landAbility`; the bearer's motion half remains a game hook (`activate`, `travel`).
 - **Prediction.** `MirrorCtx` (the types a mirror-safe hook may read); motion-clock stamps; `seedMirrorAuras`; the rule that an aura the motion step reads must be `predicted`, as a validator the game runs over its registries.
-- **Replication.** `WireTable` (append-only id ↔ key, with a checksum test helper), `ViewSpec` for constructs and auras (fields, rounding, `events-only`, `derived`), projection helpers. No schema library.
+- **Replication.** `WireTable` (append-only id ↔ key, with a checksum test helper), `ViewSpec` for area triggers and auras (fields, rounding, `events-only`, `derived`), projection helpers. No schema library.
 
 ## I.7 Implementation phases (all in the new project)
 
@@ -324,13 +324,13 @@ Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` 
 - **F5. Damage pipeline.** Stages, hooks, the true-damage bypass, shelter → absorbs → lethal order.
 - **F6. Cues.** Registry shape, events builder, wire table.
 - **F7. Spells.** Definitions, activations, timeline, runner, `SpellSystem`, delayed procs, spell events (from swarm's `spells/` on `spell-primitive`, extended per Part II).
-- **F8. Constructs and world.** Store (struct-of-arrays pools), tick order, bounds, limits, pulses, hit policies, spawning; `WorldQuery`, `MemoryWorld` with its uniform grid.
+- **F8. Area triggers and world.** Store (struct-of-arrays pools), tick order, bounds, limits, pulses, hit policies, spawning; `WorldQuery`, `MemoryWorld` with its uniform grid.
 - **F9. Abilities.** Button activation and loadouts (from swarm's `packages/game/src/abilities/`), with cooldowns and costs as auras.
 - **F10. Prediction and replication contracts.**
 
 ### I.7.1 Beyond the core: what a full MMO-like framework adds, and when
 
-Compared with a WoW server emulator (TrinityCore, AzerothCore), phases F0–F10 cover the heart of the combat model: spells and their effects, auras (periodic, absorbs, prevent-death), procs with internal cooldowns, stat modifiers, AreaTrigger-like constructs, casts and channels, and a deterministic tick. The rest is tiered by one rule, the same one the spell primitive followed: **a framework feature is built when swarm consumes it; otherwise the design leaves it a place and it waits.**
+Compared with a WoW server emulator (TrinityCore, AzerothCore), phases F0–F10 cover the heart of the combat model: spells and their effects, auras (periodic, absorbs, prevent-death), procs with internal cooldowns, stat modifiers, AreaTrigger-like area triggers, casts and channels, and a deterministic tick. The rest is tiered by one rule, the same one the spell primitive followed: **a framework feature is built when swarm consumes it; otherwise the design leaves it a place and it waits.**
 
 **Tier 1, built now** (each with its consumer in swarm today):
 
@@ -343,7 +343,7 @@ Compared with a WoW server emulator (TrinityCore, AzerothCore), phases F0–F10 
 | F15 | **Cooldown model**, as auras                                                                                                                                | ability cooldowns, cooldown reduction, `resets` (Overcharge refunding the dash), attack-clock intervals rescaled by haste                                                                                                      | the basic model plus resets and rescaling; no global cooldown, categories or charges        |
 | F16 | **Cast rules** in `canCast` and the timeline                                                                                                                | range and line-of-sight gates (horde `range` / `sight`, sentry placement), refusals and retries, freeze or stun pausing a creature's cast, death cancelling it, an elite's enrage withdrawing its own telegraphs               | gates, pause and cancel; no pushback or school lockouts                                     |
 | F17 | **AI toolkit**: a timed event scheduler (TrinityCore's `EventMap` / `TaskScheduler`), one weighted anti-repeat spell picker, a movement-generator interface | the elite, Warden and Archmage brains; three copies of the weighted picker; the Warden's named timers (`nextExecute`, `nextRaise`, `nextCharge`…)                                                                              | the scheduler, the picker, the interface (chase, flee, hold range, charge, leap, knockback) |
-| F18 | **Pets and summons**: ownership, stat inheritance, despawn with the owner, follow or assist                                                                 | the Engineer's sentry; the adds raised by the Gravecaller, the Warden and the Archmage (`summonedBy`)                                                                                                                          | ownership, credit, lifetime and bounds, on top of constructs                                |
+| F18 | **Pets and summons**: ownership, stat inheritance, despawn with the owner, follow or assist                                                                 | the Engineer's sentry; the adds raised by the Gravecaller, the Warden and the Archmage (`summonedBy`)                                                                                                                          | ownership, credit, lifetime and bounds, on top of area triggers                             |
 
 Each is proven by its own unit tests, like the phases before it (§I.7.0).
 
@@ -373,7 +373,7 @@ Once the framework is ready, swarm consumes it from the outside, as any other ga
 - **During development**, as a `file:` dependency on the sibling checkout (or `npm link`) from swarm's `packages/game`.
 - **Once it settles**, as a git dependency on `st0ianmarius/spellweave` pinned to a commit.
 
-Swarm's `packages/game` then moves onto it in the phases of §II.5, each held by the game's goldens: modifiers and auras first, then triggers and procs, cues, spells and constructs, abilities, creatures. `packages/protocol` and `packages/sync` adopt the replication contracts when the construct schema unifies. Swarm's own `effects/`, `modifiers/`, `triggers/`, `cues/`, `abilities/` and `spells/` folders then shrink to content. Swarm's older TypeScript config needs no change to consume the framework's emitted `dist/` and declarations.
+Swarm's `packages/game` then moves onto it in the phases of §II.5, each held by the game's goldens: modifiers and auras first, then triggers and procs, cues, spells and area triggers, abilities, creatures. `packages/protocol` and `packages/sync` adopt the replication contracts when the area trigger schema unifies. Swarm's own `effects/`, `modifiers/`, `triggers/`, `cues/`, `abilities/` and `spells/` folders then shrink to content. Swarm's older TypeScript config needs no change to consume the framework's emitted `dist/` and declarations.
 
 ## I.9 Decisions to take before starting
 
@@ -390,7 +390,7 @@ _The sketches below write names such as `id: 'tempest'` for readability; in spel
 
 ## II.1 The idea
 
-A **spell is the container that orchestrates every other system.** It says who may cast it and when (activation), how strong it is (stats and modifiers), where it goes (targeting and shapes), how its cast unfolds in time (a timeline), what it leaves in the world (constructs), what it does (procs), which states it lands on units (auras, our `effects/`), what it listens for while it lives (triggers), and how it looks (cues and replicated views). The other systems stay small and single-purpose; the spell is the one place that ties them together.
+A **spell is the container that orchestrates every other system.** It says who may cast it and when (activation), how strong it is (stats and modifiers), where it goes (targeting and shapes), how its cast unfolds in time (a timeline), what it leaves in the world (area triggers), what it does (procs), which states it lands on units (auras, our `effects/`), what it listens for while it lives (triggers), and how it looks (cues and replicated views). The other systems stay small and single-purpose; the spell is the one place that ties them together.
 
 At the end everything is one of three things, as in WoW, where talents, racials, set bonuses and item effects are all spells applying passive auras:
 
@@ -398,25 +398,25 @@ At the end everything is one of three things, as in WoW, where talents, racials,
 - an **aura**: what a unit has (a buff, a debuff, a status, a pact, later a passive card), with its modifiers and its procs;
 - a **proc**: what happens, returned by a spell's hooks or fired by an aura on its events.
 
-Constructs (what a spell leaves in the world) and cues (how it looks) complete the picture.
+Area triggers (what a spell leaves in the world) and cues (how it looks) complete the picture.
 
-| System         | Answers                                               | Today                                                                                                                          | In this plan                                                                                                              |
-| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| **Activation** | who pulls the trigger, and whether they may           | attack clocks, `AbilityDef`, four creature brains, the director                                                                | one `activation` block per spell; brains only pick                                                                        |
-| **Stats**      | how strong                                            | `weaponStats`, class constants × `abilityArea`, four `*SpellDamage` helpers                                                    | `stats(ctx)` per cast, fed by the modifier fold with spell tags as scopes                                                 |
-| **Targeting**  | where and at whom                                     | a dozen resolvers (`resolvePrimaryAttack`, `densestCluster`, placements…)                                                      | shared queries on `ctx`, used by the `target` hook                                                                        |
-| **Timeline**   | windup, tracking, release, channel, recover, cancel   | a stage machine per creature family, `game.strikes`, per-card queues                                                           | one cast state machine run by the Spell System                                                                            |
-| **Constructs** | what persists in the world                            | 20 bespoke arrays and fields (`glaives`, `tempests`, `sanctuaries`, `hazards`, `frostField`…)                                  | one store of spell objects with hooks                                                                                     |
-| **Procs**      | what happens                                          | procs for spells, `TriggerAction` for triggers, direct `Game` calls everywhere else                                            | one vocabulary for spells, constructs, effects and triggers                                                               |
-| **Auras**      | timed states on a unit (WoW auras: buffs and debuffs) | `effects/`, heroes only; creature statuses are bespoke fields; Cheat Death and the Sanctuary are special cases in `hurtPlayer` | `effects/` on any unit, with hooks into the damage pipeline (§II.3.8)                                                     |
-| **Triggers**   | when something reacts to an event                     | data procs on 10 hero events, from three sources (classes: empty; pacts: Bloodbound; effects)                                  | owned by auras only (§II.3.11): the trigger layer becomes the machinery that runs an aura's procs on events               |
-| **Cues**       | that something should be seen or heard                | 28 cue ids plus ~60 raw `emit` sites                                                                                           | every spell moment names a numeric cue id with numeric params; the client's cue table is how it looks and sounds (§I.5.3) |
+| System            | Answers                                               | Today                                                                                                                          | In this plan                                                                                                              |
+| ----------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| **Activation**    | who pulls the trigger, and whether they may           | attack clocks, `AbilityDef`, four creature brains, the director                                                                | one `activation` block per spell; brains only pick                                                                        |
+| **Stats**         | how strong                                            | `weaponStats`, class constants × `abilityArea`, four `*SpellDamage` helpers                                                    | `stats(ctx)` per cast, fed by the modifier fold with spell tags as scopes                                                 |
+| **Targeting**     | where and at whom                                     | a dozen resolvers (`resolvePrimaryAttack`, `densestCluster`, placements…)                                                      | shared queries on `ctx`, used by the `target` hook                                                                        |
+| **Timeline**      | windup, tracking, release, channel, recover, cancel   | a stage machine per creature family, `game.strikes`, per-card queues                                                           | one cast state machine run by the Spell System                                                                            |
+| **Area triggers** | what persists in the world                            | 20 bespoke arrays and fields (`glaives`, `tempests`, `sanctuaries`, `hazards`, `frostField`…)                                  | one store of spell objects with hooks                                                                                     |
+| **Procs**         | what happens                                          | procs for spells, `TriggerAction` for triggers, direct `Game` calls everywhere else                                            | one vocabulary for spells, area triggers, effects and triggers                                                            |
+| **Auras**         | timed states on a unit (WoW auras: buffs and debuffs) | `effects/`, heroes only; creature statuses are bespoke fields; Cheat Death and the Sanctuary are special cases in `hurtPlayer` | `effects/` on any unit, with hooks into the damage pipeline (§II.3.8)                                                     |
+| **Triggers**      | when something reacts to an event                     | data procs on 10 hero events, from three sources (classes: empty; pacts: Bloodbound; effects)                                  | owned by auras only (§II.3.11): the trigger layer becomes the machinery that runs an aura's procs on events               |
+| **Cues**          | that something should be seen or heard                | 28 cue ids plus ~60 raw `emit` sites                                                                                           | every spell moment names a numeric cue id with numeric params; the client's cue table is how it looks and sounds (§I.5.3) |
 
 ## II.2 Rules the API keeps
 
-- **Hooks are functions returning data.** A hook reads the world through `ctx` (queries, stats, its own state) and returns procs. It may mutate **its own** cast or construct state (like a reducer's local state); it touches the world **only** through procs. That one rule makes spells testable, replayable and predictable.
+- **Hooks are functions returning data.** A hook reads the world through `ctx` (queries, stats, its own state) and returns procs. It may mutate **its own** cast or area trigger state (like a reducer's local state); it touches the world **only** through procs. That one rule makes spells testable, replayable and predictable.
 - **Procs are the what, triggers the when.** A proc is one outcome with an optional `chance`; a trigger is a listener with conditions and an internal cooldown that answers with procs. Spell hooks are triggers scoped to one cast.
-- **Everything is ordered and seeded.** Procs apply in the order returned. Randomness comes from named streams on `ctx`, and an always-proc rolls nothing. Constructs tick in a pinned kind order, then in creation order. Every port is held bit-exact by a golden recorded before it.
+- **Everything is ordered and seeded.** Procs apply in the order returned. Randomness comes from named streams on `ctx`, and an always-proc rolls nothing. Area triggers tick in a pinned kind order, then in creation order. Every port is held bit-exact by a golden recorded before it.
 - **Data where it is described, functions where it is decided.** Anything a card or tooltip explains (a trigger's `do`, a pact's procs) stays plain data, which the framework turns into structured explanations and the client into words (§I.5.3). Spell hooks are functions that return that data.
 - **Mirror-safe by type.** A hook the co-op client runs gets a narrowed context (`MirrorCtx`: caster body, input, synced stats, static collision) and must not roll or read server state. The compiler enforces that, not a test.
 
@@ -458,12 +458,12 @@ interface SpellDef<Stats, Target, CastState> {
   release(ctx, target): Proc[]; // the payload
   onHit?(ctx, hit: Hit<Target>): Proc[]; // any delivery of this cast caught targets, all in one call
   onEnd?(ctx, outcome: CastOutcome): Proc[]; // 'released' | 'cancelled' | 'broken' (tether) | 'blocked' (charge)
-  triggers?: SpellTrigger[]; // listeners active while the cast or any of its constructs live (§II.3.7)
+  triggers?: SpellTrigger[]; // listeners active while the cast or any of its area triggers live (§II.3.7)
   cues?: CueMap; // named moments → cue + params (§II.3.9)
 }
 ```
 
-`ctx` (`SpellCtx`) carries the caster, the owner credited with the damage, the stats snapshot, the cast (target, `shared` state for every delivery and construct of the cast), time and dt, rank and legendary flag, the queries (§II.3.5), and named random streams (`ctx.random('main' | 'volley' | 'horde' | 'proc' | …)`).
+`ctx` (`SpellCtx`) carries the caster, the owner credited with the damage, the stats snapshot, the cast (target, `shared` state for every delivery and area trigger of the cast), time and dt, rank and legendary flag, the queries (§II.3.5), and named random streams (`ctx.random('main' | 'volley' | 'horde' | 'proc' | …)`).
 
 ### II.3.2 Activation: who pulls the trigger
 
@@ -473,7 +473,7 @@ The spell never runs its own clock; the activation says which system does, and c
 | --------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `auto`    | the attack clock (Arsenal)                            | the interval comes from `stats`; `retryOnMiss` (Cleave); `aimed` rewinds when the hero aims                                                                                    |
 | `button`  | a hero's key (every class ability)                    | what `AbilityDef` has today: cooldown effect and `startsOn`, cost, `requires` / `blockedBy`, `applies`, `resets`, `activate` / `travel` (the motion half the mirror runs), cue |
-| `passive` | owning it (Ember Blades, Serpent Coil, Cheat Death)   | a construct attached to the owner, or an aura on them, for as long as the card is owned                                                                                        |
+| `passive` | owning it (Ember Blades, Serpent Coil, Cheat Death)   | an area trigger attached to the owner, or an aura on them, for as long as the card is owned                                                                                    |
 | `trigger` | a trigger event (an aura's "on kill, cast…")          | the event, conditions, charges, internal cooldown                                                                                                                              |
 | `ai`      | a creature brain                                      | windup, lock, recover, cooldown, range, sight, budget, `weight(ctx)` for situational picking                                                                                   |
 | `event`   | the wave director (Inferno, Venom Flood, Detonation…) | min/max wave, weight, overlap rules                                                                                                                                            |
@@ -506,22 +506,22 @@ interface Timeline<Target, State> {
 
 - **The Spell System runs the timeline**, not the brain: it counts the windup, calls `track` each frame until the lock, releases, runs the channel, recovers, and reports the outcome. The brain picks, starts, and reads `ctx.cast.stage` for its movement (holding ground, facing).
 - **`track` is a function**, so all three tracking rules in the code are helpers returning one: `lockBefore(seconds)` (horde, elites), `lockAtShare(share, turnRate)` (Warden), `lockAtStart` (Archmage explosion). A cast's own telegraphs are handles on the cast, so tracking moves or rotates **all of them** (the elite lance fan) rather than one hazard id.
-- **Channels** cover every "active" stage: a charge (the caster moves each tick, and `onBlocked` ends the cast as `blocked` for a stagger), a whirlwind (moving pulses), a tether (`breakIf` the target leaves 8 m of the origin), the Archmage's Arcane Circle (a channel whose clock is a construct).
+- **Channels** cover every "active" stage: a charge (the caster moves each tick, and `onBlocked` ends the cast as `blocked` for a stagger), a whirlwind (moving pulses), a tether (`breakIf` the target leaves 8 m of the origin), the Archmage's Arcane Circle (a channel whose clock is an area trigger).
 - **Chains** are procs: Cleave's release returns `castSpell(stab)`; a Warden charge that did not hit a wall returns `castSpell(charge, { windup: 0.45 })`.
 
-### II.3.4 Constructs: what persists in the world
+### II.3.4 Area triggers: what persists in the world
 
-A **construct** is a spell object with a position, a shape, a lifetime and hooks: WoW's AreaTrigger / DynamicObject / missile, Unreal's spawned actor plus ability tasks. Hazards, projectiles, cyclones, wells, domes, fields, patches, falling hammers, sentries and the Serpent Coil's ribbon are all constructs.
+An **area trigger** (the name is WoW's) is a spell object with a position, a shape, a lifetime and hooks: WoW's AreaTrigger / DynamicObject / missile, Unreal's spawned actor plus ability tasks. Hazards, projectiles, cyclones, wells, domes, fields, patches, falling hammers, sentries and the Serpent Coil's ribbon are all area triggers. The name says where it lives, not what it listens to: an area trigger is not a trigger (§II.3.7, the event listener an aura owns), and the two are never shortened to the same word.
 
-The line between the two persistent things: an **aura sits on a unit** and goes where the unit goes; a **construct sits in the world**. A construct may hand auras to the units inside it (the Sanctuary's shelter, a field's slow), and what it does to the world itself (eating hostile shots, pushing creatures out) stays in its `frame`.
+The line between the two persistent things: an **aura sits on a unit** and goes where the unit goes; an **area trigger sits in the world**. An area trigger may hand auras to the units inside it (the Sanctuary's shelter, a field's slow), and what it does to the world itself (eating hostile shots, pushing creatures out) stays in its `frame`.
 
 ```ts
-interface ConstructDef<State, Stats> {
-  id: ConstructKey;
+interface AreaTriggerDef<State, Stats> {
+  id: AreaTriggerKey;
   shape(c): Shape; // circle | ring | cone | lane | polygon | point (§II.3.5)
   lifetime(c): number | "owner" | "spent"; // seconds, while the owner lives, or until a hit budget is spent
   bound?: "owner-standing" | "owner-present" | "source-alive" | "none"; // what ends it early, silently
-  anchor?: "world" | "owner"; // an owner-attached construct moves with the hero (Ember, Coil)
+  anchor?: "world" | "owner"; // an owner-attached area trigger moves with the hero (Ember, Coil)
   limit?: { perOwner: number; replace: "oldest" | "silent" | "fade" }; // one frost field, one grove, one sentry, 12 patches
   tickIn?: "movement" | "player" | "world"; // which Game phase ticks it (Coil: movement; the rest: world)
   // The one primitive: a frame, in one pass, returning procs. Everything below is sugar over it.
@@ -529,10 +529,10 @@ interface ConstructDef<State, Stats> {
   move?(c, dt): void; // own motion (steer, home, bezier, orbit); may sweep and report contacts
   every?: Pulse[]; // { seconds, clock: 'own' | 'owner-shared' | 'global', hits?: Shape, pick?: 'all' | 'hottest', onPulse }
   onContact?(c, targets): Proc[]; // swept contacts along this frame's move (missiles, blades, waves)
-  onLand?(c, targets): Proc[]; // a delayed construct lands (a telegraph firing, a hammer, a falling arrow)
+  onLand?(c, targets): Proc[]; // a delayed area trigger lands (a telegraph firing, a hammer, a falling arrow)
   onExpire?(c): Proc[]; // the fling, the collapse, the dome's burst
   auras?: AreaAura[]; // auras it keeps on the units inside: applied on entry, removed on exit (§II.3.8)
-  caster?: SpellRef; // a construct that casts its own spell on its own clock (the sentry)
+  caster?: SpellRef; // an area trigger that casts its own spell on its own clock (the sentry)
   replicate?: ReplicaSpec; // §II.3.9
 }
 ```
@@ -540,7 +540,7 @@ interface ConstructDef<State, Stats> {
 - **One `frame` hook is the primitive**, because some spells must interleave work per enemy in one pass for exact parity (Tempest: tick, then pull or fling, enemy by enemy, with Maelstrom's candidates gathered before any pull). The declarative parts (`move`, `every`, `onContact`, `onExpire`) are built on it for the common cases.
 - **Hit policies are data, not code:** `once-per-cast` (Glaive, Spark, the Knight wave), `repeat-share` (Searing Arrow's 25%, a volley's 50% via the cast's `shared` set), `rehit-cooldown` (Chakram's crescents), `pierce` and `budget` (shots, Glaive), `hottest-per-owner-clock` (Searing patches, Coil nodes), and `none` (Tempest ticks, Ember Blades).
 - **Spawning** is a proc, `spawn(def, init, { now?: dt })`. `now` lets a child fly this frame with the parent's leftover time (Glaive forks); without it the child starts next frame (Chakram crescents). Children may share state by reference (the crescents' `passes`).
-- **Delayed procs** are the lightest construct: `after(seconds, procs, { bound: 'owner-standing' })`. They cover Searing Arrow's fall, Judgement and its aftershock, Hexfire's pop, Galeheart's strike, the Druid flask's two stages, the Warden's second barrage, the Archmage's second comet volley, and staggered explosion patterns. The credit (owner, damage source) and the stats are captured at the cast and restored when it lands.
+- **Delayed procs** are the lightest area trigger: `after(seconds, procs, { bound: 'owner-standing' })`. They cover Searing Arrow's fall, Judgement and its aftershock, Hexfire's pop, Galeheart's strike, the Druid flask's two stages, the Warden's second barrage, the Archmage's second comet volley, and staggered explosion patterns. The credit (owner, damage source) and the stats are captured at the cast and restored when it lands.
 - **Tick order is pinned:** kind order (today's `CARD_MECHANICS` order for the Arsenal, then abilities, then creatures, then events), then creation order within a kind. `wire-order.test.ts` grows to hold it.
 
 ### II.3.5 Shapes and queries
@@ -554,7 +554,7 @@ interface ConstructDef<State, Stats> {
 
 ### II.3.6 Procs: one vocabulary
 
-The same kinds serve spell hooks, construct hooks, effect lifecycles and trigger `do` lists. A new kind is one file, one registry line, and (if it touches the world) one host method taking its data.
+The same kinds serve spell hooks, area trigger hooks, effect lifecycles and trigger `do` lists. A new kind is one file, one registry line, and (if it touches the world) one host method taking its data.
 
 | group         | kinds                                                                                                                                                                                                                                                                                                             |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -569,8 +569,8 @@ Everything hard-coded by spell id in the engine today moves onto proc data: `HEA
 ### II.3.7 Triggers and events
 
 - **Trigger `do` lists become procs** (data form), and `chance` lives on the proc; a trigger that fires several things all or nothing wraps them in a `group`. `TriggerAction` goes away; `castAbility` becomes `castSpell`.
-- **The Spell System raises spell events on the bus:** `spellCast`, `spellHit`, `constructSpawned`, `constructExpired`, `spellKill`, filterable by spell id, tag and owner. Auras (pacts, buffs, later passives) can then react to spells ("when a Tempest dissipates, cast Chain Lightning from its eye").
-- **Spell-scoped triggers:** `SpellDef.triggers` and `ConstructDef` listeners are active while the cast or construct lives, as `EffectDef.triggers` are while an effect is active. An aura's own procs (§II.3.8) cover the unit-bound cases, such as Hexfire's pop when a branded creature dies.
+- **The Spell System raises spell events on the bus:** `spellCast`, `spellHit`, `areaTriggerSpawned`, `areaTriggerExpired`, `spellKill`, filterable by spell id, tag and owner. Auras (pacts, buffs, later passives) can then react to spells ("when a Tempest dissipates, cast Chain Lightning from its eye").
+- **Spell-scoped triggers:** `SpellDef.triggers` and `AreaTriggerDef` listeners are active while the cast or area trigger lives, as `EffectDef.triggers` are while an effect is active. An aura's own procs (§II.3.8) cover the unit-bound cases, such as Hexfire's pop when a branded creature dies.
 - **Changing an outcome is an aura's job, not a trigger's.** Triggers react after something happened; anything that absorbs, reduces or cancels a blow, a knockback or a death is an aura hook in the damage pipeline (§II.3.8), as in WoW.
 
 ### II.3.8 Auras: effects on any unit
@@ -592,12 +592,12 @@ An **aura** is WoW's word for a timed state on a unit: a buff or a debuff. `effe
 
 The hard cases, each as an aura:
 
-| case                 | aura                                                                                                                                                                                                     |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Hexfire's brand      | a debuff on the creature: `periodic` burn (live stats, as today), `onBearerDeath` pop and leap, tags for the 24-brand cap and for "unbranded" targeting                                                  |
-| Serpent Coil's toxin | a damage-over-time debuff, refreshed rather than stacked                                                                                                                                                 |
-| Cheat Death          | a passive buff the card grants while owned, holding its charges: `onLethal` prevents the death and returns `heal`, invulnerability and `applyEffect(deathEscape)`; `deathEscape` is its cooldown, as now |
-| Sanctuary            | the dome is a construct with `auras: [sheltered]`; `sheltered` blocks every non-exposed blow and knockback in `onIncomingDamage`. Eating hostile shots and pushing creatures out stay the dome's `frame` |
+| case                 | aura                                                                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Hexfire's brand      | a debuff on the creature: `periodic` burn (live stats, as today), `onBearerDeath` pop and leap, tags for the 24-brand cap and for "unbranded" targeting                                                      |
+| Serpent Coil's toxin | a damage-over-time debuff, refreshed rather than stacked                                                                                                                                                     |
+| Cheat Death          | a passive buff the card grants while owned, holding its charges: `onLethal` prevents the death and returns `heal`, invulnerability and `applyEffect(deathEscape)`; `deathEscape` is its cooldown, as now     |
+| Sanctuary            | the dome is an area trigger with `auras: [sheltered]`; `sheltered` blocks every non-exposed blow and knockback in `onIncomingDamage`. Eating hostile shots and pushing creatures out stay the dome's `frame` |
 
 **The barrier becomes an absorb aura.** Today it is two bespoke hero fields (`barrier`, synced; `barrierTime`, server-only) written by Overcharge and Judgement, eaten inside `hurtPlayer`, ticked in `Game.advance` and cleared on going down. As an aura:
 
@@ -625,12 +625,12 @@ Diminishing returns stay out of scope.
 ### II.3.9 Presentation and prediction
 
 - **Cues everywhere:** every spell moment (`cast`, `release`, `hit`, `pulse`, `land`, `expire`, `fade`) names a numeric cue id plus numeric params in `cues`, or returns a `cue` proc; no hook builds a raw `emit`, and no spell carries a visual (the client keys its visuals by `SpellId` and `CueId`, §I.5.3). The ~60 raw sites migrate by appending to `CUES` (append-only wire).
-- **Replication:** a construct kind declares `replicate: { fields, rounding }` (`x`, `z`, `heading`, `radius`, `started`, `duration`, `phase`, `evolved`, and a kind-specific extra), or `'events-only'` (Searing Arrow), or `'derived'` (Ember Blades, recomputed from time on the client). At first each kind maps onto its existing schema array (a storage adapter), so the protocol does not move; later one `ConstructSchema` plus a client renderer registry keyed by construct kind replaces the twelve per-kind schemas.
+- **Replication:** an area trigger kind declares `replicate: { fields, rounding }` (`x`, `z`, `heading`, `radius`, `started`, `duration`, `phase`, `evolved`, and a kind-specific extra), or `'events-only'` (Searing Arrow), or `'derived'` (Ember Blades, recomputed from time on the client). At first each kind maps onto its existing schema array (a storage adapter), so the protocol does not move; later one `AreaTriggerSchema` plus a client renderer registry keyed by area trigger kind replaces the twelve per-kind schemas.
 - **Prediction without duplication:** the hooks the client may run take `MirrorCtx` (`activation` motion data, `target` when `predictable`, and `cues.cast`). `castVisuals` becomes "run the spell's `cues.cast` on the mirror", so `CAST_VISUALS` and its equality test go away, and the Blink and Overcharge visuals stop being written twice.
 
 ### II.3.10 Scope and credit
 
-The Spell System owns scope instead of each trigger: it runs every hook of a cast or construct inside `withPlayer(owner)` and `withDamageSource(source)` captured at the cast, and rewinds only for an aimed cast in its cast frame. Wrapping is idempotent (re-entering the same owner and source changes nothing), so the attack loop's and `runCast`'s existing wraps stay harmless during the migration and are removed at its end. Creature and world casts run `asWorld`.
+The Spell System owns scope instead of each trigger: it runs every hook of a cast or area trigger inside `withPlayer(owner)` and `withDamageSource(source)` captured at the cast, and rewinds only for an aimed cast in its cast frame. Wrapping is idempotent (re-entering the same owner and source changes nothing), so the attack loop's and `runCast`'s existing wraps stay harmless during the migration and are removed at its end. Creature and world casts run `asWorld`.
 
 ### II.3.11 Pacts are spells with passive auras (and triggers live only on auras)
 
@@ -665,7 +665,7 @@ The weird ones first; the rest follow the same parts.
 ### Tempest (in full)
 
 ```ts
-const cyclone = defineConstruct<{
+const cyclone = defineAreaTrigger<{
   heading: number;
   goal?: Vec;
   nextTick: number;
@@ -721,85 +721,85 @@ const cyclone = defineConstruct<{
 });
 ```
 
-Tempest needs: an owner-bound roaming construct, its own steering state, three clocks in one frame, per-enemy interleaving, a pick on the main random stream, a legendary branch, and replication through the existing `tempests` schema. Every one of those is a first-class part above; nothing is an escape hatch.
+Tempest needs: an owner-bound roaming area trigger, its own steering state, three clocks in one frame, per-enemy interleaving, a pick on the main random stream, a legendary branch, and replication through the existing `tempests` schema. Every one of those is a first-class part above; nothing is an escape hatch.
 
 ### The Arsenal
 
-| weapon                | activation                                                                | parts                                                                                                                                                                                                                                               |
-| --------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cleave                | auto, `retryOnMiss`, `canCast` blocked by `state.whirlwind`               | `areaHit(cone)` → `damage` knock 0.15; `cue` with `sweepAngle`                                                                                                                                                                                      |
-| Hawkeye, Verdant Bolt | auto, `aimed`                                                             | `shoot` × n (Projectile Count on `volley`), pierce, `repeat-share` 0.5 over the cast's `shared` set                                                                                                                                                 |
-| Rivet Gun             | auto, `aimed`                                                             | `shoot` bullet, pierce, stops at walls                                                                                                                                                                                                              |
-| Spark                 | auto, `aimed`                                                             | `query.chain` → `damage` × links with falloff, `knock: 'none'`; polyline cue                                                                                                                                                                        |
-| Winter Pulse          | auto                                                                      | `areaHit` → `damage`, `applyEffect(slowed, chilled)`, legendary adds `applyEffect(frozen)`                                                                                                                                                          |
-| Ember Blades          | passive                                                                   | owner-anchored construct, `replicate: 'derived'`, `every 0.18` contacts per blade, `none` hit policy                                                                                                                                                |
-| Glaive                | auto                                                                      | homing missile construct, `once-per-cast` + reservations in cast `shared`, `budget`; legendary `spawn(fork, { now: leftover })`                                                                                                                     |
-| Voltaic Orbs          | auto                                                                      | homing missiles, one per distinct target; legendary on-contact `chain` arc                                                                                                                                                                          |
-| Singularity           | auto                                                                      | static well construct: `frame` pulls and tracks `caught`, `every 0.5` damage; `onExpire` collapse `areaHit` with a bonus per caught                                                                                                                 |
-| Hexfire               | auto, `live` stats, `canCast` global cap 24                               | `applyEffect(hexfire.brand)` on creatures: a debuff aura whose `periodic` burns and whose `onBearerDeath` returns `after(0.15, pop)` → `areaHit` + `chain` leap                                                                                     |
-| Searing Arrow         | auto                                                                      | per point `after(0.45, [areaHit repeat-share 0.25, spawn(patch)])`; patch constructs share an owner clock, `hottest-per-owner-clock`, `limit 12 oldest`                                                                                             |
-| Judgement             | auto                                                                      | `after(0.5, [areaHit heavy, push, stun first only, `applyEffect(barrier)` on allies (legendary), after(0.5, aftershock)])`; the shield cue names the shielded ally                                                                                  |
-| Tempest               | auto                                                                      | above                                                                                                                                                                                                                                               |
-| Moon Chakram          | auto                                                                      | missile construct with its own phase machine in `frame` (bezier out, hang, home back, catch), per-pass hit sets, return-pass `pull`; legendary `spawn` × 3 crescents next frame, `rehit-cooldown` 0.3 s, shared `passes`                            |
-| Serpent Coil          | passive, `tickIn: 'movement'`                                             | owner-anchored ribbon construct: lays nodes along the move, `hottest-per-owner-clock` burn, a coil detection → `areaHit(polygon)` + `applyEffect(venom.toxin)` (a damage-over-time debuff aura); legendary constrict channel then a second eruption |
-| Cheat Death           | passive: a buff aura granted while the card is owned, holding its charges | the aura's `onLethal` prevents the death and returns `heal` to a share, `applyEffect(deathEscape)` (its cooldown), invulnerability, private cue                                                                                                     |
+| weapon                | activation                                                                | parts                                                                                                                                                                                                                                                  |
+| --------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Cleave                | auto, `retryOnMiss`, `canCast` blocked by `state.whirlwind`               | `areaHit(cone)` → `damage` knock 0.15; `cue` with `sweepAngle`                                                                                                                                                                                         |
+| Hawkeye, Verdant Bolt | auto, `aimed`                                                             | `shoot` × n (Projectile Count on `volley`), pierce, `repeat-share` 0.5 over the cast's `shared` set                                                                                                                                                    |
+| Rivet Gun             | auto, `aimed`                                                             | `shoot` bullet, pierce, stops at walls                                                                                                                                                                                                                 |
+| Spark                 | auto, `aimed`                                                             | `query.chain` → `damage` × links with falloff, `knock: 'none'`; polyline cue                                                                                                                                                                           |
+| Winter Pulse          | auto                                                                      | `areaHit` → `damage`, `applyEffect(slowed, chilled)`, legendary adds `applyEffect(frozen)`                                                                                                                                                             |
+| Ember Blades          | passive                                                                   | owner-anchored area trigger, `replicate: 'derived'`, `every 0.18` contacts per blade, `none` hit policy                                                                                                                                                |
+| Glaive                | auto                                                                      | homing missile area trigger, `once-per-cast` + reservations in cast `shared`, `budget`; legendary `spawn(fork, { now: leftover })`                                                                                                                     |
+| Voltaic Orbs          | auto                                                                      | homing missiles, one per distinct target; legendary on-contact `chain` arc                                                                                                                                                                             |
+| Singularity           | auto                                                                      | static well area trigger: `frame` pulls and tracks `caught`, `every 0.5` damage; `onExpire` collapse `areaHit` with a bonus per caught                                                                                                                 |
+| Hexfire               | auto, `live` stats, `canCast` global cap 24                               | `applyEffect(hexfire.brand)` on creatures: a debuff aura whose `periodic` burns and whose `onBearerDeath` returns `after(0.15, pop)` → `areaHit` + `chain` leap                                                                                        |
+| Searing Arrow         | auto                                                                      | per point `after(0.45, [areaHit repeat-share 0.25, spawn(patch)])`; patch area triggers share an owner clock, `hottest-per-owner-clock`, `limit 12 oldest`                                                                                             |
+| Judgement             | auto                                                                      | `after(0.5, [areaHit heavy, push, stun first only, `applyEffect(barrier)` on allies (legendary), after(0.5, aftershock)])`; the shield cue names the shielded ally                                                                                     |
+| Tempest               | auto                                                                      | above                                                                                                                                                                                                                                                  |
+| Moon Chakram          | auto                                                                      | missile area trigger with its own phase machine in `frame` (bezier out, hang, home back, catch), per-pass hit sets, return-pass `pull`; legendary `spawn` × 3 crescents next frame, `rehit-cooldown` 0.3 s, shared `passes`                            |
+| Serpent Coil          | passive, `tickIn: 'movement'`                                             | owner-anchored ribbon area trigger: lays nodes along the move, `hottest-per-owner-clock` burn, a coil detection → `areaHit(polygon)` + `applyEffect(venom.toxin)` (a damage-over-time debuff aura); legendary constrict channel then a second eruption |
+| Cheat Death           | passive: a buff aura granted while the card is owned, holding its charges | the aura's `onLethal` prevents the death and returns `heal` to a share, `applyEffect(deathEscape)` (its cooldown), invulnerability, private cue                                                                                                        |
 
 ### Hero abilities
 
-| ability          | activation (button)                           | parts                                                                                                                                                                                                                     |
-| ---------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dash             | motion half only                              | no sim part; its `dodge` event stays                                                                                                                                                                                      |
-| Blink            | motion half (exact travel)                    | `areaHit` → `damage`, `freeze` at the departure point (built)                                                                                                                                                             |
-| Shockwave        | cooldown 8 s                                  | windup 0.2 → moving lane construct, `onContact` `once-per-cast` → `damage`, `stun`, cue; stops at walls                                                                                                                   |
-| Sanctuary        | applies `sanctuary`                           | dome construct with `auras: [sheltered]` (the aura blocks non-exposed blows and knockback on heroes inside), a `frame` that eats hostile shots and pushes creatures out, `onExpire` `areaHit` 300 if the owner is present |
-| Galeheart Volley | placement (predictable)                       | `after(0.35, [applyEffect(galeheart), cue, areaHit heavy])`, bound owner-standing                                                                                                                                         |
-| Arrowstorm       | applies `arrowstorm`                          | opening `areaHit` (freeze, knock 3); the effect's `global` beat casts `arrowstorm.strike` (`areaHit` on `nearest(12)`)                                                                                                    |
-| Frost Bomb       | placement                                     | `areaHit` (freeze) + field construct `limit 1 silent`, `every 0.5` → `damage`, `applyEffect(slowed, chilled)` or a sustained freeze                                                                                       |
-| Overcharge       | applies `overcharged`, resets `cooldown.dash` | `applyEffect(barrier, { value: 0.5 × maxHp, duration: the ultimate's })` + `areaHit` knock (built today as a `shield` proc)                                                                                               |
-| Whirlwind        | applies `whirlwind`                           | the effect's beat casts `whirlwind.sweep` (`areaHit` light); Cleave's `canCast` reads the tag                                                                                                                             |
-| Enrage           | applies `enraged`                             | cue + `areaHit` knock; the clock rescale stays an effect hook                                                                                                                                                             |
-| Verdant Flask    | placement                                     | `after(0.39, after(0.26, [cue, areaHit, spawn(field, limit 1 fade)]))`; the field pulses `damage` on foes and `heal` on allies                                                                                            |
-| Living Grove     | applies `grove`, placement                    | field construct `limit 1 fade`, first pulse immediate, `damage` + `heal` + `applyEffect(slowed)`                                                                                                                          |
-| Sentry           | `startsOn: 'cast'`, `place` (predictable)     | a summon construct that is a caster: its own `auto` spell (sticky target, bullets every 0.35 s) credited to the owner, `limit 1 fade`, bound owner and class                                                              |
-| Overdrive        | applies `overdrive`                           | cue only                                                                                                                                                                                                                  |
+| ability          | activation (button)                           | parts                                                                                                                                                                                                                        |
+| ---------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dash             | motion half only                              | no sim part; its `dodge` event stays                                                                                                                                                                                         |
+| Blink            | motion half (exact travel)                    | `areaHit` → `damage`, `freeze` at the departure point (built)                                                                                                                                                                |
+| Shockwave        | cooldown 8 s                                  | windup 0.2 → moving lane area trigger, `onContact` `once-per-cast` → `damage`, `stun`, cue; stops at walls                                                                                                                   |
+| Sanctuary        | applies `sanctuary`                           | dome area trigger with `auras: [sheltered]` (the aura blocks non-exposed blows and knockback on heroes inside), a `frame` that eats hostile shots and pushes creatures out, `onExpire` `areaHit` 300 if the owner is present |
+| Galeheart Volley | placement (predictable)                       | `after(0.35, [applyEffect(galeheart), cue, areaHit heavy])`, bound owner-standing                                                                                                                                            |
+| Arrowstorm       | applies `arrowstorm`                          | opening `areaHit` (freeze, knock 3); the effect's `global` beat casts `arrowstorm.strike` (`areaHit` on `nearest(12)`)                                                                                                       |
+| Frost Bomb       | placement                                     | `areaHit` (freeze) + field area trigger `limit 1 silent`, `every 0.5` → `damage`, `applyEffect(slowed, chilled)` or a sustained freeze                                                                                       |
+| Overcharge       | applies `overcharged`, resets `cooldown.dash` | `applyEffect(barrier, { value: 0.5 × maxHp, duration: the ultimate's })` + `areaHit` knock (built today as a `shield` proc)                                                                                                  |
+| Whirlwind        | applies `whirlwind`                           | the effect's beat casts `whirlwind.sweep` (`areaHit` light); Cleave's `canCast` reads the tag                                                                                                                                |
+| Enrage           | applies `enraged`                             | cue + `areaHit` knock; the clock rescale stays an effect hook                                                                                                                                                                |
+| Verdant Flask    | placement                                     | `after(0.39, after(0.26, [cue, areaHit, spawn(field, limit 1 fade)]))`; the field pulses `damage` on foes and `heal` on allies                                                                                               |
+| Living Grove     | applies `grove`, placement                    | field area trigger `limit 1 fade`, first pulse immediate, `damage` + `heal` + `applyEffect(slowed)`                                                                                                                          |
+| Sentry           | `startsOn: 'cast'`, `place` (predictable)     | a summon area trigger that is a caster: its own `auto` spell (sticky target, bullets every 0.35 s) credited to the owner, `limit 1 fade`, bound owner and class                                                              |
+| Overdrive        | applies `overdrive`                           | cue only                                                                                                                                                                                                                     |
 
 ### Creatures
 
-| family            | parts                                                                                                                                                                                                                                                                                                                                                           |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Horde (built)     | `ai` activation; telegraph and shot procs; the brain keeps pick and budget until the shared picker lands                                                                                                                                                                                                                                                        |
-| Elite Juggernaut  | cleave (cone telegraph, `lockBefore(0.4)`, enraged release `castSpell(stab)`), charge (channel: caster `move` with sweep contacts, `onEnd: 'blocked'` → stagger), leap (`target` refuses without a landing; `move` flight; circle telegraph landing after windup + flight), whirlwind (moving pulse channel)                                                    |
-| Elite Hexblade    | tether (channel, `breakIf` > 8 m from origin → `broken` → stagger; else an unblockable crushing `damage`), lance (lane telegraphs, the tracked fan rotates together), portal (circle telegraphs landing after the cast ends), step (`teleport` + departure telegraph)                                                                                           |
-| Elite Gravecaller | shockwave (three staggered ring telegraphs), volley (shots with a gap; enraged: channel then a second fan), spikes (`eruptionLine` telegraphs), raise (`summon` with clearance rules)                                                                                                                                                                           |
-| Elite enrage roar | a spell the brain casts at 50%: `onCancel`-style withdrawal of its own unfired telegraphs, knock telegraph, cooldown rescale                                                                                                                                                                                                                                    |
-| Grave Warden      | the same parts with `lockAtShare(share, turnRate)`; execute (`lethal` damage); charge chains (`castSpell(charge, { windup: 0.45 })`); barrage second ring (`after(0.4)`); soulfire (ground constructs that hurt heroes over time); War Cry (`applyEffect(invulnerable)`, a buff aura on the boss, knock telegraph, then `summon`)                               |
-| Archmage          | comet and chaos (shots and a lobbed telegraph whose delay is the flight), explosion patterns (points with stagger, aimed `lockAtStart`), repulse, blink (channel: vanish, then `teleport` and cue), Arcane Circle (channel whose clock is the fire-ring construct; `invulnerable`; `teleport` heroes; `despawn` adds; `every` barrage)                          |
-| Map events        | `event` activation, caster `'world'`: Inferno (moving lethal wall construct, time-derived), Venom Flood (zone construct: harm outside, heal inside), Detonation (staggered telegraphs), Blood Horde (`summon` + a death trigger spawning pools), Prison (`summon` walls), Gravebloom (objective summons), Dread Totem (objective with an aura effect on heroes) |
+| family            | parts                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Horde (built)     | `ai` activation; telegraph and shot procs; the brain keeps pick and budget until the shared picker lands                                                                                                                                                                                                                                                              |
+| Elite Juggernaut  | cleave (cone telegraph, `lockBefore(0.4)`, enraged release `castSpell(stab)`), charge (channel: caster `move` with sweep contacts, `onEnd: 'blocked'` → stagger), leap (`target` refuses without a landing; `move` flight; circle telegraph landing after windup + flight), whirlwind (moving pulse channel)                                                          |
+| Elite Hexblade    | tether (channel, `breakIf` > 8 m from origin → `broken` → stagger; else an unblockable crushing `damage`), lance (lane telegraphs, the tracked fan rotates together), portal (circle telegraphs landing after the cast ends), step (`teleport` + departure telegraph)                                                                                                 |
+| Elite Gravecaller | shockwave (three staggered ring telegraphs), volley (shots with a gap; enraged: channel then a second fan), spikes (`eruptionLine` telegraphs), raise (`summon` with clearance rules)                                                                                                                                                                                 |
+| Elite enrage roar | a spell the brain casts at 50%: `onCancel`-style withdrawal of its own unfired telegraphs, knock telegraph, cooldown rescale                                                                                                                                                                                                                                          |
+| Grave Warden      | the same parts with `lockAtShare(share, turnRate)`; execute (`lethal` damage); charge chains (`castSpell(charge, { windup: 0.45 })`); barrage second ring (`after(0.4)`); soulfire (ground area triggers that hurt heroes over time); War Cry (`applyEffect(invulnerable)`, a buff aura on the boss, knock telegraph, then `summon`)                                  |
+| Archmage          | comet and chaos (shots and a lobbed telegraph whose delay is the flight), explosion patterns (points with stagger, aimed `lockAtStart`), repulse, blink (channel: vanish, then `teleport` and cue), Arcane Circle (channel whose clock is the fire-ring area trigger; `invulnerable`; `teleport` heroes; `despawn` adds; `every` barrage)                             |
+| Map events        | `event` activation, caster `'world'`: Inferno (moving lethal wall area trigger, time-derived), Venom Flood (zone area trigger: harm outside, heal inside), Detonation (staggered telegraphs), Blood Horde (`summon` + a death trigger spawning pools), Prison (`summon` walls), Gravebloom (objective summons), Dread Totem (objective with an aura effect on heroes) |
 
 ## II.5 Migration
 
 Every phase ends with the suite green, balance output identical except the timestamp, network bytes identical (except in phase 9 and pacts phase B), and the goldens held. A golden is recorded on the unchanged code before its family moves, on Linux x64 and arm64, with the macOS arm64 recording as the shared one where it exists.
 
-0. **Safety net.** Add goldens that do not exist yet: every hero ability (both halves, with prediction), every elite spell (plain and enraged), the Warden per phase, the Archmage per phase, and each map event. Extend `wire-order.test.ts` with construct tick order.
-1. **Core.** `defineSpell` / `defineConstruct`, the Spell System (casts, timeline, constructs store with storage adapters, `after`), `ctx.query`, named random streams, idempotent scope. Re-home the existing pilots; Searing Arrow's `run` becomes `after` and patch constructs.
+0. **Safety net.** Add goldens that do not exist yet: every hero ability (both halves, with prediction), every elite spell (plain and enraged), the Warden per phase, the Archmage per phase, and each map event. Extend `wire-order.test.ts` with area trigger tick order.
+1. **Core.** `defineSpell` / `defineAreaTrigger`, the Spell System (casts, timeline, area triggers store with storage adapters, `after`), `ctx.query`, named random streams, idempotent scope. Re-home the existing pilots; Searing Arrow's `run` becomes `after` and patch area triggers.
 2. **One proc vocabulary.** Trigger `do` lists become procs; spell events join the bus.
 3. **Auras on any unit.** Creature statuses become auras (projected onto today's synced bytes), auras gain proc lifecycles, and the damage pipeline runs aura hooks. Auras gain a `value`, and the barrier becomes an absorb aura (step A: `PlayerSchema.barrier` stays as its projection). Cheat Death, the Sanctuary's shelter and the barrier move out of `hurtPlayer`, and Hexfire's death call out of `hurtEnemy`; the Overcharge golden (which records the barrier every frame) and the Judgement weapon parity hold it.
 4. **Pacts as spells with passive auras** (§II.3.11). Pact auras with `fold: 'pacts'`, sealing as a spell, pacts as a party fact applied on join; triggers compile from auras only (class and pact sources removed). Phase A keeps `pact.owned` as a projection (no protocol move); phase B drops it with the trigger-id change (protocol bump). Held by the stat goldens, `pacts/mods.test.ts`, `pact-sync.test.ts` and the pact card text.
-5. **The Arsenal**, family by family (instant, projectiles, delayed, constructs, statuses, passives), weapon parity after each. `CARD_MECHANICS` shrinks to nothing.
+5. **The Arsenal**, family by family (instant, projectiles, delayed, area triggers, statuses, passives), weapon parity after each. `CARD_MECHANICS` shrinks to nothing.
 6. **Abilities.** `AbilityDef` becomes the `button` activation; `CAST_HANDLERS` and `CAST_VISUALS` go; prediction runs the spell's mirror-safe hooks.
-7. **Creatures.** Elites, then the Warden, then the Archmage onto spells with timelines; the shared picker and budget policy; telegraph constructs with shapes and `onLand` replace the hazard loop's per-spell special cases.
+7. **Creatures.** Elites, then the Warden, then the Archmage onto spells with timelines; the shared picker and budget policy; telegraph area triggers with shapes and `onLand` replace the hazard loop's per-spell special cases.
 8. **Cues.** The remaining raw `emit` sites become cue ids (append-only).
-9. **Replication.** One `ConstructSchema` and a client renderer registry replace the per-kind schemas (protocol version bump, measured with `benchmark:network`; pacts phase B can ride along).
+9. **Replication.** One `AreaTriggerSchema` and a client renderer registry replace the per-kind schemas (protocol version bump, measured with `benchmark:network`; pacts phase B can ride along).
 10. **Map events** onto `event` spells (optional; they already have their own clean state).
 11. **Shared spells.** Nova, volley, whirlwind, cleave and charge written once in `spells/<id>/` and cast by either side, since targeting is side-relative.
 12. **Passive cards as auras** (optional, §II.3.11): each passive a permanent aura, stacks = rank, `fold: 'passives'`, held by every stat golden.
 
-## II.6 Decisions to take
+## II.6 Decisions
 
-1. **Construct is the name?** Alternatives: spell object, area trigger (WoW), entity. It names the one new concept, so it is worth settling first.
+1. **The name: decided, area trigger.** WoW's name for the same thing (`AreaTrigger`), preferred over area trigger, spell object and entity. In code it is `AreaTriggerDef` / `defineAreaTrigger`, and in prose always the full "area trigger", never a bare "trigger", which stays the event listener an aura owns (§II.3.7).
 2. **Snapshot or live stats by default.** The plan snapshots (Searing, Judgement and Tempest do) and lets a spell opt into `live` (Hexfire does today).
-3. **The Spell System owns scope.** Proposed, since constructs tick outside any trigger; the alternative keeps "the trigger owns the scope" and makes every construct re-enter its own.
-4. **Auras on creatures in phase 3, or later.** They unlock Hexfire, Coil, Frost, Cheat Death, the Sanctuary and every creature control cleanly; without them those spells keep writing enemy fields through procs and `hurtPlayer` keeps its special cases.
+3. **The Spell System owns scope.** Proposed, since area triggers tick outside any trigger; the alternative keeps "the trigger owns the scope" and makes every area trigger re-enter its own.
+4. **Auras on creatures: decided, in phase 3.** Creatures get auras in the same phase as heroes (§II.5 phase 3; F3 in the framework): creature statuses become auras, and Hexfire, Coil, Frost, Cheat Death, the Sanctuary and every creature control move onto them there, instead of writing enemy fields through procs, and `hurtPlayer` loses its special cases.
 5. **Replication unification (phase 9).** With pacts phase B, it is where the protocol moves; it can also be skipped, keeping storage adapters for good.
 6. **Pacts' and the barrier's wire change.** Step B (drop `pact.owned` and `PlayerSchema.barrier`, give `EffectSchema` a `value`, rename trigger ids) is a protocol bump; it can wait for the replication phase so all byte changes land together.
 7. **Passives as auras.** Worth doing for uniformity, but it risks the stat fold for no gameplay change; the plan leaves it last and optional.
