@@ -54,7 +54,7 @@ export {
 export { segmentTouchesCircle, sweepCircle } from './sweep.ts';
 
 export {
-  add,
+  addVec,
   cross,
   distance,
   distanceSq,

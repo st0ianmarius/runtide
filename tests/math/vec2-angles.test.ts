@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
-  add,
+  addVec,
   angleDelta,
   cross,
   directionOf,
@@ -28,7 +28,7 @@ const close = (actual: number, expected: number): void => {
 
 describe('Vec2', () => {
   it('adds, subtracts, scales and interpolates', () => {
-    assert.deepEqual(add(vec2(1, 2), vec2(3, -4)), { x: 4, z: -2 });
+    assert.deepEqual(addVec(vec2(1, 2), vec2(3, -4)), { x: 4, z: -2 });
     assert.deepEqual(sub(vec2(1, 2), vec2(3, -4)), { x: -2, z: 6 });
     assert.deepEqual(scale(vec2(1.5, -2), 2), { x: 3, z: -4 });
     assert.deepEqual(lerp(vec2(0, 0), vec2(4, 8), 0.25), { x: 1, z: 2 });

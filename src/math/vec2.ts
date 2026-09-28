@@ -17,7 +17,7 @@ export const ORIGIN: Vec2 = Object.freeze({ x: 0, z: 0 });
 export const vec2 = (x: number, z: number): Vec2 => ({ x, z });
 
 /** The sum `a + b`, as a new vector. */
-export const add = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x + b.x, z: a.z + b.z });
+export const addVec = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x + b.x, z: a.z + b.z });
 
 /** The difference `a − b`, as a new vector. */
 export const sub = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x - b.x, z: a.z - b.z });
