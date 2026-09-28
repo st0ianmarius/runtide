@@ -80,7 +80,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** Where it was at the start of this frame. */
   readonly previous: Vec2;
 
-  /** Its shape, placed at its position and turned to its heading, as of the start of this frame. */
+  /** Its shape, placed at its position and turned to its heading once its own motion this frame is done. */
   readonly shape: Shape;
 
   /** The tick it spawned on. */

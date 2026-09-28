@@ -1,0 +1,140 @@
+import type { TickSlotId } from '../core/index.ts';
+import type { AreaTriggerContext, EndReason } from './area-def.ts';
+import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
+import { areaEngineOf } from './build-engine.ts';
+import type { AreaTriggerRegistry } from './define-area-triggers.ts';
+import { endArea } from './ender.ts';
+import type { AreaEngine } from './engine.ts';
+import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
+import { createAreaTriggerProcKinds } from './proc-kinds.ts';
+import type { AreaTriggerProcKinds } from './procs.ts';
+import { type AreaQuery, queryAreas } from './queries.ts';
+import { spawnArea, type SpawnSpec } from './spawner.ts';
+import { stepSlot } from './stepper.ts';
+import type { AreaTriggerSystemOptions } from './system-options.ts';
+
+/**
+ * An area trigger system (§I.6): the store of what spells leave in the world. It spawns them (applying limits), steps
+ * them per tick slot in the pinned order (kind order, then creation order, children after their parents), counts
+ * their lifetimes, checks their bounds, runs their hooks' procs as their owners' and their casts', and ends them with
+ * a reason.
+ */
+export interface AreaTriggerSystem<G extends AreaTriggerTypes> {
+  /** The game's area trigger kinds. */
+  readonly registry: AreaTriggerRegistry<G>;
+
+  /** How many records the pool has made, and how many are live: a steady state makes no new ones. */
+  readonly pool: {
+    /** Records ever made. */
+    readonly created: number;
+
+    /** Area triggers live now. */
+    readonly live: number;
+  };
+
+  /** The proc kind `spawn`: `createProcRegistry({ ...CORE_PROCS, ...areaTriggers.procKinds })`. */
+  readonly procKinds: AreaTriggerProcKinds<G>;
+
+  /** The area trigger whose hook's procs are running now, or none. */
+  readonly current: AreaTriggerHandle;
+
+  /**
+   * Spawns an area trigger of a kind (§II.3.4): returns its handle, or `NO_AREA_TRIGGER` when its limit refused it.
+   * Its first frame is the next tick's, unless it flies `now`.
+   */
+  readonly spawn: (kind: AreaTriggerId, spec: SpawnSpec<G>) => AreaTriggerHandle;
+
+  /**
+   * Steps every area trigger of a tick slot (the first when absent) once (§II.6.1 rule 1), in the pinned order; one
+   * that spawned this tick waits for the next. Returns how many stepped. The host calls it inside its own loop.
+   */
+  readonly step: (slot?: TickSlotId) => number;
+
+  /** Steps one owner's area triggers of a tick slot (the first when absent), in the same order: a per-owner stepper. */
+  readonly stepOwner: (owner: G['bearer'], slot?: TickSlotId) => number;
+
+  /** A live area trigger's context; `undefined` once it ended. */
+  readonly get: (handle: AreaTriggerHandle) => AreaTriggerContext<G> | undefined;
+
+  /** Whether an area trigger is live. */
+  readonly isLive: (handle: AreaTriggerHandle) => boolean;
+
+  /** Ends a live area trigger now with a reason (`self` by default); false for one already gone. */
+  readonly despawn: (handle: AreaTriggerHandle, reason?: EndReason) => boolean;
+
+  /** How many area triggers of a kind an owner has live. */
+  readonly countOf: (owner: G['bearer'], kind: AreaTriggerId) => number;
+
+  /**
+   * Writes the handles of the live area triggers a query keeps (by kind, owner, tag and condition) into `out` from
+   * index 0, kind by kind in registry order and each kind in creation order, and returns how many (§II.6 W5).
+   */
+  readonly query: (query: AreaQuery<G>, out: AreaTriggerHandle[]) => number;
+}
+
+/** An area trigger system: a class for fast properties, its functions arrow fields so they work detached. */
+class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
+  readonly registry: AreaTriggerRegistry<G>;
+  readonly pool: AreaTriggerSystem<G>['pool'];
+  readonly procKinds: AreaTriggerProcKinds<G>;
+  readonly #engine: AreaEngine<G>;
+
+  constructor(engine: AreaEngine<G>) {
+    this.#engine = engine;
+    this.registry = engine.registry;
+
+    this.pool = {
+      get created() {
+        return engine.pool.created;
+      },
+
+      get live() {
+        return engine.pool.live;
+      },
+    };
+    this.procKinds = createAreaTriggerProcKinds(engine);
+  }
+
+  get current(): AreaTriggerHandle {
+    return this.#engine.current?.handle ?? NO_AREA_TRIGGER;
+  }
+
+  readonly spawn = (kind: AreaTriggerId, spec: SpawnSpec<G>): AreaTriggerHandle => {
+    this.registry.get(kind);
+
+    return spawnArea(this.#engine, kind, spec);
+  };
+
+  readonly step = (slot?: TickSlotId): number => stepSlot(this.#engine, slot ?? 0, undefined);
+
+  readonly stepOwner = (owner: G['bearer'], slot?: TickSlotId): number => stepSlot(this.#engine, slot ?? 0, owner);
+
+  readonly get = (handle: AreaTriggerHandle): AreaTriggerContext<G> | undefined => this.#engine.areaOf(handle);
+
+  readonly isLive = (handle: AreaTriggerHandle): boolean => this.#engine.areaOf(handle) !== undefined;
+
+  readonly despawn = (handle: AreaTriggerHandle, reason: EndReason = 'self'): boolean => {
+    const area = this.#engine.areaOf(handle);
+
+    if (area === undefined) {
+      return false;
+    }
+
+    endArea(this.#engine, area, { reason });
+
+    return true;
+  };
+
+  readonly countOf = (owner: G['bearer'], kind: AreaTriggerId): number => this.#engine.countOf(owner, kind);
+
+  readonly query = (query: AreaQuery<G>, out: AreaTriggerHandle[]): number => queryAreas(this.#engine, query, out);
+}
+
+/**
+ * Creates the area trigger system over a game's kinds (§I.5): `createAreaTriggerSystem({ registry: AREA_TRIGGERS,
+ * spells, auras, procs: () => procs, world, clock, host })`. Every owner aura is resolved and every kind's tick slot
+ * checked at load.
+ */
+export const createAreaTriggerSystem = <G extends AreaTriggerTypes>(
+  options: AreaTriggerSystemOptions<G>,
+): AreaTriggerSystem<G> => Object.freeze(new AreaTriggers(areaEngineOf(options)));

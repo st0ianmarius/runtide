@@ -192,10 +192,12 @@ describe('the escape report (§I.5.6)', () => {
       { activations: defineActivations<Game>({ ...CORE_ACTIVATIONS, charged }) },
     );
 
-    const report = escapeReport({ procs: game.procs, damage: game.damage, spells: game.spells });
+    const { procs, damage, spells, areaTriggers } = game;
+    const report = escapeReport({ procs, damage, spells, areaTriggers });
 
     assert.deepEqual(report.procKinds, []);
     assert.deepEqual(report.activationKinds, ['charged']);
-    assert.deepEqual(escapeReport({ procs: game.procs, damage: game.damage }).procKinds, ['castSpell', 'after']);
+    assert.deepEqual(escapeReport({ procs, damage, areaTriggers }).procKinds, ['castSpell', 'after']);
+    assert.deepEqual(escapeReport({ procs, damage, spells }).procKinds, ['spawn']);
   });
 });

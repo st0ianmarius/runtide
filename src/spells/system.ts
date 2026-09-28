@@ -123,6 +123,27 @@ export interface SpellSystem<G extends SpellTypes> {
   /** An interrupt on a caster ends: the casts it paused count down again (unless something else pauses them). */
   readonly endInterrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
 
+  /** The cast whose procs are running now (a hook's, a delayed list's), which what they spawn belongs to; or none. */
+  readonly current: CastHandle;
+
+  /**
+   * Keeps a cast's record alive after it ends (§II.6 S6: its area triggers and summons live on), until as many
+   * `release` calls as holds; false for a stale handle.
+   */
+  readonly hold: (cast: CastHandle) => boolean;
+
+  /** Lets go of one hold; an ended cast nothing holds goes back to the pool. */
+  readonly release: (cast: CastHandle) => void;
+
+  /**
+   * Makes a live cast the current one while another system runs its procs as that cast's (an area trigger's hooks),
+   * and returns the one it replaced, which `leave` restores.
+   */
+  readonly enter: (cast: CastHandle) => CastHandle;
+
+  /** Restores the current cast `enter` replaced. */
+  readonly leave: (previous: CastHandle) => void;
+
   /**
    * A spell's share of an outgoing multiplier stat (§II.3.13: `SpellDef.scaling`), or `undefined` for a share of 1:
    * what the damage host's `shareOf` answers with (`shareOf: spells.shareOf`).
@@ -252,6 +273,43 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
   readonly endInterrupt = (caster: G['bearer'], reason: G['interrupt']): number =>
     interruptCaster(this.#engine, caster, { reason, isOn: false });
+
+  get current(): CastHandle {
+    return this.#engine.current?.cast ?? NO_CAST;
+  }
+
+  readonly hold = (cast: CastHandle): boolean => {
+    const record = this.#engine.castOf(cast);
+
+    if (record === undefined) {
+      return false;
+    }
+
+    record.holds += 1;
+
+    return true;
+  };
+
+  readonly release = (cast: CastHandle): void => {
+    const record = this.#engine.castOf(cast);
+
+    if (record !== undefined) {
+      this.#engine.unhold(record);
+    }
+  };
+
+  readonly enter = (cast: CastHandle): CastHandle => {
+    const engine = this.#engine;
+    const previous = engine.current?.cast ?? NO_CAST;
+
+    engine.current = engine.castOf(cast);
+
+    return previous;
+  };
+
+  readonly leave = (previous: CastHandle): void => {
+    this.#engine.current = this.#engine.castOf(previous);
+  };
 
   readonly shareOf = (spell: SpellId, stat: StatId): number | undefined => {
     const share = this.registry.shares[spell]?.[stat];

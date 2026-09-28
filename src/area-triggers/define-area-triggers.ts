@@ -14,7 +14,7 @@ import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import type { AreaTagTable } from './tags.ts';
 
 /** Flag bit: its shape is a function, read again at every frame. */
-export const SHAPE_FUNCTION = 1;
+const SHAPE_FUNCTION = 1;
 
 /** Flag bit: a child of it ticks right after its parent. */
 export const AFTER_PARENT = 2;
@@ -23,10 +23,10 @@ export const AFTER_PARENT = 2;
 export const ANCHOR_OWNER = 4;
 
 /** The lifetime kinds, in the order of their codes in the `lifetimeKind` column. */
-export const LIFETIME_KINDS = ['seconds', 'owner', 'spent', 'function'] as const;
+const LIFETIME_KINDS = ['seconds', 'owner', 'spent', 'function'] as const;
 
 /** The expiry modes, in the order of their codes in the `expiry` column. */
-export const EXPIRY_MODES = ['after', 'before', 'clip'] as const;
+const EXPIRY_MODES = ['after', 'before', 'clip'] as const;
 
 /** The hooks every area trigger registry builds dispatch tables and `has` bitsets for (§I.5.4). */
 export const AREA_TRIGGER_HOOKS = ['state', 'init', 'move', 'frame', 'onExpire', 'onEnd'] as const;

@@ -1,4 +1,17 @@
-import { type AreaTriggerTypes, defineAreaTags } from '../../src/area-triggers/index.ts';
+import {
+  type AnyAreaTriggerDef,
+  type AreaTriggerEvent,
+  areaTriggerEvent,
+  type AreaTriggerHost,
+  type AreaTriggerId,
+  type AreaTriggerProcs,
+  type AreaTriggerSystem,
+  type AreaTriggerTypes,
+  createAreaTriggerEvent,
+  createAreaTriggerSystem,
+  defineAreaTags,
+  defineAreaTriggers,
+} from '../../src/area-triggers/index.ts';
 import {
   type AuraDef,
   type AuraId,
@@ -9,7 +22,14 @@ import {
   defineAuras,
   defineAuraTags,
 } from '../../src/auras/index.ts';
-import { createBus, createClock, createStreamTable, type SimClock } from '../../src/core/index.ts';
+import {
+  createBus,
+  createClock,
+  createStreamTable,
+  defineTickSlots,
+  type SimClock,
+  stream,
+} from '../../src/core/index.ts';
 import { createCueBuffer, type CueBuffer, defineCue, defineCues } from '../../src/cues/index.ts';
 import {
   type Blow,
@@ -51,14 +71,15 @@ import {
   spellTriggerEvent,
 } from '../../src/spells/index.ts';
 import { createTriggerSystem, type TriggerDef, type TriggerTypes } from '../../src/triggers/index.ts';
+import { createMemoryWorld, type MemoryWorld } from '../../src/world/index.ts';
 
 /** A test unit: an entity id, a place, health, a stat column per stat, its auras and its casts. */
 interface Unit extends SpellCaster {
   /** Its entity id. */
   readonly id: number;
 
-  /** Where it stands. */
-  readonly at: Vec2;
+  /** Where it stands: `place` moves it, in the world too. */
+  at: Vec2;
 
   /** Its health. */
   hp: number;
@@ -105,11 +126,11 @@ export interface Game extends AreaTriggerTypes, DamageTypes, TriggerTypes {
   /** The game's triggers. */
   readonly trigger: TriggerDef<Game>;
 
-  /** The spell events, as trigger events. */
-  readonly event: 'spellStart' | 'spellRelease' | 'spellHit' | 'spellEnd';
+  /** The spell and area trigger events, as trigger events. */
+  readonly event: 'spellStart' | 'spellRelease' | 'spellHit' | 'spellEnd' | 'areaSpawned' | 'areaEnded';
 
-  /** The spell trigger events' filters. */
-  readonly filter: 'spell' | 'tag' | 'outcome';
+  /** The spell and area trigger events' filters. */
+  readonly filter: 'spell' | 'tag' | 'outcome' | 'kind' | 'reason';
 
   /** The test stats. */
   readonly stat: StatName;
@@ -162,8 +183,8 @@ export interface Game extends AreaTriggerTypes, DamageTypes, TriggerTypes {
   /** The test host's own services. */
   readonly host: GameHost;
 
-  /** The damage and spell systems' kinds. */
-  readonly gameProc: DamageProcs<Game> | SpellProcs<Game>;
+  /** The damage, spell and area trigger systems' kinds. */
+  readonly gameProc: DamageProcs<Game> | SpellProcs<Game> | AreaTriggerProcs<Game>;
 
   /** One damage kind. */
   readonly damageKind: 'physical';
@@ -225,16 +246,20 @@ export const SPELL_TAGS = defineSpellTags(['fire', 'area', 'melee']);
 /** The test area trigger tags. */
 export const AREA_TAGS = defineAreaTags(['dome', 'pool']);
 
+/** The test tick slots: the world's, and a late one. */
+export const TICK_SLOTS = defineTickSlots(['world', 'late']);
+
 /** `defineSpell` fixed to the test types. */
 export const spell = defineSpell<Game>();
 
 /** `defineAura` fixed to the test types. */
 export const aura = defineAura<Game>;
 
-/** The test cues: one on the caster, one at a point. */
+/** The test cues: one on the caster, one at a point, one on an entity (an area trigger). */
 export const CUES = defineCues({
   cast: defineCue({ anchor: 'self', params: { size: { kind: 'uint8' } } }),
   flash: defineCue({ anchor: 'world' }),
+  zone: defineCue({ anchor: 'entity' }),
 });
 
 /** The one test damage kind. */
@@ -253,18 +278,23 @@ const makeBus = () =>
     spellRelease: (): SpellEvent<Game> => createSpellEvent<Game>(),
     spellHit: (): SpellEvent<Game> => createSpellEvent<Game>(),
     spellEnd: (): SpellEvent<Game> => createSpellEvent<Game>(),
+    areaSpawned: (): AreaTriggerEvent<Game> => createAreaTriggerEvent<Game>(),
+    areaEnded: (): AreaTriggerEvent<Game> => createAreaTriggerEvent<Game>(),
   });
 
 /** The test game's bus. */
 type TestBus = ReturnType<typeof makeBus>;
 
 /** A test spell game's options. */
-export interface SpellGameOptions<Aura extends string> {
+export interface SpellGameOptions<Aura extends string, Area extends string = never> {
   /** The game's auras (a cast aura, a listener). */
   readonly auras?: Readonly<Record<Aura, AuraDef<Game>>>;
 
+  /** The game's area trigger kinds. */
+  readonly areaTriggers?: Readonly<Record<Area, AnyAreaTriggerDef<Game>>>;
+
   /** Host overrides. */
-  readonly host?: Partial<SpellHost<Game>>;
+  readonly host?: Partial<SpellHost<Game> & AreaTriggerHost<Game>>;
 
   /** The activation kinds; the framework's own when absent. */
   readonly activations?: ActivationRegistry<Game>;
@@ -274,7 +304,7 @@ export interface SpellGameOptions<Aura extends string> {
 }
 
 /** A small spell test game. */
-export interface SpellGame<Spell extends string, Aura extends string> {
+export interface SpellGame<Spell extends string, Aura extends string, Area extends string = never> {
   /** The clock. */
   readonly clock: SimClock;
 
@@ -289,6 +319,12 @@ export interface SpellGame<Spell extends string, Aura extends string> {
 
   /** The spell system. */
   readonly spells: SpellSystem<Game>;
+
+  /** The area trigger system, over the two tick slots. */
+  readonly areaTriggers: AreaTriggerSystem<Game>;
+
+  /** The world every unit stands in: a memory world with a grid. */
+  readonly world: MemoryWorld<Unit>;
 
   /** The spells. */
   readonly registry: SpellRegistry<Game, Spell>;
@@ -305,11 +341,17 @@ export interface SpellGame<Spell extends string, Aura extends string> {
   /** The id of every aura, by name. */
   readonly auraId: Readonly<Record<Aura, AuraId>>;
 
-  /** What happened, as lines: every spell event, and every `mark`. */
+  /** The id of every area trigger kind, by name. */
+  readonly areaId: Readonly<Record<Area, AreaTriggerId>>;
+
+  /** What happened, as lines: every spell and area trigger event, and every `mark`. */
   readonly log: string[];
 
-  /** Makes a unit standing at `(id, 0)`, with 100 health and the table's base stats. */
+  /** Makes a unit standing at `(id, 0)`, with 100 health and the table's base stats; from id 100, of the other side. */
   readonly unit: (id: number) => Unit;
+
+  /** Moves a unit, in the world too. */
+  readonly place: (unit: Unit, at: Vec2) => void;
 
   /** Steps the clock `count` times (once by default). */
   readonly step: (count?: number) => void;
@@ -346,11 +388,37 @@ const logEvents = (bus: TestBus, registry: SpellRegistry<Game>, log: string[]): 
   bus.on(bus.kind.spellEnd, line('end'));
 };
 
+/** Logs every area trigger event, as `spawned pool@1`, `ended pool@1 expired`. */
+const logAreaEvents = (bus: TestBus, names: readonly string[], log: string[]): void => {
+  const line = (what: string) => (event: AreaTriggerEvent<Game>) => {
+    const area = event.areaTrigger;
+    const reason = event.reason === undefined ? '' : ` ${event.reason}`;
+
+    log.push(`${what} ${area === undefined ? '?' : `${names[area.kind] ?? '?'}@${area.owner.id}`}${reason}`);
+  };
+
+  bus.on(bus.kind.areaSpawned, line('spawned'));
+  bus.on(bus.kind.areaEnded, line('ended'));
+};
+
 /**
  * Whether a table of auras built from a caller's table holds the names its type says: always, since the caller's table
  * is typed; the check only lets the compiler see it through an optional spread.
  */
 const isTable = <Name extends string>(table: object): table is Readonly<Record<Name, AuraDef<Game>>> =>
+  typeof table === 'object';
+
+/** Whether a table of area trigger kinds holds the names its type says: always, as for the auras. */
+const isAreaTable = <Name extends string>(table: object): Readonly<Record<Name, AnyAreaTriggerDef<Game>>> => {
+  if (!isAreas<Name>(table)) {
+    throw new TypeError('An area trigger table was lost.');
+  }
+
+  return table;
+};
+
+/** Whether a table is a table of area trigger kinds by the names its type says: always, since it is typed. */
+const isAreas = <Name extends string>(table: object): table is Readonly<Record<Name, AnyAreaTriggerDef<Game>>> =>
   typeof table === 'object';
 
 /** The test game's auras: the given ones, and `busy`, an infinite aura tagged busy. */
@@ -369,10 +437,14 @@ const aurasOf = <Aura extends string>(defs: Readonly<Record<Aura, AuraDef<Game>>
  * from the spells, a proc system with the core, damage and spell kinds, a trigger system over the four spell events,
  * and the spell system. Its host logs every `mark`; units stand at `(id, 0)`.
  */
-export const makeSpellGame = <const Spell extends string, const Aura extends string = never>(
+export const makeSpellGame = <
+  const Spell extends string,
+  const Aura extends string = never,
+  const Area extends string = never,
+>(
   defs: Readonly<Record<Spell, AnySpellDef<Game>>>,
-  options: SpellGameOptions<Aura> = {},
-): SpellGame<Spell, Aura> => {
+  options: SpellGameOptions<Aura, Area> = {},
+): SpellGame<Spell, Aura, Area> => {
   const log: string[] = [];
   const bus = makeBus();
   const clock = createClock({ dt: STEP });
@@ -384,6 +456,11 @@ export const makeSpellGame = <const Spell extends string, const Aura extends str
     ...(options.activations === undefined ? {} : { activations: options.activations }),
   });
 
+  const areaRegistry = defineAreaTriggers<Game, Area>(options.areaTriggers ?? isAreaTable<Area>({}), {
+    tags: AREA_TAGS,
+  });
+
+  const world = createMemoryWorld<Unit>({ bounds: { minX: -100, minZ: -100, maxX: 100, maxZ: 100 }, dt: STEP });
   const cues = createCueBuffer(CUES);
   const views = new WeakMap<Unit, StatView>();
   const late: { procs?: ProcSystem<Game>; spells?: SpellSystem<Game> } = {};
@@ -449,8 +526,28 @@ export const makeSpellGame = <const Spell extends string, const Aura extends str
     ...options.spells,
   });
 
+  const areaTriggers: AreaTriggerSystem<Game> = createAreaTriggerSystem<Game>({
+    registry: areaRegistry,
+    spells,
+    auras,
+    procs: (): ProcSystem<Game> => late.procs ?? procs,
+    world,
+    clock,
+    host,
+    random: stream(11),
+    streams: streams.random,
+    cues,
+    events: { bus, spawned: bus.kind.areaSpawned, ended: bus.kind.areaEnded },
+    slots: TICK_SLOTS,
+  });
+
   const procs: ProcSystem<Game> = createProcSystem<Game>({
-    kinds: createProcRegistry<Game>({ ...CORE_PROCS, ...damage.procKinds, ...spells.procKinds }),
+    kinds: createProcRegistry<Game>({
+      ...CORE_PROCS,
+      ...damage.procKinds,
+      ...spells.procKinds,
+      ...areaTriggers.procKinds,
+    }),
     auras,
     host,
     bus,
@@ -468,10 +565,13 @@ export const makeSpellGame = <const Spell extends string, const Aura extends str
       spellRelease: spellTriggerEvent(bus.kind.spellRelease, registry),
       spellHit: spellTriggerEvent(bus.kind.spellHit, registry),
       spellEnd: spellTriggerEvent(bus.kind.spellEnd, registry),
+      areaSpawned: areaTriggerEvent(bus.kind.areaSpawned, areaRegistry),
+      areaEnded: areaTriggerEvent(bus.kind.areaEnded, areaRegistry),
     },
   });
 
   logEvents(bus, registry, log);
+  logAreaEvents(bus, areaRegistry.names, log);
 
   const unit = (id: number): Unit => {
     const made: Unit = {
@@ -484,6 +584,7 @@ export const makeSpellGame = <const Spell extends string, const Aura extends str
     };
 
     views.set(made, viewOf(made));
+    world.add(made, { id, at: made.at, radius: 0.5, side: id >= 100 ? 1 : 0 });
 
     return made;
   };
@@ -497,10 +598,18 @@ export const makeSpellGame = <const Spell extends string, const Aura extends str
     registry,
     bus,
     cues,
+    areaTriggers,
+    world,
     id: registry.id,
     auraId: auraRegistry.id,
+    areaId: areaRegistry.id,
     log,
     unit,
+
+    place: (target, at) => {
+      target.at = at;
+      world.place(target, at);
+    },
 
     step: (count = 1) => {
       for (let i = 0; i < count; i++) {

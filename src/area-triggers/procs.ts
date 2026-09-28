@@ -1,0 +1,58 @@
+import type { Vec2 } from '../math/index.ts';
+import type { ChanceOption, ProcContext, ProcKindDef, ProcShape, ProcTarget } from '../procs/index.ts';
+import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
+
+/**
+ * Spawns an area trigger (§II.3.4, §II.3.6): owned by the list's self, credited to its source, belonging to the cast
+ * whose procs are running and to the area trigger whose procs are running (its parent). It lands when the area trigger
+ * spawns, and is refused when its kind's limit refuses it.
+ */
+export interface SpawnProc<G extends AreaTriggerTypes> extends ProcShape {
+  /** The discriminant. */
+  readonly kind: 'spawn';
+
+  /** The kind: its name in data, its id in code. */
+  readonly areaTrigger: G['areaTriggerName'] | AreaTriggerId;
+
+  /** The unit it spawns on, when it names no point; the list's self when absent. */
+  readonly to?: ProcTarget<G>;
+
+  /** The point it spawns at, in place of a unit's position. */
+  readonly at?: Vec2;
+
+  /** Reads the point when the proc applies (an aim point, the event unit's corpse), in place of `at`. */
+  readonly atOf?: (ctx: ProcContext<G>) => Vec2 | undefined;
+
+  /** The heading it faces; its parent's (or 0) when absent. */
+  readonly heading?: number;
+
+  /** Reads the heading when the proc applies, in place of `heading`. */
+  readonly headingOf?: (ctx: ProcContext<G>) => number;
+
+  /** What its `init` is handed. */
+  readonly input?: G['areaInput'];
+
+  /** Reads what its `init` is handed when the proc applies, in place of `input`. */
+  readonly inputOf?: (ctx: ProcContext<G>) => G['areaInput'] | undefined;
+
+  /** The seconds of this frame it flies at once (a fork with its parent's leftover time); next tick when absent. */
+  readonly now?: number;
+
+  /** Whether it shares its parent's state by reference. */
+  readonly shareState?: boolean;
+}
+
+/** The area trigger system's proc kinds, as a union: a game adds them to its proc union (`gameProc`). */
+export type AreaTriggerProcs<G extends AreaTriggerTypes> = SpawnProc<G>;
+
+/** The area trigger system's proc kinds, by name: `createProcRegistry({ ...CORE_PROCS, ...areaTriggers.procKinds })`. */
+export interface AreaTriggerProcKinds<G extends AreaTriggerTypes> {
+  /** Spawns an area trigger. */
+  readonly spawn: ProcKindDef<SpawnProc<G>, G>;
+}
+
+/** A `spawn` proc: `spawn('pool')`, `spawn('fork', { heading: 0.5, now: 0.1, to: 'eventUnit' })`. */
+export const spawn = <G extends AreaTriggerTypes = AreaTriggerTypes>(
+  areaTrigger: G['areaTriggerName'] | AreaTriggerId,
+  options: ChanceOption & Omit<SpawnProc<G>, 'kind' | 'areaTrigger' | 'chance'> = {},
+): SpawnProc<G> => ({ ...options, kind: 'spawn', areaTrigger });
