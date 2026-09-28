@@ -23,3 +23,10 @@ Added at F2 (same container, Node 22.22.2, range of three runs). The fold reads 
 | scaled value evaluation, live folded stats  | 271–291   |
 | scaled value finish from a snapshot         | 67–68     |
 | scaled cooldown through the haste curve     | 39–56     |
+
+Added at F3 (same container, Node 22.22.2, range of the runs). "Apply ×3 + fold" re-applies three auras to one bearer (a `stack`, a `refresh` and a `highest` aura, each with modifiers, so each application restacks and queues nothing: no hook, no bus listener) and folds two stats through the aura gates. The horde tick steps the world clock of 2,000 bearers holding three auras each (one beating every 0.5 s, through the host), and is reported per tick, not per operation.
+
+| benchmark                                     | per op     |
+| --------------------------------------------- | ---------- |
+| aura apply ×3 + fold two stats                | 690–850 ns |
+| aura tick, 2,000 bearers × 3 auras (per tick) | 177–291 µs |

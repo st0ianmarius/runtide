@@ -1,6 +1,16 @@
 import { Bench } from 'tinybench';
 
-import { createBitset, createRegistry, createTimingWheel, type Id, roll, rollKey, stream } from '../src/core/index.ts';
+import { type AuraBearer, auraStacks, createAuraSystem, defineAuras, defineAuraTags } from '../src/auras/index.ts';
+import {
+  createBitset,
+  createClock,
+  createRegistry,
+  createTimingWheel,
+  type Id,
+  roll,
+  rollKey,
+  stream,
+} from '../src/core/index.ts';
 import {
   add,
   amp,
@@ -108,6 +118,59 @@ const COOLDOWN = compileScaled(STATS, scaled(12, haste(0.5)));
 const EVALUATION = { caster: CASTER, target: TARGET, rank: 2 };
 const SNAPSHOT = snapshotScaled(DAMAGE, { caster: CASTER, rank: 2 });
 
+/** An aura game: three stats, a tag table and six auras, two of them folding modifiers. */
+const AURA_STATS = defineStats({
+  damage: { base: 1, kind: 'multiplier' },
+  armor: { base: 0, kind: 'flat' },
+  moveSpeed: { base: 6, kind: 'flat' },
+});
+
+const AURA_SOURCES = defineSources(['base', 'auras']);
+const AURA_MODIFIERS = createModifierSystem({ stats: AURA_STATS, sources: AURA_SOURCES, stacks: auraStacks });
+
+const AURAS = defineAuras({
+  might: { duration: 8, stacking: 'stack', maxStacks: 5, modifiers: [plus('armor', 10), mul('damage', 1.05)] },
+  fury: { duration: 6, modifiers: [mul('damage', 1.2)] },
+  haste: { duration: 4, stacking: 'highest', modifiers: [mul('moveSpeed', 1.3)] },
+  dot: { duration: 'infinite', periodic: { every: 0.5, onBeat: () => BEAT } },
+  ward: { duration: 'infinite', value: 50, tags: ['guarded'] },
+  slow: { duration: 'infinite', modifiers: [mul('moveSpeed', 0.7)] },
+});
+
+const BEAT: readonly string[] = ['burn'];
+
+const AURA_SYSTEM = createAuraSystem({
+  registry: AURAS,
+  tags: defineAuraTags(['guarded']),
+  clocks: { world: createClock({ dt: 1 / 60 }) },
+  modifiers: AURA_MODIFIERS,
+  fold: 'auras',
+
+  host: {
+    run: (procs) => {
+      sink += procs.length;
+    },
+  },
+});
+
+const AURA_BEARER: AuraBearer = { auras: AURA_SYSTEM.createState() };
+const AURA_SHEET = AURA_MODIFIERS.createSheet();
+const AURA_READ = { host: AURA_BEARER };
+
+/** The horde: 2,000 bearers with three auras each, one of them beating twice a second. */
+const HORDE: AuraBearer[] = Array.from({ length: 2000 }, () => {
+  const bearer: AuraBearer = { auras: AURA_SYSTEM.createState() };
+
+  AURA_SYSTEM.apply(bearer, AURAS.id.dot);
+  AURA_SYSTEM.apply(bearer, AURAS.id.ward);
+  AURA_SYSTEM.apply(bearer, AURAS.id.slow);
+
+  return bearer;
+});
+
+/** Operations per call of each task, where it is not `BATCH`. */
+const BATCHES = new Map([['aura tick, 2,000 bearers x 3 auras (per tick)', 1]]);
+
 const bench = new Bench({ time: 400, warmup: true });
 
 bench
@@ -183,13 +246,29 @@ bench
     for (let i = 0; i < BATCH; i++) {
       sink += evaluateScaled(COOLDOWN, EVALUATION);
     }
+  })
+  .add('aura apply x3 + fold two stats', () => {
+    for (let i = 0; i < BATCH; i++) {
+      AURA_SYSTEM.apply(AURA_BEARER, AURAS.id.might);
+      AURA_SYSTEM.apply(AURA_BEARER, AURAS.id.fury);
+      AURA_SYSTEM.apply(AURA_BEARER, AURAS.id.haste);
+      sink +=
+        AURA_MODIFIERS.resolve(AURA_SHEET, AURA_STATS.id.damage, AURA_READ) +
+        AURA_MODIFIERS.resolve(AURA_SHEET, AURA_STATS.id.moveSpeed, AURA_READ);
+    }
+  })
+  .add('aura tick, 2,000 bearers x 3 auras (per tick)', () => {
+    for (const bearer of HORDE) {
+      AURA_SYSTEM.tick(bearer, 'world');
+    }
   });
 
 await bench.run();
 
 const rows = bench.tasks.map((task) => {
   const { result } = task;
-  const nanoseconds = result.state === 'completed' ? (result.latency.mean * 1e6) / BATCH : Number.NaN;
+  const batch = BATCHES.get(task.name) ?? BATCH;
+  const nanoseconds = result.state === 'completed' ? (result.latency.mean * 1e6) / batch : Number.NaN;
 
   return `${task.name.padEnd(48)} ${nanoseconds.toFixed(1).padStart(8)} ns/op`;
 });
