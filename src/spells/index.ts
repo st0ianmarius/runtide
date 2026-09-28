@@ -36,6 +36,10 @@ export {
   type SpellRegistryOptions,
 } from './define-spells.ts';
 
+export type { SpellClock } from './engine.ts';
+
+export { CAST_OUTCOMES, createSpellEvent, type SpellEvent, type SpellEvents, spellTriggerEvent } from './events.ts';
+
 export { type CastHandle, NO_CAST } from './ids.ts';
 export type { ProcOut } from './proc-out.ts';
 
@@ -56,8 +60,11 @@ export {
   type StatsSource,
 } from './spell-def.ts';
 
+export type { CastOptions, CastRefusal, CastReport } from './runner.ts';
 export type { SpellHost } from './spell-host.ts';
 export type { ActivationKindId, ActivationShape, SpellCaster, SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
+export { createSpellSystem, type SpellSystem, type SpellSystemBase, type SpellSystemOptions } from './system.ts';
+
 export { defineSpellTags, type SpellTagDef, type SpellTagTable } from './tags.ts';
 
 export {

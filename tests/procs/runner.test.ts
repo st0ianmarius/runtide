@@ -88,6 +88,22 @@ describe('a proc list applies in order (§I.5, §II.6.1 rule 2)', () => {
     assert.equal(auras.has(b, id.stack), true);
   });
 
+  it('passes over an entry left undefined, so a reused list filled up to a count runs as it is', () => {
+    const { procs, unit, log } = makeGame(defs);
+    const a = unit(1);
+    const b = unit(2);
+
+    const reused: (Proc<Game> | undefined)[] = [
+      { kind: 'strike', amount: 60, to: b },
+      { kind: 'strike', amount: 60, to: b },
+      undefined,
+      undefined,
+    ];
+
+    assert.equal(procs.run(reused, { self: a }), 2);
+    assert.deepEqual(log, ['strike 60@2', 'strike 60@2']);
+  });
+
   it('lands on self, target, eventUnit, the party in party order, or a unit', () => {
     const { procs, unit, log } = makeGame(defs);
     const [a, b, c] = [unit(1), unit(2), unit(3)];

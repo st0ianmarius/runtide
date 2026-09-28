@@ -214,11 +214,11 @@ describe('checks at load', () => {
   });
 
   it("takes a game's own activation kinds, checked by the kind", () => {
-    const totem = defineActivationKind<Totem>({
+    const totem = defineActivationKind<Totem, Loose>({
       check: (activation) => (activation.pulse > 0 ? undefined : 'a totem pulses.'),
     });
 
-    const activations = defineActivations({ ...CORE_ACTIVATIONS, totem });
+    const activations = defineActivations<Loose>({ ...CORE_ACTIVATIONS, totem });
     const make = (pulse: number) => one(loose({ activation: { kind: 'totem', pulse }, release }), { activations });
 
     assert.equal(make(2).columns.activation[0], activations.id['totem']);

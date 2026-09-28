@@ -64,7 +64,7 @@ export interface SpellRegistry<G extends SpellTypes = SpellTypes, Name extends s
   readonly has: Readonly<Record<SpellHookName, Bitset>>;
 
   /** The activation kinds its spells use. */
-  readonly activations: ActivationRegistry;
+  readonly activations: ActivationRegistry<G>;
 
   /** The game's spell tags. */
   readonly tags: SpellTagTable<G['spellTag']>;
@@ -88,7 +88,7 @@ export interface SpellRegistry<G extends SpellTypes = SpellTypes, Name extends s
 /** What a spell registry is built with, beyond its definitions. */
 export interface SpellRegistryOptions<G extends SpellTypes> {
   /** The activation kinds (`defineActivations`); the framework's own (`CORE_ACTIVATIONS`) when absent. */
-  readonly activations?: ActivationRegistry;
+  readonly activations?: ActivationRegistry<G>;
 
   /** The game's spell tags; none when absent. */
   readonly tags?: SpellTagTable<G['spellTag']>;
@@ -133,7 +133,7 @@ const columnOf = <G extends SpellTypes, C extends Column>(
 /** The typed hot-field columns. */
 const buildColumns = <G extends SpellTypes>(
   slots: readonly (AnySpellDef<G> | undefined)[],
-  activations: ActivationRegistry,
+  activations: ActivationRegistry<G>,
 ): Record<SpellColumn, Column> => {
   const kindIds: Readonly<Record<string, number | undefined>> = activations.id;
   const plans = slots.map((def) => (def === undefined ? undefined : planOf(def, activations)));
@@ -189,7 +189,7 @@ const buildTagSets = <G extends SpellTypes>(
 const NO_TAGS: SpellTagTable = createRegistry({}, { kind: 'spellTags' });
 
 /** The framework's activation kinds, registered once. */
-const CORE_KINDS: ActivationRegistry = defineActivations(CORE_ACTIVATIONS);
+const CORE_KINDS: ActivationRegistry<never> = defineActivations<never>(CORE_ACTIVATIONS);
 
 /**
  * Registers the game's spells (§I.5.2, §II.3.1): `defineSpells({ frostNova, blast }, { tags: SPELL_TAGS, stats:
@@ -201,7 +201,7 @@ export const defineSpells = <G extends SpellTypes, const Name extends string>(
   defs: Readonly<Record<Name, AnySpellDef<G> | Tombstone>>,
   options: SpellRegistryOptions<G> = {},
 ): SpellRegistry<G, Name> => {
-  const activations = options.activations ?? CORE_KINDS;
+  const activations: ActivationRegistry<G> = options.activations ?? CORE_KINDS;
   const tags = options.tags ?? NO_TAGS;
   const byName = new Map(Object.entries<AnySpellDef<G> | Tombstone>(defs));
 

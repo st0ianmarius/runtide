@@ -137,7 +137,7 @@ export interface ActivationKindDef<A extends ActivationShape = ActivationShape, 
 const isSeconds = (value: number | undefined): boolean => value === undefined || (Number.isFinite(value) && value >= 0);
 
 /** The `auto` kind: its interval is a function or seconds above 0, its retry seconds from 0. */
-const AUTO: ActivationKindDef<AutoActivation> = {
+const AUTO: ActivationKindDef<AutoActivation, never> = {
   check: (activation) => {
     const { interval, retry } = activation;
     const isSound = typeof interval === 'function' || (Number.isFinite(interval) && interval > 0);
@@ -147,7 +147,7 @@ const AUTO: ActivationKindDef<AutoActivation> = {
 };
 
 /** The `ai` kind: its windup, lock and recovery are the timeline's defaults. */
-const AI: ActivationKindDef<AiActivation> = {
+const AI: ActivationKindDef<AiActivation, never> = {
   check: (activation) =>
     [activation.windup, activation.lock, activation.recover, activation.cooldown].every(isSeconds)
       ? undefined
@@ -161,25 +161,32 @@ const AI: ActivationKindDef<AiActivation> = {
 };
 
 /** A kind with nothing to check or supply. */
-const PLAIN: ActivationKindDef = {};
+const PLAIN: ActivationKindDef<ActivationShape, never> = {};
 
 /**
- * The framework's activation kinds (§II.3.2): `auto` (the attack clock, `spells.stepAuto`), `button` (F9's
+ * The framework's activation kinds (§II.3.2), typed over no game (`never`) since none has a gate, so they register
+ * into any game's activation registry: `auto` (the attack clock, `spells.stepAuto`), `button` (F9's
  * abilities), `passive` (owning it, F20), `trigger` (cast by procs and triggers), `ai` (a creature's brain, F17) and
  * `event` (the world's director). A game registers them with its own: `defineActivations({ ...CORE_ACTIVATIONS,
  * totem: TOTEM })`.
  */
 export const CORE_ACTIVATIONS: {
-  readonly auto: ActivationKindDef<AutoActivation>;
-  readonly button: ActivationKindDef<ButtonActivation>;
-  readonly passive: ActivationKindDef<PassiveActivation>;
-  readonly trigger: ActivationKindDef<TriggerActivation>;
-  readonly ai: ActivationKindDef<AiActivation>;
-  readonly event: ActivationKindDef<EventActivation>;
+  readonly auto: ActivationKindDef<AutoActivation, never>;
+  readonly button: ActivationKindDef<ButtonActivation, never>;
+  readonly passive: ActivationKindDef<PassiveActivation, never>;
+  readonly trigger: ActivationKindDef<TriggerActivation, never>;
+  readonly ai: ActivationKindDef<AiActivation, never>;
+  readonly event: ActivationKindDef<EventActivation, never>;
 } = Object.freeze({ auto: AUTO, button: PLAIN, passive: PLAIN, trigger: PLAIN, ai: AI, event: PLAIN });
 
-/** A registry of activation kinds: ids by key order, each kind's definition. */
-export type ActivationRegistry = Registry<'activations', string, ActivationKindDef, never, never>;
+/** A registry of activation kinds: ids by key order, each kind's definition, typed by the game's spell types. */
+export type ActivationRegistry<G extends SpellTypes = SpellTypes> = Registry<
+  'activations',
+  string,
+  ActivationKindDef<ActivationShape, G>,
+  never,
+  never
+>;
 
 /** Fixes an activation kind's types; returns it unchanged. */
 export const defineActivationKind = <A extends ActivationShape, G extends SpellTypes = SpellTypes>(
@@ -190,5 +197,9 @@ export const defineActivationKind = <A extends ActivationShape, G extends SpellT
  * Registers the activation kinds a game's spells use (§I.5.6 hatch 2): `defineActivations({ ...CORE_ACTIVATIONS,
  * ...GAME_ACTIVATIONS })`. Each kind gets a dense id by key order, which the spell registry's `activation` column holds.
  */
-export const defineActivations = (kinds: Readonly<Record<string, ActivationKindDef>>): ActivationRegistry =>
-  createRegistry<Readonly<Record<string, ActivationKindDef>>, 'activations'>(kinds, { kind: 'activations' });
+export const defineActivations = <G extends SpellTypes = SpellTypes>(
+  kinds: Readonly<Record<string, ActivationKindDef<ActivationShape, G>>>,
+): ActivationRegistry<G> =>
+  createRegistry<Readonly<Record<string, ActivationKindDef<ActivationShape, G>>>, 'activations'>(kinds, {
+    kind: 'activations',
+  });

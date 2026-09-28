@@ -1,12 +1,12 @@
 import type { ActivationKindDef, ActivationRegistry, CastSeconds } from './activation.ts';
 import type { AnySpellDef } from './spell-def.ts';
-import type { SpellTypes } from './spell-types.ts';
+import type { ActivationShape, SpellTypes } from './spell-types.ts';
 import type { SpellTagTable } from './tags.ts';
 
 /** What a spell is checked against at load. */
 interface CheckParts<G extends SpellTypes> {
   /** The activation kinds. */
-  readonly activations: ActivationRegistry;
+  readonly activations: ActivationRegistry<G>;
 
   /** The spell tags. */
   readonly tags: SpellTagTable<G['spellTag']>;
@@ -32,7 +32,9 @@ const checkActivation = <G extends SpellTypes>(name: string, def: AnySpellDef<G>
   const ids: Readonly<Record<string, number | undefined>> = parts.activations.id;
   const { activation } = def;
   const id = ids[activation.kind];
-  const kind: ActivationKindDef | undefined = id === undefined ? undefined : parts.activations.defs[id];
+
+  const kind: ActivationKindDef<ActivationShape, G> | undefined =
+    id === undefined ? undefined : parts.activations.defs[id];
 
   if (kind === undefined) {
     fail(name, `unknown activation kind ${activation.kind}.`);

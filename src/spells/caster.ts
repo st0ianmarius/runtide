@@ -1,3 +1,4 @@
+import { type CastHandle, NO_CAST } from './ids.ts';
 import type { SpellCaster } from './spell-types.ts';
 
 /**
@@ -13,7 +14,7 @@ export interface CasterState {
 /** The caster state's record: a class for fast properties, filled by index and never shrunk (§I.5.4). */
 export class CasterRecord implements CasterState {
   /** The handles of the running casts, valid up to `count`, in the order they started. */
-  readonly handles: number[] = [];
+  readonly handles: CastHandle[] = [];
 
   /** The seconds left on each `auto` spell's clock, by the spell's index among the registry's auto spells. */
   readonly clocks: Float64Array;
@@ -26,13 +27,13 @@ export class CasterRecord implements CasterState {
   }
 
   /** Adds a cast's handle, last. */
-  add(handle: number): void {
+  add(handle: CastHandle): void {
     this.handles[this.count] = handle;
     this.count += 1;
   }
 
   /** Removes a cast's handle, keeping the others in order; false when it was not there. */
-  remove(handle: number): boolean {
+  remove(handle: CastHandle): boolean {
     let index = -1;
 
     for (let i = 0; i < this.count; i++) {
@@ -47,11 +48,11 @@ export class CasterRecord implements CasterState {
     }
 
     for (let i = index + 1; i < this.count; i++) {
-      this.handles[i - 1] = this.handles[i] ?? 0;
+      this.handles[i - 1] = this.handles[i] ?? NO_CAST;
     }
 
     this.count -= 1;
-    this.handles[this.count] = 0;
+    this.handles[this.count] = NO_CAST;
 
     return true;
   }

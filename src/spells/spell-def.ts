@@ -86,7 +86,8 @@ export interface SpellHit<G extends SpellTypes, Target = unknown> {
 
 /**
  * What the gates read (the host's `canAct`, the activation kind's `gate`): who casts what, with which input, credited
- * to whom. The stats are not taken and the target not picked yet.
+ * to whom. The stats are not taken and the target not picked yet. It has no host, so a kind written for one game still
+ * registers with any; a game's own kind reaches its world through what it closes over.
  */
 export interface GateContext<G extends SpellTypes> {
   /** Who casts. */
@@ -115,9 +116,6 @@ export interface GateContext<G extends SpellTypes> {
 
   /** The spell clock's step, in seconds. */
   readonly dt: number;
-
-  /** The host: the framework services and the game's own. */
-  readonly host: SpellHost<G> & G['host'];
 }
 
 /**
@@ -131,6 +129,9 @@ export interface SpellContext<
   Target = unknown,
   State = unknown,
 > extends GateContext<G> {
+  /** The host: the framework services and the game's own. */
+  readonly host: SpellHost<G> & G['host'];
+
   /** Where it goes: what `target` picked, as tracking left it. */
   readonly target: Target | undefined;
 
@@ -263,7 +264,7 @@ export interface SpellDef<
   canCast?(this: void, ctx: SpellContext<G, Source, Target, State>): boolean;
 
   /** Where the cast goes, from the activation's input; `undefined` refuses it. Absent: the cast needs no target. */
-  target?(this: void, ctx: SpellContext<G, Source, Target, State>, input: G['input'] | undefined): Target | undefined;
+  target?(this: void, ctx: SpellContext<G, Source, unknown, State>, input: G['input'] | undefined): Target | undefined;
 
   /** The windup's start: telegraphs, the caster's motion. */
   begin?(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target, out: ProcOut<G>): ProcReturn<G>;

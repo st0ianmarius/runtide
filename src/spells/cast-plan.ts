@@ -1,6 +1,6 @@
 import type { ActivationKindDef, ActivationRegistry, CastSeconds, TimelineDefaults } from './activation.ts';
 import type { AnySpellDef } from './spell-def.ts';
-import type { SpellTypes } from './spell-types.ts';
+import type { ActivationShape, SpellTypes } from './spell-types.ts';
 import { lockBefore, type Track } from './timeline.ts';
 
 /** A track over any cast. */
@@ -28,10 +28,15 @@ export interface CastPlan<G extends SpellTypes> {
 }
 
 /** The timeline defaults a spell's activation kind supplies. */
-const defaultsOf = <G extends SpellTypes>(def: AnySpellDef<G>, activations: ActivationRegistry): TimelineDefaults => {
+const defaultsOf = <G extends SpellTypes>(
+  def: AnySpellDef<G>,
+  activations: ActivationRegistry<G>,
+): TimelineDefaults => {
   const ids: Readonly<Record<string, number | undefined>> = activations.id;
   const kindId = ids[def.activation.kind];
-  const kind: ActivationKindDef | undefined = kindId === undefined ? undefined : activations.defs[kindId];
+
+  const kind: ActivationKindDef<ActivationShape, G> | undefined =
+    kindId === undefined ? undefined : activations.defs[kindId];
 
   return kind?.timeline?.(def.activation) ?? {};
 };
@@ -48,7 +53,7 @@ const trackOf = <G extends SpellTypes>(def: AnySpellDef<G>, defaults: TimelineDe
 };
 
 /** Resolves a spell's plan: its timeline's stages, else its activation kind's defaults. */
-export const planOf = <G extends SpellTypes>(def: AnySpellDef<G>, activations: ActivationRegistry): CastPlan<G> => {
+export const planOf = <G extends SpellTypes>(def: AnySpellDef<G>, activations: ActivationRegistry<G>): CastPlan<G> => {
   const defaults = defaultsOf(def, activations);
   const { timeline } = def;
 

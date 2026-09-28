@@ -88,8 +88,11 @@ export interface ProcSystem<G extends ProcTypes> {
   /** Resolves names when a proc applies (and for explanations). */
   readonly resolver: ProcResolver<G>;
 
-  /** Runs a list for an origin; returns how many of its procs went off (were not `skipped`). */
-  readonly run: (procs: readonly Proc<G>[], origin: ProcOrigin<G>) => number;
+  /**
+   * Runs a list for an origin; returns how many of its procs went off (were not `skipped`). An entry left `undefined`
+   * is passed over, so a reused list filled by index up to a count (a spell hook's `out`) runs as it is.
+   */
+  readonly run: (procs: readonly (Proc<G> | undefined)[], origin: ProcOrigin<G>) => number;
 
   /** Applies one proc for an origin, as a list of one, and returns what it did. */
   readonly apply: (proc: Proc<G>, origin: ProcOrigin<G>) => ProcOutcome;
@@ -146,7 +149,7 @@ interface RunnerState<G extends ProcTypes> {
 /** The runner a system and its frames share. */
 interface Runner<G extends ProcTypes> extends FrameRunner<G> {
   /** Runs a list. */
-  readonly list: (procs: readonly Proc<G>[], origin: ProcOrigin<G>) => number;
+  readonly list: (procs: readonly (Proc<G> | undefined)[], origin: ProcOrigin<G>) => number;
 
   /** Applies one proc as a list of one. */
   readonly one: (proc: Proc<G>, origin: ProcOrigin<G>) => ProcOutcome;
@@ -200,7 +203,7 @@ const createRunner = <G extends ProcTypes>(
     resolve,
   }));
 
-  const list = (procs: readonly Proc<G>[], origin: ProcOrigin<G>): number => {
+  const list = (procs: readonly (Proc<G> | undefined)[], origin: ProcOrigin<G>): number => {
     if (procs.length === 0 || isTooDeep()) {
       return 0;
     }
@@ -285,7 +288,7 @@ class Procs<G extends ProcTypes> implements ProcSystem<G> {
   readonly maxDepth: number;
   readonly runs: ReadonlyMap<string, number>;
   readonly resolver: ProcResolver<G>;
-  readonly run: (procs: readonly Proc<G>[], origin: ProcOrigin<G>) => number;
+  readonly run: (procs: readonly (Proc<G> | undefined)[], origin: ProcOrigin<G>) => number;
   readonly apply: (proc: Proc<G>, origin: ProcOrigin<G>) => ProcOutcome;
   readonly #state: RunnerState<G>;
   readonly #parts: ResolverParts<G>;
