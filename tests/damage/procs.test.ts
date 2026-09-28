@@ -157,6 +157,7 @@ describe('the damage system’s proc kinds (§I.5.2, §I.5.6)', () => {
       procKinds: [],
       runs: [{ hatch: 'detached', count: 1 }],
       stages: ['damage.horde'],
+      activationKinds: [],
     });
     assert.deepEqual(escapeReport({ procs: game.procs }).procKinds, ['damage', 'heal', 'setHealth']);
   });

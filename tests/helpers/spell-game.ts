@@ -43,6 +43,7 @@ import {
   type SpellEvent,
   type SpellHost,
   type SpellId,
+  type SpellProcs,
   type SpellRegistry,
   type SpellSystem,
   type SpellSystemBase,
@@ -161,8 +162,8 @@ export interface Game extends SpellTypes, DamageTypes, TriggerTypes {
   /** The test host's own services. */
   readonly host: GameHost;
 
-  /** The damage system's kinds. */
-  readonly gameProc: DamageProcs<Game>;
+  /** The damage and spell systems' kinds. */
+  readonly gameProc: DamageProcs<Game> | SpellProcs<Game>;
 
   /** One damage kind. */
   readonly damageKind: 'physical';
@@ -254,7 +255,7 @@ export interface SpellGameOptions<Aura extends string> {
   readonly activations?: ActivationRegistry<Game>;
 
   /** Spell system overrides. */
-  readonly spells?: Partial<Pick<SpellSystemBase<Game>, 'random' | 'streams'>>;
+  readonly spells?: Partial<Pick<SpellSystemBase<Game>, 'random' | 'streams' | 'slots'>>;
 }
 
 /** A small spell test game. */
@@ -409,10 +410,10 @@ export const makeSpellGame = <const Spell extends string, const Aura extends str
 
   const streams = createStreamTable(7, { main: { kind: 'sequential', salt: 1 }, crit: { kind: 'keyed', salt: 2 } });
 
-  const spells = createSpellSystem<Game>({
+  const spells: SpellSystem<Game> = createSpellSystem<Game>({
     registry,
     auras,
-    procs: () => late.procs ?? procs,
+    procs: (): ProcSystem<Game> => late.procs ?? procs,
     clock,
     host,
     streams: streams.random,
@@ -433,8 +434,8 @@ export const makeSpellGame = <const Spell extends string, const Aura extends str
     ...options.spells,
   });
 
-  const procs = createProcSystem<Game>({
-    kinds: createProcRegistry<Game>({ ...CORE_PROCS, ...damage.procKinds }),
+  const procs: ProcSystem<Game> = createProcSystem<Game>({
+    kinds: createProcRegistry<Game>({ ...CORE_PROCS, ...damage.procKinds, ...spells.procKinds }),
     auras,
     host,
     bus,

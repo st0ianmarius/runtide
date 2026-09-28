@@ -25,6 +25,9 @@ export interface EscapeReport {
 
   /** The game's own pipeline stages (`damage.name`, `heal.name`, `force.name`), in declaration order (hatch 5). */
   readonly stages: readonly string[];
+
+  /** The game's own activation kinds, and core kinds it replaced, in registry order (hatch 2). */
+  readonly activationKinds: readonly string[];
 }
 
 /**
@@ -39,13 +42,35 @@ export interface EscapeDamage {
   readonly gameStages: readonly string[];
 }
 
+/**
+ * What the escape report reads from a spell system (a `SpellSystem` is one): its proc kinds, which are the framework's
+ * own and not hatches, and the game's own activation kinds.
+ */
+export interface EscapeSpells {
+  /** The spell system's proc kinds, by name. */
+  readonly procKinds: object;
+
+  /** The game's own activation kinds. */
+  readonly gameActivations: readonly string[];
+}
+
 /** The framework's kinds, by name. */
 const CORE: Readonly<Record<string, object | undefined>> = CORE_PROCS;
 
-/** Whether a kind's definition is the framework's own kind of that name (a core kind, or a damage system's). */
-const isCore = (name: string, def: object | undefined, damage: EscapeDamage | undefined): boolean =>
+/** Whether a system's own kind of that name is this very definition. */
+const isOwn = (kinds: object | undefined, name: string, def: object): boolean =>
+  Object.entries(kinds ?? {}).some(([own, kind]) => own === name && kind === def);
+
+/**
+ * Whether a kind's definition is the framework's own kind of that name: a core kind, or a damage or spell system's.
+ */
+const isCore = (
+  name: string,
+  def: object | undefined,
+  systems: { readonly damage: EscapeDamage | undefined; readonly spells: EscapeSpells | undefined },
+): boolean =>
   def !== undefined &&
-  (CORE[name] === def || Object.entries(damage?.procKinds ?? {}).some(([own, kind]) => own === name && kind === def));
+  (CORE[name] === def || isOwn(systems.damage?.procKinds, name, def) || isOwn(systems.spells?.procKinds, name, def));
 
 /** The escape report of a game's registries (§I.5.6). */
 export const escapeReport = <G extends ProcTypes>(registries: {
@@ -54,13 +79,17 @@ export const escapeReport = <G extends ProcTypes>(registries: {
 
   /** The game's damage system, if it has one. */
   readonly damage?: EscapeDamage;
+
+  /** The game's spell system, if it has one. */
+  readonly spells?: EscapeSpells;
 }): EscapeReport => {
   const { kinds, runs } = registries.procs;
-  const { damage } = registries;
+  const { damage, spells } = registries;
 
   return {
-    procKinds: kinds.names.filter((name, index) => !isCore(name, kinds.defs[index], damage)),
+    procKinds: kinds.names.filter((name, index) => !isCore(name, kinds.defs[index], { damage, spells })),
     runs: [...runs].map(([hatch, count]) => ({ hatch, count })),
     stages: damage?.gameStages ?? [],
+    activationKinds: spells?.gameActivations ?? [],
   };
 };

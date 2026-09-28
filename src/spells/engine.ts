@@ -9,8 +9,10 @@ import type { CastPlan } from './cast-plan.ts';
 import { Cast, type CastServices, NO_SCALED, NO_STATS, StatsCall } from './cast.ts';
 import { recordOf } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
+import { DelayedProcs } from './delayed.ts';
 import type { SpellEvent, SpellEvents } from './events.ts';
 import { type CastHandle, NO_CAST, toCastHandle } from './ids.ts';
+import { missing } from './missing.ts';
 import { ProcList } from './proc-out.ts';
 import type { ProcReturn, SpellHit } from './spell-def.ts';
 import type { SpellHost } from './spell-host.ts';
@@ -91,17 +93,15 @@ export interface EngineParts<G extends SpellTypes> {
   /** The pause bit of every interrupt, by name. */
   readonly interruptBits: ReadonlyMap<string, number>;
 
+  /** How many tick slots delayed procs land in (the game's tick slots); 1 when it declares none. */
+  readonly slots: number;
+
   /** Makes the game's fields of a pooled cast. */
   readonly createExt: () => G['castExt'];
 
   /** Clears the game's fields as a cast's slot goes back to the pool. */
   readonly resetExt: ((ext: G['castExt']) => void) | undefined;
 }
-
-/** Throws: a service a spell needed is missing. */
-export const missing = (what: string): never => {
-  throw new TypeError(`A spell needs ${what}.`);
-};
 
 /**
  * The spell machinery's shared state (§I.5.4): the registry and its resolved tables, the pool of casts, the stack of
@@ -126,6 +126,9 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
 
   /** The pause bit of every interrupt a spell's timeline names, from bit 1 up, by name. */
   readonly interruptBits: ReadonlyMap<string, number>;
+
+  /** The delayed procs, on a timing wheel per tick slot. */
+  readonly delayed: DelayedProcs<G>;
 
   /** The cast whose hook's procs are running now, which a delayed or `castSpell` proc belongs to; none outside. */
   current: Cast<G> | undefined = undefined;
@@ -158,6 +161,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     this.#random = parts.random;
     this.#streams = parts.streams;
     this.#resetExt = parts.resetExt;
+    this.delayed = new DelayedProcs<G>(this, parts.slots);
     this.pool = createPool({
       create: () => new Cast<G>(this, this.#pending ?? missing('a caster'), parts.createExt()),
     });

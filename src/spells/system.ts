@@ -1,14 +1,12 @@
-import type { AuraId, AuraSystem } from '../auras/index.ts';
-import type { Random } from '../core/index.ts';
-import type { CueBuffer } from '../cues/index.ts';
+import type { TickSlotId } from '../core/index.ts';
 import type { StatId } from '../modifiers/index.ts';
-import type { ProcSystem } from '../procs/index.ts';
-import { planOf } from './cast-plan.ts';
+import { engineOf, gameActivationsOf } from './build-engine.ts';
 import { CasterRecord, type CasterState, recordOf } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
-import { type SpellClock, SpellEngine } from './engine.ts';
-import type { SpellEvents } from './events.ts';
+import type { SpellEngine } from './engine.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
+import { createSpellProcKinds } from './proc-kinds.ts';
+import type { SpellProcKinds } from './procs.ts';
 import {
   type CastOptions,
   type CastReport,
@@ -18,65 +16,10 @@ import {
   Report,
   startCast,
 } from './runner.ts';
-import type { AnySpellDef, CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
-import type { SpellHost } from './spell-host.ts';
+import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
-import { baseView, StatsBoxes } from './stats-box.ts';
 import { cancelCast, finishCast, interruptCaster, MANUAL_PAUSE, setPause, stepCaster } from './stepper.ts';
-
-/** What a spell system is built from (§I.5): the game's spells, the systems they run on, the clock and the host. */
-export interface SpellSystemBase<G extends SpellTypes> {
-  /** The game's spells (`defineSpells`). */
-  readonly registry: SpellRegistry<G>;
-
-  /** The aura system cast auras land through (the proc system's). */
-  readonly auras: AuraSystem<G>;
-
-  /**
-   * The proc system every hook's procs run through, or a function returning it: the proc registry lists the spell
-   * system's own kinds, so a game builds the spell system first and hands it the proc system late.
-   */
-  readonly procs: ProcSystem<G> | (() => ProcSystem<G>);
-
-  /** The fixed-step clock every stage counts on (a core `SimClock`). */
-  readonly clock: SpellClock;
-
-  /** The host: the framework services and the game's own. */
-  readonly host: SpellHost<G> & G['host'];
-
-  /** The spells' own random stream, which `ctx.random()` without a name draws from. */
-  readonly random?: Random;
-
-  /**
-   * The host's named streams (a `StreamTable`'s `random`), which `ctx.random(name)` draws from: a keyed name draws
-   * keyed rolls over the cast's key (§I.5: `(startTick, casterId, spellId, targetId, index)`).
-   */
-  readonly streams?: (stream: G['stream'], key: readonly number[]) => Random;
-
-  /** The bus and event kinds spell events are raised on. */
-  readonly events?: SpellEvents<G>;
-
-  /** The buffer spell cues fire into; required when any spell has cues. */
-  readonly cues?: CueBuffer;
-
-  /** Clears the game's fields of a cast as its slot goes back to the pool. */
-  readonly resetExt?: (ext: G['castExt']) => void;
-}
-
-/**
- * The options of a spell system: its base, and `createExt`, which makes the game's fields for each pooled cast. It is
- * required exactly when the game's `castExt` type does not admit `undefined`.
- */
-export type SpellSystemOptions<G extends SpellTypes> = SpellSystemBase<G> &
-  (undefined extends G['castExt']
-    ? {
-        /** Makes the game's fields of a pooled cast; they stay `undefined` when absent. */
-        readonly createExt?: () => G['castExt'];
-      }
-    : {
-        /** Makes the game's fields of a pooled cast. */
-        readonly createExt: () => G['castExt'];
-      });
+import type { SpellSystemOptions } from './system-options.ts';
 
 /**
  * A spell system (§I.6): the runner over one game's spells, for any caster. It starts casts in the cast order, runs
@@ -94,6 +37,21 @@ export interface SpellSystem<G extends SpellTypes> {
 
     /** Records live now (running, or ended and still held). */
     readonly live: number;
+  };
+
+  /** The proc kinds `castSpell` and `after`: `createProcRegistry({ ...CORE_PROCS, ...spells.procKinds })`. */
+  readonly procKinds: SpellProcKinds<G>;
+
+  /** The game's own activation kinds (and core kinds it replaced), in registry order, for the escape report. */
+  readonly gameActivations: readonly string[];
+
+  /** How many delayed proc lists wait to land, and how many records the pool has made. */
+  readonly delayed: {
+    /** Lists waiting, over every slot. */
+    readonly pending: number;
+
+    /** Records ever made: a steady state makes no new ones. */
+    readonly created: number;
   };
 
   /** A new caster state, for a unit that casts (`SpellCaster.casts`). */
@@ -130,6 +88,12 @@ export interface SpellSystem<G extends SpellTypes> {
    */
   readonly step: (caster: G['bearer']) => void;
 
+  /**
+   * Lands every delayed list of a tick slot (the first when absent) due by the clock's tick, in the order they were
+   * scheduled, each for its origin as its cast's procs; returns how many landed. The host calls it in its own loop.
+   */
+  readonly stepDelayed: (slot?: TickSlotId) => number;
+
   /** Pauses a running cast: its stage stops counting until `resume`; false for a stale or ended cast. */
   readonly pause: (cast: CastHandle) => boolean;
 
@@ -161,104 +125,6 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly shareOf: (spell: SpellId, stat: StatId) => number | undefined;
 }
 
-/** Whether `undefined` is the game's `castExt`: true exactly when the options could leave `createExt` out. */
-// oxlint-disable-next-line typescript/no-unnecessary-type-parameters
-const isNoExt = <G extends SpellTypes>(value: undefined): value is undefined & G['castExt'] => value === undefined;
-
-/** The ext factory: the game's, or `undefined` for a game whose `castExt` admits it. */
-const extFactory = <G extends SpellTypes>(options: SpellSystemOptions<G>): (() => G['castExt']) => {
-  const create: (() => G['castExt']) | undefined = options.createExt;
-
-  return (
-    create ??
-    ((): G['castExt'] => {
-      const none = undefined;
-
-      if (!isNoExt<G>(none)) {
-        throw new TypeError('This spell system needs createExt.');
-      }
-
-      return none;
-    })
-  );
-};
-
-/** Resolves a spell's cast aura against the aura registry at load: a live aura that lasts while the cast runs. */
-const castAuraOf = <G extends SpellTypes>(
-  auras: AuraSystem<G>,
-  def: AnySpellDef<G> | undefined,
-  name: string,
-): AuraId | undefined => {
-  const aura = def?.castAura;
-
-  if (aura === undefined) {
-    return undefined;
-  }
-
-  const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
-  const id = typeof aura === 'string' ? ids[aura] : aura;
-
-  if (id === undefined || id < 0 || id >= auras.registry.size || auras.registry.isRetired(id)) {
-    throw new RangeError(`Spell ${name}: its cast aura ${aura} is not a live aura.`);
-  }
-
-  if (auras.registry.get(id).duration !== 'infinite') {
-    throw new RangeError(`Spell ${name}: its cast aura lasts while the cast runs, so its duration is 'infinite'.`);
-  }
-
-  return id;
-};
-
-/** Checks at load that spells with cues have a buffer to fire into and a host that places them. */
-const checkCues = <G extends SpellTypes>(options: SpellSystemOptions<G>): void => {
-  const { registry } = options;
-  const cued = registry.ids.find((id) => registry.defs[id]?.cues !== undefined);
-
-  if (cued !== undefined && (options.cues === undefined || options.host.positionOf === undefined)) {
-    throw new RangeError(`Spell ${registry.name(cued)} has cues, so the system needs cues and host.positionOf.`);
-  }
-};
-
-/** The most interrupts the spells may name: each pauses by a bit of its own, above the manual pause's. */
-const MAX_INTERRUPTS = 30;
-
-/** The pause bit of every interrupt a spell's timeline names, in the order the registry first names them. */
-const interruptBitsOf = <G extends SpellTypes>(registry: SpellRegistry<G>): ReadonlyMap<string, number> => {
-  const names = new Set(registry.defs.flatMap((def) => Object.keys(def?.timeline?.interrupts ?? {})));
-
-  if (names.size > MAX_INTERRUPTS) {
-    throw new RangeError(`The spells name ${names.size} interrupts; at most ${MAX_INTERRUPTS} can pause a cast.`);
-  }
-
-  return new Map([...names].map((name, index) => [name, 2 ** (index + 1)]));
-};
-
-/** Builds the engine over the options, every table resolved. */
-const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): SpellEngine<G> => {
-  const { registry } = options;
-
-  checkCues(options);
-
-  return new SpellEngine<G>({
-    registry,
-    auras: options.auras,
-    procs: options.procs,
-    clock: options.clock,
-    host: options.host,
-    random: options.random,
-    streams: options.streams,
-    events: options.events,
-    cues: options.cues,
-    plans: registry.defs.map((def) => (def === undefined ? undefined : planOf(def, registry.activations))),
-    castAuras: registry.defs.map((def, id) => castAuraOf(options.auras, def, registry.names[id] ?? '')),
-    boxes: new StatsBoxes(registry.compiled),
-    baseView: baseView(registry.stats),
-    interruptBits: interruptBitsOf(registry),
-    createExt: extFactory(options),
-    resetExt: options.resetExt,
-  });
-};
-
 /** The request a system reuses for every cast. */
 class MutableRequest<G extends SpellTypes> implements CastRequest<G> {
   caster: G['bearer'];
@@ -275,6 +141,9 @@ class MutableRequest<G extends SpellTypes> implements CastRequest<G> {
 class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly registry: SpellRegistry<G>;
   readonly pool: SpellSystem<G>['pool'];
+  readonly delayed: SpellSystem<G>['delayed'];
+  readonly procKinds: SpellProcKinds<G>;
+  readonly gameActivations: readonly string[];
   readonly #engine: SpellEngine<G>;
   readonly #report = new Report();
   #request: MutableRequest<G> | undefined = undefined;
@@ -292,6 +161,17 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
         return engine.pool.live;
       },
     };
+    this.delayed = {
+      get pending() {
+        return engine.delayed.size;
+      },
+
+      get created() {
+        return engine.delayed.created;
+      },
+    };
+    this.procKinds = createSpellProcKinds({ engine, cast: this.cast });
+    this.gameActivations = gameActivationsOf(engine.registry.activations);
   }
 
   readonly createCasterState = (): CasterState => new CasterRecord(this.registry.autoIds.length);
@@ -342,6 +222,8 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
     return record.count;
   };
+
+  readonly stepDelayed = (slot?: TickSlotId): number => this.#engine.delayed.land(slot ?? 0);
 
   readonly step = (caster: G['bearer']): void => {
     stepCaster(this.#engine, caster);
