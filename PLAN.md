@@ -638,11 +638,11 @@ An **aura** is WoW's word for a timed state on a unit: a buff or a debuff. `effe
 3. **Hooks into the damage pipeline** (WoW's absorb and prevent-death aura effects). Before a blow lands on a unit, each of its auras with a hook sees it, in registry order, and may change it:
 
    ```ts
-   onIgnore?(ctx, aura, blow): boolean;                 // the ignore stage: invulnerability, shelter, immunity
-   onIncomingDamage?(ctx, aura, blow): BlowChange;      // { absorb?: number; scale?: number; knock?: 'none' }
-   onLethal?(ctx, aura, blow): { prevent: true; procs: Proc[] } | undefined;
-   onDealt?(ctx, aura, result): Proc[];                 // attacker side: lifesteal spending the aura's value
-   onIncomingForce?(ctx, aura, force): ForceChange;     // knockback, push, pull
+   onIgnore?(ctx, blow): boolean;                       // the ignore stage: invulnerability, shelter, immunity
+   onIncomingDamage?(ctx, blow): BlowChange;            // { absorb?: number; scale?: number; knock?: 'none' }
+   onLethal?(ctx, blow): { prevent: true; procs: Proc[] } | undefined;
+   onDealt?(ctx, blow): Proc[];                         // attacker side: lifesteal spending the aura's value
+   onIncomingForce?(ctx, force): ForceChange;           // knockback, push, pull
    ```
 
    `hurtPlayer` and `hurtEnemy` then carry no card or ability names: they run the bearer's hooks and apply the result. The pipeline's order is fixed, and is today's (§II.6 D1): ignore gates (`onIgnore`: invulnerability, the horde window, shelter, environmental immunity, a downed or disconnected bearer) → the block roll → crushing → armor and damage taken → absorbs (`onIncomingDamage`) → `onLethal` (Cheat Death) → health → the outcome and the hit window. True damage (lethal, environmental, blood) skips armor and every absorb, as it does now, but `onLethal` still runs for it; environmental damage passes only its own immunity, so fire walls still kill the invulnerable.
@@ -667,7 +667,7 @@ barrier: {
   stacking: 'highest', merge: 'max',
   keepWhenDepleted: true,          // an emptied shell keeps its clock, so a later shell still takes the longer time
   removedOn: ['down'],
-  onIncomingDamage: (aura, blow) => ({ absorb: Math.min(aura.value, blow.amount) }),   // spends `value`
+  onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) }),   // spends `value`
   cues: { absorbed: CUES.id.barrierAbsorb },   // a cue with the amount as a param; the client draws today's private "(−N)"
   // no HUD tile here: the client's AURA_PRESENTATION[AuraId] draws it
 }
