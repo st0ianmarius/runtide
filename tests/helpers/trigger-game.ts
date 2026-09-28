@@ -327,7 +327,8 @@ export const KINDS = makeBus(undefined).kind;
 
 /**
  * A small test game over `defs`: an aura system (one world clock of step 0.125 s), a proc system with the core kinds
- * and `strike`, and a trigger system over three events. Every unit made joins the one party, in order.
+ * and `strike`, and a trigger system over three events. Every unit made joins the one party, in order; unit `n` stands
+ * at `(n, −n)`.
  */
 export const makeGame = <const Name extends string>(
   defs: Readonly<Record<Name, AuraDef<Game>>>,
@@ -352,6 +353,7 @@ export const makeGame = <const Name extends string>(
     log,
     party: () => party,
     idOf: (unit) => unit.id,
+    positionOf: (unit) => ({ x: unit.id, z: -unit.id }),
 
     grant: (unit, resource, amount) => {
       log.push(`grant ${resource}x${amount}@${unit.id}`);
