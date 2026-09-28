@@ -52,6 +52,7 @@ describe('the escape report (§I.5.6)', () => {
         { hatch: 'mark', count: 2 },
         { hatch: 'coil.detect', count: 0 },
       ],
+      stages: [],
     });
   });
 });

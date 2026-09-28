@@ -2,7 +2,7 @@ import { type ActiveAura, type AuraId, type AuraSystem, NO_SOURCE } from '../aur
 import type { Random } from '../core/index.ts';
 import type { Proc } from './proc-data.ts';
 import type { ProcResolver } from './proc-kind.ts';
-import type { ProcBus, ProcContext, ProcHost, ProcOrigin, ProcOutcome, ProcTypes } from './proc-types.ts';
+import type { ProcBus, ProcContext, ProcHost, ProcOrigin, ProcOutcome, ProcStatus, ProcTypes } from './proc-types.ts';
 
 /** An aura application a frame reuses for every `applyAura` it lands (a field set to `undefined` counts as absent). */
 export interface ReusedApplication<G extends ProcTypes> {
@@ -140,6 +140,34 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
   countRun(hatch: string): void {
     this.#runner.countRun(hatch);
   }
+
+  /**
+   * Writes an outcome into the frame's reused one and returns it: what a proc with follow-ups reports, read before
+   * they ran (a follow-up may reuse the outcome object the proc returned). The caller reads it before the next apply.
+   */
+  settle(status: ProcStatus, parts: { readonly amount: number; readonly hasKilled: boolean }): ProcOutcome {
+    const settled = this.#settled;
+
+    settled.status = status;
+    settled.amount = parts.amount;
+    settled.hasKilled = parts.hasKilled;
+
+    return settled;
+  }
+
+  readonly #settled: SettledOutcome = { status: 'landed', amount: 0, hasKilled: false };
+}
+
+/** The mutable outcome a frame settles. */
+interface SettledOutcome {
+  /** What became of the proc. */
+  status: ProcStatus;
+
+  /** How much it did. */
+  amount: number;
+
+  /** Whether it killed its target. */
+  hasKilled: boolean;
 }
 
 /** Whether a context is a system's frame. */

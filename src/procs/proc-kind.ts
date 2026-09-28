@@ -48,6 +48,13 @@ export interface ProcKindDef<P extends ProcShape, G extends ProcTypes> {
   /** Applies one proc to its resolved target (`undefined` for a kind with no `targetOf`); `undefined` is `landed`. */
   apply(this: void, proc: P, ctx: ProcContext<G>, target: G['bearer'] | undefined): ProcOutcome | undefined;
 
+  /**
+   * The procs that follow this one in the same list, decided from its outcome (§II.6 P4: outcome-gated procs, such as
+   * a slow that lands only if the hit did), for a kind that acts on a unit. The runner applies them right after it,
+   * once its kill is noted, aimed at the unit it landed on in place of the list's target; `undefined` for none.
+   */
+  follow?(this: void, proc: P, outcome: ProcOutcome): readonly Proc<G>[] | undefined;
+
   /** Returns the proc with its names resolved to ids, throwing for an unknown one; it is the proc as is when absent. */
   prepare?(this: void, proc: P, resolve: ProcResolver<G>): P;
 

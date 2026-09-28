@@ -54,6 +54,43 @@ const unitOf = <G extends ProcTypes>(frame: ProcFrame<G>, to: ProcTarget<G>): G[
   return typeof to === 'string' ? undefined : to;
 };
 
+/** The procs that follow one proc (`ProcKindDef.follow`), the unit it landed on, and its outcome. */
+interface FollowUp<G extends ProcTypes> {
+  /** The procs that follow. */
+  readonly procs: readonly Proc<G>[];
+
+  /** The unit the proc landed on: the follow-ups' target. */
+  readonly unit: G['bearer'];
+
+  /** What the proc did. */
+  readonly outcome: ProcOutcome;
+}
+
+/**
+ * Applies the procs that follow one in the same list, aimed at the unit it landed on, and returns its outcome as it was
+ * before they ran (in the frame's reused outcome, since a follow-up may reuse the one the proc returned).
+ */
+const followUp = <G extends ProcTypes>(apply: Applier<G>, frame: ProcFrame<G>, next: FollowUp<G>): ProcOutcome => {
+  const { status, amount, hasKilled } = next.outcome;
+  const target = frame.target;
+
+  frame.target = next.unit;
+
+  try {
+    for (let i = 0; i < next.procs.length; i++) {
+      const proc = next.procs[i];
+
+      if (proc !== undefined) {
+        apply(frame, proc);
+      }
+    }
+  } finally {
+    frame.target = target;
+  }
+
+  return frame.settle(status, { amount, hasKilled });
+};
+
 /**
  * Builds how one proc applies within a list: its chance (always-procs roll nothing; `0 < chance < 1` rolls once on
  * the procs' own stream or the game's rule), its target (a `party` fanned out in order, a unit the list killed
@@ -81,13 +118,16 @@ export const createApplier = <G extends ProcTypes>(parts: ApplyParts<G>): Applie
       return PROC_SKIPPED;
     }
 
-    const outcome = kinds.defs[kinds.kindOf(proc)]?.apply(proc, frame, unit) ?? PROC_LANDED;
+    const def = kinds.defs[kinds.kindOf(proc)];
+    const outcome = def?.apply(proc, frame, unit) ?? PROC_LANDED;
 
     if (outcome.hasKilled) {
       frame.noteKill(unit);
     }
 
-    return outcome;
+    const procs = def?.follow?.(proc, outcome);
+
+    return procs === undefined || procs.length === 0 ? outcome : followUp(applyIn, frame, { procs, unit, outcome });
   };
 
   const toParty = (frame: ProcFrame<G>, proc: Proc<G>): ProcOutcome => {
