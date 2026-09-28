@@ -1,0 +1,151 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+import { haste, scaled } from '../../src/modifiers/index.ts';
+import type { AnySpellDef, SpellHost } from '../../src/spells/index.ts';
+import { type Game, makeSpellGame, mark, spell, STATS } from '../helpers/spell-game.ts';
+
+/**
+ * A game over `defs` with one caster, and `advance(n)`: `n` steps, each logged as `t<tick>`, then the caster's auto
+ * clocks, then its casts.
+ */
+const autoGame = <const Spell extends string>(
+  defs: Readonly<Record<Spell, AnySpellDef<Game>>>,
+  host: Partial<SpellHost<Game>> = {},
+) => {
+  const game = makeSpellGame(defs, { host });
+  const a = game.unit(1);
+
+  const advance = (count = 1) => {
+    for (let i = 0; i < count; i++) {
+      game.step();
+      game.log.push(`t${game.clock.tick}`);
+      game.spells.stepAuto(a);
+      game.spells.step(a);
+    }
+  };
+
+  /** The ticks on which `line` was logged. */
+  const ticksOf = (line: string): number[] => {
+    let tick = 0;
+
+    return game.log.flatMap((entry) => {
+      if (entry.startsWith('t') && !entry.includes(' ')) {
+        tick = Number(entry.slice(1));
+      }
+
+      return entry === line ? [tick] : [];
+    });
+  };
+
+  return { ...game, a, advance, ticksOf };
+};
+
+describe('auto clocks (§II.3.2, §II.6 S2)', () => {
+  it('casts at once, then every interval, reset to the interval read at the cast with no carry-over', () => {
+    const game = autoGame({
+      swing: spell({ activation: { kind: 'auto', interval: 0.3 }, release: () => [mark('swing')] }),
+    });
+
+    game.advance(6);
+    assert.deepEqual(game.ticksOf('swing@1'), [1, 3, 5]);
+    assert.ok(Math.abs(game.spells.autoClock(game.a, game.id.swing) - 0.05) < 1e-12);
+  });
+
+  it("reads the interval from the cast's stats", () => {
+    const game = autoGame({
+      volley: spell({
+        activation: { kind: 'auto', interval: (ctx) => ctx.stats.interval },
+        stats: { interval: scaled(1, haste(1)) },
+        release: () => [mark('volley')],
+      }),
+    });
+
+    game.a.stats[STATS.id.abilityHaste] = 100;
+    game.advance(1);
+    assert.equal(game.spells.autoClock(game.a, game.id.volley), 0.5);
+  });
+
+  it('counts while the spell is not owned, so a spell the caster gains fires at once', () => {
+    let isOwned = true;
+
+    const game = autoGame(
+      { swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('swing')] }) },
+      { owns: () => isOwned },
+    );
+
+    game.advance(1);
+    isOwned = false;
+    game.advance(5);
+    assert.equal(game.spells.autoClock(game.a, game.id.swing), 0);
+    isOwned = true;
+    game.advance(1);
+    assert.deepEqual(game.ticksOf('swing@1'), [1, 7]);
+  });
+
+  it('spends the whole interval on a refusal by the gates or canCast, or retries when told to', () => {
+    const game = autoGame({
+      held: spell({ activation: { kind: 'auto', interval: 1 }, canCast: () => false, release: () => undefined }),
+      eager: spell({
+        activation: { kind: 'auto', interval: 1, onRefused: 'retry', retry: 0.25 },
+        canCast: () => false,
+        release: () => undefined,
+      }),
+    });
+
+    game.advance(1);
+    assert.equal(game.spells.autoClock(game.a, game.id.held), 1);
+    assert.equal(game.spells.autoClock(game.a, game.id.eager), 0.25);
+  });
+
+  it('retries on the next step when the cast finds no target, or spends when told to', () => {
+    let aims = 0;
+
+    const game = autoGame({
+      seek: spell({
+        activation: { kind: 'auto', interval: 1 },
+
+        target: () => {
+          aims += 1;
+
+          return undefined;
+        },
+
+        release: () => undefined,
+      }),
+      patient: spell({
+        activation: { kind: 'auto', interval: 1, onNoTarget: 'spend' },
+        target: () => undefined,
+        release: () => undefined,
+      }),
+    });
+
+    game.advance(3);
+    assert.equal(aims, 3);
+    assert.equal(game.spells.autoClock(game.a, game.id.patient), 0.5);
+  });
+
+  it('retries an instant cast whose release set nothing off, or spends when told to', () => {
+    const game = autoGame({
+      whiff: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [] }),
+      stubborn: spell({ activation: { kind: 'auto', interval: 1, onMiss: 'spend' }, release: () => [] }),
+      windup: spell({
+        activation: { kind: 'auto', interval: 1 },
+        timeline: { windup: { seconds: 0.5 } },
+        release: () => [],
+      }),
+    });
+
+    game.advance(2);
+    assert.deepEqual(game.ticksOf('end whiff@1 released'), [1, 2]);
+    assert.deepEqual(game.ticksOf('end stubborn@1 released'), [1]);
+    assert.deepEqual(game.ticksOf('start windup@1'), [1]);
+    assert.equal(game.spells.autoClock(game.a, game.id.windup), 0.75);
+  });
+
+  it('reads 0 for a spell that is not auto', () => {
+    const game = autoGame({ bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined }) });
+
+    assert.equal(game.spells.autoClock(game.a, game.id.bolt), 0);
+  });
+});

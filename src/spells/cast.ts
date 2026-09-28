@@ -94,6 +94,12 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
   /** How many of its release procs went off. */
   went = 0;
 
+  /** Whether its payload went out. */
+  hasReleased = false;
+
+  /** Whether its stats were taken. */
+  hasStats = false;
+
   /** How many callers keep its record from going back to the pool: its runner while it acts, its delayed procs. */
   holds = 0;
 

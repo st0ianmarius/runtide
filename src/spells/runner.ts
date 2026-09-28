@@ -5,9 +5,9 @@ import type { Cast } from './cast.ts';
 import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
-import type { AnySpellDef, CastOutcome, CastStage, SpellHit } from './spell-def.ts';
+import type { AnySpellDef, CastOutcome, CastStage } from './spell-def.ts';
 import type { ActivationShape, SpellId, SpellTypes } from './spell-types.ts';
-import { refreshLive, takeStats } from './take-stats.ts';
+import { autoIntervalOf, refreshLive, takeStats } from './take-stats.ts';
 
 /** Why a cast was refused: the gates (the host's `canAct`, the activation kind's), `canCast`, or no target. */
 export type CastRefusal = 'gate' | 'canCast' | 'target';
@@ -25,6 +25,15 @@ export interface CastReport {
 
   /** How many of its release procs went off; 0 when it has not released yet (or was refused). */
   readonly went: number;
+
+  /** Whether its payload went out within the call (a spell with no windup), whatever its procs did. */
+  readonly hasReleased: boolean;
+
+  /**
+   * For an `auto` spell, its interval read at the cast (§II.6 S2), with the cast's stats (taken for a refusal at the
+   * gate too, when the interval reads them); NaN for any other spell.
+   */
+  readonly interval: number;
 }
 
 /** How a cast is started, beyond the caster and the spell. */
@@ -63,6 +72,8 @@ export class Report implements CastReport {
   status: CastReport['status'] = 'refused';
   refusal: CastRefusal | undefined = undefined;
   went = 0;
+  hasReleased = false;
+  interval = Number.NaN;
 }
 
 /**
@@ -99,6 +110,8 @@ const initCast = <G extends SpellTypes>(
   cast.isLocked = false;
   cast.beat = 0;
   cast.went = 0;
+  cast.hasReleased = false;
+  cast.hasStats = false;
 };
 
 /** The gates, then the stats: the host's `canAct`, then the activation kind's `gate`. */
@@ -268,6 +281,7 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
   refreshLive(engine, cast, def);
   cast.isLocked = true;
   engine.fire(cast, def.cues?.release?.(cast, cast.target));
+  cast.hasReleased = true;
   cast.went = runRelease(engine, cast);
 
   if (isEnded(cast)) {
@@ -335,6 +349,7 @@ export const startCast = <G extends SpellTypes>(
   initCast(engine, cast, request);
 
   const refusal = admit(engine, cast, def);
+  const interval = autoIntervalOf(engine, cast, def);
 
   if (refusal !== undefined) {
     cast.stage = 'ended';
@@ -343,13 +358,15 @@ export const startCast = <G extends SpellTypes>(
     report.status = 'refused';
     report.refusal = refusal;
     report.went = 0;
+    report.hasReleased = false;
+    report.interval = interval;
 
     return report;
   }
 
   beginCast(engine, cast, def);
 
-  const { went } = cast;
+  const { went, hasReleased } = cast;
   const status = isEnded(cast) ? 'ended' : 'running';
 
   engine.unhold(cast);
@@ -357,38 +374,8 @@ export const startCast = <G extends SpellTypes>(
   report.status = status;
   report.refusal = undefined;
   report.went = went;
+  report.hasReleased = hasReleased;
+  report.interval = interval;
 
   return report;
-};
-
-/**
- * A delivery of a cast caught units (§II.3.1): its hit cue, `onHit` with every unit at once, and the `hit` event.
- * Returns how many of `onHit`'s procs went off; 0 for a stale handle.
- */
-export const hitCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: CastHandle, hit: SpellHit<G>): number => {
-  const cast = engine.castOf(handle);
-
-  if (cast === undefined) {
-    return 0;
-  }
-
-  const def = engine.registry.get(cast.spell);
-  const onHit = engine.registry.hooks.onHit[cast.spell];
-  const list = engine.takeList();
-  let went = 0;
-
-  cast.holds += 1;
-
-  try {
-    refreshLive(engine, cast, def);
-    engine.fire(cast, def.cues?.hit?.(cast, hit));
-    went = onHit === undefined ? 0 : engine.run(cast, onHit(cast, hit, list), list);
-  } finally {
-    engine.giveList(list);
-  }
-
-  engine.raise('hit', cast, hit);
-  engine.unhold(cast);
-
-  return went;
 };

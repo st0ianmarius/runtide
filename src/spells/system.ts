@@ -1,21 +1,15 @@
 import type { TickSlotId } from '../core/index.ts';
 import type { StatId } from '../modifiers/index.ts';
+import { autoClockOf, stepAutoClocks } from './auto.ts';
 import { engineOf, gameActivationsOf } from './build-engine.ts';
 import { CasterRecord, type CasterState, recordOf } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import type { SpellEngine } from './engine.ts';
+import { hitCast } from './hit.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
 import { createSpellProcKinds } from './proc-kinds.ts';
 import type { SpellProcKinds } from './procs.ts';
-import {
-  type CastOptions,
-  type CastReport,
-  type CastRequest,
-  hitCast,
-  NO_OPTIONS,
-  Report,
-  startCast,
-} from './runner.ts';
+import { type CastOptions, type CastReport, type CastRequest, NO_OPTIONS, Report, startCast } from './runner.ts';
 import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import { cancelCast, finishCast, interruptCaster, MANUAL_PAUSE, setPause, stepCaster } from './stepper.ts';
@@ -87,6 +81,17 @@ export interface SpellSystem<G extends SpellTypes> {
    * cast does not count down.
    */
   readonly step: (caster: G['bearer']) => void;
+
+  /**
+   * Steps a caster's `auto` clocks by one step (§II.6 S2), in registry order: each counts down whether its spell is
+   * owned or not, and one that ran out casts its spell when the caster owns it (`host.owns`); the clock is then set to
+   * the interval read at the cast, or to the activation's retry, as the outcome's cost says (`onRefused`,
+   * `onNoTarget`, `onMiss`).
+   */
+  readonly stepAuto: (caster: G['bearer']) => void;
+
+  /** The seconds left on a caster's `auto` clock for a spell; 0 for one that is not `auto`. */
+  readonly autoClock: (caster: G['bearer'], spell: SpellId) => number;
 
   /**
    * Lands every delayed list of a tick slot (the first when absent) due by the clock's tick, in the order they were
@@ -222,6 +227,12 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
     return record.count;
   };
+
+  readonly stepAuto = (caster: G['bearer']): void => {
+    stepAutoClocks(this.#engine, caster, this.cast);
+  };
+
+  readonly autoClock = (caster: G['bearer'], spell: SpellId): number => autoClockOf(this.#engine, caster, spell);
 
   readonly stepDelayed = (slot?: TickSlotId): number => this.#engine.delayed.land(slot ?? 0);
 

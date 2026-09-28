@@ -32,7 +32,7 @@ export type Track<G extends SpellTypes, Source extends StatsSource<G>, Target, S
  */
 export interface Windup<G extends SpellTypes, Source extends StatsSource<G>, Target, State> {
   /** Its seconds, read when it starts. */
-  readonly seconds: CastSeconds<G>;
+  readonly seconds: CastSeconds<G, Source>;
 
   /** How the aim moves until it locks; it locks at the start when absent (and no activation says otherwise). */
   readonly track?: Track<G, Source, Target, State>;
@@ -47,7 +47,7 @@ export interface Windup<G extends SpellTypes, Source extends StatsSource<G>, Tar
  */
 export interface Channel<G extends SpellTypes, Source extends StatsSource<G>, Target, State> {
   /** Its seconds, read when it starts. */
-  readonly seconds: CastSeconds<G>;
+  readonly seconds: CastSeconds<G, Source>;
 
   /** The seconds between beats; without it `tick` runs every step. The last beat falls on the channel's last step. */
   readonly every?: number;
@@ -60,9 +60,9 @@ export interface Channel<G extends SpellTypes, Source extends StatsSource<G>, Ta
 }
 
 /** The recovery (§II.3.3): the seconds the caster stays busy after its payload, read with the outcome known. */
-export interface Recover<G extends SpellTypes> {
+export interface Recover<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> {
   /** Its seconds, read when it starts; `ctx.outcome` tells a release from a break (§II.6 S5: a stagger). */
-  readonly seconds: CastSeconds<G>;
+  readonly seconds: CastSeconds<G, Source>;
 }
 
 /**
@@ -77,7 +77,7 @@ export interface Timeline<G extends SpellTypes, Source extends StatsSource<G>, T
   readonly channel?: Channel<G, Source, Target, State>;
 
   /** Busy after the payload; a cancelled cast skips it. */
-  readonly recover?: Recover<G>;
+  readonly recover?: Recover<G, Source>;
 
   /**
    * What each interrupt the game raises does to a running cast (`spells.interrupt`): `pause` (its stage stops counting

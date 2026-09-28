@@ -1,13 +1,16 @@
 import { createRegistry, type Registry } from '../core/index.ts';
-import type { GateContext, SpellContext } from './spell-def.ts';
+import type { GateContext, SpellContext, StatsSource } from './spell-def.ts';
 import type { ActivationShape, SpellTypes } from './spell-types.ts';
 
-/** A number of seconds read from the cast: a constant, or a function of the cast's context (its stats, its rank). */
-export type CastSeconds<G extends SpellTypes> =
+/**
+ * A number of seconds read from the cast: a constant, or a function of the cast's context (its stats, typed by the
+ * spell's `Source`, and its rank).
+ */
+export type CastSeconds<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
   | number
   | {
       /** Reads the seconds; declared as a method so a function over a narrower context still fits. */
-      bivarianceHack(ctx: SpellContext<G>): number;
+      bivarianceHack(ctx: SpellContext<G, Source>): number;
     }['bivarianceHack'];
 
 /**
@@ -15,12 +18,12 @@ export type CastSeconds<G extends SpellTypes> =
  * (so a new spell fires at once), resets to the interval read at the cast (no carry-over), and answers each way a
  * cast can fail with `spend` (the whole interval) or `retry` (again after `retry` seconds).
  */
-export interface AutoActivation<G extends SpellTypes = SpellTypes> {
+export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extends StatsSource<G> = StatsSource<G>> {
   /** The discriminant. */
   readonly kind: 'auto';
 
   /** The seconds between casts, read at each cast (from its stats snapshot, usually). */
-  readonly interval: CastSeconds<G>;
+  readonly interval: CastSeconds<G, Source>;
 
   /** The seconds before a retry; 0 (the next step) when absent. */
   readonly retry?: number;
@@ -96,11 +99,12 @@ export interface EventActivation {
 }
 
 /** The framework's activation kinds, as a union. */
-export type CoreActivation<G extends SpellTypes = SpellTypes> =
-  AutoActivation<G> | ButtonActivation | PassiveActivation | TriggerActivation | AiActivation | EventActivation;
+export type CoreActivation<G extends SpellTypes = SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
+  AutoActivation<G, Source> | ButtonActivation | PassiveActivation | TriggerActivation | AiActivation | EventActivation;
 
-/** One activation (§II.3.2): a core kind or one of the game's. */
-export type Activation<G extends SpellTypes> = CoreActivation<G> | G['gameActivation'];
+/** One activation (§II.3.2): a core kind or one of the game's; `Source` types the stats an `auto` interval reads. */
+export type Activation<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
+  CoreActivation<G, Source> | G['gameActivation'];
 
 /** The timeline an activation kind supplies where the spell's own timeline says nothing. */
 export interface TimelineDefaults {
@@ -135,6 +139,10 @@ export interface ActivationKindDef<A extends ActivationShape = ActivationShape, 
 
 /** Whether a number is a finite count of seconds from 0. */
 const isSeconds = (value: number | undefined): boolean => value === undefined || (Number.isFinite(value) && value >= 0);
+
+/** Whether an activation is the framework's `auto` kind. */
+export const isAuto = <G extends SpellTypes>(activation: Activation<G>): activation is AutoActivation<G> =>
+  activation.kind === 'auto' && Object.hasOwn(activation, 'interval');
 
 /** The `auto` kind: its interval is a function or seconds above 0, its retry seconds from 0. */
 const AUTO: ActivationKindDef<AutoActivation, never> = {

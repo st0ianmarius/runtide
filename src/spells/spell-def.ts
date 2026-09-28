@@ -228,7 +228,7 @@ export interface SpellDef<
   readonly tags?: readonly G['spellTag'][];
 
   /** Who pulls its trigger, and that system's rules as data (§II.3.2). */
-  readonly activation: Activation<G>;
+  readonly activation: Activation<G, Source>;
 
   /** Its ranks: every per-rank list in its stats has this many entries; 1 when absent. */
   readonly ranks?: number;
