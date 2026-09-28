@@ -83,6 +83,9 @@ export interface AreaEngineParts<G extends AreaTriggerTypes> {
   /** Each kind's own spell, for a kind that casts. */
   readonly casterSpells: readonly (SpellId | undefined)[];
 
+  /** Each kind's auras' ids, by aura index. */
+  readonly areaAuras: readonly (readonly AuraId[] | undefined)[];
+
   /** Makes the game's fields of a pooled area trigger. */
   readonly createExt: () => G['areaExt'];
 

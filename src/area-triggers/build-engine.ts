@@ -58,6 +58,25 @@ const ownerAuraOf = <G extends AreaTriggerTypes>(
   return id;
 };
 
+/** Resolves a kind's area auras against the aura registry at load. */
+const areaAurasOf = <G extends AreaTriggerTypes>(
+  auras: AuraSystem<G>,
+  def: AnyAreaTriggerDef<G> | undefined,
+  name: string,
+): readonly AuraId[] | undefined => {
+  const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
+
+  return def?.auras?.map((spec) => {
+    const id = typeof spec.aura === 'string' ? ids[spec.aura] : spec.aura;
+
+    if (id === undefined || id < 0 || id >= auras.registry.size || auras.registry.isRetired(id)) {
+      throw new RangeError(`Area trigger ${name}: its area aura ${spec.aura} is not a live aura.`);
+    }
+
+    return id;
+  });
+};
+
 /** The kinds each slot steps, in kind order; throws for a kind whose slot the game did not declare. */
 const slotKindsOf = <G extends AreaTriggerTypes>(
   registry: AreaTriggerRegistry<G>,
@@ -141,6 +160,7 @@ export const areaEngineOf = <G extends AreaTriggerTypes>(options: AreaTriggerSys
     slotKinds: slotKindsOf(registry, options.slots?.size ?? 1),
     bindings: Uint8Array.from(registry.defs, bindingOf),
     pulseBase: pulseBaseOf(registry),
+    areaAuras: registry.defs.map((def, id) => areaAurasOf(options.auras, def, registry.names[id] ?? '')),
     casterSpells: registry.defs.map((def, id) => casterSpellOf(options, def?.caster, registry.names[id] ?? '')),
     createExt: extFactory(options),
     resetExt: options.resetExt,

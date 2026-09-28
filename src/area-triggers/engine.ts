@@ -6,6 +6,7 @@ import type { Proc, ProcOutcome, ProcSystem } from '../procs/index.ts';
 import type { ProcReturn, SpellClock, SpellId, SpellSystem } from '../spells/index.ts';
 import { ProcList } from '../spells/proc-out.ts';
 import type { WorldQuery } from '../world/index.ts';
+import { AuraHolds } from './area-auras.ts';
 import type { EndReason } from './area-def.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import { type AreaServices, AreaTrigger } from './area-trigger.ts';
@@ -66,6 +67,12 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   /** The hit ledgers. */
   readonly ledgers = new LedgerBook();
 
+  /** How many enter-exit area auras hold each unit's aura. */
+  readonly auraHolds = new AuraHolds<G['bearer']>();
+
+  /** Each kind's auras' ids, by aura index. */
+  readonly areaAuras: readonly (readonly AuraId[] | undefined)[];
+
   /** The hits and world query options of catches, by nesting level. */
   readonly catcher = new Catcher<G>();
 
@@ -102,6 +109,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.bindings = parts.bindings;
     this.pulseBase = parts.pulseBase;
     this.casterSpells = parts.casterSpells;
+    this.areaAuras = parts.areaAuras;
     this.tickHeads = Array.from({ length: kinds }, () => undefined);
     this.tickTails = Array.from({ length: kinds }, () => undefined);
     this.kindHeads = Array.from({ length: kinds }, () => undefined);

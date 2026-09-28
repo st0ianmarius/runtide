@@ -1,4 +1,5 @@
 import { countDown, isRunOut } from '../core/index.ts';
+import { stepAreaAuras } from './area-auras.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import { stepCaster } from './caster.ts';
@@ -10,7 +11,7 @@ import { catchAlong, deliver, recordHit } from './hits.ts';
 import { stepPulses } from './pulses.ts';
 
 /** The order of a frame's parts when a kind declares none. */
-const DEFAULT_ORDER: readonly AreaPhase[] = Object.freeze(['move', 'contact', 'frame', 'pulses']);
+const DEFAULT_ORDER: readonly AreaPhase[] = Object.freeze(['move', 'contact', 'frame', 'pulses', 'auras']);
 
 /** Places an area trigger's shape at its position and heading: its kind's shape, or what its shape function says. */
 export const placeShape = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
@@ -80,6 +81,9 @@ const runPhase = <G extends AreaTriggerTypes>(
       stepPulses(engine, area, dt);
       stepCaster(engine, area, dt);
       break;
+    case 'auras':
+      stepAreaAuras(engine, area);
+      break;
   }
 };
 
@@ -108,7 +112,7 @@ const armedTime = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Area
 /**
  * One frame over `dt` (§II.3.4, §II.6 W2): it ages, an owner-anchored one moves onto its owner, it notes where it
  * was and places its shape, then (once armed) runs its parts in its kind's order: `move` (placing its shape again),
- * `contact`, `frame`, and `pulses` with its cast clock. A hook that asked it to end ends it once that part is done.
+ * `contact`, `frame`, `pulses` with its cast clock, and `auras`. A hook that asked it to end ends it once that part is done.
  */
 export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): void => {
   const { registry } = engine;

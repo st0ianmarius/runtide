@@ -21,6 +21,7 @@ export {
 export type { AreaTriggerHost } from './area-host.ts';
 
 export type {
+  AreaAura,
   AreaCaster,
   AreaCatch,
   AreaContact,

@@ -6,6 +6,7 @@ import type { ScaledSnapshot } from '../modifiers/index.ts';
 import type { Proc, ProcOrigin, ProcOutcome } from '../procs/index.ts';
 import { type CastHandle, NO_CAST, type SpellContext } from '../spells/index.ts';
 import type { WorldQuery } from '../world/index.ts';
+import { AuraInside } from './area-auras.ts';
 import type { AreaTriggerContext, EndReason, Position } from './area-def.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
@@ -143,6 +144,9 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   /** The placers of its pulses' own shapes, by pulse index, made on first use. */
   readonly #pulsePlacers: ShapePlacer[] = [];
 
+  /** The units inside each of its auras, by aura index, made on first use. */
+  readonly #insides: AuraInside<G['bearer']>[] = [];
+
   readonly #services: AreaServices<G>;
   readonly #key = [0, 0, 0, 0, 0];
 
@@ -202,6 +206,11 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   /** The placer of a pulse's own shape. */
   placerFor(index: number): ShapePlacer {
     return (this.#pulsePlacers[index] ??= new ShapePlacer());
+  }
+
+  /** The units inside one of its auras. */
+  insideOf(index: number): AuraInside<G['bearer']> {
+    return (this.#insides[index] ??= new AuraInside<G['bearer']>());
   }
 
   /** Moves it to a point: where it spawns, or its owner's position for an owner-anchored one. */

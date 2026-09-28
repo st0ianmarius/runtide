@@ -6,7 +6,7 @@ import type { AreaTagTable } from './tags.ts';
 const HOOK_FIELDS = ['state', 'init', 'move', 'frame', 'onContact', 'onLand', 'onExpire', 'onEnd'] as const;
 
 /** The parts of a frame an `order` may list. */
-const PHASES: ReadonlySet<string> = new Set(['move', 'contact', 'frame', 'pulses']);
+const PHASES: ReadonlySet<string> = new Set(['move', 'contact', 'frame', 'pulses', 'auras']);
 
 /** The shape kinds a definition may hold. */
 const SHAPE_KINDS: ReadonlySet<string> = new Set([
@@ -120,7 +120,7 @@ const checkFrame = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
   const { order, contact } = def;
 
   if (order !== undefined && (new Set(order).size !== order.length || order.some((phase) => !PHASES.has(phase)))) {
-    fail(name, "its order lists 'move', 'contact', 'frame' and 'pulses', each at most once.");
+    fail(name, "its order lists 'move', 'contact', 'frame', 'pulses' and 'auras', each at most once.");
   }
 
   if (def.arming !== undefined && !isSoundSeconds(def.arming, true)) {
@@ -223,6 +223,21 @@ const checkLedgers = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrig
   }
 };
 
+/** Checks its area auras: a mode, a linger for a refresh, whole stacks. */
+const checkAuras = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTriggerDef<G>): void => {
+  for (const [index, spec] of (def.auras ?? []).entries()) {
+    const isRefresh = spec.mode === 'refresh';
+
+    if (!isOneOf(spec.mode, ['enter-exit', 'refresh']) || (isRefresh && !isSoundSeconds(spec.linger))) {
+      fail(name, `its aura ${index} is kept on enter and exit, or refreshed with a linger of seconds above 0.`);
+    }
+
+    if (spec.stacks !== undefined && !(Number.isInteger(spec.stacks) && spec.stacks >= 1)) {
+      fail(name, `its aura ${index} adds a whole number of stacks from 1.`);
+    }
+  }
+};
+
 /** Checks the tags and the hooks. */
 const checkTagsAndHooks = <G extends AreaTriggerTypes>(
   name: string,
@@ -266,5 +281,6 @@ export const checkAreaTrigger = <G extends AreaTriggerTypes>(
   checkFrame(name, def);
   checkPulse(name, def.every);
   checkLedgers(name, def);
+  checkAuras(name, def);
   checkTagsAndHooks(name, def, tags);
 };

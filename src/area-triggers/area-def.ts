@@ -9,6 +9,7 @@ import type { WorldQuery } from '../world/index.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import type {
+  AreaAura,
   AreaCaster,
   AreaCatch,
   AreaContact,
@@ -246,7 +247,8 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
 
   /**
    * The order of its frame's parts (§II.6 W2), each at most once: `move` (then its shape is placed again), `contact`
-   * (the sweep along this frame's move), `frame` and `pulses`. `['move', 'contact', 'frame', 'pulses']` by default.
+   * (the sweep along this frame's move), `frame`, `pulses` and `auras`; `['move', 'contact', 'frame', 'pulses',
+   * 'auras']` by default.
    */
   readonly order?: readonly AreaPhase[];
 
@@ -273,6 +275,9 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
 
   /** The spell it casts on its own clock. */
   readonly caster?: AreaCaster<G, State>;
+
+  /** The auras it keeps on the units in its shape (§II.6 A10). */
+  readonly auras?: readonly AreaAura<G, State>[];
 
   /** Makes an instance's own state, once per spawn; `undefined` when absent (or its parent's, when shared). */
   state?(this: void): State;

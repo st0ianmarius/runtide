@@ -1,3 +1,4 @@
+import { dropAreaAuras } from './area-auras.ts';
 import type { EndReason } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
@@ -76,6 +77,7 @@ export const endArea = <G extends AreaTriggerTypes>(
   area.isSilent = end.isSilent === true;
   runEndHook(engine, area, end.reason);
   leavePulses(engine, area);
+  dropAreaAuras(engine, area);
   closeLedgers(engine, area);
   unlinkTick(engine, area);
   unlinkKind(engine, area);

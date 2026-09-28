@@ -1,3 +1,4 @@
+import type { AuraId } from '../auras/index.ts';
 import type { Shape } from '../math/index.ts';
 import type { ProcOut, ProcReturn, SpellHit, SpellId } from '../spells/index.ts';
 import type { QuerySide } from '../world/index.ts';
@@ -148,5 +149,28 @@ export interface AreaCaster<G extends AreaTriggerTypes, State = unknown> {
   input?(this: void, c: AreaTriggerContext<G, State>): G['input'] | undefined;
 }
 
+/**
+ * An aura an area trigger keeps on the units in its shape (§II.3.4, §II.6 A10): `enter-exit` puts it on as a unit
+ * enters and takes it off as it leaves (overlapping area triggers counted, so the last one left takes it off);
+ * `refresh` tops it up to `linger` seconds every frame the unit is inside (its own clock counts from there), so it
+ * lingers after the unit leaves. The units are caught as the area trigger's `auras` part runs, in its shape.
+ */
+export interface AreaAura<G extends AreaTriggerTypes, State = unknown> extends Omit<AreaCatch<G, State>, 'ledger'> {
+  /** The aura: its name in data, its id in code. */
+  readonly aura: G['auraName'] | AuraId;
+
+  /** How it is kept: on entry and exit (the default), or refreshed while inside. */
+  readonly mode?: 'enter-exit' | 'refresh';
+
+  /** The seconds each refresh tops it up to, under `refresh`. */
+  readonly linger?: number;
+
+  /** The stacks each application adds. */
+  readonly stacks?: number;
+
+  /** The value each application carries. */
+  readonly value?: number;
+}
+
 /** A part of an area trigger's frame, in the order `order` runs them. */
-export type AreaPhase = 'move' | 'contact' | 'frame' | 'pulses';
+export type AreaPhase = 'move' | 'contact' | 'frame' | 'pulses' | 'auras';
