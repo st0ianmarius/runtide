@@ -5,6 +5,7 @@
  */
 export const CONTRACT_VERSION = 0;
 
+export * from './auras/index.ts';
 export * from './core/index.ts';
 export * from './math/index.ts';
 export * from './modifiers/index.ts';

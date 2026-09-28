@@ -1,0 +1,333 @@
+// Hot path (§I.4.2, §I.5.4): the queue is walked on every operation, so the loops are indexed.
+/* oxlint-disable typescript/prefer-for-of */
+import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
+import { explainModifier } from '../modifiers/index.ts';
+import { type ActiveAura, type AuraItem, MutableContext } from './active-aura.ts';
+import type { AuraHost } from './application.ts';
+import type { AuraChange, AuraHook } from './aura-def.ts';
+import type { AuraTypes } from './aura-types.ts';
+import { type AuraTables, CHANGES } from './compile.ts';
+import type { AuraRegistry } from './define-auras.ts';
+import { setOf } from './state.ts';
+
+/** The code of a queued beat, after the lifecycle change codes. */
+const BEAT = CHANGES.length;
+
+/** The lifecycle hook of each change code. */
+const HOOK_NAMES = ['onApplied', 'onRefreshed', 'onExpired', 'onRemoved', 'onBearerDeath'] as const;
+
+/**
+ * The payload of an aura event on the bus (§II.6 A1): what changed, on which bearer, and the aura. It is reused
+ * between raises (the bus's payload reuse), so a listener reads it while it runs and never keeps it.
+ */
+export interface AuraEvent<G extends AuraTypes = AuraTypes> {
+  /** What happened. */
+  change: AuraChange;
+
+  /** The bearer; set on every raise. */
+  bearer: G['bearer'] | undefined;
+
+  /** The aura; set on every raise, and already off its bearer for `expired` and `removed`. */
+  aura: ActiveAura<G> | undefined;
+}
+
+/** Makes an empty aura event payload: the factory a game registers the aura event kind on its bus with. */
+export const createAuraEvent = <G extends AuraTypes = AuraTypes>(): AuraEvent<G> => ({
+  change: 'applied',
+  bearer: undefined,
+  aura: undefined,
+});
+
+/** The part of a bus the aura system raises its events on (a core `Bus` is one). */
+export interface AuraEventBus {
+  /** Whether anything hears a kind. */
+  readonly hears: (kind: EventKind<unknown>) => boolean;
+
+  /** The reused payload of a kind. */
+  readonly payload: <Payload>(kind: EventKind<Payload>) => Payload;
+
+  /** Raises a filled payload. */
+  readonly raise: <Payload>(kind: EventKind<Payload>, payload: Payload) => void;
+}
+
+/** What the queue dispatches with. */
+export interface EventParts<G extends AuraTypes> {
+  /** The aura registry. */
+  readonly registry: AuraRegistry<G>;
+
+  /** The compiled tables. */
+  readonly tables: AuraTables;
+
+  /** The host. */
+  readonly host: AuraHost<G>;
+
+  /** The bus and kind aura events are raised on, if any. */
+  readonly events?:
+    | {
+        /** The bus. */
+        readonly bus: AuraEventBus;
+
+        /** The aura event kind on it. */
+        readonly kind: EventKind<AuraEvent<G>>;
+      }
+    | undefined;
+
+  /** Gives an aura's slot back to the pool. */
+  readonly release: (item: AuraItem<G>) => void;
+}
+
+/** An aura's own multiplier on a stat: the product of its `mul` modifiers on it at its stacks. */
+const ownProduct = <G extends AuraTypes>(tables: AuraTables, item: AuraItem<G>, stat: number): number => {
+  let product = 1;
+
+  for (const modifier of tables.lists[item.id]?.modifiers ?? []) {
+    if (modifier.stat === stat && modifier.op === 'mul') {
+      product *= explainModifier(modifier, item.stacks).landed ?? 1;
+    }
+  }
+
+  return product;
+};
+
+/**
+ * The events of an aura operation, queued in parallel columns (no object per event) and dispatched once the
+ * operation has finished, in the order the changes happened (§II.6 A1): each one runs the aura's hook (its procs
+ * handed to the host), then raises on the bus (triggers, then subscribers). Operations nest: a hook that changes
+ * auras queues and dispatches its own before it returns, and the outer operation's remaining events after. Slots of
+ * auras that left their bearers go back to the pool only once no dispatch is running, so nothing queued can see a
+ * reused slot.
+ */
+export class AuraEvents<G extends AuraTypes> {
+  readonly #parts: EventParts<G>;
+  readonly #codes: number[] = [];
+  readonly #bearers: G['bearer'][] = [];
+  readonly #items: AuraItem<G>[] = [];
+  readonly #handles: number[] = [];
+  readonly #weights: number[] = [];
+  readonly #retired: AuraItem<G>[] = [];
+  readonly #contexts: MutableContext<G>[] = [];
+  readonly #heard: readonly Bitset[];
+  #contextDepth = 0;
+  #dispatching = 0;
+
+  constructor(parts: EventParts<G>) {
+    this.#parts = parts;
+    this.#heard = HOOK_NAMES.map((name, code) =>
+      createBitset(
+        parts.registry.ids.filter(
+          (id) => parts.registry.has[name].has(id) || ((parts.tables.rescaleOn[id] ?? 0) & (1 << code)) !== 0,
+        ),
+      ),
+    );
+  }
+
+  /** Where the queue ends now: what an operation flushes from. */
+  get mark(): number {
+    return this.#codes.length;
+  }
+
+  /** Queues a lifecycle change for a bearer that is not silent, when anything hears it. */
+  raise(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
+    if (this.#isHeard(code, item.id)) {
+      this.#queue(code, bearer, item);
+    }
+  }
+
+  /** Queues a beat for a bearer that is not silent. */
+  beat(bearer: G['bearer'], item: AuraItem<G>, weight: number): void {
+    this.#queue(BEAT, bearer, item);
+    this.#weights[this.#weights.length - 1] = weight;
+  }
+
+  /** Marks an aura as off its bearer; its slot goes back to the pool once no dispatch is running. */
+  retire(item: AuraItem<G>): void {
+    item.isActive = false;
+    this.#retired.push(item);
+  }
+
+  /**
+   * Dispatches everything queued since `from`, in order, then gives back the retired slots if nothing else runs. An
+   * operation that queued nothing and retired nothing costs two comparisons.
+   */
+  finish(from: number): void {
+    if (this.#codes.length > from) {
+      this.#flush(from);
+    }
+
+    if (this.#dispatching === 0 && this.#retired.length > 0) {
+      this.#releaseRetired();
+    }
+  }
+
+  /** Takes the context of the next nesting level, filled for one aura. Give it back with `give`. */
+  take(bearer: G['bearer'], aura: ActiveAura<G>): MutableContext<G> {
+    const context = this.#contexts[this.#contextDepth] ?? new MutableContext<G>(bearer, aura);
+
+    this.#contexts[this.#contextDepth] = context;
+    this.#contextDepth += 1;
+    context.bearer = bearer;
+    context.aura = aura;
+    context.stats = this.#parts.host.statsOf?.(bearer);
+
+    return context;
+  }
+
+  /** Gives back the most recently taken context. */
+  give(): void {
+    this.#contextDepth -= 1;
+  }
+
+  /** Runs procs a hook returned, if there are any and a host runs them. */
+  run(procs: readonly G['proc'][] | undefined, context: MutableContext<G>): void {
+    if (procs !== undefined && procs.length > 0) {
+      this.#parts.host.run?.(procs, context);
+    }
+  }
+
+  /** Whether anything hears a change of an aura: its hook, its rescale, or the bus. */
+  #isHeard(code: number, id: number): boolean {
+    const events = this.#parts.events;
+
+    return this.#heard[code]?.has(id) === true || events?.bus.hears(events.kind) === true;
+  }
+
+  /** Queues one event, unless the bearer is silent. */
+  #queue(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
+    if (setOf<G>(bearer).isSilent) {
+      return;
+    }
+
+    this.#codes.push(code);
+    this.#bearers.push(bearer);
+    this.#items.push(item);
+    this.#handles.push(item.handle);
+    this.#weights.push(1);
+  }
+
+  /** Dispatches queued event `i`. */
+  #dispatch(i: number): void {
+    const code = this.#codes[i] ?? 0;
+    const bearer = this.#bearers[i];
+    const item = this.#items[i];
+
+    if (item === undefined || bearer === undefined) {
+      return;
+    }
+
+    if (code === BEAT) {
+      this.#beat(bearer, item, i);
+    } else {
+      this.#change(code, bearer, item);
+    }
+  }
+
+  /** Dispatches a beat, if its aura is still the one it was queued for and its gate lets it fire. */
+  #beat(bearer: G['bearer'], item: AuraItem<G>, i: number): void {
+    const periodic = this.#parts.registry.defs[item.id]?.periodic;
+
+    if (periodic === undefined || !item.isActive || item.handle !== this.#handles[i]) {
+      return;
+    }
+
+    const context = this.take(bearer, item);
+
+    try {
+      if (periodic.when?.(context) !== false) {
+        this.run(periodic.onBeat(context, this.#weights[i] ?? 1), context);
+      }
+    } finally {
+      this.give();
+    }
+  }
+
+  /** Dispatches a lifecycle change: the rescale, the hook and its procs, then the bus. */
+  #change(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
+    const { registry } = this.#parts;
+    const hookName = HOOK_NAMES[code];
+    const hook: AuraHook<G> | undefined = hookName === undefined ? undefined : registry.hooks[hookName][item.id];
+
+    this.#rescale(code, bearer, item);
+
+    if (hook !== undefined) {
+      const context = this.take(bearer, item);
+
+      try {
+        this.run(hook(context), context);
+      } finally {
+        this.give();
+      }
+    }
+
+    this.#publish(code, bearer, item);
+  }
+
+  /** Raises the change on the bus, if anything hears it there. */
+  #publish(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
+    const events = this.#parts.events;
+
+    if (events === undefined || !events.bus.hears(events.kind)) {
+      return;
+    }
+
+    const payload = events.bus.payload(events.kind);
+
+    payload.change = CHANGES[code] ?? 'applied';
+    payload.bearer = bearer;
+    payload.aura = item;
+    events.bus.raise(events.kind, payload);
+  }
+
+  /** Hands the host a clock rescale when the aura declares one on this edge. */
+  #rescale(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
+    const { tables, host } = this.#parts;
+    const stat = tables.rescaleStat[item.id];
+    const rescale = this.#parts.registry.defs[item.id]?.rescale;
+
+    if (stat === undefined || rescale === undefined || ((tables.rescaleOn[item.id] ?? 0) & (1 << code)) === 0) {
+      return;
+    }
+
+    const product = ownProduct(tables, item, stat);
+
+    host.rescaleClocks?.(bearer, {
+      aura: item.id,
+      stat,
+      factor: code <= 1 ? 1 / product : product,
+      isPendingOnly: rescale.clocks !== 'all',
+      scope: rescale.scope ?? -1,
+    });
+  }
+
+  /** Dispatches the events queued since `from`, then drops them (even if a hook throws). */
+  #flush(from: number): void {
+    this.#dispatching += 1;
+
+    try {
+      for (let i = from; i < this.#codes.length; i++) {
+        this.#dispatch(i);
+      }
+    } finally {
+      this.#codes.length = from;
+      this.#bearers.length = from;
+      this.#items.length = from;
+      this.#handles.length = from;
+      this.#weights.length = from;
+      this.#dispatching -= 1;
+    }
+  }
+
+  /** Gives every retired slot back to the pool, in the order they were retired. */
+  #releaseRetired(): void {
+    const retired = this.#retired;
+
+    for (let i = 0; i < retired.length; i++) {
+      const item = retired[i];
+
+      if (item !== undefined) {
+        this.#parts.release(item);
+      }
+    }
+
+    retired.length = 0;
+  }
+}

@@ -1,0 +1,370 @@
+// Hot path (§I.4.2, §I.5.4): the queries walk the bearer's list, so the loops are indexed.
+/* oxlint-disable typescript/prefer-for-of */
+import type { EventKind } from '../core/index.ts';
+import { recordOf } from '../core/records.ts';
+import type { ActiveAura, AuraContext } from './active-aura.ts';
+import { MutableContext } from './active-aura.ts';
+import type { ApplyResult, AuraApplication, AuraHost } from './application.ts';
+import { applyAura } from './apply.ts';
+import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
+import { type AuraClock, type AuraModifiers, compileAuras } from './compile.ts';
+import type { AuraHookName, AuraRegistry } from './define-auras.ts';
+import { AuraEngine } from './engine.ts';
+import type { AuraEvent, AuraEventBus } from './events.ts';
+import { type AuraExplanation, explainIn } from './explain.ts';
+import {
+  bearerDied,
+  enterState,
+  refreshAura,
+  removeAura,
+  removeByTag,
+  sourceGone,
+  spendStacks,
+  spendValue,
+} from './remove.ts';
+import { AuraSet, type AuraState, setOf } from './state.ts';
+import type { AuraTagTable } from './tags.ts';
+import { tickAuras } from './tick.ts';
+import { type AuraView, viewAuras, type ViewOptions } from './view.ts';
+
+/** The damage and force hooks, which a pipeline collects auras for. */
+export type AuraPipelineHook = Extract<
+  AuraHookName,
+  'onIgnore' | 'onIncomingDamage' | 'onLethal' | 'onDealt' | 'onIncomingForce'
+>;
+
+/** What an aura system is built from (§I.5): the game's registries and its host. */
+export interface AuraSystemBase<G extends AuraTypes> {
+  /** The game's auras (`defineAuras`). */
+  readonly registry: AuraRegistry<G>;
+
+  /** The game's aura tags (`defineAuraTags`). */
+  readonly tags: AuraTagTable<G['tag']>;
+
+  /**
+   * The clocks auras count on, by name, each with its fixed step and countdown rule (a core `SimClock` is one). The
+   * first is every aura's default. Each bearer counts its own steps on each (`tick`).
+   */
+  readonly clocks: Readonly<Record<G['clock'], AuraClock>>;
+
+  /** The modifier system aura modifiers fold in, when any aura has modifiers. */
+  readonly modifiers?: AuraModifiers<G>;
+
+  /** The modifier source aura modifiers fold at unless an aura names its own. */
+  readonly fold?: G['source'];
+
+  /** The bearer states `removedOn` may name, at most 32. */
+  readonly states?: readonly G['state'][];
+
+  /** The host: proc runner, stats, application policy, clock rescales. */
+  readonly host?: AuraHost<G>;
+
+  /** The bus and event kind lifecycle events are raised on (registered with `createAuraEvent`). */
+  readonly events?: {
+    /** The bus. */
+    readonly bus: AuraEventBus;
+
+    /** The aura event kind. */
+    readonly kind: EventKind<AuraEvent<G>>;
+  };
+
+  /** Clears the game's fields of an aura as its slot goes back to the pool. */
+  readonly resetExt?: (ext: G['ext']) => void;
+}
+
+/**
+ * The options of an aura system: its base, and `createExt`, which makes the game's fields for each pooled aura. It
+ * is required exactly when the game's `ext` type does not admit `undefined`.
+ */
+export type AuraSystemOptions<G extends AuraTypes> = AuraSystemBase<G> &
+  (undefined extends G['ext']
+    ? {
+        /** Makes the game's fields of a pooled aura; they stay `undefined` when absent. */
+        readonly createExt?: () => G['ext'];
+      }
+    : {
+        /** Makes the game's fields of a pooled aura. */
+        readonly createExt: () => G['ext'];
+      });
+
+/** How a bearer's aura state is made. */
+export interface StateOptions {
+  /** Whether it runs no hooks and raises no events (a preview or a prediction copy); false when absent. */
+  readonly isSilent?: boolean;
+}
+
+/**
+ * An aura system (§I.6): the machinery over one game's aura registry, for any bearer. Every operation takes the bearer
+ * (anything holding a state made by `createState`), runs the aura's rules, then its hooks and events.
+ */
+export interface AuraSystem<G extends AuraTypes> {
+  /** The game's auras. */
+  readonly registry: AuraRegistry<G>;
+
+  /** The game's aura tags. */
+  readonly tags: AuraTagTable<G['tag']>;
+
+  /** The id of every clock, by name. */
+  readonly clocks: Readonly<Record<G['clock'], number>>;
+
+  /** How many aura slots the pool has made, and how many are live: a steady state makes no new ones. */
+  readonly pool: {
+    /** Slots ever made. */
+    readonly created: number;
+
+    /** Slots live now. */
+    readonly live: number;
+  };
+
+  /** A new, empty aura state for one bearer; a silent one runs no hooks and raises no events. */
+  readonly createState: (options?: StateOptions) => AuraState;
+
+  /** Applies an aura (by id, or with an application's options); see `ApplyResult`. */
+  readonly apply: (bearer: G['bearer'], aura: AuraId | AuraApplication<G>) => ApplyResult;
+
+  /** Removes every instance of an aura; true when there was one. */
+  readonly remove: (bearer: G['bearer'], aura: AuraId) => boolean;
+
+  /** Removes every aura granting a tag (a cleanse or dispel); how many went. */
+  readonly removeByTag: (bearer: G['bearer'], tag: AuraTagId) => number;
+
+  /** Sets every instance's clock again, to `seconds` or the aura's own length; true when there was one. */
+  readonly refresh: (bearer: G['bearer'], aura: AuraId, seconds?: number) => boolean;
+
+  /** Spends stacks, instance by instance; refuses (spending nothing) when fewer are held. */
+  readonly spendStacks: (bearer: G['bearer'], aura: AuraId, count: number) => boolean;
+
+  /** Spends from an aura's value, instance by instance; returns the amount spent. */
+  readonly spendValue: (bearer: G['bearer'], aura: AuraId, amount: number) => number;
+
+  /** The bearer enters a state: every aura whose `removedOn` names it is removed; how many went. */
+  readonly enterState: (bearer: G['bearer'], state: G['state']) => number;
+
+  /** A source is gone: every aura bound to it is removed; how many went. */
+  readonly sourceGone: (bearer: G['bearer'], source: number) => number;
+
+  /** The bearer died: `bearerDeath` is raised for every aura on it, in list order. */
+  readonly bearerDied: (bearer: G['bearer']) => void;
+
+  /** Steps the bearer's clock once: beats, then expiries. */
+  readonly tick: (bearer: G['bearer'], clock: G['clock']) => void;
+
+  /** Whether the bearer has an aura. */
+  readonly has: (bearer: G['bearer'], aura: AuraId) => boolean;
+
+  /** The first instance of an aura on the bearer. */
+  readonly find: (bearer: G['bearer'], aura: AuraId) => ActiveAura<G> | undefined;
+
+  /** The stacks of an aura summed over its instances; 0 when it is not held. */
+  readonly stacks: (bearer: G['bearer'], aura: AuraId) => number;
+
+  /** The seconds left on an aura (its longest instance); 0 when it is not held. */
+  readonly remaining: (bearer: G['bearer'], aura: AuraId) => number;
+
+  /** The seconds left on one instance. */
+  readonly remainingOf: (bearer: G['bearer'], aura: ActiveAura) => number;
+
+  /** Whether any aura on the bearer grants a tag. */
+  readonly hasTag: (bearer: G['bearer'], tag: AuraTagId) => boolean;
+
+  /** An aura's own length for one application on a bearer; throws for an aura with none. */
+  readonly lengthOf: (aura: AuraId, bearer: G['bearer']) => number;
+
+  /** Fills `out` with the bearer's auras that have a pipeline hook, in list order, and returns it. */
+  readonly collect: (bearer: G['bearer'], hook: AuraPipelineHook, out: ActiveAura<G>[]) => ActiveAura<G>[];
+
+  /** A context for calling one aura's hook from a pipeline; a new object, which the caller may keep for the call. */
+  readonly context: (bearer: G['bearer'], aura: ActiveAura<G>) => AuraContext<G>;
+
+  /** The bearer's auras as views for the wire. */
+  readonly view: (bearer: G['bearer'], options?: ViewOptions) => AuraView[];
+}
+
+/** Whether `undefined` is the game's `ext`: true exactly when the options could leave `createExt` out. */
+// oxlint-disable-next-line typescript/no-unnecessary-type-parameters
+const isNoExt = <G extends AuraTypes>(value: undefined): value is undefined & G['ext'] => value === undefined;
+
+/** The ext factory: the game's, or `undefined` for a game whose `ext` admits it. */
+const extFactory = <G extends AuraTypes>(options: AuraSystemOptions<G>): (() => G['ext']) => {
+  const create: (() => G['ext']) | undefined = options.createExt;
+
+  return (
+    create ??
+    ((): G['ext'] => {
+      const none = undefined;
+
+      if (!isNoExt<G>(none)) {
+        throw new TypeError('This aura system needs createExt.');
+      }
+
+      return none;
+    })
+  );
+};
+
+/** The operations that change a bearer's auras. */
+const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>) => ({
+  apply: (bearer: G['bearer'], aura: AuraId | AuraApplication<G>) => applyAura(engine, bearer, aura),
+  remove: (bearer: G['bearer'], aura: AuraId) => removeAura(engine, bearer, aura),
+  removeByTag: (bearer: G['bearer'], tag: AuraTagId) => removeByTag(engine, bearer, tag),
+  refresh: (bearer: G['bearer'], id: AuraId, seconds?: number) => refreshAura(engine, bearer, { id, seconds }),
+  spendStacks: (bearer: G['bearer'], id: AuraId, count: number) => spendStacks(engine, bearer, { id, count }),
+  spendValue: (bearer: G['bearer'], id: AuraId, amount: number) => spendValue(engine, bearer, { id, amount }),
+  enterState: (bearer: G['bearer'], state: G['state']) => enterState(engine, bearer, state),
+  sourceGone: (bearer: G['bearer'], source: number) => sourceGone(engine, bearer, source),
+
+  bearerDied: (bearer: G['bearer']) => {
+    bearerDied(engine, bearer);
+  },
+});
+
+/** The first instance of an aura on a bearer. */
+const findIn = <G extends AuraTypes>(bearer: G['bearer'], id: AuraId): ActiveAura<G> | undefined => {
+  const { items } = setOf<G>(bearer);
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    if (item?.id === id) {
+      return item;
+    }
+  }
+
+  return undefined;
+};
+
+/** The longest time left on an aura's instances. */
+const remainingIn = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], id: AuraId): number => {
+  const set = setOf<G>(bearer);
+  let left = 0;
+
+  for (let i = 0; i < set.items.length; i++) {
+    const item = set.items[i];
+
+    if (item?.id === id) {
+      left = Math.max(left, engine.remainingOf(set, item));
+    }
+  }
+
+  return left;
+};
+
+/** Fills `out` with the auras that have a pipeline hook. */
+const collectIn = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  at: { readonly hook: AuraPipelineHook; readonly out: ActiveAura<G>[] },
+): ActiveAura<G>[] => {
+  const { items } = setOf<G>(bearer);
+  const has = engine.registry.has[at.hook];
+
+  at.out.length = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    if (item !== undefined && has.has(item.id)) {
+      at.out.push(item);
+    }
+  }
+
+  return at.out;
+};
+
+/** The read-only queries over a bearer's auras. */
+const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>) => ({
+  has: (bearer: G['bearer'], id: AuraId) => findIn(bearer, id) !== undefined,
+  find: (bearer: G['bearer'], id: AuraId) => findIn(bearer, id),
+
+  stacks: (bearer: G['bearer'], id: AuraId) =>
+    setOf<G>(bearer).items.reduce((sum, item) => (item.id === id ? sum + item.stacks : sum), 0),
+
+  remaining: (bearer: G['bearer'], id: AuraId) => remainingIn(engine, bearer, id),
+  remainingOf: (bearer: G['bearer'], aura: ActiveAura) => engine.remainingOf(setOf<G>(bearer), aura),
+  hasTag: (bearer: G['bearer'], tag: AuraTagId) => setOf<G>(bearer).tags.has(tag),
+  lengthOf: (id: AuraId, bearer: G['bearer']) => engine.lengthOf(id, bearer),
+
+  collect: (bearer: G['bearer'], hook: AuraPipelineHook, out: ActiveAura<G>[]) =>
+    collectIn(engine, bearer, { hook, out }),
+
+  context: (bearer: G['bearer'], aura: ActiveAura<G>): AuraContext<G> => {
+    const context = new MutableContext<G>(bearer, aura);
+
+    context.stats = engine.host.statsOf?.(bearer);
+
+    return context;
+  },
+
+  view: (bearer: G['bearer'], options?: ViewOptions) => viewAuras(engine, bearer, options),
+});
+
+/** Each system's explainer, for `explainAura`. */
+const EXPLAINERS = new WeakMap<object, (aura: AuraId, stacks: number) => AuraExplanation>();
+
+/**
+ * An aura of a system's registry explained as data (§I.5.3), at `stacks` stacks (1 by default): its rules, tags,
+ * modifiers and beat, with the numbers the simulation uses, for the client to phrase.
+ */
+export const explainAura = <G extends AuraTypes>(auras: AuraSystem<G>, aura: AuraId, stacks = 1): AuraExplanation => {
+  const explain = EXPLAINERS.get(auras);
+
+  if (explain === undefined) {
+    throw new TypeError('explainAura needs a system made by createAuraSystem.');
+  }
+
+  return explain(aura, stacks);
+};
+
+/**
+ * Creates the aura system over a game's registries (§I.5): `createAuraSystem({ registry: AURAS, tags: AURA_TAGS,
+ * clocks: { world }, modifiers, fold: 'auras', host })`. Every name is resolved and every modifier list compiled and
+ * shared at load; nothing is looked up by name afterwards.
+ */
+export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions<G>): AuraSystem<G> => {
+  const { registry } = options;
+  const tables = compileAuras(options);
+  const host = options.host ?? {};
+
+  const engine = new AuraEngine<G>({
+    registry,
+    tables,
+    host,
+    events: options.events,
+    createExt: extFactory(options),
+    resetExt: options.resetExt,
+  });
+
+  const clockNames = Object.keys(options.clocks).filter((key): key is G['clock'] => Object.hasOwn(options.clocks, key));
+  const clockIds = recordOf(clockNames, (name) => clockNames.indexOf(name));
+  const activeWhile = registry.hooks.activeWhile;
+
+  const system: AuraSystem<G> = {
+    registry,
+    tags: options.tags,
+    clocks: clockIds,
+
+    pool: {
+      get created() {
+        return engine.pool.created;
+      },
+
+      get live() {
+        return engine.pool.live;
+      },
+    },
+
+    createState: (stateOptions = {}) =>
+      new AuraSet<G>(tables.clockNames.length, { isSilent: stateOptions.isSilent === true, activeWhile }),
+
+    tick: (bearer, clock) => {
+      tickAuras(engine, bearer, clockIds[clock] ?? 0);
+    },
+
+    ...operationsOf(engine),
+    ...queriesOf(engine),
+  };
+
+  EXPLAINERS.set(system, (aura, stacks) => explainIn(engine, aura, stacks));
+
+  return Object.freeze(system);
+};
