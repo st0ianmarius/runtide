@@ -1,3 +1,4 @@
+import { type AreaTriggerTypes, defineAreaTags } from '../../src/area-triggers/index.ts';
 import {
   type AuraDef,
   type AuraId,
@@ -48,7 +49,6 @@ import {
   type SpellSystem,
   type SpellSystemBase,
   spellTriggerEvent,
-  type SpellTypes,
 } from '../../src/spells/index.ts';
 import { createTriggerSystem, type TriggerDef, type TriggerTypes } from '../../src/triggers/index.ts';
 
@@ -95,7 +95,7 @@ interface CastFields {
 }
 
 /** The test game's types. */
-export interface Game extends SpellTypes, DamageTypes, TriggerTypes {
+export interface Game extends AreaTriggerTypes, DamageTypes, TriggerTypes {
   /** A test unit. */
   readonly bearer: Unit;
 
@@ -194,6 +194,18 @@ export interface Game extends SpellTypes, DamageTypes, TriggerTypes {
 
   /** No game data on spells. */
   readonly spellData: undefined;
+
+  /** Area trigger names are open strings. */
+  readonly areaTriggerName: string;
+
+  /** The test area trigger tags. */
+  readonly areaTag: 'dome' | 'pool';
+
+  /** What a spawn hands an area trigger: a number its init reads. */
+  readonly areaInput: number;
+
+  /** No game fields on area triggers. */
+  readonly areaExt: undefined;
 }
 
 /** The test stats: a flat power, a multiplier damage bonus, haste, and the target's maximum health. */
@@ -209,6 +221,9 @@ type StatName = keyof typeof STATS.id;
 
 /** The test spell tags. */
 export const SPELL_TAGS = defineSpellTags(['fire', 'area', 'melee']);
+
+/** The test area trigger tags. */
+export const AREA_TAGS = defineAreaTags(['dome', 'pool']);
 
 /** `defineSpell` fixed to the test types. */
 export const spell = defineSpell<Game>();

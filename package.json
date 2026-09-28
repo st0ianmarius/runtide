@@ -15,6 +15,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./area-triggers": {
+      "types": "./dist/area-triggers/index.d.ts",
+      "default": "./dist/area-triggers/index.js"
+    },
     "./auras": {
       "types": "./dist/auras/index.d.ts",
       "default": "./dist/auras/index.js"
