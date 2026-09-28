@@ -22,6 +22,10 @@
     "./math": {
       "types": "./dist/math/index.d.ts",
       "default": "./dist/math/index.js"
+    },
+    "./modifiers": {
+      "types": "./dist/modifiers/index.d.ts",
+      "default": "./dist/modifiers/index.js"
     }
   },
   "engines": {

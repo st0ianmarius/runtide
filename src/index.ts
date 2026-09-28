@@ -7,3 +7,9 @@ export const CONTRACT_VERSION = 0;
 
 export * from './core/index.ts';
 export * from './math/index.ts';
+export * from './modifiers/index.ts';
+
+// Both the math and the modifiers export `add`: at the root it stays the vector sum, and the scaled-value term helper
+// is `addTerm` here (it is `add` in `spellweave/modifiers`).
+export { add } from './math/index.ts';
+export { add as addTerm } from './modifiers/index.ts';
