@@ -2,7 +2,7 @@
 
 A deterministic, engine-agnostic gameplay framework for MMO-like games: spells, auras, procs, triggers, modifiers and cues, woven together, in pure TypeScript with no rendering or networking dependencies.
 
-Built so far: the scaffold (phase F0), the deterministic core and math (phase F1: `spellweave/core`, `spellweave/math`), modifiers with stat scaling and curves (phase F2: `spellweave/modifiers`), auras on any bearer (phase F3: `spellweave/auras`), procs and triggers (phase F4: `spellweave/procs`, `spellweave/triggers`), and the damage, heal, force and death pipelines (phase F5: `spellweave/damage`). [`PLAN.md`](PLAN.md) is the single source of truth: the ground rules, the layout, the systems and the phases.
+Built so far: the scaffold (phase F0), the deterministic core and math (phase F1: `spellweave/core`, `spellweave/math`), modifiers with stat scaling and curves (phase F2: `spellweave/modifiers`), auras on any bearer (phase F3: `spellweave/auras`), procs and triggers (phase F4: `spellweave/procs`, `spellweave/triggers`), the damage, heal, force and death pipelines (phase F5: `spellweave/damage`), and cues with their wire encoding (phase F6: `spellweave/cues`). [`PLAN.md`](PLAN.md) is the single source of truth: the ground rules, the layout, the systems and the phases.
 
 ## The model
 
@@ -10,7 +10,7 @@ Built so far: the scaffold (phase F0), the deterministic core and math (phase F1
 - An **aura** is a stateful effect on any unit: stacks, clocks, periodic beats, modifiers, damage hooks, and the triggers it owns.
 - A **proc** is one outcome (damage, apply an aura, spawn an area trigger, …); games add their own kinds.
 - An **area trigger** is what persists in the world: a shape with a lifetime, pulses and hit policies.
-- A **cue** is a numeric id with numeric params. The simulation emits ids and numbers only; the client owns every name, text, icon, sound and effect.
+- A **cue** is a numeric id with numeric params, fired in order into a per-tick buffer and encoded with only the params that differ from their defaults. The simulation emits ids and numbers only; the client owns every name, text, icon, sound and effect.
 
 A game plugs in by defining its resources as plain objects and functions, registering them (each gets a dense numeric id), and implementing narrow host interfaces: the world query, the clock, the random streams, the damage sink and cue output. Everything runs on a fixed-step clock and seeded randomness, so two runs agree to the bit, on the server, in the browser and in a worker.
 
