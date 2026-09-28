@@ -8,13 +8,20 @@ import type { AuraTagTable } from './tags.ts';
 /** The lifecycle changes, by code. */
 export const CHANGES: readonly AuraChange[] = ['applied', 'refreshed', 'expired', 'removed', 'bearerDeath'];
 
-/** A clock auras count on: its fixed step and its countdown rule (a `SimClock` is one). */
+/** A clock auras count on: its fixed step, its countdown rule and how it keeps time (a `SimClock` is one). */
 export interface AuraClock {
   /** The fixed step, in seconds, of one tick of this clock. */
   readonly dt: number;
 
   /** How seconds turn into ticks on it: a stamp lands on the tick a countdown under this rule runs out. */
   readonly countdown: CountdownRule;
+
+  /**
+   * How its auras keep their time: `stamp` (the default) sets an end tick once and touches nothing per tick;
+   * `countdown` keeps the seconds left and steps them by the rule every tick, so what is left, `extend` and `highest`
+   * are read in seconds, exactly as a hand-written countdown would.
+   */
+  readonly timing?: 'stamp' | 'countdown';
 }
 
 /** What an aura system needs from a modifier system: compiling gated lists and sharing them at a fold position. */
@@ -102,6 +109,9 @@ export interface AuraTables {
 
   /** The clocks, by id. */
   readonly clocks: readonly AuraClock[];
+
+  /** Whether each clock counts down (1) or stamps (0), by clock id. */
+  readonly countsDown: Uint8Array;
 
   /** The clock names, by id. */
   readonly clockNames: readonly string[];
@@ -214,6 +224,9 @@ const emptyTables = <G extends AuraTypes>(input: CompileInput<G>, size: number) 
   rescaleStat: Array.from<StatId | undefined>({ length: size }),
   rescaleOn: new Uint8Array(size),
   clocks: Object.values<AuraClock>(input.clocks),
+  countsDown: Uint8Array.from(Object.values<AuraClock>(input.clocks), (clock) =>
+    clock.timing === 'countdown' ? 1 : 0,
+  ),
   clockNames: Object.keys(input.clocks),
   stateNames: [...(input.states ?? [])],
 });

@@ -28,5 +28,5 @@ Added at F3 (same container, Node 22.22.2, range of the runs). "Apply ×3 + fold
 
 | benchmark                                     | per op     |
 | --------------------------------------------- | ---------- |
-| aura apply ×3 + fold two stats                | 690–850 ns |
+| aura apply ×3 + fold two stats                | 690–855 ns |
 | aura tick, 2,000 bearers × 3 auras (per tick) | 177–291 µs |

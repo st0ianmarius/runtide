@@ -1,10 +1,14 @@
 import { toHandle, toId } from '../core/ids.ts';
 import type { Handle } from '../core/index.ts';
 import type { StatView } from '../modifiers/index.ts';
+import type { AuraCause } from './aura-def.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 
 /** The source of an aura applied without one. */
 export const NO_SOURCE = -1;
+
+/** The `end` of a finite aura on a clock that counts down instead of stamping. */
+export const NO_STAMP = -1;
 
 /**
  * One aura running on one bearer, as hooks, events and queries see it. Nothing may keep it past the call that handed
@@ -30,7 +34,10 @@ export interface ActiveAura<G extends AuraTypes = AuraTypes> {
   /** The length of the application that last set its clock, in seconds; `Infinity` for an infinite aura. */
   readonly duration: number;
 
-  /** The tick of its bearer's clock on which it runs out; `Infinity` for an infinite aura. */
+  /**
+   * The tick of its bearer's clock on which it runs out, on a stamping clock; `Infinity` for an infinite aura, and
+   * `NO_STAMP` on a counting-down clock (whose time left is `remainingOf`).
+   */
   readonly end: number;
 
   /** The id of the clock its lifetime counts on, in the order the system's clocks were declared. */
@@ -59,6 +66,9 @@ export interface AuraContext<G extends AuraTypes = AuraTypes> {
 
   /** The bearer's stats, when the host reports them; `undefined` otherwise. */
   readonly stats: StatView | undefined;
+
+  /** Why the hook runs: the operation behind the change (`removeByTag` for a dispel, `tick` for an expiry). */
+  readonly cause: AuraCause;
 }
 
 /** The mutable instance behind an `ActiveAura`, pooled by its system. */
@@ -78,6 +88,9 @@ export class AuraItem<G extends AuraTypes> implements ActiveAura<G> {
   /** Seconds until its next periodic beat, counted down on the beat's clock. */
   nextBeat = 0;
 
+  /** Seconds left, counted down every tick of its clock when that clock keeps countdowns. */
+  left = 0;
+
   constructor(ext: G['ext']) {
     this.ext = ext;
   }
@@ -88,6 +101,7 @@ export class MutableContext<G extends AuraTypes> implements AuraContext<G> {
   bearer: G['bearer'];
   aura: ActiveAura<G>;
   stats: StatView | undefined = undefined;
+  cause: AuraCause = 'apply';
 
   constructor(bearer: G['bearer'], aura: ActiveAura<G>) {
     this.bearer = bearer;

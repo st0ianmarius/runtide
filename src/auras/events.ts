@@ -4,7 +4,7 @@ import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
 import { explainModifier } from '../modifiers/index.ts';
 import { type ActiveAura, type AuraItem, MutableContext } from './active-aura.ts';
 import type { AuraHost } from './application.ts';
-import type { AuraChange, AuraHook } from './aura-def.ts';
+import type { AuraCause, AuraChange, AuraHook } from './aura-def.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { type AuraTables, CHANGES } from './compile.ts';
 import type { AuraRegistry } from './define-auras.ts';
@@ -24,6 +24,12 @@ export interface AuraEvent<G extends AuraTypes = AuraTypes> {
   /** What happened. */
   change: AuraChange;
 
+  /** Why: the operation behind it (a dispel is `removeByTag`, an expiry `tick`, an eviction `evict`). */
+  cause: AuraCause;
+
+  /** The serial of that operation: events of one call share it (a removal of several instances, one spend). */
+  op: number;
+
   /** The bearer; set on every raise. */
   bearer: G['bearer'] | undefined;
 
@@ -34,6 +40,8 @@ export interface AuraEvent<G extends AuraTypes = AuraTypes> {
 /** Makes an empty aura event payload: the factory a game registers the aura event kind on its bus with. */
 export const createAuraEvent = <G extends AuraTypes = AuraTypes>(): AuraEvent<G> => ({
   change: 'applied',
+  cause: 'apply',
+  op: 0,
   bearer: undefined,
   aura: undefined,
 });
@@ -104,11 +112,16 @@ export class AuraEvents<G extends AuraTypes> {
   readonly #items: AuraItem<G>[] = [];
   readonly #handles: number[] = [];
   readonly #weights: number[] = [];
+  readonly #ops: number[] = [];
+  readonly #causes: AuraCause[] = [];
+  readonly #openOps: number[] = [];
+  readonly #openCauses: AuraCause[] = [];
   readonly #retired: AuraItem<G>[] = [];
   readonly #contexts: MutableContext<G>[] = [];
   readonly #heard: readonly Bitset[];
   #contextDepth = 0;
   #dispatching = 0;
+  #serial = 0;
 
   constructor(parts: EventParts<G>) {
     this.#parts = parts;
@@ -121,9 +134,28 @@ export class AuraEvents<G extends AuraTypes> {
     );
   }
 
-  /** Where the queue ends now: what an operation flushes from. */
-  get mark(): number {
+  /** Opens an operation with its cause: its events carry both. Returns where its events start; close it with it. */
+  open(cause: AuraCause): number {
+    this.#serial += 1;
+    this.#openOps.push(this.#serial);
+    this.#openCauses.push(cause);
+
     return this.#codes.length;
+  }
+
+  /** Changes the cause of the open operation's next events (an application's cleanse and eviction). */
+  setCause(cause: AuraCause): void {
+    this.#openCauses[this.#openCauses.length - 1] = cause;
+  }
+
+  /** Dispatches the open operation's events and closes it. */
+  close(from: number): void {
+    try {
+      this.finish(from);
+    } finally {
+      this.#openOps.pop();
+      this.#openCauses.pop();
+    }
   }
 
   /** Queues a lifecycle change for a bearer that is not silent, when anything hears it. */
@@ -168,6 +200,7 @@ export class AuraEvents<G extends AuraTypes> {
     context.bearer = bearer;
     context.aura = aura;
     context.stats = this.#parts.host.statsOf?.(bearer);
+    context.cause = this.#openCauses.at(-1) ?? 'apply';
 
     return context;
   }
@@ -202,6 +235,8 @@ export class AuraEvents<G extends AuraTypes> {
     this.#items.push(item);
     this.#handles.push(item.handle);
     this.#weights.push(1);
+    this.#ops.push(this.#openOps.at(-1) ?? 0);
+    this.#causes.push(this.#openCauses.at(-1) ?? 'apply');
   }
 
   /** Dispatches queued event `i`. */
@@ -217,7 +252,7 @@ export class AuraEvents<G extends AuraTypes> {
     if (code === BEAT) {
       this.#beat(bearer, item, i);
     } else {
-      this.#change(code, bearer, item);
+      this.#change(i, bearer, item);
     }
   }
 
@@ -231,6 +266,8 @@ export class AuraEvents<G extends AuraTypes> {
 
     const context = this.take(bearer, item);
 
+    context.cause = this.#causes[i] ?? 'tick';
+
     try {
       if (periodic.when?.(context) !== false) {
         this.run(periodic.onBeat(context, this.#weights[i] ?? 1), context);
@@ -240,9 +277,10 @@ export class AuraEvents<G extends AuraTypes> {
     }
   }
 
-  /** Dispatches a lifecycle change: the rescale, the hook and its procs, then the bus. */
-  #change(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
+  /** Dispatches queued lifecycle change `i`: the rescale, the hook and its procs, then the bus. */
+  #change(i: number, bearer: G['bearer'], item: AuraItem<G>): void {
     const { registry } = this.#parts;
+    const code = this.#codes[i] ?? 0;
     const hookName = HOOK_NAMES[code];
     const hook: AuraHook<G> | undefined = hookName === undefined ? undefined : registry.hooks[hookName][item.id];
 
@@ -251,6 +289,8 @@ export class AuraEvents<G extends AuraTypes> {
     if (hook !== undefined) {
       const context = this.take(bearer, item);
 
+      context.cause = this.#causes[i] ?? 'apply';
+
       try {
         this.run(hook(context), context);
       } finally {
@@ -258,11 +298,11 @@ export class AuraEvents<G extends AuraTypes> {
       }
     }
 
-    this.#publish(code, bearer, item);
+    this.#publish(i, bearer, item);
   }
 
-  /** Raises the change on the bus, if anything hears it there. */
-  #publish(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
+  /** Raises queued change `i` on the bus, if anything hears it there. */
+  #publish(i: number, bearer: G['bearer'], item: AuraItem<G>): void {
     const events = this.#parts.events;
 
     if (events === undefined || !events.bus.hears(events.kind)) {
@@ -271,7 +311,9 @@ export class AuraEvents<G extends AuraTypes> {
 
     const payload = events.bus.payload(events.kind);
 
-    payload.change = CHANGES[code] ?? 'applied';
+    payload.change = CHANGES[this.#codes[i] ?? 0] ?? 'applied';
+    payload.cause = this.#causes[i] ?? 'apply';
+    payload.op = this.#ops[i] ?? 0;
     payload.bearer = bearer;
     payload.aura = item;
     events.bus.raise(events.kind, payload);
@@ -312,6 +354,8 @@ export class AuraEvents<G extends AuraTypes> {
       this.#items.length = from;
       this.#handles.length = from;
       this.#weights.length = from;
+      this.#ops.length = from;
+      this.#causes.length = from;
       this.#dispatching -= 1;
     }
   }

@@ -46,30 +46,49 @@ const codeOf = <G extends AuraTypes>(engine: AuraEngine<G>, at: Again<G>): numbe
     : STACKINGS.indexOf(at.application.stacking);
 
 /**
- * A built-in rule on the instance already there; true when the clock or the stacks changed. Stamps compare and add
- * in whole ticks, so `highest` keeps the later end and `extend` adds the new length's ticks to the end.
+ * `extend`: the new length added to what is left. A counting-down clock adds the seconds (the duration becomes the
+ * new time left); a stamping one adds the new length's ticks to the end.
+ */
+const extend = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): void => {
+  const { item, seconds } = at;
+
+  if (engine.countsDown(item.clock) || item.end === Infinity || !Number.isFinite(seconds)) {
+    engine.setClock(set, item, engine.remainingOf(set, item) + seconds);
+
+    return;
+  }
+
+  item.end += engine.stepsFor(set, item, seconds);
+  item.duration = engine.remainingOf(set, item);
+};
+
+/** `highest`: whether the new length outlasts what is left, in seconds on a counting-down clock, else in ticks. */
+const isLonger = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): boolean => {
+  const { item, seconds } = at;
+
+  if (engine.countsDown(item.clock) || !Number.isFinite(seconds)) {
+    return seconds > engine.remainingOf(set, item);
+  }
+
+  return (set.clocks[item.clock] ?? 0) + engine.stepsFor(set, item, seconds) > item.end;
+};
+
+/**
+ * A built-in rule on the instance already there; true when the clock or the stacks changed. A stamping clock compares
+ * and adds in whole ticks, a counting-down one in seconds.
  */
 const builtIn = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): boolean => {
   const { item, seconds } = at;
   const code = codeOf(engine, at);
-  const now = set.clocks[item.clock] ?? 0;
 
   if (code === REFRESH) {
     engine.setClock(set, item, seconds);
   } else if (code === EXTEND) {
-    item.end =
-      item.end === Infinity || !Number.isFinite(seconds) ? Infinity : item.end + engine.stepsFor(item, seconds);
-    item.duration = engine.remainingOf(set, item);
+    extend(engine, set, at);
   } else if (code === STACK) {
     item.stacks = Math.min(engine.maxStacks[item.id] ?? 1, item.stacks + addedStacks(at.application));
     engine.setClock(set, item, seconds);
-  } else if (code === HIGHEST) {
-    const end = Number.isFinite(seconds) ? now + engine.stepsFor(item, seconds) : Infinity;
-
-    if (end <= item.end) {
-      return false;
-    }
-
+  } else if (code === HIGHEST && isLonger(engine, set, at)) {
     engine.setClock(set, item, seconds);
   } else {
     return false;

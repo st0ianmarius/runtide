@@ -1,6 +1,6 @@
 // Hot path (§I.4.2, §I.5.4): the fold reads stacks through here, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
-import { type Bitset, createBitset } from '../core/index.ts';
+import { type Bitset, type CountdownRule, createBitset } from '../core/index.ts';
 import type { ActiveAura, AuraItem } from './active-aura.ts';
 import type { AuraTypes } from './aura-types.ts';
 
@@ -41,6 +41,7 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
   readonly tags = createBitset();
   readonly clocks: Float64Array;
   readonly isSilent: boolean;
+  readonly rules: readonly (CountdownRule | undefined)[];
   changes = 0;
   readonly #activeWhile: readonly (((bearer: G['bearer']) => boolean) | undefined)[];
 
@@ -48,11 +49,13 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
     clocks: number,
     options: {
       readonly isSilent: boolean;
+      readonly rules: readonly (CountdownRule | undefined)[];
       readonly activeWhile: readonly (((bearer: G['bearer']) => boolean) | undefined)[];
     },
   ) {
     this.clocks = new Float64Array(clocks);
     this.isSilent = options.isSilent;
+    this.rules = options.rules;
     this.#activeWhile = options.activeWhile;
   }
 

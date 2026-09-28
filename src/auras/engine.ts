@@ -1,13 +1,16 @@
 // Hot path (§I.4.2, §I.5.4): list walks run every tick, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
-import { createPool, type Pool, stepsUntil } from '../core/index.ts';
-import { type ActiveAura, AuraItem } from './active-aura.ts';
+import { type CountdownRule, createPool, isRunOut, type Pool, stepsUntil } from '../core/index.ts';
+import { type ActiveAura, AuraItem, NO_STAMP } from './active-aura.ts';
 import type { AuraApplication, AuraHost } from './application.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 import type { AuraTables } from './compile.ts';
 import type { AuraRegistry } from './define-auras.ts';
 import { AuraEvents, type EventParts } from './events.ts';
 import type { AuraSet } from './state.ts';
+
+/** The rule of a clock id outside the table, which no aura counts on: due only at zero. */
+const NO_CLOCK_RULE: CountdownRule = Object.freeze({ snap: false, epsilon: 0 });
 
 /** What an engine is built from. */
 export interface EngineParts<G extends AuraTypes> extends Omit<EventParts<G>, 'release'> {
@@ -81,33 +84,75 @@ export class AuraEngine<G extends AuraTypes> {
     return duration === 'infinite' ? Infinity : duration;
   }
 
-  /** The ticks `seconds` take on an aura's clock: its cached length when it is the definition's own. */
-  stepsFor(item: AuraItem<G>, seconds: number): number {
+  /** The countdown rule a bearer counts a clock by: its own override, else the clock's. */
+  ruleOf(set: AuraSet<G>, clock: number): CountdownRule {
+    return set.rules[clock] ?? this.tables.clocks[clock]?.countdown ?? NO_CLOCK_RULE;
+  }
+
+  /** Whether a clock keeps countdowns rather than stamps. */
+  countsDown(clock: number): boolean {
+    return this.tables.countsDown[clock] === 1;
+  }
+
+  /** The ticks `seconds` take on an aura's clock for a bearer: its cached length when it is the definition's own. */
+  stepsFor(set: AuraSet<G>, item: AuraItem<G>, seconds: number): number {
     const fixed = this.tables.fixedSteps[item.id] ?? -1;
     const clock = this.tables.clocks[item.clock];
+    const rule = this.ruleOf(set, item.clock);
 
-    if (fixed >= 0 && this.registry.defs[item.id]?.duration === seconds) {
+    if (fixed >= 0 && rule === clock?.countdown && this.registry.defs[item.id]?.duration === seconds) {
       return fixed;
     }
 
-    return clock === undefined ? 0 : stepsUntil(seconds, clock.dt, clock.countdown);
+    return clock === undefined ? 0 : stepsUntil(seconds, clock.dt, rule);
   }
 
-  /** Sets an aura's clock to run out `seconds` from now on its bearer's clock, and its duration with it. */
+  /**
+   * Sets an aura's clock to run out `seconds` from now, and its duration with it: an end stamp on a stamping clock,
+   * the seconds left on a counting-down one.
+   */
   setClock(set: AuraSet<G>, item: AuraItem<G>, seconds: number): void {
     item.duration = seconds;
-    item.end = Number.isFinite(seconds) ? (set.clocks[item.clock] ?? 0) + this.stepsFor(item, seconds) : Infinity;
+    item.left = seconds;
+
+    if (!Number.isFinite(seconds)) {
+      item.end = Infinity;
+    } else if (this.countsDown(item.clock)) {
+      item.end = NO_STAMP;
+    } else {
+      item.end = (set.clocks[item.clock] ?? 0) + this.stepsFor(set, item, seconds);
+    }
   }
 
-  /** The seconds left on an aura: its ticks left times its clock's step; `Infinity` for an infinite one. */
+  /**
+   * The seconds left on an aura: the seconds counted down on a counting-down clock, else its ticks left times its
+   * clock's step; `Infinity` for an infinite one.
+   */
   remainingOf(set: AuraSet<G>, item: ActiveAura): number {
     if (item.end === Infinity) {
       return Infinity;
     }
 
+    if (item instanceof AuraItem && this.countsDown(item.clock)) {
+      return item.left;
+    }
+
     const now = set.clocks[item.clock] ?? 0;
 
     return now >= item.end ? 0 : (item.end - now) * (this.tables.clocks[item.clock]?.dt ?? 0);
+  }
+
+  /** Whether an aura has run out: its countdown under its bearer's rule, or its stamp on its bearer's clock. */
+  isDue(set: AuraSet<G>, item: AuraItem<G>): boolean {
+    if (item.end === Infinity) {
+      return false;
+    }
+
+    if (this.countsDown(item.clock)) {
+      return isRunOut(item.left, this.ruleOf(set, item.clock));
+    }
+
+    return (set.clocks[item.clock] ?? 0) >= item.end;
   }
 
   /** Takes a clean aura slot from the pool for `id`. */

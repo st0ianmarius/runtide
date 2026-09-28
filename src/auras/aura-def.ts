@@ -1,3 +1,4 @@
+import type { CountdownRule } from '../core/index.ts';
 import type { Modifier } from '../modifiers/index.ts';
 import type { AuraContext } from './active-aura.ts';
 import type { AuraApplication } from './application.ts';
@@ -62,6 +63,25 @@ export type AuraMergeRule = (current: number, incoming: number) => number;
 /** What happened to an aura on its bearer, as hooks and events are told. */
 export type AuraChange = 'applied' | 'refreshed' | 'expired' | 'removed' | 'bearerDeath';
 
+/**
+ * Why a change happened: the operation (or the step of an application) that caused it, WoW's aura remove mode and
+ * more. `cleanse` and `evict` are the removals an application makes before it lands; `tick` covers expiries, beats
+ * and `expiresWhen`.
+ */
+export type AuraCause =
+  | 'apply'
+  | 'cleanse'
+  | 'evict'
+  | 'remove'
+  | 'removeByTag'
+  | 'spendStacks'
+  | 'spendValue'
+  | 'refresh'
+  | 'tick'
+  | 'enterState'
+  | 'sourceGone'
+  | 'bearerDied';
+
 /** A lifecycle hook: procs credited to the aura's source, or `undefined` for none. */
 export type AuraHook<G extends AuraTypes> = (ctx: AuraContext<G>) => readonly G['proc'][] | undefined;
 
@@ -80,6 +100,12 @@ export interface AuraPeriodic<G extends AuraTypes> {
 
   /** The clock the beat counts on; the aura's own clock when absent. */
   readonly clock?: G['clock'];
+
+  /**
+   * When a beat countdown is due (its epsilon); the beat clock's rule when absent. A game whose beats must tolerate
+   * float drift on a clock with no epsilon gives one here (`defineCountdown({ snap: false, epsilon: 1e-8 })`).
+   */
+  readonly countdown?: CountdownRule;
 
   /** Whether a due beat fires; a skipped beat still counts (a regeneration paused by a wound). */
   readonly when?: (ctx: AuraContext<G>) => boolean;

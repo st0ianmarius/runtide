@@ -8,9 +8,8 @@ import {
   createAuraSystem,
   defineAuras,
 } from '../../src/auras/index.ts';
-import { createClock } from '../../src/core/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul } from '../../src/modifiers/index.ts';
-import { aura, makeGame, TAGS, type TestAuras, type Unit } from '../helpers/aura-game.ts';
+import { aura, CLOCKS, makeGame, TAGS, type TestAuras, type Unit } from '../helpers/aura-game.ts';
 
 describe('game fields and landing (§I.5.6 hatch 4, §II.6 A4)', () => {
   it('capture an application payload into the aura own fields on every landing, and clear them on release', () => {
@@ -128,7 +127,7 @@ describe('clock rescales on aura edges (§II.6 A13)', () => {
     const auras = createAuraSystem<TestAuras>({
       registry,
       tags: TAGS,
-      clocks: { world: createClock({ dt: 0.125 }), motion: createClock({ dt: 0.125, kind: 'motion' }) },
+      clocks: CLOCKS,
       modifiers,
       fold: 'auras',
       createExt: () => ({ snapshot: 0 }),

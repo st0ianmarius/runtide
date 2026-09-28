@@ -9,8 +9,8 @@ import {
   defineAuras,
   defineAuraTags,
 } from '../../src/auras/index.ts';
-import { checkOrder, createBitset, createClock, TOMBSTONE } from '../../src/core/index.ts';
-import { aura, DT, makeGame, TAGS } from '../helpers/aura-game.ts';
+import { checkOrder, createBitset, TOMBSTONE } from '../../src/core/index.ts';
+import { aura, CLOCKS, makeGame, TAGS } from '../helpers/aura-game.ts';
 
 const onApplied = () => ['applied'];
 
@@ -68,7 +68,7 @@ describe('defineAuras (§I.5.2)', () => {
 });
 
 describe('createAuraSystem', () => {
-  const clocks = { world: createClock({ dt: DT }), motion: createClock({ dt: DT, kind: 'motion' }) };
+  const clocks = CLOCKS;
   it('resolves every name at load and refuses an unknown one', () => {
     const system = (def: AuraDef) => () =>
       createAuraSystem({ registry: defineAuras({ def }), tags: TAGS, clocks, states: ['down'] });

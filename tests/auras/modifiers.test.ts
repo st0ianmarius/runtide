@@ -2,9 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { auraStacks, createAuraSystem, defineAuras, explainAura } from '../../src/auras/index.ts';
-import { createClock } from '../../src/core/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
-import { aura, TAGS, type Unit } from '../helpers/aura-game.ts';
+import { aura, CLOCKS, TAGS, type Unit } from '../helpers/aura-game.ts';
 
 /** A game whose aura modifiers fold through the modifier system's gates. */
 const game = () => {
@@ -33,7 +32,7 @@ const game = () => {
   const auras = createAuraSystem({
     registry,
     tags: TAGS,
-    clocks: { world: createClock({ dt: 0.125 }), motion: createClock({ dt: 0.125, kind: 'motion' }) },
+    clocks: CLOCKS,
     modifiers,
     fold: 'auras',
     createExt: () => ({ snapshot: 0 }),
@@ -118,7 +117,7 @@ describe('aura modifiers in the fold', () => {
 
   it('refuse modifiers without a modifier system or a fold source', () => {
     const registry = defineAuras({ might: aura({ duration: 1, modifiers: [plus('armor', 1)] }) });
-    const clocks = { world: createClock({ dt: 0.125 }), motion: createClock({ dt: 0.125, kind: 'motion' }) };
+    const clocks = CLOCKS;
     const createExt = () => ({ snapshot: 0 });
 
     assert.throws(() => createAuraSystem({ registry, tags: TAGS, clocks, createExt }), /fold source/);

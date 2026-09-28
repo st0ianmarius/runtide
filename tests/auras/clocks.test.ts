@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { type AuraBearer, createAuraSystem, defineAura, defineAuras, defineAuraTags } from '../../src/auras/index.ts';
-import { defineCountdown, MOTION_COUNTDOWN, stepsUntil, WORLD_COUNTDOWN } from '../../src/core/index.ts';
+import { type CountdownRule, defineCountdown, stepsUntil } from '../../src/core/index.ts';
 import { aura, makeGame } from '../helpers/aura-game.ts';
 
 const defs = {
@@ -15,8 +15,14 @@ const defs = {
   fading: aura({ duration: 'infinite', value: 3, expiresWhen: (ctx) => ctx.aura.value <= 0 }),
 };
 
+/** `max(0, t − dt)`, due only at zero. */
+const PLAIN = defineCountdown({ snap: false, epsilon: 0 });
+
+/** A step landing below `1e-8` lands on zero. */
+const SNAPPED = defineCountdown({ snap: true, epsilon: 1e-8 });
+
 /** A one-aura system on a 1/60 s clock with the given countdown rule, and a bearer. */
-const sixtyHertz = (countdown: typeof WORLD_COUNTDOWN, seconds: number) => {
+const sixtyHertz = (countdown: CountdownRule, seconds: number) => {
   const registry = defineAuras({ timed: defineAura({ duration: seconds }) });
 
   const auras = createAuraSystem({
@@ -51,7 +57,7 @@ describe('clocks and stamps', () => {
   });
 
   it('stamps an aura on the tick a countdown under its clock rule runs out', () => {
-    for (const countdown of [WORLD_COUNTDOWN, MOTION_COUNTDOWN, defineCountdown({ snap: false, epsilon: 1e-6 })]) {
+    for (const countdown of [PLAIN, SNAPPED, defineCountdown({ snap: false, epsilon: 1e-6 })]) {
       for (const seconds of [0.25, 0.5, 1, 1.08, 1.17, 2, 4.5, 12, 1 / 60]) {
         const { auras, bearer, id } = sixtyHertz(countdown, seconds);
         const steps = stepsUntil(seconds, 1 / 60, countdown);
@@ -71,8 +77,8 @@ describe('clocks and stamps', () => {
   });
 
   it('lets the clock rule decide a float a plain countdown leaves a sliver of', () => {
-    const plain = sixtyHertz(WORLD_COUNTDOWN, 3);
-    const snapped = sixtyHertz(MOTION_COUNTDOWN, 3);
+    const plain = sixtyHertz(PLAIN, 3);
+    const snapped = sixtyHertz(SNAPPED, 3);
 
     plain.auras.apply(plain.bearer, plain.id);
     snapped.auras.apply(snapped.bearer, snapped.id);

@@ -112,7 +112,9 @@ const fresh = <G extends AuraTypes>(
   const isOwnInstance = engine.stacking[id] === INDEPENDENT || ((engine.flags[id] ?? 0) & PER_SOURCE) !== 0;
   const maxStacks = engine.maxStacks[id] ?? 1;
 
+  engine.events.setCause('evict');
   evictFor(engine, bearer, id);
+  engine.events.setCause('apply');
   item.serial = isOwnInstance ? (engine.serials += 1) : 0;
   item.stacks = Math.min(maxStacks, engine.stacking[id] === STACK ? addedStacks(application) : 1);
   item.value = application.value ?? engine.registry.get(id).value ?? 0;
@@ -200,10 +202,13 @@ const landAura = <G extends AuraTypes>(
   }
 
   const seconds = application.duration ?? engine.lengthOf(id, bearer);
-  const from = engine.events.mark;
 
   checkSeconds(engine, id, seconds);
+
+  const from = engine.events.open('cleanse');
+
   cleanse(engine, bearer, id);
+  engine.events.setCause('apply');
 
   const existing = existingFor(engine, set, application);
   let result = FRESH;
@@ -219,7 +224,7 @@ const landAura = <G extends AuraTypes>(
     grant(engine, bearer, landed);
   }
 
-  engine.events.finish(from);
+  engine.events.close(from);
 
   return result;
 };

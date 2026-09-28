@@ -1,6 +1,6 @@
 // Hot path (§I.4.2, §I.5.4): the queries walk the bearer's list, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
-import type { EventKind } from '../core/index.ts';
+import type { CountdownRule, EventKind } from '../core/index.ts';
 import { recordOf } from '../core/records.ts';
 import type { ActiveAura, AuraContext } from './active-aura.ts';
 import { MutableContext } from './active-aura.ts';
@@ -88,9 +88,15 @@ export type AuraSystemOptions<G extends AuraTypes> = AuraSystemBase<G> &
       });
 
 /** How a bearer's aura state is made. */
-export interface StateOptions {
+export interface StateOptions<G extends AuraTypes = AuraTypes> {
   /** Whether it runs no hooks and raises no events (a preview or a prediction copy); false when absent. */
   readonly isSilent?: boolean;
+
+  /**
+   * Countdown rules this bearer counts some clocks by instead of theirs (a prediction copy that counts every clock
+   * by the motion rule); the clocks' own rules when absent.
+   */
+  readonly countdowns?: Readonly<Partial<Record<G['clock'], CountdownRule>>>;
 }
 
 /**
@@ -117,7 +123,7 @@ export interface AuraSystem<G extends AuraTypes> {
   };
 
   /** A new, empty aura state for one bearer; a silent one runs no hooks and raises no events. */
-  readonly createState: (options?: StateOptions) => AuraState;
+  readonly createState: (options?: StateOptions<G>) => AuraState;
 
   /** Applies an aura (by id, or with an application's options); see `ApplyResult`. */
   readonly apply: (bearer: G['bearer'], aura: AuraId | AuraApplication<G>) => ApplyResult;
@@ -354,7 +360,11 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
     },
 
     createState: (stateOptions = {}) =>
-      new AuraSet<G>(tables.clockNames.length, { isSilent: stateOptions.isSilent === true, activeWhile }),
+      new AuraSet<G>(tables.clockNames.length, {
+        isSilent: stateOptions.isSilent === true,
+        rules: clockNames.map((name, index) => stateOptions.countdowns?.[name] ?? tables.clocks[index]?.countdown),
+        activeWhile,
+      }),
 
     tick: (bearer, clock) => {
       tickAuras(engine, bearer, clockIds[clock] ?? 0);
