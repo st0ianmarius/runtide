@@ -30,6 +30,14 @@
     "./modifiers": {
       "types": "./dist/modifiers/index.d.ts",
       "default": "./dist/modifiers/index.js"
+    },
+    "./procs": {
+      "types": "./dist/procs/index.d.ts",
+      "default": "./dist/procs/index.js"
+    },
+    "./triggers": {
+      "types": "./dist/triggers/index.d.ts",
+      "default": "./dist/triggers/index.js"
     }
   },
   "engines": {
