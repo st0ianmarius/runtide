@@ -9,7 +9,9 @@ import type { WorldQuery } from '../world/index.ts';
 import type { AreaTriggerContext, EndReason, Position } from './area-def.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
+import type { AreaLedger } from './delivery-def.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
+import type { Ledger } from './ledgers.ts';
 import { ShapePlacer } from './shape-placer.ts';
 
 /** No stats: an area trigger spawned outside a cast. */
@@ -37,6 +39,9 @@ export interface AreaServices<G extends AreaTriggerTypes> {
 
   /** A draw source for an area trigger. */
   readonly randomFor: (area: AreaTrigger<G>, stream: G['stream'] | undefined) => Random;
+
+  /** The reused view of one of an area trigger's ledgers. */
+  readonly ledgerFor: (area: AreaTrigger<G>, name: string) => AreaLedger<G['bearer']>;
 }
 
 /** Who an area trigger's procs run for: its owner, credited to its source. */
@@ -87,6 +92,9 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
 
   /** The seconds to its next own cast, for a kind that casts. */
   castBeat = 0;
+
+  /** The hit ledgers it holds, by name. */
+  readonly ledgers = new Map<string, Ledger>();
 
   /** The cast it holds alive; none outside a cast. */
   castHandle: CastHandle = NO_CAST;
@@ -188,6 +196,8 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   readonly lock = (unit: G['bearer'] | undefined): void => {
     this.locked = unit;
   };
+
+  readonly ledger = (name: string): AreaLedger<G['bearer']> => this.#services.ledgerFor(this, name);
 
   /** The placer of a pulse's own shape. */
   placerFor(index: number): ShapePlacer {

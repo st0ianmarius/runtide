@@ -1,8 +1,8 @@
 import { isRunOut } from '../core/index.ts';
 import type { CastOptions, SpellId } from '../spells/index.ts';
-import type { AreaCaster } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
+import type { AreaCaster } from './delivery-def.ts';
 import type { AreaEngine } from './engine.ts';
 
 /** The options an area trigger casts with, reused: the cast order reads them before any hook runs. */

@@ -180,6 +180,49 @@ const checkPulse = <G extends AreaTriggerTypes>(name: string, pulses: AnyAreaTri
   }
 };
 
+/** The problem with one ledger's spec, or `undefined`. */
+const ledgerProblem = (
+  spec: NonNullable<AnyAreaTriggerDef<AreaTriggerTypes>['ledgers']>[string],
+): string | undefined => {
+  if (!isOneOf(spec.policy, ['once', 'repeat', 'rehit', 'claim']) || !isOneOf(spec.scope, ['self', 'cast', 'family'])) {
+    return 'has an unknown policy or scope.';
+  }
+
+  if (spec.share !== undefined && !(spec.share >= 0 && spec.share <= 1)) {
+    return 'takes a share from 0 to 1.';
+  }
+
+  if (spec.policy === 'rehit' && !isSoundSeconds(spec.cooldown, true)) {
+    return 'rehits after a cooldown of a finite number of seconds from 0.';
+  }
+
+  const limits = [spec.pierce, spec.budget];
+
+  return limits.every((limit) => limit === undefined || (Number.isInteger(limit) && limit >= 1))
+    ? undefined
+    : 'pierces and budgets a whole number from 1.';
+};
+
+/** Checks the ledgers, and that every catch names one the kind declares. */
+const checkLedgers = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTriggerDef<G>): void => {
+  const ledgers = def.ledgers ?? {};
+
+  for (const [ledger, spec] of Object.entries(ledgers)) {
+    const problem = ledgerProblem(spec);
+
+    if (problem !== undefined) {
+      fail(name, `its ledger ${ledger} ${problem}`);
+    }
+  }
+
+  const named = [def.contact?.ledger, def.land?.ledger, ...(def.every ?? []).map((pulse) => pulse.ledger)];
+  const unknown = named.find((ledger) => ledger !== undefined && !Object.hasOwn(ledgers, ledger));
+
+  if (unknown !== undefined) {
+    fail(name, `a catch records in ledger ${unknown}, which it does not declare.`);
+  }
+};
+
 /** Checks the tags and the hooks. */
 const checkTagsAndHooks = <G extends AreaTriggerTypes>(
   name: string,
@@ -222,5 +265,6 @@ export const checkAreaTrigger = <G extends AreaTriggerTypes>(
   checkLimit(name, def);
   checkFrame(name, def);
   checkPulse(name, def.every);
+  checkLedgers(name, def);
   checkTagsAndHooks(name, def, tags);
 };

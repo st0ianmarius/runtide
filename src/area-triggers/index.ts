@@ -7,15 +7,9 @@
 export {
   type AnyAreaTriggerDef,
   type AreaBound,
-  type AreaCaster,
-  type AreaCatch,
-  type AreaContact,
   type AreaCues,
   type AreaFn,
-  type AreaHit,
   type AreaLimit,
-  type AreaPhase,
-  type AreaPulse,
   type AreaTriggerContext,
   type AreaTriggerDef,
   defineAreaTrigger,
@@ -25,6 +19,18 @@ export {
 } from './area-def.ts';
 
 export type { AreaTriggerHost } from './area-host.ts';
+
+export type {
+  AreaCaster,
+  AreaCatch,
+  AreaContact,
+  AreaHit,
+  AreaLedger,
+  AreaLedgerSpec,
+  AreaPhase,
+  AreaPulse,
+} from './delivery-def.ts';
+
 export type { AreaTagId, AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 
 export {

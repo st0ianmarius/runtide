@@ -1,10 +1,12 @@
 import type { Shape, Vec2 } from '../math/index.ts';
 import type { ProcOut, ProcReturn } from '../spells/index.ts';
 import type { QueryOptions, QuerySide, SweepOptions } from '../world/index.ts';
-import type { AreaCatch, AreaHit, AreaTriggerContext } from './area-def.ts';
+import type { AreaTriggerContext } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
+import type { AreaCatch, AreaHit } from './delivery-def.ts';
 import type { AreaEngine } from './engine.ts';
+import { recordIn } from './ledgers.ts';
 
 /** A hit an engine reuses, one per nesting level. */
 export class Hit<G extends AreaTriggerTypes> implements AreaHit<G> {
@@ -168,6 +170,42 @@ export const catchAlong = <G extends AreaTriggerTypes>(
   hit.size(count);
 
   return count;
+};
+
+/**
+ * Records a hit in the ledger its catch names (§II.6 W3): the units its policy refuses leave the hit, the rest keep
+ * their shares in order; a ledger that is spent after it (or was already) ends the area trigger as `spent` once the
+ * running part is done. Nothing for a catch that names no ledger.
+ */
+export const recordHit = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  [area, name]: readonly [AreaTrigger<G>, string | undefined],
+  hit: Hit<G>,
+): void => {
+  const ledger = name === undefined ? undefined : area.ledgers.get(name);
+
+  if (ledger === undefined) {
+    return;
+  }
+
+  let kept = 0;
+
+  for (const unit of hit.targets) {
+    const share = recordIn(engine, [ledger, area.handle], engine.world.idOf(unit));
+
+    if (share > 0) {
+      hit.targets[kept] = unit;
+      hit.shares[kept] = share;
+      kept += 1;
+    }
+  }
+
+  hit.targets.length = kept;
+  hit.shares.length = kept;
+
+  if (ledger.isSpent) {
+    area.pending ??= 'spent';
+  }
 };
 
 /** A hook that receives a hit. */

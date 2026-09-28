@@ -12,10 +12,12 @@ import { type AreaServices, AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import { AreaCastOptions } from './caster.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
+import type { AreaLedger } from './delivery-def.ts';
 import { type AreaEngineParts, AreaPlace, missing, OwnerAuraApplication } from './engine-parts.ts';
 import type { AreaTriggerEvent, AreaTriggerEvents } from './events.ts';
 import { Catcher } from './hits.ts';
 import { type AreaTriggerHandle, toAreaTriggerHandle } from './ids.ts';
+import { LedgerBook, LedgerView } from './ledgers.ts';
 import type { SharedClock } from './pulses.ts';
 
 /**
@@ -61,6 +63,9 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   /** The clocks shared by every instance of a kind, by pulse slot. */
   readonly globalClocks: (SharedClock | undefined)[] = [];
 
+  /** The hit ledgers. */
+  readonly ledgers = new LedgerBook();
+
   /** The hits and world query options of catches, by nesting level. */
   readonly catcher = new Catcher<G>();
 
@@ -79,6 +84,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   #nextId = 1;
   #pending: G['bearer'] | undefined = undefined;
   #application: OwnerAuraApplication | undefined = undefined;
+  #view: LedgerView<G> | undefined = undefined;
 
   constructor(parts: AreaEngineParts<G>) {
     const kinds = parts.registry.size;
@@ -230,6 +236,21 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
       this.current = outer;
       this.spells.leave(previous);
     }
+  };
+
+  readonly ledgerFor = (area: AreaTrigger<G>, name: string): AreaLedger<G['bearer']> => {
+    const ledger = area.ledgers.get(name);
+
+    if (ledger === undefined) {
+      throw new RangeError(`Area trigger ${this.registry.name(area.kind)} has no ledger ${name}.`);
+    }
+
+    const view = (this.#view ??= new LedgerView<G>(this));
+
+    view.ledger = ledger;
+    view.holder = area.handle;
+
+    return view;
   };
 
   readonly randomFor = (area: AreaTrigger<G>, stream: G['stream'] | undefined): Random =>

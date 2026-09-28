@@ -1,12 +1,12 @@
 import { countDown, isRunOut } from '../core/index.ts';
-import type { AreaPhase } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import { stepCaster } from './caster.ts';
 import { ANCHOR_OWNER } from './define-area-triggers.ts';
+import type { AreaPhase } from './delivery-def.ts';
 import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
-import { catchAlong, deliver } from './hits.ts';
+import { catchAlong, deliver, recordHit } from './hits.ts';
 import { stepPulses } from './pulses.ts';
 
 /** The order of a frame's parts when a kind declares none. */
@@ -48,7 +48,10 @@ const runContact = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
   const hit = engine.catcher.take(area, -1);
 
   try {
-    if (catchAlong(engine, [{ area, spec: contact, pulse: -1 }, radius], hit) > 0) {
+    catchAlong(engine, [{ area, spec: contact, pulse: -1 }, radius], hit);
+    recordHit(engine, [area, contact.ledger], hit);
+
+    if (hit.targets.length > 0) {
       deliver(engine, [area, engine.registry.hooks.onContact[area.kind]], hit);
     }
   } finally {

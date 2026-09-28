@@ -2,7 +2,8 @@ import type { EndReason } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaEngine } from './engine.ts';
-import { catchIn, deliver } from './hits.ts';
+import { catchIn, deliver, recordHit } from './hits.ts';
+import { closeLedgers } from './ledgers.ts';
 import { unlinkKind, unlinkTick } from './order.ts';
 import { leavePulses } from './pulses.ts';
 
@@ -18,6 +19,7 @@ const land = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigg
 
   try {
     catchIn(engine, [{ area, spec: def.land, pulse: -1 }, area.shape], hit);
+    recordHit(engine, [area, def.land?.ledger], hit);
     deliver(engine, [area, engine.registry.hooks.onLand[area.kind]], hit);
   } finally {
     engine.catcher.give(hit);
@@ -74,6 +76,7 @@ export const endArea = <G extends AreaTriggerTypes>(
   area.isSilent = end.isSilent === true;
   runEndHook(engine, area, end.reason);
   leavePulses(engine, area);
+  closeLedgers(engine, area);
   unlinkTick(engine, area);
   unlinkKind(engine, area);
   engine.count(area.owner, [area.kind, -1]);

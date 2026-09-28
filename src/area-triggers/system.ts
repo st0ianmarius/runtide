@@ -30,6 +30,9 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> {
 
     /** Area triggers live now. */
     readonly live: number;
+
+    /** Hit ledgers live now. */
+    readonly ledgers: number;
   };
 
   /** The proc kind `spawn`: `createProcRegistry({ ...CORE_PROCS, ...areaTriggers.procKinds })`. */
@@ -90,6 +93,10 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
 
       get live() {
         return engine.pool.live;
+      },
+
+      get ledgers() {
+        return engine.ledgers.live;
       },
     };
     this.procKinds = createAreaTriggerProcKinds(engine);

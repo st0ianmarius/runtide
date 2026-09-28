@@ -1,9 +1,9 @@
 import { isRunOut } from '../core/index.ts';
-import type { AreaPulse } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
+import type { AreaPulse } from './delivery-def.ts';
 import type { AreaEngine } from './engine.ts';
-import { catchIn, deliver, type Hit } from './hits.ts';
+import { catchIn, deliver, type Hit, recordHit } from './hits.ts';
 
 /** A clock shared by several area triggers (§II.6 W2): its owner's instances of a kind, or all of the kind. */
 export class SharedClock {
@@ -69,6 +69,7 @@ const beat = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigg
 
   try {
     catchPulse(engine, [area, index], hit);
+    recordHit(engine, [area, pulse?.ledger], hit);
     deliver(engine, [area, pulse?.onPulse], hit);
   } finally {
     engine.catcher.give(hit);
@@ -168,6 +169,8 @@ const deliverMember = <G extends AreaTriggerTypes>(
         hit.shares.push(1);
       }
     }
+
+    recordHit(engine, [member, pulse?.ledger], hit);
 
     deliver(engine, [member, pulse?.onPulse], hit);
   } finally {

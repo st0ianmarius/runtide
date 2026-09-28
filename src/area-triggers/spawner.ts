@@ -9,6 +9,7 @@ import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
 import { placeShape } from './frame.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
+import { openLedgers } from './ledgers.ts';
 import { linkKind, linkTick } from './order.ts';
 import { joinPulses } from './pulses.ts';
 import { stepArea } from './stepper.ts';
@@ -164,6 +165,7 @@ const enter = <G extends AreaTriggerTypes>(
     area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner));
   }
 
+  openLedgers(engine, area, parent);
   linkTick(engine, area, (flags & AFTER_PARENT) === 0 ? undefined : parent);
   linkKind(engine, area);
   engine.count(area.owner, [area.kind, 1]);
