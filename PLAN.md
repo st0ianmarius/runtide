@@ -37,24 +37,24 @@ The framework has **no dependency on swarm** or any of its packages (not `@swarm
 
 ## I.3 What goes in, what stays out
 
-| In the framework (engine)                                                                                 | Stays in swarm (the consumer)                                                     |
-| --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| deterministic core: seeded random streams, clocks, ordered registries, event bus, scope                   | the `Game` class, `Game.step`, phases and their order                             |
-| modifiers: stat registry, fold, conditions, scopes, caps, card text                                       | `STATS`, conditions' meaning (`enraged`…), numbers                                |
-| auras (today's `effects/`): any bearer, stacking, clocks, periodic, values, damage hooks, lifecycle procs | `EFFECTS` content, `EFFECT_HOOKS` (clock rescales)                                |
-| triggers: event subscriptions owned by auras, conditions, internal cooldowns, chance, validation, text    | the event kinds' payload sources (`hurtEnemy` raising `hit`…)                     |
-| procs: registry, chance, groups, depth cap, the generic kinds                                             | game proc kinds (`shoot` with its shot table, `telegraph` with its hazard shapes) |
-| cues: registry shape, event builder, wire table                                                           | `CUES` content, sound bank, Babylon playback                                      |
-| spells: `SpellDef`, activation kinds, timeline, runner, delayed procs, spell events                       | every spell, weapon, ability and creature spell                                   |
-| constructs: definition, store, tick order, lifetime and bounds, pulses, hit policies, spawning            | every construct kind, replication onto Colyseus schemas                           |
-| shapes and geometry: circle, ring, cone, lane, polygon, segment-circle sweep, patterns                    | the world's spatial index, collision, pathfinding, physics (Havok)                |
-| world query **interface** (what a spell may ask) + an in-memory reference implementation                  | the real query implementation over `Game.enemies` / heroes                        |
-| damage pipeline: blow → mitigation → aura hooks (shelter, absorbs, lethal) → health                       | the mitigation stats' meaning, hit windows, knockback physics                     |
-| abilities: button activation, loadouts, cooldowns as auras, costs, `requires` / `blockedBy` / `resets`    | dodge travel, `stepPlayerInput`, class loadouts                                   |
-| prediction contracts: mirror-safe context, motion-clock stamps, seeding a mirror's auras                  | the reconciler, `LocalSession`, the co-op room                                    |
-| replication **contracts**: append-only wire ids, view specs, projections                                  | Colyseus schemas, msgpack codecs, `PROTOCOL_VERSION`                              |
+| In the framework (engine)                                                                                                 | Stays in swarm (the consumer)                                                                         |
+| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| deterministic core: seeded random streams, clocks, ordered registries, event bus, scope                                   | the `Game` class, `Game.step`, phases and their order                                                 |
+| modifiers: stat registry, fold, conditions, scopes, caps, structured explanations (data, never text)                      | `STATS`, conditions' meaning (`enraged`…), numbers                                                    |
+| auras (today's `effects/`): any bearer, stacking, clocks, periodic, values, damage hooks, lifecycle procs                 | `EFFECTS` content, `EFFECT_HOOKS` (clock rescales)                                                    |
+| triggers: event subscriptions owned by auras, conditions, internal cooldowns, chance, validation, structured explanations | the event kinds' payload sources (`hurtEnemy` raising `hit`…)                                         |
+| procs: registry, chance, groups, depth cap, the generic kinds                                                             | game proc kinds (`shoot` with its shot table, `telegraph` with its hazard shapes)                     |
+| cues: numeric cue ids, their numeric params, cue events, the params' wire encoding                                        | everything a cue looks and sounds like: the client's cue table (VFX, sounds, texts), Babylon playback |
+| spells: `SpellDef`, activation kinds, timeline, runner, delayed procs, spell events                                       | every spell, weapon, ability and creature spell                                                       |
+| constructs: definition, store, tick order, lifetime and bounds, pulses, hit policies, spawning                            | every construct kind, replication onto Colyseus schemas                                               |
+| shapes and geometry: circle, ring, cone, lane, polygon, segment-circle sweep, patterns                                    | the world's spatial index, collision, pathfinding, physics (Havok)                                    |
+| world query **interface** (what a spell may ask) + an in-memory reference implementation                                  | the real query implementation over `Game.enemies` / heroes                                            |
+| damage pipeline: blow → mitigation → aura hooks (shelter, absorbs, lethal) → health                                       | the mitigation stats' meaning, hit windows, knockback physics                                         |
+| abilities: button activation, loadouts, cooldowns as auras, costs, `requires` / `blockedBy` / `resets`                    | dodge travel, `stepPlayerInput`, class loadouts                                                       |
+| prediction contracts: mirror-safe context, motion-clock stamps, seeding a mirror's auras                                  | the reconciler, `LocalSession`, the co-op room                                                        |
+| replication **contracts**: append-only wire ids, view specs, projections                                                  | Colyseus schemas, msgpack codecs, `PROTOCOL_VERSION`                                                  |
 
-A rule of thumb for borderline code: if it names a class, a card, a creature, a map, a number from tuning, Babylon, Colyseus or a DOM API, it stays out.
+A rule of thumb for borderline code: if it names a class, a card, a creature, a map, a number from tuning, Babylon, Colyseus or a DOM API, it stays out. **Presentation always stays out** (§I.5.3): no player-facing text, name, icon, colour, sound, VFX, animation or HUD layout lives in the framework; the client holds all of it, keyed by numeric ids.
 
 ## I.4 Project layout
 
@@ -73,11 +73,11 @@ framework/                # a sibling of the swarm checkout, its own git reposit
                           # snap epsilon), registry (append-only ids), bus (typed events, payload reuse, "is anyone
                           # listening", depth cap), scope (owner, source, world)
     math/                 # Vec2, angles, shapes, segment-circle sweep, polygon tests, patterns (line, ring, cross)
-    modifiers/            # stat registry, Modifier, conditions, scopes, sources and fold order, resolve, caps, describe
+    modifiers/            # stat registry, Modifier, conditions, scopes, sources and fold order, resolve, caps, explain (structured data)
     auras/                # AuraDef, ActiveAura, bearer, stacking, clocks, periodic, value and merge, hooks, lifecycle, view
-    triggers/             # TriggerDef on auras, filters, icd auras, dispatch, validate, describe
+    triggers/             # TriggerDef on auras, filters, icd auras, dispatch, validate, explain (structured data)
     procs/                # Proc, ProcDef registry, chance and groups, depth, generic kinds
-    cues/                 # CueDef, cue events builder, wire table
+    cues/                 # CueId registry, param schemas, cue events, params wire encoding (no presentation)
     damage/               # Blow, pipeline stages, aura hooks (onIncomingDamage, onLethal), result
     spells/               # SpellDef, activation kinds, timeline, runner, SpellSystem, delayed procs, spell events
     constructs/           # ConstructDef, store, tick order, bounds, limits, pulses, hit policies, spawn
@@ -118,7 +118,7 @@ const spells = createSpellSystem({ procs, auras, triggers, cues, world: adapter 
 
 - **Resource ids come from the registry.** `createRegistry({ frostNova, blast })` gives each definition a dense id, its position in the registry: `SPELLS.id.frostNova === 0`, `SPELLS.id.blast === 1`. Hooks, procs, active auras, events, conditions, keyed rolls and the wire all carry the number, and `SPELLS.get(id)` is an array index.
 - **Branded per registry.** `SpellId = number & { readonly __registry: 'spells' }`, `AuraId`, `CueId`… so the compiler refuses an aura id where a spell id is expected, at no runtime cost. The framework never names a game's id; the types are inferred from the game's registries.
-- **Names are for people.** The object key is the definition's name, used in code (`SPELLS.id.blast`), logs, validation messages and card-text lookups, and returned by `SPELLS.name(id)`. A name never crosses the wire and never sits on a hot path.
+- **Names are for people.** The object key is the definition's name, used in code (`SPELLS.id.blast`), logs and validation messages, and returned by `SPELLS.name(id)`. It is a developer identifier, never a player-facing name (§I.5.3), never crosses the wire and never sits on a hot path.
 - **Append-only order.** Because the number is the position, registries only grow: a retired definition keeps its slot as a tombstone, and each consuming game pins its order in a test (swarm's `wire-order.test.ts` pattern). The replication layer sizes the field to the registry: a `uint8` up to 256 entries, a `uint16` or a varint beyond.
 - **Entities too.** Units, casts, constructs and auras in flight get integer ids from the host's allocator. A game with string ids (swarm's player ids, `'local'`, `'p0'`) maps them to numbers at its boundary. Integer ids are also exactly what keyed rolls hash (below).
 
@@ -132,7 +132,7 @@ Vectors are the framework's own `Vec2` (`{ x, z }`), structurally compatible wit
 - **Modifiers:** `(base + Σadd) × Πmul`, then `min` caps; muls multiply one by one in source order; sources fold in the order the game declares (for swarm: class base, pacts, totem, passives, effects, class states), and an aura can pick its fold position (`'effects'`, `'classStates'`, and `'pacts'` for pact auras).
 - **Triggers:** dispatch order is owner, then party listeners; within a bearer, aura order then authored order; conditions, then internal cooldown, then chance (rolled only when `0 < chance < 1`, on the triggers' own stream), then actions in order; depth cap 3.
 - **Procs:** applied in list order; an always-proc rolls nothing; `chance` rolls on the procs' own stream; depth cap as in `spells/cast.ts`.
-- **Cues:** a cue's parts come out in the order vfx, sound, text; only parameters that differ from the definition cross the wire.
+- **Cues:** a cue event is a `CueId`, an anchor position, an owner and numeric params, in the order the simulation fires them; only params that differ from the cue's declared defaults cross the wire. What the cue shows (swarm today: its parts in the order vfx, sound, text) is the client's.
 - **Determinism:** no `Math.random`, `Date.now`, `performance.now` or iteration over unordered keys. `isolation.test.ts` scans for them. Every random draw comes from the run's seed, through the host, in one of the two forms below.
 - **Time is a fixed-step simulation clock, never wall time.** The simulation advances in fixed ticks; `time = tick × dt` is derived from an integer tick count, not accumulated, so it never drifts and two runs agree to the bit. The host owns the clock and hands `tick`, `dt` and `time` to every system; the framework never reads a real clock. Rendering interpolates between ticks on its own side. Deadlines are **stamps** (an absolute tick or time at which something ends or fires), never countdowns that are decremented, so they need no syncing and cannot drift; the motion clock (co-op prediction) is a second fixed-step clock counted in motion steps, with the same rule. Swarm accumulates `game.time += dt` today, so the port keeps an **accumulating mode** for parity and the integer-tick mode is the default for new games; the clock's tests pin both.
 - **Two kinds of random, both from the run's seed:**
@@ -172,7 +172,7 @@ What that means in practice:
 - **Hooks are standalone functions.** They receive everything they need as arguments (`ctx`, the target, the hit) and never read `this`. The framework may call a hook detached (`const { release } = def; release(ctx, target)`), and it must still work.
 - **Sharing is by factories and composition.** A family of resources with shared behaviour is a function returning the interface (`telegraphedSpell({ id, shape })`), and variations spread or wrap hooks (`{ ...base, onHit: withBonus(base.onHit) }`). Definitions are plain objects, so spreading is always safe.
 - **Definitions are stateless.** A definition is shared by every cast, aura or construct made from it, so per-instance state never lives on it: a cast has its `CastState`, an active aura its `value` and stacks, a construct its `State`. Registries freeze definitions in development builds to catch mutation.
-- **Data stays data.** Fields the framework reads as data (ids, tags, durations, modifiers, a trigger's `do`) are plain values, not getters, because card text, validation and the wire read them.
+- **Data stays data.** Fields the framework reads as data (ids, tags, durations, modifiers, a trigger's `do`) are plain values, not getters, because explanations, validation and the wire read them.
 - **Registration is by name, identity is by number.** `createRegistry({ name: def, … })`: the key order assigns each definition its numeric id (append-only, §I.5). A definition carries no id of its own; the runtime hands it its id where it needs one (`ctx.spellId`, `aura.id`).
 - **Variants are discriminated unions.** Anything that comes in several shapes says so in a `kind` field (`{ kind: 'circle', r }`), and code narrows on it; nothing is told apart by its prototype.
 
@@ -220,17 +220,29 @@ export const SPELLS = createRegistry({ frostNova, blast }); // SPELLS.id.frostNo
 
 A unit test per kind registers a resource, calls every hook detached, and holds that the framework never mutates it.
 
+### I.5.3 Presentation stays out: the client owns it
+
+The framework is simulation only. **No player-facing text and no visual or audio information lives in it**, and none of its types has a field for one: no names, descriptions, tooltips or localised strings; no icons, colours, models, animations, VFX or sound ids; no HUD layout, number formatting or units. Gameplay speaks in **numeric ids and numbers**, and the client turns them into what players see and hear.
+
+- **What the simulation emits.** Ids and numbers only: cue events (`CueId`, position, owner, numeric params such as direction, duration, radius, amount), and state views carrying `SpellId`, `AuraId`, `ConstructKindId`, `StatId`, stacks, values and stamps.
+- **What the client holds.** Presentation tables keyed by those ids: `SPELL_PRESENTATION[SpellId]` (name, description, icon, cast VFX), `AURA_PRESENTATION[AuraId]` (tile, icon, colour, name, text), `CUE_PRESENTATION[CueId]` (VFX, sound, floating-text template), `CONSTRUCT_PRESENTATION[ConstructKindId]` (model, renderer), and its locale strings. It imports the game's id registries (or tables generated from them) and nothing else from the simulation's content.
+- **Text that shows numbers.** Card and tooltip text must print the real numbers, so the framework gives the client **structured explanations**: `explainModifier`, `explainAura`, `explainTrigger` return data such as `{ kind: 'modifier', stat: StatId, op: 'mul', value: 1.3, when?: ConditionData }`, and the client phrases it with its own words, formats and language. The numbers come from the simulation; the words never do.
+- **Floating numbers and callouts** (a damage number, an absorbed "(−N)", "STAGGERED") are cues with numeric params; the client's cue table owns the wording and the colour.
+- **Completeness is the game's test, not the framework's.** A consuming game checks that every id in its registries has a presentation entry, for example with a `satisfies Record<SpellName, …>` table or a unit test over `SPELLS.id`.
+- **Developer strings are allowed.** Registry names (§I.5) and error or validation messages in English are for developers, never shown to players, and never on the wire.
+- **Enforced.** The framework's definition types carry no string fields except the developer-facing ones listed in a type-level test, and `docs.test.ts` fails if an exported type gains a field named like presentation (`name`, `label`, `text`, `description`, `icon`, `color`, `sound`, `vfx`, `model`, `anim`) outside that list.
+
 ## I.6 The systems
 
 Each is summarised by what it must offer; Part II has the full model.
 
 - **Core.** Random: sequential salted streams (`stream(seed, salt)`, reproducing today's `rng(seed ^ salt)` exactly) and keyed rolls (`roll(seed, salt, ...key)`), with `int`, `pick`, `weighted` and `shuffle` on both. Time: a fixed-step `SimClock` (`tick`, `dt`, `time`; integer-tick mode by default and an accumulating mode for swarm's parity), world and motion kinds, stamps (`stampAt`, `due(stamp)`, `remaining(stamp)`) and the motion clock's `1e-8` snap; `Registry<Def>` assigning branded numeric ids by key order (append-only, tombstones for retired entries, `id` / `name` / `get` lookups, order checks); a typed `Bus` with payload reuse, `hears(kind)` short-circuiting and a nesting cap; `Scope` for owner, damage source and world context, re-entrant and idempotent.
 - **Math.** Shapes (`circle`, `ring`, `cone`, `lane`, `polygon`, `point`) with `covers(shape, point, radius)`; `sweep(from, to, radius)` against circles; patterns returning point lists with a stagger (`linePoints`, `ringPoints`, `crossPoints`); angle helpers (`wrap`, `turnToward`).
-- **Modifiers.** `defineStats`, `Modifier` (`add | mul | min`, `when`, `scope`), pluggable `Condition` evaluators, ordered sources, `resolve` / `fold`, caps, `describeModifier` with game-supplied labels and number formats.
-- **Auras.** `AuraDef` on any bearer (`AuraBearer`: `auras`, `clocks`, `rev`); stacking; clocks (`world`, `motion`, `global`); `periodic` returning procs; `value` with `merge: 'max' | 'add' | 'replace'` and `keepWhenDepleted` (absorbs); tags, `blockedBy`, `removes`; `grants` through a resource registry; `fold` position; `predicted`; lifecycle procs (`onApplied`, `onExpired`, `onBearerDeath`); damage hooks (`onIncomingDamage`, `onLethal`); lifecycle events; `view()` for the wire; `status` metadata passed through untouched for the game's HUD.
-- **Triggers.** `TriggerDef` owned by an `AuraDef` only (no free-standing sources); event kinds and filters supplied by the game; internal cooldowns as derived auras; `chance`; `hears: 'self' | 'party'`; `do` as data procs; `validate` (the prediction rule, driven by which auras the game marks as button-touched) and `describe`.
+- **Modifiers.** `defineStats`, `Modifier` (`add | mul | min`, `when`, `scope`), pluggable `Condition` evaluators, ordered sources, `resolve` / `fold`, caps, `explainModifier` returning structured data (stat id, op, value, condition) for the client to phrase.
+- **Auras.** `AuraDef` on any bearer (`AuraBearer`: `auras`, `clocks`, `rev`); stacking; clocks (`world`, `motion`, `global`); `periodic` returning procs; `value` with `merge: 'max' | 'add' | 'replace'` and `keepWhenDepleted` (absorbs); tags, `blockedBy`, `removes`; `grants` through a resource registry; `fold` position; `predicted`; lifecycle procs (`onApplied`, `onExpired`, `onBearerDeath`); damage hooks (`onIncomingDamage`, `onLethal`); lifecycle events and lifecycle cue ids; `view()` for the wire. No `status`, name, icon or colour: the client's aura table, keyed by `AuraId`, draws the tile.
+- **Triggers.** `TriggerDef` owned by an `AuraDef` only (no free-standing sources); event kinds and filters supplied by the game; internal cooldowns as derived auras; `chance`; `hears: 'self' | 'party'`; `do` as data procs; `validate` (the prediction rule, driven by which auras the game marks as button-touched) and `explain` (structured data, never text).
 - **Procs.** `Proc`, `ProcDef`, `createProcRegistry`; `chance` and `group`; the depth cap; core kinds that need only framework hosts: `damage`, `heal`, `applyAura`, `removeAura`, `castSpell`, `after`, `spawn`, `cue`, `event`, `run`. A game adds kinds by registering more.
-- **Cues.** `CueDef` generic over the game's sound, visual and phase ids (`anchor`, `sound`, `vfx`, `text`); `cueEvents(id, at, owner, params)`; `CueTable` for the wire. Presentation only: nothing in the engine reads a cue.
+- **Cues.** `defineCues` registers cue ids with their param schema (which numeric params a cue takes, their defaults and their wire quantisation) and nothing else; `CueEvent` (`cue: CueId`, `at`, `owner`, `params`) is what the simulation emits; the params' wire encoding. Presentation only, and none of it inside: nothing in the engine reads a cue, and what a cue looks and sounds like is the client's (§I.5.3).
 - **Damage.** `Blow` (amount, crushing, true damage, unblockable, lethal, source, kind); an ordered pipeline with game-supplied mitigation stages; aura hooks for shelter, absorbs and lethal prevention; the result (absorbed, lost, prevented), which the host applies to health.
 - **Spells.** `SpellDef` (id, tags, activation, `stats`, `canCast`, `target`, timeline, `begin`, `release`, `onHit`, `onEnd`, spell-scoped triggers, cues); activation kinds (`auto`, `button`, `passive`, `trigger`, `ai`, `event`) with game-typed data; the timeline (windup with `track` helpers `lockBefore`, `lockAtShare`, `lockAtStart`; channels with `breakIf`; recover; interrupts; `onCancel`); the runner (`startSpell`, `releaseSpell`, `castSpell`); a `SpellSystem` that steps casts and delayed procs; spell events on the bus (`spellCast`, `spellHit`, `constructExpired`…); snapshot versus live stats.
 - **Constructs.** `ConstructDef` (shape, lifetime, bound, anchor, limit, tick phase, `frame` as the primitive, then `move`, `every` pulses, `onContact`, `onLand`, `onExpire`, area auras, caster, replication spec); a store with pinned tick order (kind order, then creation order); hit policies (`once-per-cast`, `repeat-share`, `rehit-cooldown`, `pierce`, `budget`, `hottest-per-owner-clock`, `none`); spawning now or next frame.
@@ -323,7 +335,7 @@ Swarm's `packages/game` then moves onto it in the phases of §II.5, each held by
 
 # Part II. The model: the Spell API
 
-_The sketches below write names such as `id: 'tempest'` for readability; in spellweave the name is the registry key and the id a number (§I.5). Written against swarm's code (the co-op ARPG this framework comes out of) from a survey of every Arsenal weapon, hero ability, creature spell and map event in it. Its porting tables (§II.4) and migration phases (§II.5) are swarm's; the model (§II.1–§II.3) is the framework's._
+_The sketches below write names such as `id: 'tempest'` for readability; in spellweave the name is the registry key and the id a number (§I.5), and any visual or text it mentions belongs to the client (§I.5.3). Written against swarm's code (the co-op ARPG this framework comes out of) from a survey of every Arsenal weapon, hero ability, creature spell and map event in it. Its porting tables (§II.4) and migration phases (§II.5) are swarm's; the model (§II.1–§II.3) is the framework's._
 
 ## II.1 The idea
 
@@ -337,24 +349,24 @@ At the end everything is one of three things, as in WoW, where talents, racials,
 
 Constructs (what a spell leaves in the world) and cues (how it looks) complete the picture.
 
-| System         | Answers                                               | Today                                                                                                                          | In this plan                                                                                                |
-| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| **Activation** | who pulls the trigger, and whether they may           | attack clocks, `AbilityDef`, four creature brains, the director                                                                | one `activation` block per spell; brains only pick                                                          |
-| **Stats**      | how strong                                            | `weaponStats`, class constants × `abilityArea`, four `*SpellDamage` helpers                                                    | `stats(ctx)` per cast, fed by the modifier fold with spell tags as scopes                                   |
-| **Targeting**  | where and at whom                                     | a dozen resolvers (`resolvePrimaryAttack`, `densestCluster`, placements…)                                                      | shared queries on `ctx`, used by the `target` hook                                                          |
-| **Timeline**   | windup, tracking, release, channel, recover, cancel   | a stage machine per creature family, `game.strikes`, per-card queues                                                           | one cast state machine run by the Spell System                                                              |
-| **Constructs** | what persists in the world                            | 20 bespoke arrays and fields (`glaives`, `tempests`, `sanctuaries`, `hazards`, `frostField`…)                                  | one store of spell objects with hooks                                                                       |
-| **Procs**      | what happens                                          | procs for spells, `TriggerAction` for triggers, direct `Game` calls everywhere else                                            | one vocabulary for spells, constructs, effects and triggers                                                 |
-| **Auras**      | timed states on a unit (WoW auras: buffs and debuffs) | `effects/`, heroes only; creature statuses are bespoke fields; Cheat Death and the Sanctuary are special cases in `hurtPlayer` | `effects/` on any unit, with hooks into the damage pipeline (§II.3.8)                                       |
-| **Triggers**   | when something reacts to an event                     | data procs on 10 hero events, from three sources (classes: empty; pacts: Bloodbound; effects)                                  | owned by auras only (§II.3.11): the trigger layer becomes the machinery that runs an aura's procs on events |
-| **Cues**       | how it looks and sounds                               | 28 cue ids plus ~60 raw `emit` sites                                                                                           | every spell moment names a cue; predicted visuals come from the same hook                                   |
+| System         | Answers                                               | Today                                                                                                                          | In this plan                                                                                                              |
+| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| **Activation** | who pulls the trigger, and whether they may           | attack clocks, `AbilityDef`, four creature brains, the director                                                                | one `activation` block per spell; brains only pick                                                                        |
+| **Stats**      | how strong                                            | `weaponStats`, class constants × `abilityArea`, four `*SpellDamage` helpers                                                    | `stats(ctx)` per cast, fed by the modifier fold with spell tags as scopes                                                 |
+| **Targeting**  | where and at whom                                     | a dozen resolvers (`resolvePrimaryAttack`, `densestCluster`, placements…)                                                      | shared queries on `ctx`, used by the `target` hook                                                                        |
+| **Timeline**   | windup, tracking, release, channel, recover, cancel   | a stage machine per creature family, `game.strikes`, per-card queues                                                           | one cast state machine run by the Spell System                                                                            |
+| **Constructs** | what persists in the world                            | 20 bespoke arrays and fields (`glaives`, `tempests`, `sanctuaries`, `hazards`, `frostField`…)                                  | one store of spell objects with hooks                                                                                     |
+| **Procs**      | what happens                                          | procs for spells, `TriggerAction` for triggers, direct `Game` calls everywhere else                                            | one vocabulary for spells, constructs, effects and triggers                                                               |
+| **Auras**      | timed states on a unit (WoW auras: buffs and debuffs) | `effects/`, heroes only; creature statuses are bespoke fields; Cheat Death and the Sanctuary are special cases in `hurtPlayer` | `effects/` on any unit, with hooks into the damage pipeline (§II.3.8)                                                     |
+| **Triggers**   | when something reacts to an event                     | data procs on 10 hero events, from three sources (classes: empty; pacts: Bloodbound; effects)                                  | owned by auras only (§II.3.11): the trigger layer becomes the machinery that runs an aura's procs on events               |
+| **Cues**       | that something should be seen or heard                | 28 cue ids plus ~60 raw `emit` sites                                                                                           | every spell moment names a numeric cue id with numeric params; the client's cue table is how it looks and sounds (§I.5.3) |
 
 ## II.2 Rules the API keeps
 
 - **Hooks are functions returning data.** A hook reads the world through `ctx` (queries, stats, its own state) and returns procs. It may mutate **its own** cast or construct state (like a reducer's local state); it touches the world **only** through procs. That one rule makes spells testable, replayable and predictable.
 - **Procs are the what, triggers the when.** A proc is one outcome with an optional `chance`; a trigger is a listener with conditions and an internal cooldown that answers with procs. Spell hooks are triggers scoped to one cast.
 - **Everything is ordered and seeded.** Procs apply in the order returned. Randomness comes from named streams on `ctx`, and an always-proc rolls nothing. Constructs tick in a pinned kind order, then in creation order. Every port is held bit-exact by a golden recorded before it.
-- **Data where it is described, functions where it is decided.** Anything a card or tooltip prints (a trigger's `do`, a pact's procs) stays plain data. Spell hooks are functions that return that data.
+- **Data where it is described, functions where it is decided.** Anything a card or tooltip explains (a trigger's `do`, a pact's procs) stays plain data, which the framework turns into structured explanations and the client into words (§I.5.3). Spell hooks are functions that return that data.
 - **Mirror-safe by type.** A hook the co-op client runs gets a narrowed context (`MirrorCtx`: caster body, input, synced stats, static collision) and must not roll or read server state. The compiler enforces that, not a test.
 
 ## II.3 The shape of a spell
@@ -546,8 +558,8 @@ barrier: {
   keepWhenDepleted: true,          // an emptied shell keeps its clock, so a later shell still takes the longer time
   removedOn: ['down'],
   onIncomingDamage: (aura, blow) => ({ absorb: Math.min(aura.value, blow.amount) }),   // spends `value`
-  cues: { absorbed: 'barrier.absorb' },                                                // today's private "(−N)" text
-  status: { id: 'barrier', … },    // the HUD tile the client already draws
+  cues: { absorbed: CUES.id.barrierAbsorb },   // a cue with the amount as a param; the client draws today's private "(−N)"
+  // no HUD tile here: the client's AURA_PRESENTATION[AuraId] draws it
 }
 ```
 
@@ -561,7 +573,7 @@ Diminishing returns stay out of scope.
 
 ### II.3.9 Presentation and prediction
 
-- **Cues everywhere:** every spell moment (`cast`, `release`, `hit`, `pulse`, `land`, `expire`, `fade`) names a cue plus params in `cues`, or returns a `cue` proc; no hook builds a raw `emit`. The ~60 raw sites migrate by appending to `CUES` (append-only wire).
+- **Cues everywhere:** every spell moment (`cast`, `release`, `hit`, `pulse`, `land`, `expire`, `fade`) names a numeric cue id plus numeric params in `cues`, or returns a `cue` proc; no hook builds a raw `emit`, and no spell carries a visual (the client keys its visuals by `SpellId` and `CueId`, §I.5.3). The ~60 raw sites migrate by appending to `CUES` (append-only wire).
 - **Replication:** a construct kind declares `replicate: { fields, rounding }` (`x`, `z`, `heading`, `radius`, `started`, `duration`, `phase`, `evolved`, and a kind-specific extra), or `'events-only'` (Searing Arrow), or `'derived'` (Ember Blades, recomputed from time on the client). At first each kind maps onto its existing schema array (a storage adapter), so the protocol does not move; later one `ConstructSchema` plus a client renderer registry keyed by construct kind replaces the twelve per-kind schemas.
 - **Prediction without duplication:** the hooks the client may run take `MirrorCtx` (`activation` motion data, `target` when `predictable`, and `cues.cast`). `castVisuals` becomes "run the spell's `cues.cast` on the mirror", so `CAST_VISUALS` and its equality test go away, and the Blink and Overcharge visuals stop being written twice.
 
@@ -578,7 +590,7 @@ A pact's parts are already an aura's parts:
 | `modifiers` (+30% damage, −30% maximum health) | the aura's `modifiers`                                                            |
 | `triggers` (Bloodbound: on kill, heal)         | the aura's `triggers`                                                             |
 | `grants` (Gambler's Oath: +3 rerolls now)      | the aura's `grants`                                                               |
-| its buff tile on the HUD                       | the aura's `status` tile                                                          |
+| its buff tile on the HUD                       | the client's tile for the pact aura's `AuraId`                                    |
 | sealing it at the Pact Sigil                   | casting the pact's spell, whose release is `applyEffect(pact aura)` on every hero |
 
 So a pact is `defineSpell({ id: 'pact.glassCannon', activation: { kind: 'event' /* the Sigil vote */ }, release: (ctx) => party(ctx).map((hero) => applyEffect(hero, 'pact.glassCannon')) })` plus one `EffectDef` holding its numbers, text and tile. The same rule holds for class triggers: there are none today, and a future one is a class's passive aura.
@@ -591,7 +603,7 @@ What a pact aura needs that ordinary buffs do not:
 2. **Permanence.** `duration: 'infinite'`, kept through going down, reviving and a class change, never cleansed (no removable tag). A pact is a **party fact**: the room keeps the sealed list, and a hero who joins mid-run receives every sealed pact aura on joining.
 3. **Sync.** Today the sealed pacts cross the wire as a list of ids (`pact.owned`). As auras they ride each hero's effect list: nine more entries out of the 256 a `uint8` effect id allows. Phase A keeps `pact.owned` as a projection, so the protocol and the pact-offer UI do not move; phase B drops it and bumps the protocol (the hydration test that drops unknown pact ids moves with it).
 4. **Prediction.** Quicksilver changes movement speed, so its aura is `predicted: true` and the co-op mirror seeds it like any predicted effect; `tests/effects/docs.test.ts` already derives and enforces that rule.
-5. **Card text.** Pact cards print text generated from their modifiers and triggers. That keeps working because the pact aura is plain data.
+5. **Card text.** Pact cards print text built from their modifiers and triggers. The framework hands the client the pact aura's structured explanation (§I.5.3); the client phrases it, so the text still follows the numbers.
 
 **Passive cards next, optionally.** Might, Haste, Vitality and the rest are the same shape: a permanent aura whose stacks are the rank, folding at `'passives'`. That is the full "everything is a spell and an aura" end state, but it touches the most sensitive golden (the stat fold, every rank) and the card pool's order, so it is its own later phase.
 
