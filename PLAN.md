@@ -60,8 +60,9 @@ A rule of thumb for borderline code: if it names a class, a card, a creature, a 
 
 ```
 framework/                # a sibling of the swarm checkout, its own git repository
-  package.json            # name per §I.9, "type": "module", exports per system, engines, scripts; vetted deps only (§I.5.1)
-  tsconfig.json           # the strict base (§I.4.1): src and tests, no emit
+  package.json            # name per §I.9, "type": "module", "sideEffects": false, ESM exports per system (no Node-only conditions), engines (dev tooling only), scripts; vetted deps only (§I.5.1)
+  tsconfig.json           # the strict base (§I.4.1) for src: ECMAScript lib only, types: [], no emit
+  tsconfig.test.json      # extends it for tests: adds types ["node"]
   tsconfig.build.json     # emits dist/ (ESM JS + .d.ts) from src only
   eslint.config.js        # flat config: typescript-eslint strict type-checked + the §I.5.2 style bans
   .prettierrc
@@ -97,7 +98,7 @@ framework/                # a sibling of the swarm checkout, its own git reposit
 
 ### I.4.1 Toolchain on the latest TypeScript
 
-- **Compiler options** (the strict end of what the current TypeScript offers): `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (no enums, namespaces or parameter properties, so every source runs under Node's type stripping, which also fits §I.5.2), `module` and `moduleResolution` `nodenext`, `target` and `lib` at the newest ECMAScript year both the compiler and the Node LTS support, with **no DOM lib**, and `types: ["node"]` in the test config only.
+- **Compiler options** (the strict end of what the current TypeScript offers): `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (no enums, namespaces or parameter properties, so every source runs under Node's type stripping, which also fits §I.5.2), `module` and `moduleResolution` `nodenext`, `target` and `lib` at the newest ECMAScript year that the compiler, the Node LTS and the evergreen browsers all support. **`src/` sees neither Node nor the DOM**: its config has `lib` ECMAScript only and `types: []`, so a stray `process`, `Buffer` or `window` fails the typecheck; only `tsconfig.test.json` adds `types: ["node"]` for `node:test`.
 - **Imports** use explicit `.ts` extensions (`allowImportingTsExtensions`), which Node runs as they are; the build rewrites them to `.js` (`rewriteRelativeImportExtensions`) and emits declarations.
 - **Scripts**: `typecheck` (`tsc --noEmit`), `build` (`tsc -p tsconfig.build.json`), `test` (`node --test "tests/**/*.test.ts"`), `lint` (`eslint .`), `format` / `format:check` (`prettier`). No bundler, and no `tsx`: Node's type stripping runs the TypeScript directly.
 - **Lint**: ESLint flat config with `typescript-eslint`'s strict type-checked presets, plus the §I.5.2 bans through `no-restricted-syntax`.
@@ -146,7 +147,7 @@ Vectors are the framework's own `Vec2` (`{ x, z }`), structurally compatible wit
 
 npm packages are welcome when they save real work, under five conditions:
 
-1. **Pure and portable.** Plain JavaScript or TypeScript with no DOM, no Node-only runtime API, no native addon and no side effects on import, so the framework still runs in a browser, on a server and in a worker.
+1. **Pure and portable.** Plain JavaScript or TypeScript with no DOM, no Node-only runtime API, no native addon and no side effects on import, so the framework still runs in a browser, on a server and in a worker (§I.5.5); the CI browser bundle proves it.
 2. **Deterministic.** No hidden randomness, clocks or unordered iteration on a path the simulation depends on.
 3. **Small and maintained.** A permissive licence (MIT, ISC, BSD, Apache-2.0), few or no transitive dependencies, recent releases.
 4. **Pinned and declared.** An exact version in the project's `package.json`, and never swarm or any of its packages. `isolation.test.ts` allows exactly the packages listed there.
@@ -238,6 +239,16 @@ The framework is simulation only. **No player-facing text and no visual or audio
 - **Developer strings are allowed.** Registry names (§I.5) and error or validation messages in English are for developers, never shown to players, and never on the wire.
 - **Enforced.** The framework's definition types carry no string fields except the developer-facing ones listed in a type-level test, and `docs.test.ts` fails if an exported type gains a field named like presentation (`name`, `label`, `text`, `description`, `icon`, `color`, `sound`, `vfx`, `model`, `anim`) outside that list.
 
+### I.5.5 Runs anywhere: no Node.js at runtime
+
+spellweave runs on the server (Node), in the browser (swarm's "local play" runs the whole simulation client-side) and in a Web Worker. Node.js is a **development tool** here (tests, build, benchmarks), never a runtime dependency.
+
+- **`src/` uses ECMAScript only.** No `node:` imports; no `process`, `Buffer`, `global`, `require`, `module`, `__dirname`, `setImmediate` or `fs`; no DOM or `window` either. Timers, randomness and clocks come from the host (§I.5), so nothing needs a platform API. Typed arrays, `Math.imul`, `Map` / `Set` / `WeakMap` and `BigInt` are ECMAScript and allowed.
+- **Checked three ways.** The `src/` compiler config has no Node or DOM types (§I.4.1); `isolation.test.ts` rejects any `node:` import and any reference to the Node globals above inside `src/`; and CI bundles `src/` for the browser (`esbuild --platform=browser --bundle`, a dev dependency) and fails if anything reaches for a Node built-in.
+- **Dependencies meet the same bar** (§I.5.1, condition 1): `flatbush`, `flatqueue`, `kdbush` and `typedfastbitset` are plain ESM with no Node imports. The browser bundle check covers them too.
+- **Published as ESM for any bundler.** `dist/` is standard ES modules with `.js` extensions and declarations, `"sideEffects": false` for tree-shaking, and `exports` with only `types` and `default` conditions, so Vite, esbuild, webpack and Node all resolve it the same way.
+- **Tests stay on `node:test`.** The unit tests and benchmarks run on Node, which is fine: they exercise the same ECMAScript code the browser runs. `node:` imports are allowed under `tests/` and `bench/` only.
+
 ### I.5.4 Performance: built for hordes
 
 The framework runs on the server and on every client, every tick, for hundreds of creatures casting, ticking auras and firing procs at once. Every hot path is designed to be **O(1) by numeric id, monomorphic and allocation-free per tick**.
@@ -304,7 +315,7 @@ Each is summarised by what it must offer; Part II has the full model.
 
 Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` and `npm run format:check` clean, `npm run build` emitting `dist/`, and `isolation.test.ts` and `docs.test.ts` passing.
 
-- **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (latest `typescript` and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `eslint.config.js`, prettier, README skeleton, the CI workflow; `isolation.test.ts` (every import is relative and inside the project, a `node:` built-in in tests, or a package listed in `package.json`; never swarm; no forbidden globals) and `docs.test.ts`.
+- **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (latest `typescript` and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `eslint.config.js`, prettier, README skeleton, the CI workflow; `isolation.test.ts` (every import is relative and inside the project, a `node:` built-in in tests, or a package listed in `package.json`; never swarm; no forbidden globals) and `docs.test.ts`. The Node-free rule (§I.5.5) is in place from the start: the split `tsconfig.json` / `tsconfig.test.json`, the Node-globals scan in `isolation.test.ts`, and the CI browser-bundle check.
 - **F1. Core and math.** Sequential streams (tested draw for draw against literal values taken from today's `rng`, since the framework cannot import swarm), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock in both modes and stamps, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), the lint and parser checks for the no-class style, bus, scope; shapes and sweeps. The registry's dense layout, typed columns, dispatch tables and bitsets, the pools, and the first `bench/` baselines land here, so every later system is built on them.
 - **F2. Modifiers.** Ported from swarm's `packages/game/src/modifiers/` with game content removed; tests reproduce the fold's documented float order.
 - **F3. Auras.** Ported from swarm's `packages/game/src/effects/` and generalised to any bearer; add `value` / `merge` / `keepWhenDepleted`, lifecycle procs, damage hooks.
