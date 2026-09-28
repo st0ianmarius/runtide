@@ -154,11 +154,16 @@ npm packages are welcome when they save real work, under five conditions:
 
 The plan adopts these; others follow the same test:
 
-| package              | where                    | why                                                                                                                                                                          |
-| -------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `flatbush` (runtime) | `world/` static geometry | a packed R-tree for what never moves (walls, colliders, zones): `search` and `neighbors` over static shapes. Moving units use the hand-written uniform grid instead (§I.5.4) |
-| `tinybench` (dev)    | `bench/`                 | the benchmark harness for §I.5.4's budgets, outside the unit tests                                                                                                           |
-| `fast-check` (dev)   | tests                    | property tests on `node:test`: stacking and merge invariants, fold order, keyed-roll independence, tick-order stability, geometry round trips                                |
+| package                     | where                    | why                                                                                                                                                                                                                                    |
+| --------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `flatbush` (runtime)        | `world/` static geometry | a packed R-tree for what never moves (walls, colliders, zones): `search` and `neighbors` over static shapes. Moving units use the hand-written uniform grid instead (§I.5.4)                                                           |
+| `tinybench` (dev)           | `bench/`                 | the benchmark harness for §I.5.4's budgets, outside the unit tests                                                                                                                                                                     |
+| `flatqueue` (runtime)       | `core/timers`            | a binary heap on typed arrays (ISC, no dependencies) for the timer overflow beyond the timing wheel's horizon (§I.5.4)                                                                                                                 |
+| `kdbush` (runtime)          | `world/` point index     | a static k-d tree of points on typed arrays (ISC, no dependencies), rebuilt per tick in well under a millisecond for thousands of units; the alternative to the uniform grid for large, sparse worlds where one cell size does not fit |
+| `typedfastbitset` (runtime) | `core/bitset`            | fast bitsets on typed arrays (Apache-2.0, no dependencies): tag sets, `has`-hook tables, and per-cast hit sets over dense unit indexes (replacing `Set<number>` in `once-per-cast` and `repeat-share`)                                 |
+| `fast-check` (dev)          | tests                    | property tests on `node:test`: stacking and merge invariants, fold order, keyed-roll independence, tick-order stability, geometry round trips                                                                                          |
+
+Considered and declined: `bitecs` (an ECS whose MPL-2.0 licence fails condition 3 and whose world model would replace the hosts'), `rbush` (a dynamic R-tree, slower than a grid for moving points), `fastbitset` (pulls in dependencies). Versions are pinned exactly at F0 from the then-latest releases.
 
 Hand-written on purpose, since the exact semantics matter more than saving code: the sequential random streams and the keyed-roll mixer (they must match the game and stay frozen), the event bus (payload reuse, `hears`), the modifier fold (float order), and the timeline.
 
@@ -243,7 +248,7 @@ The framework runs on the server and on every client, every tick, for hundreds o
 - **Normalised shapes.** Every definition of a kind is normalised at registration into one object shape with every optional field present (`undefined` or a no-op), so V8 sees one hidden class per kind and property reads stay monomorphic.
 - **Hot fields as typed columns.** Numbers read every tick are copied into struct-of-arrays columns: `SPELLS.windup: Float64Array`, `SPELLS.cooldown`, `SPELLS.range`, `AURAS.maxStacks: Uint8Array`, `AURAS.clockKind`, `AURAS.flags: Uint32Array`, and so on. Hot loops read columns, not objects.
 - **Hooks as per-kind dispatch tables.** For each hook, the registry builds an array indexed by id (`SPELLS.onHit[id]`) and a bitset of which ids have it (`SPELLS.has.onHit`), so a missing hook costs one bit test, never an optional call on a megamorphic site.
-- **Tags and sets as bitsets.** Tag ids are dense; an aura's tags, a bearer's active tags and `blockedBy` / `removes` are `Uint32Array` bitsets, so `hasTag`, immunity and cleanse checks are a few word operations.
+- **Tags and sets as bitsets** (`typedfastbitset`, behind `core/bitset`). Tag ids are dense; an aura's tags, a bearer's active tags and `blockedBy` / `removes` are `Uint32Array` bitsets, so `hasTag`, immunity and cleanse checks are a few word operations.
 - **Proc kinds dispatch on a small integer** (`PROCS.apply[kind](…)`); event subscriptions are arrays indexed by event-kind id, and `hears(kind)` is one array read.
 
 **Nothing allocates per tick.**
@@ -252,11 +257,13 @@ The framework runs on the server and on every client, every tick, for hundreds o
 - **Scratch buffers** reused for query results (`inside`, `nearest`), proc lists returned by hooks (the runner hands hooks a reusable output array to push into, and plain arrays remain accepted for authoring convenience), and event payloads (the bus already reuses one payload per kind per nesting level).
 - **No closures created per tick** on engine paths, no `Array.prototype` chains (`map` / `filter`) in hot loops, no spreading of objects per call.
 
+**Timers are a timing wheel.** Delayed procs (`after`), aura expiries, cast stages, construct lifetimes, AI scheduler events and telegraph landings are due at a tick; with the fixed-step clock (§I.5) they go into a hand-written timing wheel (one FIFO bucket per tick over a fixed horizon), so scheduling and firing are O(1) and events due on the same tick fire in the order they were scheduled, deterministically. Anything beyond the horizon waits in a `flatqueue` heap keyed by tick and is moved into the wheel, in scheduling order, as its tick comes into range.
+
 **Per-unit and per-world storage.**
 
 - **Auras on a bearer** live in a small inline array sorted by aura id (the registry order the fold needs), with the bearer's tag bitset and a dirty flag. Stat folds are cached per bearer and recomputed only when the flag changes, as swarm's `modifiersFor` cache does.
 - **Constructs** live in struct-of-arrays pools per kind (positions, radii, stamps, owner ids in typed arrays), ticked kind by kind in the pinned order.
-- **Moving units** are indexed each tick in a **uniform spatial grid** (a hash of cells rebuilt or updated incrementally from the positions), which answers `inside`, `nearest` and `densest` over thousands of mobs in near-constant time. Static geometry uses the R-tree (§I.5.1).
+- **Moving units** are indexed each tick in a **uniform spatial grid** (a hash of cells rebuilt or updated incrementally from the positions), which answers `inside`, `nearest` and `densest` over thousands of mobs in near-constant time. For large, sparse worlds the point index can be a per-tick `kdbush` instead; the choice is the host's, behind the same `WorldQuery`, and the benchmarks decide the default. Static geometry uses the R-tree (§I.5.1).
 
 **Measured, not assumed.**
 
