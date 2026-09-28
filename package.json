@@ -43,6 +43,10 @@
       "types": "./dist/procs/index.d.ts",
       "default": "./dist/procs/index.js"
     },
+    "./spells": {
+      "types": "./dist/spells/index.d.ts",
+      "default": "./dist/spells/index.js"
+    },
     "./triggers": {
       "types": "./dist/triggers/index.d.ts",
       "default": "./dist/triggers/index.js"

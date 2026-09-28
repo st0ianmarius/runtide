@@ -50,8 +50,8 @@ describe('gated lists (an aura’s modifiers, §II.6 M4)', () => {
 
     assert.equal(system.resolve(sheet, id.moveSpeed, { host: { stacks: [1] } }), 6.42);
     assert.equal(system.resolve(sheet, id.moveSpeed, { host: { stacks: [3] } }), 7.260000000000002);
-    // As a power it would be 6 × 1.07³.
-    assert.equal(6 * 1.07 ** 3, 7.350258000000002);
+    // As a power it would be 6 × 1.07³ (with a tolerance: `**` can differ in the last bit between platforms, §I.5).
+    assert.ok(Math.abs(6 * 1.07 ** 3 - 7.350258) < 1e-12);
   });
 
   it('answer a what-if read (+1 stack, or without it) without touching the host (§II.6 M6)', () => {

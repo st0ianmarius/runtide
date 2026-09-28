@@ -12,4 +12,5 @@ export * from './damage/index.ts';
 export * from './math/index.ts';
 export * from './modifiers/index.ts';
 export * from './procs/index.ts';
+export * from './spells/index.ts';
 export * from './triggers/index.ts';

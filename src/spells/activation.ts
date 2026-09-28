@@ -1,5 +1,5 @@
 import { createRegistry, type Registry } from '../core/index.ts';
-import type { SpellContext } from './spell-def.ts';
+import type { GateContext, SpellContext } from './spell-def.ts';
 import type { ActivationShape, SpellTypes } from './spell-types.ts';
 
 /** A number of seconds read from the cast: a constant, or a function of the cast's context (its stats, its rank). */
@@ -97,12 +97,7 @@ export interface EventActivation {
 
 /** The framework's activation kinds, as a union. */
 export type CoreActivation<G extends SpellTypes = SpellTypes> =
-  | AutoActivation<G>
-  | ButtonActivation
-  | PassiveActivation
-  | TriggerActivation
-  | AiActivation
-  | EventActivation;
+  AutoActivation<G> | ButtonActivation | PassiveActivation | TriggerActivation | AiActivation | EventActivation;
 
 /** One activation (§II.3.2): a core kind or one of the game's. */
 export type Activation<G extends SpellTypes> = CoreActivation<G> | G['gameActivation'];
@@ -131,16 +126,15 @@ export interface ActivationKindDef<A extends ActivationShape = ActivationShape, 
   /** The timeline defaults the kind supplies. */
   timeline?(this: void, activation: A): TimelineDefaults | undefined;
 
-  /** The kind's own gate, asked before the spell's `canCast`; a false refuses the cast. */
-  gate?(this: void, activation: A, ctx: SpellContext<G>): boolean;
+  /** The kind's own gate, asked after the host's `canAct` and before the stats; a false refuses the cast. */
+  gate?(this: void, activation: A, ctx: GateContext<G>): boolean;
 
   /** The activation's numbers as data (§I.5.3); its own numeric fields when absent. */
   explain?(this: void, activation: A): Readonly<Record<string, number>>;
 }
 
 /** Whether a number is a finite count of seconds from 0. */
-const isSeconds = (value: number | undefined): boolean =>
-  value === undefined || (Number.isFinite(value) && value >= 0);
+const isSeconds = (value: number | undefined): boolean => value === undefined || (Number.isFinite(value) && value >= 0);
 
 /** The `auto` kind: its interval is a function or seconds above 0, its retry seconds from 0. */
 const AUTO: ActivationKindDef<AutoActivation> = {

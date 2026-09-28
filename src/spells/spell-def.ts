@@ -1,25 +1,15 @@
 import type { AuraId } from '../auras/index.ts';
-import type { Handle, Random } from '../core/index.ts';
+import type { Random } from '../core/index.ts';
 import type { CueSpec } from '../cues/index.ts';
 import type { Shape, Vec2 } from '../math/index.ts';
 import type { Scaled, ScaledSnapshot, StatView } from '../modifiers/index.ts';
 import type { Proc, ProcOutcome } from '../procs/index.ts';
 import type { Activation } from './activation.ts';
+import type { CastHandle } from './ids.ts';
 import type { ProcOut } from './proc-out.ts';
 import type { SpellHost } from './spell-host.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import type { Timeline } from './timeline.ts';
-
-/** A cast in flight, as a generational handle: stale (and refused) once the cast is over and its slot reused. */
-export type CastHandle = Handle<'cast'>;
-
-/** No cast: what a refused cast reports, and never a live handle. */
-export const NO_CAST: CastHandle = toCastHandle(0);
-
-/** Brands a packed pool handle as a cast handle. */
-function toCastHandle(packed: number): CastHandle {
-  return packed as CastHandle;
-}
 
 /**
  * Where a cast is in its timeline (§II.3.3): `windup` (counting to the release), `channel` (the payload running over
@@ -95,16 +85,10 @@ export interface SpellHit<G extends SpellTypes, Target = unknown> {
 }
 
 /**
- * What every spell hook receives (§II.3.1): the caster and credit, the cast (its target, stats, own state, stage and
- * time), and the services a hook may use. It is the cast itself, pooled, so a hook reads it while it runs and never
- * keeps it; a delayed proc or an area trigger keeps the handle instead. Its functions may be called detached.
+ * What the gates read (the host's `canAct`, the activation kind's `gate`): who casts what, with which input, credited
+ * to whom. The stats are not taken and the target not picked yet.
  */
-export interface SpellContext<
-  G extends SpellTypes,
-  Source extends StatsSource<G> = StatsSource<G>,
-  Target = unknown,
-  State = unknown,
-> {
+export interface GateContext<G extends SpellTypes> {
   /** Who casts. */
   readonly caster: G['bearer'];
 
@@ -126,10 +110,31 @@ export interface SpellContext<
   /** What the activation handed it. */
   readonly input: G['input'] | undefined;
 
+  /** The spell clock's tick now. */
+  readonly tick: number;
+
+  /** The spell clock's step, in seconds. */
+  readonly dt: number;
+
+  /** The host: the framework services and the game's own. */
+  readonly host: SpellHost<G> & G['host'];
+}
+
+/**
+ * What every spell hook receives (§II.3.1): the caster and credit, the cast (its target, stats, own state, stage and
+ * time), and the services a hook may use. It is the cast itself, pooled, so a hook reads it while it runs and never
+ * keeps it; a delayed proc keeps the cast alive instead (`spells.isLive`). Its functions may be called detached.
+ */
+export interface SpellContext<
+  G extends SpellTypes,
+  Source extends StatsSource<G> = StatsSource<G>,
+  Target = unknown,
+  State = unknown,
+> extends GateContext<G> {
   /** Where it goes: what `target` picked, as tracking left it. */
   readonly target: Target | undefined;
 
-  /** Its stats: the snapshot taken at the start, or read again before every hook for a `live` spell. */
+  /** Its stats as plain numbers: the snapshot taken at the start, or read again before every hook for a `live` spell. */
   readonly stats: StatsOf<Source>;
 
   /** Its stats as proc amounts: scaled snapshots whose target terms finish at the hit (§II.3.13). */
@@ -153,17 +158,14 @@ export interface SpellContext<
   /** The seconds spent in its current stage. */
   readonly elapsed: number;
 
+  /** Whether its stage is paused (by `spells.pause` or an interrupt), so it does not count down. */
+  readonly isPaused: boolean;
+
+  /** How it ended, or is ending: `undefined` until its payload went out or it was stopped. */
+  readonly outcome: CastOutcome | undefined;
+
   /** The tick it started on. */
   readonly startTick: number;
-
-  /** The spell clock's tick now. */
-  readonly tick: number;
-
-  /** The spell clock's step, in seconds. */
-  readonly dt: number;
-
-  /** The host: the framework services and the game's own. */
-  readonly host: SpellHost<G> & G['host'];
 
   /** Applies one proc now, for the caster and credited to the cast, and returns what it did (§II.6.1 rule 2). */
   readonly apply: (proc: Proc<G>) => ProcOutcome;
@@ -282,7 +284,7 @@ export interface SpellDef<
 }
 
 /** Any spell of a game, whatever its stats, target and state: what a registry holds. */
-export type AnySpellDef<G extends SpellTypes> = SpellDef<G, StatsSource<G>, unknown, unknown>;
+export type AnySpellDef<G extends SpellTypes> = SpellDef<G>;
 
 /**
  * Fixes a spell's game types and returns the identity that infers the rest from the definition: `const spell =
