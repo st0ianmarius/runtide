@@ -332,7 +332,7 @@ Each is summarised by what it must offer; Part II has the full model.
 
 - **Core.** Random: sequential salted streams (`stream(seed, salt)`, reproducing today's `rng(seed ^ salt)` exactly) and keyed rolls (`roll(seed, salt, ...key)`), with `int`, `pick`, `weighted` and `shuffle` on both. Time: a fixed-step `SimClock` (`tick`, `dt`, `time`; integer-tick mode by default and an accumulating mode for swarm's parity), world and motion kinds, stamps (`stampAt`, `due(stamp)`, `remaining(stamp)`) and the motion clock's `1e-8` snap; `Registry<Def>` assigning branded numeric ids by key order (append-only, tombstones for retired entries, `id` / `name` / `get` lookups, order checks), built into dense arrays, typed hot-field columns, per-hook dispatch tables and bitsets (§I.5.4); pools with generational handles; scratch buffers; a typed `Bus` with payload reuse, `hears(kind)` short-circuiting and a nesting cap; `Scope` for owner, damage source and world context, re-entrant and idempotent.
 - **Math.** Shapes (`circle`, `ring`, `cone`, `lane`, `polygon`, `point`) with `covers(shape, point, radius)`; `sweep(from, to, radius)` against circles; patterns returning point lists with a stagger (`linePoints`, `ringPoints`, `crossPoints`); angle helpers (`wrap`, `turnToward`).
-- **Modifiers.** `defineStats`, `Modifier` (`add | mul | min`, `when`, `scope`), pluggable `Condition` evaluators, ordered sources, `resolve` / `fold`, caps, `explainModifier` returning structured data (stat id, op, value, condition) for the client to phrase.
+- **Modifiers.** `defineStats` with flat and multiplier stats and curves (ability haste's `100 / (100 + x)`), scaled values with LoL-style ratios (§II.3.13), `Modifier` (`add | mul | min`, `when`, `scope`), pluggable `Condition` evaluators, ordered sources, `resolve` / `fold`, caps, `explainModifier` returning structured data (stat id, op, value, condition) for the client to phrase.
 - **Every system below is widened by the coverage catalogue of §II.6, whose entries name the phase they land in; the catalogue is the checklist.**
 - **Auras.** `AuraDef` on any bearer (`AuraBearer`: `auras`, `clocks`, `rev`); stacking; clocks (`world`, `motion`, `global`); `periodic` returning procs; `value` with `merge: 'max' | 'add' | 'replace'` and `keepWhenDepleted` (absorbs); tags, `blockedBy`, `removes`; `grants` through a resource registry; `fold` position; `predicted`; lifecycle hooks and events (`applied`, `refreshed`, `expired`, `removed`, `bearerDeath`); application policy (`onIncomingAura`); periodic beats on their own clock and slot; instance payloads; `removedOn`, `boundToSource`, `activeWhile`; clock rescales on edges; damage hooks (`onIncomingDamage`, `onLethal`); lifecycle events and lifecycle cue ids; `view()` for the wire. No `status`, name, icon or colour: the client's aura table, keyed by `AuraId`, draws the tile.
 - **Triggers.** `TriggerDef` owned by an `AuraDef` only (no free-standing sources); event kinds and filters supplied by the game; internal cooldowns as derived auras; `chance`; `hears: 'self' | 'party'`; `do` as data procs; `validate` (the prediction rule, driven by which auras the game marks as button-touched) and `explain` (structured data, never text).
@@ -366,7 +366,7 @@ Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` 
 
 - **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (latest `typescript` and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `eslint.config.js` and `.prettierrc.json` with every rule of §I.4.2, `.editorconfig`, the pre-commit hook, `npm run check`, README skeleton, the CI workflow; `isolation.test.ts` (every import is relative and inside the project, a `node:` built-in in tests, or a package listed in `package.json`; never swarm; no forbidden globals) and `docs.test.ts`. The Node-free rule (§I.5.5) is in place from the start: the split `tsconfig.json` / `tsconfig.test.json`, the Node-globals scan in `isolation.test.ts`, and the CI browser-bundle check.
 - **F1. Core and math.** Sequential streams (tested draw for draw against literal values taken from today's `rng`, since the framework cannot import swarm), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock in both modes and stamps, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), the lint and parser checks for the no-class style, bus, scope; shapes and sweeps. The registry's dense layout, typed columns, dispatch tables and bitsets, the pools, and the first `bench/` baselines land here, so every later system is built on them.
-- **F2. Modifiers.** Ported from swarm's `packages/game/src/modifiers/` with game content removed; tests reproduce the fold's documented float order.
+- **F2. Modifiers.** Ported from swarm's `packages/game/src/modifiers/` with game content removed; tests reproduce the fold's documented float order. Adds stat kinds, curves and scaled values (§II.3.13), tested on the fixed evaluation order, the share-of-1 rule, per-rank ratios, bonus and target terms, and the load-time checks.
 - **F3. Auras.** Ported from swarm's `packages/game/src/effects/` and generalised to any bearer; add `value` / `merge` / `keepWhenDepleted`, lifecycle procs, damage hooks.
 - **F4. Procs and triggers.** The proc registry (from `spells/procs` on `spell-primitive`) and triggers (from swarm's `packages/game/src/triggers/`), owned by auras only; `do` lists as procs.
 - **F5. Damage pipeline.** Stages, hooks, the true-damage bypass, shelter → absorbs → lethal order.
@@ -504,7 +504,8 @@ interface SpellDef<Stats, Target, CastState> {
   // no id field: the registry assigns a numeric, branded SpellId by key order (§I.5)
   tags: readonly SpellTag[]; // 'arsenal' | 'ability' | 'creature' | 'area' | 'projectile' | 'fire' | 'frost' | …
   activation: Activation; // §II.3.2
-  stats(ctx): Stats; // numbers for this cast: rank, legendary, links, area, duration, damage share
+  stats: ScaledTable<Stats> | ((ctx) => Stats); // numbers for this cast: scaled values with ratios (§II.3.13), or a function
+  scaling?: { [stat in StatId]?: number }; // its share of each outgoing multiplier stat, 1 by default (§II.3.13)
   live?: true; // hooks read stats live each tick instead of the snapshot (Hexfire today)
   canCast?(ctx): boolean; // the gate after the activation's own (Whirlwind suppresses Cleave; a 24-brand cap)
   target?(ctx, input): Target | undefined; // undefined refuses; `predictable` runs on the mirror
@@ -859,6 +860,80 @@ export const SCRIPTS = createRegistry({ hordeScript, juggernaut, hexblade, grave
 
 Execute is a picked spell in every phase (cooldown 18, first cast 8 s after spawn, weight 3, +2 on a standing target), not a timer; eruption sits in the pools; soulfire is a phase parameter the trail area trigger reads, laying patches by distance walked (a jump over 3 m resets it) and never during the leap or the roar.
 
+### II.3.13 Stat scaling: flat stats, multiplier stats, and ratios on spells
+
+A game can have both kinds of stat, as League of Legends does, and a spell scales with either one by a declared ratio.
+
+- **Flat stats** are quantities: attack damage 400, ability power 250, ability haste 400, maximum health 2,000, armor. A spell takes a share of them: "60 (+120% attack damage) (+50% ability power)".
+- **Multiplier stats** are percentages around a neutral value: swarm's `damage` (1 = neutral, 1.3 = +30%), critical damage (1.75), cooldown reduction, damage taken. A spell takes a share of their bonus: "scales with 110% of the damage bonus", "crits for 100% of critical damage".
+- **Curves** turn a flat stat into an effect that is not linear: ability haste shortens a cooldown by `100 / (100 + haste)`, so 100 haste halves it and it never reaches zero. A spell may take a share of the stat before the curve: "50% of ability haste" on a spell is `100 / (100 + 0.5 × haste)`.
+
+The stat table declares the kind, and the curve where there is one:
+
+```ts
+const STATS = defineStats({
+  attackDamage: { base: 60, kind: 'flat' },
+  abilityPower: { base: 0, kind: 'flat' },
+  abilityHaste: { base: 0, kind: 'flat', curve: 'haste' }, // 100 / (100 + x) on whatever it shortens
+  maxHealth: { base: 600, kind: 'flat' },
+  critChance: { base: 0, kind: 'flat', max: 1 }, // a chance is a flat stat on 0..1
+  damage: { base: 1, kind: 'multiplier' }, // swarm's damage bonus
+  critDamage: { base: 1.75, kind: 'multiplier' },
+});
+```
+
+A **scaled value** is any number on a spell, aura, area trigger or unit template, written as data instead of a function:
+
+```ts
+type Scaled<S extends StatId> = number | Scaling<S>;
+
+interface Scaling<S> {
+  base: number | readonly number[]; // one number, or one per rank (60 / 95 / 130)
+  add?: readonly Term<S>[]; // + coef × stat
+  amp?: readonly Term<S>[]; // × (1 + coef × (stat − neutral)), multiplier stats only
+  curve?: { kind: CurveId; by: readonly Term<S>[] }; // × curve(Σ coef × stat), e.g. haste
+}
+
+interface Term<S> {
+  stat: S;
+  coef: number | readonly number[]; // one ratio, or one per rank (50% / 60% / 70%)
+  of?: 'total' | 'bonus'; // bonus = the stat minus its base ("+60% bonus attack damage")
+  from?: 'caster' | 'target'; // target terms are read at the hit: "+8% of the target's maximum health"
+}
+```
+
+A value with `from: 'target'` terms snapshots its caster part at the cast and keeps its target terms; the `damage` and `heal` procs finish it against each target they hit. Helpers keep definitions short. The value is always `(base + Σ add) × Π amp × curve(Σ curve terms)`, in that fixed order, so the float result is the same everywhere:
+
+```ts
+export const piercingLight = defineSpell({
+  tags: ['ability', 'physical'],
+  activation: button({ cooldown: scaled(12, haste(0.5)) }), // 12 s × 100 / (100 + 0.5 × ability haste)
+  stats: {
+    damage: scaled(
+      ranks(60, 95, 130),
+      add('attackDamage', 1.2),
+      add('abilityPower', 0.5),
+      add('maxHealth', 0.08, { from: 'target' }), // read when it hits
+    ),
+    radius: 3,
+  },
+  scaling: { damage: 1.1, critChance: 1, critDamage: 1 }, // shares of the outgoing multipliers (below)
+  release: (ctx, target) => [damage(target, ctx.stats.damage)],
+});
+```
+
+**Outgoing multipliers.** The game declares which multiplier stats every blow gets at the damage pipeline's attacker-side stage (swarm: `damage`; the crit stage reads `critChance` and `critDamage`). Each spell's `scaling` gives its share of each one, with a missing entry meaning 1. So "scales with 110% of the damage bonus" is `scaling: { damage: 1.1 }`: a +30% bonus gives × 1.33. A spell that ignores damage bonuses writes `damage: 0`. The pipeline finds the share through the blow's source spell, so area triggers, delayed procs, periodic beats and summons all get it with no work in the spell. A share of exactly 1 reads the stat as it is, not `1 + 1 × (M − 1)`, which can differ from `M` in the last bit. The pipeline reads these stats at the hit, as swarm does today (`core.ts`, `weaponStat('damage', spell)`); the terms in `stats` follow the spell's snapshot rule (decision 2).
+
+**What else it gives:**
+
+- **Explanations.** `explainScaled(value, rank)` returns `{ base, terms: [{ stat, coef, of, from, op, value }], total }`, so the client prints "60 (+120% AD) (+50% AP)" in its own words and colours, from the simulation's numbers (§I.5.3).
+- **Previews.** Evaluated at any rank with no world (M6). Target terms show as their ratio.
+- **Checks when the registry is built.** An `amp` term must name a multiplier stat and an `add` term a flat one; `of: 'bonus'` needs a base; a per-rank list must match the spell's ranks. A mistake fails at load, not in play.
+- **Speed.** Scaled values compile into flat term arrays (stat id, coefficient, op) when the registry is built. Each evaluation is one loop over stats already folded for the cast, with no allocation (§I.5.4).
+- **Escape hatches.** `stats(ctx)` can still be a function for a number no formula covers. A game registers its own curves (`defineCurves({ haste, diminishing })`), and custom term sources through the stat host (§I.5.6).
+
+**In swarm:** the weapons' rank tables (`(27 + r × 10) × legendary`) become `ranks(...)` bases, and `damage` and `critDamage` become outgoing multipliers with the default share of 1. Every golden stays bit-exact, because a share of 1 reads the stat as it is and the order of the multiplications does not change. Flat stats and ratios are there when the game wants them, with no framework change.
+
 ## II.4 Every existing spell, mapped
 
 The weird ones first; the rest follow the same parts.
@@ -1048,6 +1123,7 @@ Entries marked **[H]** are listed so the game knows where its own code goes; the
 - **[F] M7. Stat changes, resource policy and projections.** The fold raises `statChanged(bearer, stat, before, after)` for watched stats; a declared resource policy decides what current health does when max health moves (swarm: a gain heals the difference through the heal pipeline, a loss scales); declared stat projections (including partial folds) feed the wire and the mirror. _Needs:_ `refreshMaxHp`, `syncMotionStats` and their seven hand-placed calls. _Lands:_ F2, F10, F13.
 - **[F] M8. Conditions.** `and` / `or` / `not` composition, comparators both strict and `≤` with epsilon, a mirror-safe flag per evaluator, lazy world conditions. _Needs:_ `noMapBuff`, the class states, the Archmage's strict phase check. _Lands:_ F12.
 - **[F] M9. Every bearer folds.** Creatures resolve stats like heroes (speed, mitigation, cooldown scale), so phase and enrage auras are ordinary modifiers. _Lands:_ F2, F13.
+- **[F] M10. Stat scaling.** Flat and multiplier stats, curves, scaled values with ratios on any stat (total or bonus, caster or target, per rank), outgoing multiplier shares per spell, `explainScaled` (§II.3.13). _Needs:_ `damage` and `critDamage` read per weapon at the hit, the weapons' rank tables, the `*SpellDamage` helpers, card previews; flat stats and ability haste for future content. _Lands:_ F2, F5, F7.
 
 **Auras (A)**
 
@@ -1195,3 +1271,4 @@ The world and its plumbing, which the framework reaches only through host interf
 10. **Who owns invulnerability: decided, an aura** whose `onIgnore` gates blows at the pipeline's first stage, stacking with `max`; the horde hit window stays a game-side stage of the same gate, as §I.3 keeps hit windows in the game.
 11. **The wave director's split: decided by the escape-hatch rule.** The pickers and the budgets are the framework's (F17), and world scripts run the events (F21); the director itself (roster, opening burst, elite schedule, group clock, calm gaps, concurrency classes, curves) stays swarm's code as a game-owned step.
 12. **Units live in the framework: decided** (templates, traits, lifecycle, spawning), since control rules, rewards and the pipelines all read them; leaving them in the game would keep its `kind` branches.
+13. **Stat scaling: decided, both kinds, League of Legends style** (§II.3.13). Flat stats (attack damage, ability haste) and multiplier stats (damage bonus, critical damage) live in one table; spells scale with any of them by a ratio, and multiplier stats by a share of their bonus. Evaluation order is fixed, and a share of 1 reads the stat unchanged, so swarm stays bit-exact.
