@@ -35,7 +35,7 @@ const game = () => {
     maxHp: { base: 100, kind: 'flat', min: 1 },
   });
 
-  const sources = defineSources(['base', 'passives', 'effects']);
+  const sources = defineSources(['base', 'talents', 'auras']);
 
   const conditions = defineConditions({
     enraged: (host: Host) => {
@@ -71,7 +71,7 @@ describe('the per-bearer cache (§I.5.4)', () => {
     system.resolve(sheet, id.moveSpeed);
     assert.equal(sheet.compiles, 1, 'cached between reads');
 
-    system.setSource(sheet, sources.id.passives, [system.compile([mul('damage', 1.3)])]);
+    system.setSource(sheet, sources.id.talents, [system.compile([mul('damage', 1.3)])]);
 
     assert.equal(sheet.isDirty, true);
     assert.equal(system.resolve(sheet, id.damage), 1.3);
@@ -83,7 +83,7 @@ describe('the per-bearer cache (§I.5.4)', () => {
     const sheet = system.createSheet();
     const host = creature();
 
-    system.setSource(sheet, sources.id.effects, [
+    system.setSource(sheet, sources.id.auras, [
       system.compile([mul('damage', 1.5, { when: { is: 'enraged' } })]),
       system.compile([mul('damage', 1.2)], { gate: 0 }),
     ]);
@@ -103,15 +103,15 @@ describe('the per-bearer cache (§I.5.4)', () => {
     const mob = system.createSheet();
     const host = creature({ stacks: [0, 1] });
 
-    system.setSource(hero, sources.id.effects, [system.compile([mul('moveSpeed', 0.51)])]);
-    system.share(sources.id.effects, [system.compile([mul('moveSpeed', 0.54)], { gate: 1 })]);
+    system.setSource(hero, sources.id.auras, [system.compile([mul('moveSpeed', 0.51)])]);
+    system.share(sources.id.auras, [system.compile([mul('moveSpeed', 0.54)], { gate: 1 })]);
 
     assert.equal(system.resolve(hero, id.moveSpeed, { host }), 1.1016000000000001);
     assert.equal(system.resolve(mob, id.moveSpeed, { host }), 2.16);
     assert.equal(system.resolve(hero, id.moveSpeed, { host }), 1.1016000000000001);
     assert.deepEqual([hero.compiles, mob.compiles], [1, 1]);
 
-    system.share(sources.id.effects, []);
+    system.share(sources.id.auras, []);
 
     assert.equal(system.resolve(mob, id.moveSpeed, { host }), 4);
     assert.equal(mob.compiles, 2);
@@ -134,7 +134,7 @@ describe('values that follow a stat or the bearer (§II.6 M2, M3)', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();
 
-    system.setSource(sheet, sources.id.passives, [
+    system.setSource(sheet, sources.id.talents, [
       system.compile([
         plus('projectiles', 0.6),
         plus('chainJumps', perStat('projectiles', 2)),
@@ -162,7 +162,7 @@ describe('values that follow a stat or the bearer (§II.6 M2, M3)', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();
 
-    system.setSource(sheet, sources.id.passives, [
+    system.setSource(sheet, sources.id.talents, [
       system.compile([plus('chainJumps', perStat('projectiles', 1)), plus('projectiles', perStat('chainJumps', 1))]),
     ]);
 
@@ -184,7 +184,7 @@ describe('stat watches (§II.6 M7)', () => {
     watch.check(sheet);
     assert.deepEqual(heard, [], 'the first check records');
 
-    system.setSource(sheet, sources.id.passives, [system.compile([mul('maxHp', 1.5), cap('moveSpeed', 3)])]);
+    system.setSource(sheet, sources.id.talents, [system.compile([mul('maxHp', 1.5), cap('moveSpeed', 3)])]);
     watch.check(sheet);
     watch.check(sheet);
 

@@ -72,7 +72,7 @@ const STATS = defineStats({
   moveSpeed: { base: 0, kind: 'flat', min: 0 },
 });
 
-const SOURCES = defineSources(['classBase', 'pacts', 'totem', 'passives', 'effects', 'classStates']);
+const SOURCES = defineSources(['race', 'gear', 'banner', 'talents', 'auras', 'stance']);
 const CONDITIONS = defineConditions({ healthBelow: (bearer: Bearer, share) => bearer.hp < 100 * share });
 
 const MODIFIERS = createModifierSystem({
@@ -86,16 +86,14 @@ const SHEET = MODIFIERS.createSheet();
 const BEARER: Bearer = { hp: 80, stacks: [1, 0, 3] };
 const READ = { host: BEARER };
 
-MODIFIERS.setSource(SHEET, SOURCES.id.classBase, [
-  MODIFIERS.compile([plus('moveSpeed', 6.2), plus('attackDamage', 40)]),
-]);
-MODIFIERS.setSource(SHEET, SOURCES.id.pacts, [MODIFIERS.compile([mul('damage', 1.3), mul('moveSpeed', 0.9)])]);
-MODIFIERS.setSource(SHEET, SOURCES.id.passives, [MODIFIERS.compile([plus('damage', 0.25), mul('moveSpeed', 1.1)])]);
-MODIFIERS.share(SOURCES.id.effects, [
+MODIFIERS.setSource(SHEET, SOURCES.id.race, [MODIFIERS.compile([plus('moveSpeed', 6.2), plus('attackDamage', 40)])]);
+MODIFIERS.setSource(SHEET, SOURCES.id.gear, [MODIFIERS.compile([mul('damage', 1.3), mul('moveSpeed', 0.9)])]);
+MODIFIERS.setSource(SHEET, SOURCES.id.talents, [MODIFIERS.compile([plus('damage', 0.25), mul('moveSpeed', 1.1)])]);
+MODIFIERS.share(SOURCES.id.auras, [
   MODIFIERS.compile([mul('damage', 1.2), mul('moveSpeed', 1.3)], { gate: 0 }),
   MODIFIERS.compile([mul('damage', 1.05)], { gate: 2 }),
 ]);
-MODIFIERS.setSource(SHEET, SOURCES.id.classStates, [
+MODIFIERS.setSource(SHEET, SOURCES.id.stance, [
   MODIFIERS.compile([mul('damage', 1.5, { when: { is: 'healthBelow', arg: 0.4 } }), mul('moveSpeed', 1.2)]),
 ]);
 

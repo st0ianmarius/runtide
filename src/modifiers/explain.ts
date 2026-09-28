@@ -1,5 +1,5 @@
 import { evaluateCurve } from './evaluate.ts';
-import { clampStat, entryValue, gain, liveStacks, stackedAdd, stackedMul } from './fold.ts';
+import { clampStat, derivedGain, entryValue, liveStacks, stackedAdd, stackedMul } from './fold.ts';
 import type { CompiledModifier, ModifierList } from './modifier.ts';
 import type { Entry, Sheet } from './sheet.ts';
 import type { SourceId } from './sources.ts';
@@ -64,7 +64,7 @@ export interface DerivedContribution {
   /** The stat it follows. */
   readonly from: StatId;
 
-  /** What it read: the followed stat's gain (`derives`) or total (`converts`). */
+  /** What it read: the followed stat's gain as measured (`derives`) or its total (`converts`). */
   readonly input: number;
 
   /** What it added. */
@@ -130,7 +130,7 @@ const contribution = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, stacks: numb
 const derivedOf = <Host>(sheet: Sheet<Host>, stat: StatId): DerivedContribution[] =>
   (sheet.tables.derivations[stat] ?? []).map((derivation) => {
     if (derivation.kind === 'derives') {
-      const input = gain(sheet, derivation.from);
+      const input = derivedGain(sheet, derivation);
 
       return { kind: 'derives', from: derivation.from, input, value: derivation.per * Math.max(0, input) };
     }

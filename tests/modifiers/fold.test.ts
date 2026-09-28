@@ -7,6 +7,7 @@ import {
   defineConditions,
   defineSources,
   defineStats,
+  type GainParts,
   type Modifier,
   mul,
   plus,
@@ -18,18 +19,18 @@ interface Host {
   readonly hp: number;
   readonly maxHp: number;
   readonly tags: readonly number[];
-  readonly world: { standing: boolean; asked: number };
+  readonly world: { raised: boolean; asked: number };
 }
 
 const host = (over: Partial<Host> = {}): Host => ({
   hp: 100,
   maxHp: 100,
   tags: [],
-  world: { standing: false, asked: 0 },
+  world: { raised: false, asked: 0 },
   ...over,
 });
 
-/** A small game: stats shaped like swarm's (content and tuning removed), its sources in swarm's fold order. */
+/** A small game: a handful of common stats, and six sources in the order it declares them. */
 const game = () => {
   const stats = defineStats({
     damage: { base: 1, kind: 'multiplier' },
@@ -38,33 +39,33 @@ const game = () => {
     maxHp: { base: 0, kind: 'flat', min: 1 },
     blockChance: { base: 0, kind: 'flat', min: 0, max: 0.35 },
     cooldownReduction: { base: 0, kind: 'flat', max: 0.5 },
-    lifestealCap: { base: Infinity, kind: 'flat', min: 0 },
-    pickupRadius: { base: 1, kind: 'multiplier' },
-    abilityArea: { base: 1, kind: 'multiplier', derives: { from: 'pickupRadius', per: 0.125 } },
-    handSize: { base: 3, kind: 'flat', min: 1 },
+    leechCap: { base: Infinity, kind: 'flat', min: 0 },
+    reach: { base: 1, kind: 'multiplier' },
+    area: { base: 1, kind: 'multiplier', derives: { from: 'reach', per: 0.125 } },
+    slots: { base: 3, kind: 'flat', min: 1 },
   });
 
-  const sources = defineSources(['classBase', 'pacts', 'totem', 'passives', 'effects', 'classStates']);
+  const sources = defineSources(['race', 'gear', 'banner', 'talents', 'auras', 'stance']);
 
   const conditions = defineConditions({
     healthBelow: (at: Host, share) => at.hp < at.maxHp * share,
     tag: (at: Host, tag) => at.tags.includes(tag),
     noTag: (at: Host, tag) => !at.tags.includes(tag),
 
-    totemStanding: (at: Host) => {
+    bannerRaised: (at: Host) => {
       at.world.asked += 1;
 
-      return at.world.standing;
+      return at.world.raised;
     },
   });
 
   const system = createModifierSystem({ stats, sources, conditions });
 
-  /** A sheet with each source's modifiers set, as `compile(sources)` took them in swarm. */
+  /** A sheet with each source's modifiers set, one compiled list per source. */
   const sheetWith = (
     entries: readonly (readonly [
       keyof typeof sources.id,
-      readonly Modifier<keyof typeof stats.id, 'healthBelow' | 'tag' | 'noTag' | 'totemStanding', never>[],
+      readonly Modifier<keyof typeof stats.id, 'healthBelow' | 'tag' | 'noTag' | 'bannerRaised', never>[],
     ])[],
   ) => {
     const sheet = system.createSheet();
@@ -84,9 +85,9 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const { system, sheetWith, id } = game();
 
     const sheet = sheetWith([
-      ['classBase', [plus('armor', 10)]],
-      ['pacts', [mul('armor', 3)]],
-      ['passives', [plus('armor', 5)]],
+      ['race', [plus('armor', 10)]],
+      ['gear', [mul('armor', 3)]],
+      ['talents', [plus('armor', 5)]],
     ]);
 
     assert.equal(system.resolve(sheet, id.armor), 45);
@@ -96,22 +97,22 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const { system, sheetWith, id } = game();
 
     const chain = sheetWith([
-      ['classBase', [plus('moveSpeed', 6.2)]],
-      ['classStates', [mul('moveSpeed', 1.1), mul('moveSpeed', 1.3), mul('moveSpeed', 0.65)]],
+      ['race', [plus('moveSpeed', 6.2)]],
+      ['stance', [mul('moveSpeed', 1.1), mul('moveSpeed', 1.3), mul('moveSpeed', 0.65)]],
     ]);
 
     assert.equal(system.resolve(chain, id.moveSpeed), 5.762900000000001);
 
     const forward = sheetWith([
-      ['classBase', [plus('moveSpeed', 6.2)]],
-      ['pacts', [mul('moveSpeed', 0.51)]],
-      ['passives', [mul('moveSpeed', 0.54)]],
+      ['race', [plus('moveSpeed', 6.2)]],
+      ['gear', [mul('moveSpeed', 0.51)]],
+      ['talents', [mul('moveSpeed', 0.54)]],
     ]);
 
     const backward = sheetWith([
-      ['classBase', [plus('moveSpeed', 6.2)]],
-      ['pacts', [mul('moveSpeed', 0.54)]],
-      ['passives', [mul('moveSpeed', 0.51)]],
+      ['race', [plus('moveSpeed', 6.2)]],
+      ['gear', [mul('moveSpeed', 0.54)]],
+      ['talents', [mul('moveSpeed', 0.51)]],
     ]);
 
     // (6.2 × 0.51) × 0.54 and (6.2 × 0.54) × 0.51 differ in the last bit, and so does 6.2 × (0.51 × 0.54).
@@ -123,9 +124,9 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const { system, sources, id } = game();
     const sheet = system.createSheet();
 
-    system.setSource(sheet, sources.id.passives, [system.compile([mul('moveSpeed', 0.51)])]);
-    system.setSource(sheet, sources.id.pacts, [system.compile([mul('moveSpeed', 0.54)])]);
-    system.setSource(sheet, sources.id.classBase, [system.compile([plus('moveSpeed', 6.2)])]);
+    system.setSource(sheet, sources.id.talents, [system.compile([mul('moveSpeed', 0.51)])]);
+    system.setSource(sheet, sources.id.gear, [system.compile([mul('moveSpeed', 0.54)])]);
+    system.setSource(sheet, sources.id.race, [system.compile([plus('moveSpeed', 6.2)])]);
 
     assert.equal(system.resolve(sheet, id.moveSpeed), 1.70748);
   });
@@ -144,14 +145,14 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const { system, sheetWith, id } = game();
 
     const sheet = sheetWith([
-      ['passives', [plus('blockChance', 0.4), plus('cooldownReduction', 0.9), plus('maxHp', 10), mul('maxHp', 0)]],
+      ['talents', [plus('blockChance', 0.4), plus('cooldownReduction', 0.9), plus('maxHp', 10), mul('maxHp', 0)]],
     ]);
 
     assert.equal(system.resolve(sheet, id.blockChance), 0.35);
     assert.equal(system.resolve(sheet, id.cooldownReduction), 0.5);
     assert.equal(system.resolve(sheet, id.maxHp), 1);
     assert.equal(
-      system.resolve(sheetWith([['pacts', [plus('cooldownReduction', -0.15)]]]), id.cooldownReduction),
+      system.resolve(sheetWith([['gear', [plus('cooldownReduction', -0.15)]]]), id.cooldownReduction),
       -0.15,
     );
   });
@@ -160,15 +161,15 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const { system, sheetWith, id } = game();
 
     const below = sheetWith([
-      ['classBase', [cap('armor', 25)]],
-      ['pacts', [mul('armor', 2)]],
-      ['passives', [plus('armor', 10), cap('armor', 30)]],
+      ['race', [cap('armor', 25)]],
+      ['gear', [mul('armor', 2)]],
+      ['talents', [plus('armor', 10), cap('armor', 30)]],
     ]);
 
     const capped = sheetWith([
-      ['classBase', [cap('armor', 25)]],
-      ['pacts', [mul('armor', 3)]],
-      ['passives', [plus('armor', 10), cap('armor', 30)]],
+      ['race', [cap('armor', 25)]],
+      ['gear', [mul('armor', 3)]],
+      ['talents', [plus('armor', 10), cap('armor', 30)]],
     ]);
 
     assert.equal(system.resolve(below, id.armor), 20);
@@ -179,13 +180,13 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const { system, sheetWith, id } = game();
 
     const sheet = sheetWith([
-      ['classStates', [cap('blockChance', -1)]],
-      ['pacts', [cap('lifestealCap', 0.4, { when: { is: 'tag', arg: 7 } })]],
+      ['stance', [cap('blockChance', -1)]],
+      ['gear', [cap('leechCap', 0.4, { when: { is: 'tag', arg: 7 } })]],
     ]);
 
     assert.equal(system.resolve(sheet, id.blockChance), 0);
-    assert.equal(system.resolve(sheet, id.lifestealCap, { host: host() }), Infinity);
-    assert.equal(system.resolve(sheet, id.lifestealCap, { host: host({ tags: [7] }) }), 0.4);
+    assert.equal(system.resolve(sheet, id.leechCap, { host: host() }), Infinity);
+    assert.equal(system.resolve(sheet, id.leechCap, { host: host({ tags: [7] }) }), 0.4);
   });
 });
 
@@ -195,13 +196,13 @@ describe('conditions', () => {
 
     const sheet = sheetWith([
       [
-        'pacts',
+        'gear',
         [
           mul('damage', 1.5, { when: { is: 'healthBelow', arg: 0.4 } }),
           mul('damage', 0.9, { when: { is: 'noTag', arg: 3 } }),
         ],
       ],
-      ['effects', [mul('damage', 1.4, { when: { is: 'tag', arg: 5 } })]],
+      ['auras', [mul('damage', 1.4, { when: { is: 'tag', arg: 5 } })]],
     ]);
 
     assert.equal(system.resolve(sheet, id.damage), 1);
@@ -216,22 +217,22 @@ describe('conditions', () => {
     const { system, sheetWith, sources, id } = game();
 
     const sheet = sheetWith([
-      ['classBase', [plus('moveSpeed', 6)]],
-      ['totem', [mul('moveSpeed', 0.5, { when: { is: 'totemStanding' } })]],
-      ['passives', [mul('moveSpeed', 1.2)]],
+      ['race', [plus('moveSpeed', 6)]],
+      ['banner', [mul('moveSpeed', 0.5, { when: { is: 'bannerRaised' } })]],
+      ['talents', [mul('moveSpeed', 1.2)]],
     ]);
 
     const idle = host();
-    const standing = host({ world: { standing: true, asked: 0 } });
+    const raised = host({ world: { raised: true, asked: 0 } });
 
     assert.equal(system.resolve(sheet, id.moveSpeed, { host: idle }), 7.199999999999999);
-    assert.equal(system.resolve(sheet, id.moveSpeed, { host: standing }), 3.5999999999999996);
-    assert.equal(system.resolve(sheet, id.damage, { host: standing }), 1);
-    assert.equal(idle.world.asked + standing.world.asked, 2, 'a stat without a totem modifier never asks');
+    assert.equal(system.resolve(sheet, id.moveSpeed, { host: raised }), 3.5999999999999996);
+    assert.equal(system.resolve(sheet, id.damage, { host: raised }), 1);
+    assert.equal(idle.world.asked + raised.world.asked, 2, 'a stat without a banner modifier never asks');
 
-    const base = sourceMask(sources, ['classBase', 'pacts', 'totem']);
+    const base = sourceMask(sources, ['race', 'gear', 'banner']);
 
-    assert.equal(system.resolve(sheet, id.moveSpeed, { host: standing, sources: base }), 3);
+    assert.equal(system.resolve(sheet, id.moveSpeed, { host: raised, sources: base }), 3);
   });
 });
 
@@ -240,37 +241,66 @@ describe('derived stats (§II.6 M1)', () => {
     const { system, sheetWith, id } = game();
 
     const sheet = sheetWith([
-      ['passives', [plus('pickupRadius', 1), plus('abilityArea', 0.1)]],
-      ['effects', [mul('abilityArea', 2)]],
+      ['talents', [plus('reach', 1), plus('area', 0.1)]],
+      ['auras', [mul('area', 2)]],
     ]);
 
-    assert.equal(system.resolve(sheet, id.abilityArea), 2.45);
+    assert.equal(system.resolve(sheet, id.area), 2.45);
   });
 
-  it('read the plain sum of additions when nothing multiplies or caps the followed stat (swarm float path)', () => {
+  it('measure the gain as the followed total minus its base', () => {
     const { system, sheetWith, id } = game();
 
-    // 0.01 + 0.11 is 0.12, while (1 + 0.01 + 0.11) − 1 is 0.1200000000000001: the plain sum keeps swarm's float.
-    const sheet = sheetWith([['passives', [plus('pickupRadius', 0.01), plus('pickupRadius', 0.11)]]]);
+    // (1 + 0.01 + 0.11) − 1 is 0.1200000000000001 in floats, and the share applies to exactly that.
+    const sheet = sheetWith([['talents', [plus('reach', 0.01), plus('reach', 0.11)]]]);
 
-    assert.equal(system.resolve(sheet, id.abilityArea), 1.015);
+    assert.equal(system.resolve(sheet, id.area), 1.0150000000000001);
   });
 
   it('read the resolved total when a live cap moves the followed stat', () => {
     const { system, sheetWith, id } = game();
 
     const sheet = sheetWith([
-      ['passives', [plus('pickupRadius', 2)]],
-      ['pacts', [cap('pickupRadius', 2)]],
+      ['talents', [plus('reach', 2)]],
+      ['gear', [cap('reach', 2)]],
     ]);
 
-    assert.equal(system.resolve(sheet, id.pickupRadius), 2);
-    assert.equal(system.resolve(sheet, id.abilityArea), 1.125);
+    assert.equal(system.resolve(sheet, id.reach), 2);
+    assert.equal(system.resolve(sheet, id.area), 1.125);
   });
 
   it('never subtract when the followed stat sits below its base', () => {
     const { system, sheetWith, id } = game();
 
-    assert.equal(system.resolve(sheetWith([['pacts', [mul('pickupRadius', 0.5)]]]), id.abilityArea), 1);
+    assert.equal(system.resolve(sheetWith([['gear', [mul('reach', 0.5)]]]), id.area), 1);
+  });
+
+  it("take the game's own gain measure over the followed stat's fold parts (§I.5.6 hatch 2)", () => {
+    const seen: GainParts[] = [];
+
+    /** A measure that reads an add-only stat's gain as the plain sum of its additions. */
+    const plainSum = (parts: GainParts): number => {
+      seen.push(parts);
+
+      return parts.isAddOnly ? parts.adds : parts.total - parts.base;
+    };
+
+    const stats = defineStats({
+      reach: { base: 1, kind: 'multiplier', max: 3 },
+      area: { base: 1, kind: 'multiplier', derives: { from: 'reach', per: 0.125, gain: plainSum } },
+    });
+
+    const sources = defineSources(['talents', 'auras']);
+    const system = createModifierSystem({ stats, sources });
+    const sheet = system.createSheet();
+
+    system.setSource(sheet, sources.id.talents, [system.compile([plus('reach', 0.01), plus('reach', 0.11)])]);
+    assert.equal(system.resolve(sheet, stats.id.area), 1.015, 'the plain sum 0.12, not 0.1200000000000001');
+    assert.deepEqual(seen.at(-1), { base: 1, total: 1.12, adds: 0.12, isAddOnly: true, min: -Infinity, max: 3 });
+    assert.equal(system.explainStat(sheet, stats.id.area).derived[0]?.input, 0.12);
+
+    system.setSource(sheet, sources.id.auras, [system.compile([mul('reach', 1.5)])]);
+    assert.equal(system.resolve(sheet, stats.id.area), 1.085);
+    assert.equal(seen.at(-1)?.isAddOnly, false, 'a live multiplier');
   });
 });

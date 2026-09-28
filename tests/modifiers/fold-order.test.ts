@@ -14,39 +14,32 @@ interface Authored {
 }
 
 /**
- * Swarm's `resolve` (`packages/game/src/modifiers/resolve.ts`) written out over one stat's lists, with no conditions or
- * scopes: the reference the fold must match to the bit.
+ * The fold's documented contract written out plainly over one stat's lists, with no conditions or scopes:
+ * `clamp(min((base + Σ add) × Π mul, …caps))`, where an add lands `value × stacks`, a mul `value ^ stacks` (or
+ * `1 + (value − 1) × stacks` when linear) and either lands its authored value at one stack; additions sum left to
+ * right and multipliers apply one at a time, both in source order; each cap below the value replaces it, in turn;
+ * the clamp takes the ceiling, then the floor.
  */
-const reference = (
+const documented = (
   lists: readonly (readonly Authored[])[],
   stat: { readonly base: number; readonly min: number; readonly max: number },
 ): number => {
   const all = lists.flat();
-  let value = stat.base;
+  const ofOp = (op: Authored['op']) => all.filter((m) => m.op === op);
+  const atStacks = (m: Authored, many: number) => (m.stacks === 1 ? m.value : many);
 
-  for (const m of all.filter((each) => each.op === 'add')) {
-    value += m.stacks <= 1 ? m.value : m.value * m.stacks;
-  }
+  const added = ofOp('add').reduce((sum, m) => sum + atStacks(m, m.value * m.stacks), stat.base);
 
-  for (const m of all.filter((each) => each.op === 'mul')) {
-    if (m.stacks <= 1) {
-      value *= m.value;
-    } else {
-      value *= m.isLinear ? 1 + (m.value - 1) * m.stacks : m.value ** m.stacks;
-    }
-  }
+  const multiplied = ofOp('mul').reduce(
+    (product, m) => product * atStacks(m, m.isLinear ? 1 + (m.value - 1) * m.stacks : m.value ** m.stacks),
+    added,
+  );
 
-  for (const m of all.filter((each) => each.op === 'min')) {
-    if (m.value < value) {
-      value = m.value;
-    }
-  }
+  // A cap (and each side of the clamp) replaces the value only when it is strictly past it, so a -0 cap keeps a 0.
+  const capped = ofOp('min').reduce((value, m) => (m.value < value ? m.value : value), multiplied);
+  const ceiled = capped > stat.max ? stat.max : capped;
 
-  if (value > stat.max) {
-    value = stat.max;
-  }
-
-  return value < stat.min ? stat.min : value;
+  return ceiled < stat.min ? stat.min : ceiled;
 };
 
 const authored = fc.record({
@@ -57,7 +50,7 @@ const authored = fc.record({
 });
 
 describe('the fold’s float order (property)', () => {
-  it('matches swarm’s resolve to the bit: adds in order, muls one by one in source order, caps in turn, clamp', () => {
+  it('lands the documented float to the bit: adds in order, muls one by one in source order, caps in turn, clamp', () => {
     const stats = defineStats({ power: { base: 1.5, kind: 'flat', min: -2, max: 40 } });
     const sources = defineSources(['s0', 's1', 's2', 's3']);
 
@@ -99,7 +92,7 @@ describe('the fold’s float order (property)', () => {
 
           assert.equal(
             system.resolve(sheet, stats.id.power, { host: stacks }),
-            reference(withStacks, { base: 1.5, min: -2, max: 40 }),
+            documented(withStacks, { base: 1.5, min: -2, max: 40 }),
           );
         },
       ),

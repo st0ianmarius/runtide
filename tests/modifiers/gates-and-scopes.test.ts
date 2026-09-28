@@ -18,7 +18,7 @@ const game = () => {
     moveSpeed: { base: 0, kind: 'flat' },
   });
 
-  const sources = defineSources(['classBase', 'passives', 'effects', 'classStates']);
+  const sources = defineSources(['race', 'talents', 'auras', 'stance']);
   const system = createModifierSystem({ stats, sources, stacks: (host: Host, gate) => host.stacks[gate] ?? 0 });
 
   return { stats, sources, system, id: stats.id };
@@ -29,7 +29,7 @@ describe('gated lists (an aura’s modifiers, §II.6 M4)', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();
 
-    system.setSource(sheet, sources.id.effects, [system.compile([plus('armor', 30), mul('damage', 1.1)], { gate: 2 })]);
+    system.setSource(sheet, sources.id.auras, [system.compile([plus('armor', 30), mul('damage', 1.1)], { gate: 2 })]);
 
     assert.equal(system.resolve(sheet, id.armor), 0, 'no host, no gate');
     assert.equal(system.resolve(sheet, id.armor, { host: { stacks: [] } }), 0);
@@ -43,8 +43,8 @@ describe('gated lists (an aura’s modifiers, §II.6 M4)', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();
 
-    system.setSource(sheet, sources.id.classBase, [system.compile([plus('moveSpeed', 6)])]);
-    system.setSource(sheet, sources.id.passives, [
+    system.setSource(sheet, sources.id.race, [system.compile([plus('moveSpeed', 6)])]);
+    system.setSource(sheet, sources.id.talents, [
       system.compile([mul('moveSpeed', 1.07, { stacking: 'linear' })], { gate: 0 }),
     ]);
 
@@ -59,7 +59,7 @@ describe('gated lists (an aura’s modifiers, §II.6 M4)', () => {
     const sheet = system.createSheet();
     const host = { stacks: [2] };
 
-    system.setSource(sheet, sources.id.effects, [system.compile([plus('armor', 30)], { gate: 0 })]);
+    system.setSource(sheet, sources.id.auras, [system.compile([plus('armor', 30)], { gate: 0 })]);
 
     assert.equal(system.resolve(sheet, id.armor, { host }), 60);
     assert.equal(system.resolve(sheet, id.armor, { host, whatIf: { gate: 0, stacks: 3 } }), 90);
@@ -69,12 +69,12 @@ describe('gated lists (an aura’s modifiers, §II.6 M4)', () => {
 
   it('are refused by a system with no stacks report', () => {
     const stats = defineStats({ armor: { base: 0, kind: 'flat' } });
-    const sources = defineSources(['effects']);
+    const sources = defineSources(['auras']);
     const system = createModifierSystem({ stats, sources });
     const list = system.compile([plus('armor', 1)], { gate: 0 });
 
     assert.throws(() => {
-      system.setSource(system.createSheet(), sources.id.effects, [list]);
+      system.setSource(system.createSheet(), sources.id.auras, [list]);
     }, /stacks report/);
   });
 });
@@ -86,7 +86,7 @@ describe('scopes', () => {
     const spark = createBitset([4, 9]);
     const other = createBitset([5]);
 
-    system.setSource(sheet, sources.id.passives, [
+    system.setSource(sheet, sources.id.talents, [
       system.compile([mul('damage', 1.2), mul('damage', 1.5, { scope: 9 }), plus('chainJumps', 2, { scope: 4 })]),
     ]);
 
@@ -101,8 +101,8 @@ describe('scopes', () => {
     const sheet = system.createSheet();
     const scope = createBitset([1]);
 
-    system.setSource(sheet, sources.id.passives, [system.compile([mul('attackSpeed', 1.1)])]);
-    system.setSource(sheet, sources.id.classStates, [system.compile([mul('attackSpeed', 1.3, { scope: 1 })])]);
+    system.setSource(sheet, sources.id.talents, [system.compile([mul('attackSpeed', 1.1)])]);
+    system.setSource(sheet, sources.id.stance, [system.compile([mul('attackSpeed', 1.3, { scope: 1 })])]);
 
     const shared = system.resolve(sheet, id.attackSpeed, { scope, scopedMuls: 'skip' });
     const scoped = system.scopedProduct(sheet, id.attackSpeed, { scope });

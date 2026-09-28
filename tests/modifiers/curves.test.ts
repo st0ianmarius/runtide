@@ -50,7 +50,7 @@ describe('the curve library (§II.3.14)', () => {
     assert.equal(at(hyperbolic({ k: 100 }), -50), 0);
     assert.equal(at(hyperbolic({ k: 100, negative: 'amplify' }), -50), 1.3333333333333335);
     assert.equal(at(hyperbolic({ k: 100, cap: 0.75 }), 1000), 0.75);
-    // Swarm's armorReduction: rating <= 0 ? 0 : rating / (rating + scale), float for float.
+    // An armor-style reduction: rating / (rating + k) for a positive rating, as one division.
     assert.equal(at(hyperbolic({ k: 83 }), 37), 37 / (37 + 83));
     assert.equal(at(hyperbolic({ k: 83 }), 37), 0.30833333333333335);
   });

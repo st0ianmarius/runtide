@@ -20,9 +20,9 @@ export type SourceTable<Name extends string = string> = Registry<
 export const MAX_SOURCES = 32;
 
 /**
- * Declares the game's modifier sources in fold order (§I.5): `defineSources(['classBase', 'pacts', 'totem',
- * 'passives', 'effects', 'classStates'])`. Multipliers apply one by one in this order, so it is part of every stat's
- * float result; an aura names the source it folds at (`'effects'`, `'classStates'`, `'pacts'`).
+ * Declares the game's modifier sources in fold order (§I.5): `defineSources(['race', 'gear', 'talents', 'auras',
+ * 'stance'])`. Additions sum and multipliers apply one by one in this order, so it is part of every stat's float
+ * result; an aura names the source it folds at (`'auras'`, or any other the game declared).
  */
 export const defineSources = <const Name extends string>(names: readonly Name[]): SourceTable<Name> => {
   if (names.length > MAX_SOURCES) {
@@ -36,8 +36,8 @@ export const defineSources = <const Name extends string>(names: readonly Name[])
 };
 
 /**
- * The mask of the named sources, for a partial fold (§II.6 M5): `sourceMask(SOURCES, ['classBase', 'pacts',
- * 'totem'])` folds those three only, as swarm's synced base speed does. Build it once, at load.
+ * The mask of the named sources, for a partial fold (§II.6 M5): `sourceMask(SOURCES, ['race', 'gear'])` folds those
+ * two only, for a value that must leave the others out (a base speed shown before any aura). Build it once, at load.
  */
 export const sourceMask = <Name extends string>(
   sources: SourceTable<Name>,

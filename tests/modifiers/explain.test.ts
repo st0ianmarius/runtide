@@ -20,11 +20,11 @@ const game = () => {
   const stats = defineStats({
     damage: { base: 1, kind: 'multiplier' },
     armor: { base: 0, kind: 'flat', min: 0, max: 500 },
-    pickupRadius: { base: 1, kind: 'multiplier' },
-    abilityArea: { base: 1, kind: 'multiplier', derives: { from: 'pickupRadius', per: 0.125 } },
+    reach: { base: 1, kind: 'multiplier' },
+    area: { base: 1, kind: 'multiplier', derives: { from: 'reach', per: 0.125 } },
   });
 
-  const sources = defineSources(['classBase', 'pacts', 'passives', 'effects']);
+  const sources = defineSources(['race', 'gear', 'talents', 'auras']);
   const conditions = defineConditions({ below: (hp: number, share) => hp < share });
   const system = createModifierSystem({ stats, sources, conditions, stacks: (_hp: number, gate) => gate });
 
@@ -88,18 +88,18 @@ describe('stat explanations', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();
 
-    system.setSource(sheet, sources.id.classBase, [system.compile([plus('abilityArea', 0.1)])]);
-    system.setSource(sheet, sources.id.passives, [system.compile([plus('pickupRadius', 1)])]);
-    system.setSource(sheet, sources.id.effects, [system.compile([mul('abilityArea', 2)], { gate: 3 })]);
+    system.setSource(sheet, sources.id.race, [system.compile([plus('area', 0.1)])]);
+    system.setSource(sheet, sources.id.talents, [system.compile([plus('reach', 1)])]);
+    system.setSource(sheet, sources.id.auras, [system.compile([mul('area', 2)], { gate: 3 })]);
 
-    const explained = system.explainStat(sheet, id.abilityArea, { host: 0 });
+    const explained = system.explainStat(sheet, id.area, { host: 0 });
 
-    assert.equal(explained.total, system.resolve(sheet, id.abilityArea, { host: 0 }));
+    assert.equal(explained.total, system.resolve(sheet, id.area, { host: 0 }));
     assert.equal(explained.total, 9.8);
-    assert.deepEqual(explained.derived, [{ kind: 'derives', from: id.pickupRadius, input: 1, value: 0.125 }]);
+    assert.deepEqual(explained.derived, [{ kind: 'derives', from: id.reach, input: 1, value: 0.125 }]);
     assert.deepEqual(
       explained.muls.map(({ source, gate, stacks, value }) => ({ source, gate, stacks, value })),
-      [{ source: sources.id.effects, gate: 3, stacks: 3, value: 8 }],
+      [{ source: sources.id.auras, gate: 3, stacks: 3, value: 8 }],
     );
 
     assert.deepEqual(explained.clamp, { min: -Infinity, max: Infinity });
@@ -109,7 +109,7 @@ describe('stat explanations', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();
 
-    system.setSource(sheet, sources.id.pacts, [system.compile([mul('damage', 2, { when: { is: 'below', arg: 10 } })])]);
+    system.setSource(sheet, sources.id.gear, [system.compile([mul('damage', 2, { when: { is: 'below', arg: 10 } })])]);
 
     const explained = system.explainStat(sheet, id.damage, { host: 50 });
 
@@ -123,7 +123,7 @@ describe('stat explanations', () => {
 
   it('always total to the float resolve returns, for any build (property)', () => {
     const { system, sources, stats } = game();
-    const statName = fc.constantFrom('damage', 'armor', 'pickupRadius', 'abilityArea' as const);
+    const statName = fc.constantFrom('damage', 'armor', 'reach', 'area' as const);
     const value = fc.double({ min: -3, max: 3, noNaN: true, noDefaultInfinity: true });
 
     const modifier = fc.record({

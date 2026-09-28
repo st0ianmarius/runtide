@@ -2,18 +2,21 @@
 /* oxlint-disable typescript/prefer-for-of */
 import { evaluateCurve } from './evaluate.ts';
 import { type Entry, FROM_HOST, FROM_STAT, type Sheet } from './sheet.ts';
+import type { Derivation } from './stats.ts';
 
 /**
- * The fold (§I.5, swarm's `resolve.ts`), hand-written for its float order (§I.5.1): `clamp(min((base + Σ add +
- * derived) × Π mul, …caps))`. Every function here reads the sheet's current read (`sheet.view.read`), which the
- * system sets around each top-level read, and allocates nothing: the loops are indexed, since an iterator over a
- * frozen list was measured to allocate on this path (§I.5.4).
+ * The fold (§I.5), hand-written for its documented float order (§I.5.1): `clamp(min((base + Σ add + derived) × Π mul,
+ * …caps))`, additions summed left to right in source order, multipliers applied one at a time in source order, caps in
+ * turn, the clamp last. Every function here reads the sheet's current read (`sheet.view.read`), which the system sets
+ * around each top-level read, and allocates nothing: the loops are indexed, since an iterator over a frozen list was
+ * measured to allocate on this path (§I.5.4). A game's own gain measure is the one exception: it is handed a fresh
+ * parts object on each call.
  */
 
 /** The empty list, so that a missing list costs no allocation. */
 const NONE: readonly never[] = Object.freeze([]);
 
-/** Clamps a folded value to its stat's `min` / `max`: the ceiling first, then the floor, as swarm's `clampStat`. */
+/** Clamps a folded value to its stat's `min` / `max`: the ceiling first, then the floor. A NaN stays NaN. */
 export const clampStat = <Host>(sheet: Sheet<Host>, stat: number, value: number): number => {
   const max = sheet.tables.max[stat] ?? Infinity;
   const min = sheet.tables.min[stat] ?? -Infinity;
@@ -58,9 +61,10 @@ const isReached = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): boolean => {
 };
 
 /**
- * How many stacks an entry counts with for the current read, or 0 when it does not count. Tested in swarm's order: the
- * source is folded, the scope reached, the gate stacked, then the condition met (a host value also needs a host). An
- * ungated entry counts with 1.
+ * How many stacks an entry counts with for the current read, or 0 when it does not count. Tested in this order, each
+ * test only when the ones before it passed: the source is folded, the scope reached, the gate stacked, then the
+ * condition met (a host value also needs a host). So a condition is asked only for an entry that would otherwise
+ * count. An ungated entry counts with 1.
  */
 export const liveStacks = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number => {
   if (!isReached(sheet, entry)) {
@@ -128,35 +132,35 @@ const isAnyLive = <Host>(sheet: Sheet<Host>, entries: readonly Entry<Host>[] | u
   return false;
 };
 
-/** The plain sum of a stat's live additions, or `undefined` when a live multiplier or cap (or a derived term) counts. */
-const plainGain = <Host>(sheet: Sheet<Host>, stat: number): number | undefined => {
-  const lists = sheet.compiled[stat];
-
-  if (
-    (sheet.tables.derivations[stat]?.length ?? 0) > 0 ||
-    isAnyLive(sheet, lists?.muls) ||
-    isAnyLive(sheet, lists?.mins)
-  ) {
-    return undefined;
-  }
-
-  return lists === undefined ? 0 : foldAdds(sheet, lists.adds, 0);
-};
+/** How far a stat's folded total sits above its base for the current read: `total − base`. */
+const gain = <Host>(sheet: Sheet<Host>, stat: number): number => foldStat(sheet, stat) - (sheet.tables.base[stat] ?? 0);
 
 /**
- * How far a stat's total sits above its base (swarm's `gain`). With no live multiplier or cap and no derived term of
- * its own it is the plain sum of the live additions, so an add-only build keeps its exact float, unless the clamp moves
- * it; otherwise the folded total minus the base.
+ * The gain a `derives` term applies its share to: `total − base` of the followed stat, or the game's own measure of it
+ * over that stat's fold parts (`derives.gain`).
  */
-export const gain = <Host>(sheet: Sheet<Host>, stat: number): number => {
-  const base = sheet.tables.base[stat] ?? 0;
-  const sum = plainGain(sheet, stat);
+export const derivedGain = <Host>(sheet: Sheet<Host>, derivation: Extract<Derivation, { kind: 'derives' }>): number => {
+  const stat = derivation.from;
 
-  if (sum !== undefined && clampStat(sheet, stat, base + sum) === base + sum) {
-    return sum;
+  if (derivation.gain === undefined) {
+    return gain(sheet, stat);
   }
 
-  return foldStat(sheet, stat) - base;
+  const lists = sheet.compiled[stat];
+
+  return derivation.gain({
+    base: sheet.tables.base[stat] ?? 0,
+    total: foldStat(sheet, stat),
+    adds: lists === undefined ? 0 : foldAdds(sheet, lists.adds, 0),
+
+    isAddOnly:
+      (sheet.tables.derivations[stat]?.length ?? 0) === 0 &&
+      !isAnyLive(sheet, lists?.muls) &&
+      !isAnyLive(sheet, lists?.mins),
+
+    min: sheet.tables.min[stat] ?? -Infinity,
+    max: sheet.tables.max[stat] ?? Infinity,
+  });
 };
 
 /**
@@ -171,7 +175,7 @@ const addDerived = <Host>(sheet: Sheet<Host>, stat: number, value: number): numb
     const derivation = derivations[i];
 
     if (derivation?.kind === 'derives') {
-      result += derivation.per * Math.max(0, gain(sheet, derivation.from));
+      result += derivation.per * Math.max(0, derivedGain(sheet, derivation));
     } else if (derivation !== undefined) {
       result += evaluateCurve(derivation.curve, foldStat(sheet, derivation.from), sheet.view);
     }
@@ -252,7 +256,7 @@ export const foldStat = <Host>(sheet: Sheet<Host>, stat: number): number => {
 
 /**
  * The product of the live scoped multipliers of a stat, in source order (1 when there are none): the part a read with
- * `scopedMuls: 'skip'` leaves out (swarm's `scopedMultiplier`, §II.6 M5).
+ * `scopedMuls: 'skip'` leaves out, for a caller that applies it at its own place in its own formula (§II.6 M5).
  */
 export const scopedProduct = <Host>(sheet: Sheet<Host>, stat: number): number => {
   const muls = sheet.compiled[stat]?.muls ?? NONE;

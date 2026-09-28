@@ -30,7 +30,8 @@ export interface StatDef<S extends string = string> {
 
   /**
    * Grows with another stat: `per × max(0, gain(from))` is added after this stat's additions and before its
-   * multipliers, where the gain is how far `from`'s total sits above its base.
+   * multipliers, where the gain is how far `from`'s total sits above its base (`total − base`), or what `gain`
+   * measures when the game gives it.
    */
   readonly derives?: {
     /** The stat whose gain it follows. */
@@ -38,6 +39,12 @@ export interface StatDef<S extends string = string> {
 
     /** The share of that gain added. */
     readonly per: number;
+
+    /**
+     * The game's own measure of the followed stat's gain (§I.5.6 hatch 2), in place of `total − base`: it is handed
+     * the parts of that stat's fold for the current read and returns the gain the share applies to.
+     */
+    readonly gain?: GainMeasure;
   };
 
   /**
@@ -53,6 +60,33 @@ export interface StatDef<S extends string = string> {
   };
 }
 
+/** The parts of a followed stat's fold that a game's own gain measure reads, for the current read. */
+export interface GainParts {
+  /** The followed stat's base. */
+  readonly base: number;
+
+  /** Its folded total: what `resolve` returns for the same read. */
+  readonly total: number;
+
+  /** The sum of its live additions at their stacks, in fold order, starting from 0. */
+  readonly adds: number;
+
+  /** Whether only additions count for this read: no live multiplier, no live cap, no derived term of its own. */
+  readonly isAddOnly: boolean;
+
+  /** The floor of its clamp. */
+  readonly min: number;
+
+  /** The ceiling of its clamp. */
+  readonly max: number;
+}
+
+/**
+ * A game's own measure of how far a followed stat has grown (`derives.gain`). It must be deterministic and must not
+ * keep the parts, which are built for this call. It runs on every read of the deriving stat.
+ */
+export type GainMeasure = (parts: GainParts) => number;
+
 /** One derived term of a stat: a `derives` share or a rating conversion into it, in the order they apply. */
 export type Derivation =
   | {
@@ -64,6 +98,9 @@ export type Derivation =
 
       /** The share of the gain added. */
       readonly per: number;
+
+      /** The game's own gain measure, when it gave one. */
+      readonly gain: GainMeasure | undefined;
     }
   | {
       /** The discriminant. */
@@ -165,7 +202,12 @@ const buildDerivations = (
         throw new RangeError(`Stat ${stats.name(id)}: derives.per must be finite.`);
       }
 
-      out[id]?.push({ kind: 'derives', from: linked(index, stats.name(id), derives.from), per: derives.per });
+      out[id]?.push({
+        kind: 'derives',
+        from: linked(index, stats.name(id), derives.from),
+        per: derives.per,
+        gain: derives.gain,
+      });
     }
   }
 

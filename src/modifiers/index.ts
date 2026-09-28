@@ -106,7 +106,16 @@ export type { FoldRead, StatSheet } from './sheet.ts';
 export { finishScaled, type ScaledSnapshot, snapshotScaled } from './snapshot.ts';
 export { defineSources, MAX_SOURCES, type SourceDef, type SourceId, sourceMask, type SourceTable } from './sources.ts';
 export type { NamedCurve, StatId, StatIndex } from './stat-id.ts';
-export { defineStats, type Derivation, type StatDef, type StatTable } from './stats.ts';
+
+export {
+  defineStats,
+  type Derivation,
+  type GainMeasure,
+  type GainParts,
+  type StatDef,
+  type StatTable,
+} from './stats.ts';
+
 export { createModifierSystem, type ModifierSystem, type ModifierSystemOptions } from './system.ts';
 export { defineValues, type ValueDef, type ValueId, type ValueRead, type ValueTable } from './values.ts';
 export { type StatChange, type StatWatch, watchStats } from './watch.ts';

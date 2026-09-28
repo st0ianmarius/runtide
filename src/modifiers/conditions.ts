@@ -28,8 +28,8 @@ export type ConditionTable<Name extends string = string, Host = never> = Registr
 
 /**
  * Registers the game's condition tests: `defineConditions({ healthBelow: (host, share) => host.hp < host.maxHp *
- * share })`. Modifiers name them (`when: { is: 'healthBelow', arg: 0.4 }`); a read evaluates them every time, never
- * cached, as swarm does (§I.5.4).
+ * share })`. Modifiers name them (`when: { is: 'healthBelow', arg: 0.4 }`); a read evaluates them every time and never
+ * caches a result, since what they read (health, the world) changes without the sheet knowing (§I.5.4).
  */
 export const defineConditions = <Host, const Name extends string>(
   tests: Readonly<Record<Name, ConditionTest<Host>>>,

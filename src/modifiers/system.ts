@@ -32,7 +32,7 @@ export interface ModifierSystemOptions<Host, S extends string, C extends string,
 /**
  * A modifier system (§I.6): the fold over one game's tables. Every bearer (hero, creature, summon: §II.6 M9) has a
  * stat sheet whose compiled lists are cached and rebuilt only when a source changes; conditions, gates and game
- * values are evaluated on every read, as swarm does (§I.5.4).
+ * values are evaluated on every read, never cached, since what they read changes without the sheet knowing (§I.5.4).
  */
 export interface ModifierSystem<Host, S extends string, C extends string, V extends string, Src extends string> {
   /** The game's stat table. */
@@ -56,7 +56,7 @@ export interface ModifierSystem<Host, S extends string, C extends string, V exte
   /** A new, empty stat sheet for one bearer. */
   readonly createSheet: () => StatSheet;
 
-  /** Replaces the lists a sheet holds at one source (its pacts, its passives), marking the sheet dirty. */
+  /** Replaces the lists a sheet holds at one source (its gear, its talents), marking the sheet dirty. */
   readonly setSource: (sheet: StatSheet, source: SourceId, lists: readonly ModifierList[]) => void;
 
   /**
