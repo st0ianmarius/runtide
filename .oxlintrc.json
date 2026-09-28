@@ -37,7 +37,8 @@
     "spellweave/presentation-fields": ["error", { "allow": ["Registry.name"] }],
 
     // Modern syntax (ES2024, the newest year Node 22, the evergreen browsers and TypeScript 7 all support): the rules
-    // that point at a newer form of the same code. Hot paths keep indexed loops, so there is no rule against them.
+    // that point at a newer form of the same code. Hot paths keep indexed loops, so there is no rule against them, and
+    // `| 0` stays the int32 wrap that hashing needs, so `unicorn/prefer-math-trunc` (which would change it) is off.
     "prefer-object-has-own": "error",
     "prefer-spread": "error",
     "prefer-rest-params": "error",
@@ -73,7 +74,6 @@
     "unicorn/prefer-string-starts-ends-with": "error",
     "unicorn/prefer-string-trim-start-end": "error",
     "unicorn/prefer-regexp-test": "error",
-    "unicorn/prefer-math-trunc": "error",
     "unicorn/prefer-math-min-max": "error",
     "unicorn/prefer-modern-math-apis": "error",
     "unicorn/prefer-number-properties": "error",

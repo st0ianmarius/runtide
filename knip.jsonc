@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   // Pinned at F0 from the plan's dependency table (§I.5.1) and first used by later phases: remove each entry here as
-  // the phase that imports it lands (F1: flatqueue, typedfastbitset, tinybench, fast-check; F8: flatbush, kdbush).
-  "ignoreDependencies": ["fast-check", "flatbush", "flatqueue", "kdbush", "tinybench", "typedfastbitset"],
+  // the phase that imports it lands (F8: flatbush, kdbush).
+  "ignoreDependencies": ["flatbush", "kdbush", "tinybench"],
 }
