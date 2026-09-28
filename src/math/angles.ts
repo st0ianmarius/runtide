@@ -20,8 +20,8 @@ export const wrap = (angle: number): number => {
 export const angleDelta = (from: number, to: number): number => wrap(to - from);
 
 /**
- * Turns `from` toward `to` by the share `rate` of the shortest turn, and wraps the result into `(−π, π]`: swarm's
- * heading turn, kept operation for operation.
+ * Turns `from` toward `to` by the share `rate` of the shortest turn, and wraps the result into `(−π, π]`:
+ * `wrap(from + angleDelta(from, to) × rate)`. A rate of 1 lands on `to` (wrapped) and 0 stays at `from`.
  */
 export const turnToward = (from: number, to: number, rate: number): number => wrap(from + angleDelta(from, to) * rate);
 

@@ -5,7 +5,10 @@ export type Listener<Payload> = (payload: Payload) => void;
 
 /** What a bus is created with, beyond its payload factories. */
 export interface BusOptions {
-  /** How deep capped handlers nest: at this depth and beyond they no longer run; 3 by default, as swarm's triggers. */
+  /**
+   * How deep capped handlers nest: at this depth and beyond they no longer run. 3 by default, which lets a trigger
+   * answer an event raised by another trigger's answer, and stops a loop of triggers within three rounds.
+   */
   readonly maxDepth?: number;
 }
 

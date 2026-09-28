@@ -16,8 +16,8 @@ export const pick = <Item extends Defined>(random: Random, list: readonly Item[]
 };
 
 /**
- * Shuffles `items` in place by Fisher-Yates from the end, as swarm's wave director and pact hand do: `n − 1` draws for
- * `n` items. Returns the same array.
+ * Shuffles `items` in place by Fisher-Yates from the end: for each index `i` from the last down to 1, one draw picks
+ * `j = int(random, i + 1)` and swaps the two, so `n` items take `n − 1` draws. Returns the same array.
  */
 export const shuffle = <Item extends Defined>(random: Random, items: Item[]): Item[] => {
   for (let i = items.length - 1; i > 0; i--) {
@@ -35,9 +35,10 @@ export const shuffle = <Item extends Defined>(random: Random, items: Item[]): It
 };
 
 /**
- * The index of a weighted choice: one draw scaled by the total weight, walked down the list, as swarm's event picker
- * does. Float slack past the last entry lands on the last entry with a positive weight. Returns -1, without drawing,
- * when no weight is positive.
+ * The index of a weighted choice: one draw scaled by the sum of the positive weights, then walked down the list,
+ * subtracting each positive weight until the rest falls below zero. Non-positive weights are never chosen, and float
+ * slack past the last entry lands on the last entry with a positive weight. Returns -1, without drawing, when no
+ * weight is positive.
  */
 export const weighted = (random: Random, weights: readonly number[]): number => {
   let total = 0;

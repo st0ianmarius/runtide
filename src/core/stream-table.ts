@@ -12,8 +12,8 @@ export interface StreamSpec {
 
 /**
  * The host's stream table (§II.6.1 rule 3): every named stream a hook may ask for, resolved to a sequential stream or
- * to keyed rolls. A game at parity maps several names onto one sequential stream so every draw keeps its place; a new
- * game maps them to keyed rolls.
+ * to keyed rolls. Sequential names with the same salt share one stream, so their draws interleave in call order as one
+ * sequence; keyed names draw only from their key, so adding or reordering rolls elsewhere shifts nothing.
  */
 export interface StreamTable<Name extends string> {
   /** The run's seed every stream is built from. */

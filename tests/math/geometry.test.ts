@@ -80,12 +80,20 @@ describe('polygons and segments', () => {
 });
 
 describe('patterns', () => {
-  it('march a line outward with a stagger, accumulating the distance', () => {
+  it('march a line outward with a stagger', () => {
     assert.deepEqual(linePoints({ from: vec2(1, 1), dir: 0, length: 5, spacing: 2, first: 1, stagger: 0.1 }), [
       { x: 1, z: 2, delay: 0 },
       { x: 1, z: 4, delay: 0.1 },
       { x: 1, z: 6, delay: 0.2 },
     ]);
+  });
+
+  it('place each point of a line from its index, so a long line never drifts', () => {
+    const points = linePoints({ from: vec2(0, 0), dir: 0, length: 1, spacing: 0.1 });
+
+    // Summing 0.1 ten times lands on 0.9999999999999999; the tenth step is 0 + 10 × 0.1, which is 1.
+    assert.equal(points.length, 11);
+    assert.deepEqual(points.at(-1), { x: 0, z: 1, delay: 0 });
   });
 
   it('space points evenly on a ring', () => {

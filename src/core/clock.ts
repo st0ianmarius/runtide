@@ -1,13 +1,4 @@
-import { type CountdownRule, MOTION_COUNTDOWN, stepsUntil, WORLD_COUNTDOWN } from './countdown.ts';
-
-/**
- * How a clock derives its time: `tick` (the default) computes `time = tick × dt` from the integer tick, so it never
- * drifts; `accumulate` adds `dt` every step (`time += dt`), for parity with a game that accumulates today.
- */
-export type ClockMode = 'tick' | 'accumulate';
-
-/** Which clock it is: the world clock (the simulation) or the motion clock (prediction), counted in its own steps. */
-export type ClockKind = 'world' | 'motion';
+import { type CountdownRule, DEFAULT_COUNTDOWN, stepsUntil } from './countdown.ts';
 
 /** A deadline on a clock: the absolute tick at which something ends or fires. */
 export type Stamp = number;
@@ -17,30 +8,22 @@ export interface ClockOptions {
   /** The fixed step in seconds; the host never varies it. */
   readonly dt: number;
 
-  /** How time is derived from the ticks; `tick` by default. */
-  readonly mode?: ClockMode;
-
-  /** Which clock it is; `world` by default. */
-  readonly kind?: ClockKind;
-
-  /** The countdown rule and epsilon; the kind's rule by default (`max(0, t − dt)` for world, the 1e-8 snap for motion). */
+  /**
+   * How a countdown on this clock steps and when it is due, which also decides the tick a stamp lands on;
+   * `DEFAULT_COUNTDOWN` (a snap within `1e-6` of zero) unless the game passes its own rule (`defineCountdown`).
+   */
   readonly countdown?: CountdownRule;
 }
 
 /**
  * A fixed-step simulation clock owned by the host. It never reads a real clock: the host calls `step` once per tick
- * and hands `tick`, `dt` and `time` to every system. Deadlines are stamps (absolute ticks), which need no syncing and
- * cannot drift.
+ * and hands `tick`, `dt` and `time` to every system. Time is derived from the integer tick, never accumulated, so it
+ * cannot drift. Deadlines are stamps (absolute ticks), which need no syncing either. A game runs as many clocks as it
+ * needs (a world clock, a second clock for prediction), each with its own step and rule.
  */
 export interface SimClock {
   /** The fixed step in seconds. */
   readonly dt: number;
-
-  /** How `time` is derived. */
-  readonly mode: ClockMode;
-
-  /** Which clock it is. */
-  readonly kind: ClockKind;
 
   /** The clock's countdown rule, whose epsilon every due comparison on this clock uses. */
   readonly countdown: CountdownRule;
@@ -48,7 +31,7 @@ export interface SimClock {
   /** The number of steps taken so far. */
   readonly tick: number;
 
-  /** The simulated time in seconds: `tick × dt`, or the running sum of `dt` in accumulating mode. */
+  /** The simulated time in seconds: `tick × dt`. */
   readonly time: number;
 
   /** Advances the clock by one fixed step. */
@@ -70,10 +53,8 @@ export interface SimClock {
 
 /** Creates a fixed-step clock at tick zero and time zero. Throws unless `dt` is a positive finite number. */
 export const createClock = (options: ClockOptions): SimClock => {
-  const { dt, mode = 'tick', kind = 'world' } = options;
-  const countdown = options.countdown ?? (kind === 'motion' ? MOTION_COUNTDOWN : WORLD_COUNTDOWN);
+  const { dt, countdown = DEFAULT_COUNTDOWN } = options;
   let tick = 0;
-  let time = 0;
 
   if (!(dt > 0) || !Number.isFinite(dt)) {
     throw new RangeError(`A clock needs a positive finite step; got ${dt}.`);
@@ -81,8 +62,6 @@ export const createClock = (options: ClockOptions): SimClock => {
 
   return {
     dt,
-    mode,
-    kind,
     countdown,
 
     get tick() {
@@ -90,12 +69,11 @@ export const createClock = (options: ClockOptions): SimClock => {
     },
 
     get time() {
-      return time;
+      return tick * dt;
     },
 
     step: () => {
       tick += 1;
-      time = mode === 'tick' ? tick * dt : time + dt;
     },
 
     stampAt: (seconds) => tick + stepsUntil(seconds, dt, countdown),
@@ -103,7 +81,3 @@ export const createClock = (options: ClockOptions): SimClock => {
     remaining: (stamp) => (tick >= stamp ? 0 : (stamp - tick) * dt),
   };
 };
-
-/** Creates the motion clock: a second fixed-step clock counted in motion steps, with the motion rule's 1e-8 snap. */
-export const createMotionClock = (options: Omit<ClockOptions, 'kind'>): SimClock =>
-  createClock({ ...options, kind: 'motion' });

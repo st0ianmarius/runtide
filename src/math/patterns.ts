@@ -68,15 +68,18 @@ export interface CrossSpec {
 
 /**
  * Points from `first` to `length` along a heading, `spacing` apart, each `stagger` later than the one before. The
- * distance is accumulated (`s += spacing`), as swarm's eruption lines do.
+ * `i`-th point sits at `first + i × spacing`, computed from its index rather than summed, so a long line never drifts;
+ * the last point is the last one at or within `length`. A game that places its points another way writes its own list:
+ * a pattern is only a list of points.
  */
 export const linePoints = (spec: LineSpec): PatternPoint[] => {
   const ux = Math.sin(spec.dir);
   const uz = Math.cos(spec.dir);
+  const first = spec.first ?? 0;
   const stagger = spec.stagger ?? 0;
   const points: PatternPoint[] = [];
 
-  for (let s = spec.first ?? 0, i = 0; s <= spec.length; s += spec.spacing, i++) {
+  for (let i = 0, s = first; s <= spec.length; i++, s = first + i * spec.spacing) {
     points.push({ x: spec.from.x + ux * s, z: spec.from.z + uz * s, delay: i * stagger });
   }
 

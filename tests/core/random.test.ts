@@ -5,12 +5,11 @@ import fc from 'fast-check';
 
 import { int, keyed, pick, roll, rollKey, shuffle, stream, weighted } from '../../src/core/index.ts';
 
-// Expected draws below were produced by swarm's own `rng` (packages/game/src/core.ts on spell-primitive) and its
-// shuffle (waves/director.ts) and weighted pick (pickEvent), run on a copy; the framework never imports swarm.
-describe('sequential streams match swarm rng draw for draw', () => {
-  const draws = (random: () => number, n: number): number[] => Array.from({ length: n }, () => random());
+const draws = (random: () => number, n: number): number[] => Array.from({ length: n }, () => random());
 
-  it('reproduces rng(0) and rng(1)', () => {
+describe('sequential streams', () => {
+  it('hold the frozen table of their own draws', () => {
+    // Mulberry32's outputs for fixed seeds, frozen: any change to the generator fails here.
     assert.deepEqual(
       draws(stream(0), 5),
       [0.26642920868471265, 0.0003297457005828619, 0.2232720274478197, 0.1462021479383111, 0.46732782293111086],
@@ -19,9 +18,6 @@ describe('sequential streams match swarm rng draw for draw', () => {
       draws(stream(1), 5),
       [0.6270739405881613, 0.002735721180215478, 0.5274470399599522, 0.9810509674716741, 0.9683778982143849],
     );
-  });
-
-  it('reproduces rng(12345) over eight draws', () => {
     assert.deepEqual(
       draws(stream(12345), 8),
       [
@@ -31,7 +27,7 @@ describe('sequential streams match swarm rng draw for draw', () => {
     );
   });
 
-  it('salts as rng(seed ^ salt): the trigger and proc streams', () => {
+  it('seed from seed ^ salt, so a salted stream is the unsalted stream of the mixed seed', () => {
     assert.deepEqual(
       draws(stream(12345, 0x7219e5), 5),
       [0.75149060273543, 0.059921055333688855, 0.44655840983614326, 0.3468936122953892, 0.44077447173185647],
@@ -40,15 +36,34 @@ describe('sequential streams match swarm rng draw for draw', () => {
       draws(stream(12345, 0x5be115), 5),
       [0.5963826854713261, 0.9609864926896989, 0.629096802091226, 0.05504003423266113, 0.03500056732445955],
     );
+
+    fc.assert(
+      fc.property(fc.integer(), fc.integer(), (seed, salt) => {
+        assert.deepEqual(draws(stream(seed, salt), 4), draws(stream(seed ^ salt), 4));
+      }),
+    );
   });
 
-  it('wraps negative, large and fractional seeds as rng does', () => {
+  it('take seeds as 32-bit integers: negative, large and fractional seeds wrap', () => {
     assert.deepEqual(draws(stream(-7), 3), [0.43306733411736786, 0.32539576734416187, 0.5442695003002882]);
     assert.deepEqual(draws(stream(4_294_967_295), 3), [0.8964226141106337, 0.189478256739676, 0.7156526781618595]);
+    assert.deepEqual(draws(stream(4_294_967_295), 3), draws(stream(-1), 3));
     assert.deepEqual(draws(stream(2.9), 3), [0.7342509443406016, 0.32499843230471015, 0.28529605525545776]);
+    assert.deepEqual(draws(stream(2.9), 3), draws(stream(2), 3));
   });
 
-  it('keeps two salted streams independent of each other', () => {
+  it('draw the same sequence for the same seed and salt, always in [0, 1)', () => {
+    fc.assert(
+      fc.property(fc.integer(), fc.integer(), fc.nat({ max: 64 }), (seed, salt, n) => {
+        const first = draws(stream(seed, salt), n);
+
+        assert.deepEqual(draws(stream(seed, salt), n), first);
+        assert.ok(first.every((value) => value >= 0 && value < 1));
+      }),
+    );
+  });
+
+  it('keep two salted streams independent of each other', () => {
     const a = stream(12345, 0x7219e5);
     const b = stream(12345, 0x5be115);
 
@@ -59,12 +74,31 @@ describe('sequential streams match swarm rng draw for draw', () => {
   });
 });
 
-describe('integer helpers match swarm draw for draw', () => {
-  it('shuffles by Fisher-Yates from the end', () => {
+describe('integer helpers', () => {
+  it('shuffle by Fisher-Yates from the end, n − 1 draws for n items', () => {
     assert.deepEqual(shuffle(stream(42), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]), [0, 7, 3, 5, 2, 1, 8, 9, 4, 6]);
+
+    // Draws of 0 swap every item with the first: [a, b, c, d] → [b, c, d, a].
+    assert.deepEqual(
+      shuffle(() => 0, ['a', 'b', 'c', 'd']),
+      ['b', 'c', 'd', 'a'],
+    );
   });
 
-  it('draws integers as floor(random × n)', () => {
+  it('shuffle into a permutation of the same items', () => {
+    fc.assert(
+      fc.property(fc.integer(), fc.array(fc.integer(), { maxLength: 30 }), (seed, items) => {
+        const shuffled = shuffle(stream(seed), [...items]);
+
+        assert.deepEqual(
+          shuffled.toSorted((a, b) => a - b),
+          items.toSorted((a, b) => a - b),
+        );
+      }),
+    );
+  });
+
+  it('draw integers as floor(random × n)', () => {
     const random = stream(42);
 
     assert.deepEqual(
@@ -73,16 +107,36 @@ describe('integer helpers match swarm draw for draw', () => {
     );
   });
 
-  it('picks weighted entries as the event picker does', () => {
+  it('pick weighted entries by walking one scaled draw down the list', () => {
     const random = stream(7);
 
     assert.deepEqual(
       Array.from({ length: 8 }, () => weighted(random, [1, 2, 3, 4])),
       [0, 0, 3, 3, 2, 2, 2, 1],
     );
+
+    // A draw of 0.5 over weights [1, 2, 1] scales to 2: past the first (1), inside the second (1 + 2).
+    assert.equal(
+      weighted(() => 0.5, [1, 2, 1]),
+      1,
+    );
   });
 
-  it('skips non-positive weights and draws nothing when none is positive', () => {
+  it('never pick a weight that is not positive', () => {
+    fc.assert(
+      fc.property(
+        fc.integer(),
+        fc.array(fc.integer({ min: -3, max: 5 }), { minLength: 1, maxLength: 8 }),
+        (seed, w) => {
+          const index = weighted(stream(seed), w);
+
+          assert.ok(w.some((weight) => weight > 0) ? (w[index] ?? 0) > 0 : index === -1);
+        },
+      ),
+    );
+  });
+
+  it('skip non-positive weights and draw nothing when none is positive', () => {
     let calls = 0;
 
     const random = (): number => {
@@ -97,7 +151,7 @@ describe('integer helpers match swarm draw for draw', () => {
     assert.equal(calls, 1);
   });
 
-  it('picks from a list with one draw and refuses an empty list without drawing', () => {
+  it('pick from a list with one draw and refuse an empty list without drawing', () => {
     let calls = 0;
 
     const random = (): number => {
@@ -111,7 +165,7 @@ describe('integer helpers match swarm draw for draw', () => {
     assert.equal(calls, 1);
   });
 
-  it('draws the same count from a sequential stream and a keyed source', () => {
+  it('draw the same count from a sequential stream and a keyed source', () => {
     const count = (random: () => number): number => {
       let calls = 0;
 

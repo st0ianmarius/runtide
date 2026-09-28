@@ -1,30 +1,21 @@
 /**
- * The deterministic core (§I.6): random streams and keyed rolls, the fixed-step clock with countdowns, stamps and the
+ * The deterministic core (§I.6): random streams and keyed rolls, the fixed-step clock with countdown rules, stamps and the
  * timing wheel, ordered registries with their dense tables, bitsets, pools, scratch lists, the event bus and scope.
  */
 
 export { type Bitset, createBitset } from './bitset.ts';
 export { type Bus, type BusOptions, createBus, type EventKinds, type Listener } from './bus.ts';
 
-export {
-  type ClockKind,
-  type ClockMode,
-  type ClockOptions,
-  createClock,
-  createMotionClock,
-  type SimClock,
-  type Stamp,
-} from './clock.ts';
+export { type ClockOptions, createClock, type SimClock, type Stamp } from './clock.ts';
 
 export {
   countDown,
+  COUNTDOWN_EPSILON,
   type CountdownRule,
+  DEFAULT_COUNTDOWN,
   defineCountdown,
   isRunOut,
-  MOTION_COUNTDOWN,
-  MOTION_EPSILON,
   stepsUntil,
-  WORLD_COUNTDOWN,
 } from './countdown.ts';
 
 export type { Defined } from './defined.ts';

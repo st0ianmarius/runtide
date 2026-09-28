@@ -80,7 +80,9 @@ const coversBy = (shape: Shape, p: Vec2, margin: number): boolean => {
 
 /**
  * Whether `shape` covers a body of `radius` at `p` (0 for a bare point, the default): the body overlaps the shape.
- * Outer rims are exclusive and inner rims inclusive, as swarm's hazards test them; a point shape is reached at exactly
- * the body's radius. An `outside` or `difference` covers a body that is not wholly inside what it excludes.
+ * Round outer rims (a circle's, a ring's and a cone's radius, a polygon's band) are exclusive and a ring's inner rim is
+ * inclusive, so rings sharing a radius tile the plane with no point in two of them; a lane's and a cone's straight
+ * edges are inclusive, and a point shape is reached at exactly the body's radius. An `outside` or `difference` covers
+ * a body that is not wholly inside what it excludes. A game that needs other rims wraps `covers` with its own test.
  */
 export const covers = (shape: Shape, p: Vec2, radius = 0): boolean => coversBy(shape, p, radius);

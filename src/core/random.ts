@@ -8,9 +8,10 @@ export type Random = () => number;
 export const UINT32_RANGE = 4_294_967_296;
 
 /**
- * A sequential random stream: Mulberry32 seeded with `seed ^ salt`, reproducing swarm's `rng(seed ^ salt)` draw for
- * draw. Each stream has its own salt, so a roll added to one system never shifts another; within a stream, draws
- * depend on call order. Integer arithmetic only, so every platform draws the same values.
+ * A sequential random stream: Mulberry32 seeded with the 32-bit `seed ^ salt` (so `stream(seed, salt)` and
+ * `stream(seed ^ salt)` draw the same sequence), one 32-bit output per draw divided by 2³². Each system draws from its
+ * own salt, so a roll added to one system never shifts another; within a stream, draws depend on call order. Integer
+ * arithmetic only, so every platform draws the same values. The generator is frozen: its tests hold a literal table.
  */
 export const stream = (seed: number, salt = 0): Random => {
   let state = seed ^ salt;
