@@ -1,0 +1,86 @@
+import { wrap } from './angles.ts';
+import { inPolygon, polygonEdgeDistanceSq } from './polygon.ts';
+import type { Cone, Lane, Polygon, Ring, Shape } from './shapes.ts';
+import type { Vec2 } from './vec2.ts';
+
+/** Whether a body reaching `margin` past `p` overlaps a ring. */
+const coversRing = (shape: Ring, p: Vec2, margin: number): boolean => {
+  const d = Math.hypot(p.x - shape.at.x, p.z - shape.at.z);
+
+  return d < shape.outer + margin && d + margin >= shape.inner;
+};
+
+/** Whether a body reaching `margin` past `p` overlaps a cone; near the apex it counts at any angle. */
+const coversCone = (shape: Cone, p: Vec2, margin: number): boolean => {
+  const dx = p.x - shape.at.x;
+  const dz = p.z - shape.at.z;
+  const d = Math.hypot(dx, dz);
+
+  if (d >= shape.r + margin) {
+    return false;
+  }
+
+  if (d < shape.apex || d === 0) {
+    return true;
+  }
+
+  const allowance = margin === 0 ? 0 : Math.asin(Math.max(-1, Math.min(1, margin / d)));
+
+  return Math.abs(wrap(Math.atan2(dx, dz) - shape.dir)) <= shape.half + allowance;
+};
+
+/** Whether a body reaching `margin` past `p` overlaps a lane. */
+const coversLane = (shape: Lane, p: Vec2, margin: number): boolean => {
+  const dx = p.x - shape.at.x;
+  const dz = p.z - shape.at.z;
+  const sin = Math.sin(shape.dir);
+  const cos = Math.cos(shape.dir);
+  const along = dx * sin + dz * cos;
+  const across = dx * cos - dz * sin;
+
+  return (
+    along >= -shape.back - margin && along <= shape.length + margin && Math.abs(across) <= shape.width / 2 + margin
+  );
+};
+
+/** Whether a body reaching `margin` past `p` overlaps a polygon grown by its band: signed edge distance below the reach. */
+const coversPolygon = (shape: Polygon, p: Vec2, margin: number): boolean => {
+  const edge = Math.sqrt(polygonEdgeDistanceSq(p, shape.points));
+  const signed = inPolygon(p, shape.points) ? -edge : edge;
+
+  return signed < shape.band + margin;
+};
+
+/**
+ * Whether a body reaching `margin` past `p` overlaps `shape`. A negative margin asks whether the whole body is inside,
+ * which is how the complement and the cut of a difference are tested.
+ */
+const coversBy = (shape: Shape, p: Vec2, margin: number): boolean => {
+  switch (shape.kind) {
+    case 'point':
+      return Math.hypot(p.x - shape.at.x, p.z - shape.at.z) <= margin;
+    case 'circle':
+      return Math.hypot(p.x - shape.at.x, p.z - shape.at.z) < shape.r + margin;
+    case 'ring':
+      return coversRing(shape, p, margin);
+    case 'cone':
+      return coversCone(shape, p, margin);
+    case 'lane':
+      return coversLane(shape, p, margin);
+    case 'polygon':
+      return coversPolygon(shape, p, margin);
+    case 'outside':
+      return !coversBy(shape.shape, p, -margin);
+    case 'union':
+      return shape.shapes.some((part) => coversBy(part, p, margin));
+    case 'difference':
+      return coversBy(shape.base, p, margin) && !coversBy(shape.minus, p, -margin);
+  }
+};
+
+/**
+ * Whether `shape` covers a body of `radius` at `p` (0 for a bare point, the default): the body overlaps the shape.
+ * Outer rims are exclusive and inner rims inclusive, as swarm's hazards test them; a point shape is reached at exactly
+ * the body's radius. An `outside` or `difference` covers a body that is not wholly inside what it excludes.
+ */
+export const covers = (shape: Shape, p: Vec2, radius = 0): boolean => coversBy(shape, p, radius);

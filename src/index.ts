@@ -6,3 +6,4 @@
 export const CONTRACT_VERSION = 0;
 
 export * from './core/index.ts';
+export * from './math/index.ts';
