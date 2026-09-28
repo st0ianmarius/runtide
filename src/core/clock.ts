@@ -51,33 +51,41 @@ export interface SimClock {
   readonly remaining: (stamp: Stamp) => number;
 }
 
+/** A clock's state: a class for fast properties, its functions arrow fields so they work detached. */
+class FixedClock implements SimClock {
+  readonly dt: number;
+  readonly countdown: CountdownRule;
+  #tick = 0;
+
+  constructor(dt: number, countdown: CountdownRule) {
+    this.dt = dt;
+    this.countdown = countdown;
+  }
+
+  get tick(): number {
+    return this.#tick;
+  }
+
+  get time(): number {
+    return this.#tick * this.dt;
+  }
+
+  readonly step = (): void => {
+    this.#tick += 1;
+  };
+
+  readonly stampAt = (seconds: number): Stamp => this.#tick + stepsUntil(seconds, this.dt, this.countdown);
+  readonly isDue = (stamp: Stamp): boolean => this.#tick >= stamp;
+  readonly remaining = (stamp: Stamp): number => (this.#tick >= stamp ? 0 : (stamp - this.#tick) * this.dt);
+}
+
 /** Creates a fixed-step clock at tick zero and time zero. Throws unless `dt` is a positive finite number. */
 export const createClock = (options: ClockOptions): SimClock => {
   const { dt, countdown = DEFAULT_COUNTDOWN } = options;
-  let tick = 0;
 
   if (!(dt > 0) || !Number.isFinite(dt)) {
     throw new RangeError(`A clock needs a positive finite step; got ${dt}.`);
   }
 
-  return {
-    dt,
-    countdown,
-
-    get tick() {
-      return tick;
-    },
-
-    get time() {
-      return tick * dt;
-    },
-
-    step: () => {
-      tick += 1;
-    },
-
-    stampAt: (seconds) => tick + stepsUntil(seconds, dt, countdown),
-    isDue: (stamp) => tick >= stamp,
-    remaining: (stamp) => (tick >= stamp ? 0 : (stamp - tick) * dt),
-  };
+  return new FixedClock(dt, countdown);
 };

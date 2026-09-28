@@ -60,16 +60,66 @@ interface Bucket<Item> {
   count: number;
 }
 
-/** Creates an empty timing wheel. */
-export const createTimingWheel = <Item extends Defined>(options: TimingWheelOptions = {}): TimingWheel<Item> => {
-  const horizon = powerOfTwo(options.horizon ?? 256);
-  const buckets: Bucket<Item>[] = Array.from({ length: horizon }, () => ({ items: [], count: 0 }));
-  const overflow = createOverflow<Item>();
-  let cursor = options.start ?? 0;
-  let size = 0;
+/** A timing wheel's state: a class for fast properties, its functions arrow fields so they work detached. */
+class Wheel<Item extends Defined> implements TimingWheel<Item> {
+  readonly #horizon: number;
+  readonly #buckets: Bucket<Item>[];
+  readonly #overflow = createOverflow<Item>();
+  #cursor: number;
+  #size = 0;
 
-  const place = (tick: number, item: Item): void => {
-    const bucket = buckets[tick % horizon];
+  constructor(options: TimingWheelOptions) {
+    this.#horizon = powerOfTwo(options.horizon ?? 256);
+    this.#buckets = Array.from({ length: this.#horizon }, () => ({ items: [], count: 0 }));
+    this.#cursor = options.start ?? 0;
+  }
+
+  get cursor(): number {
+    return this.#cursor;
+  }
+
+  get size(): number {
+    return this.#size;
+  }
+
+  readonly schedule = (at: number, item: Item): void => {
+    if (!Number.isFinite(at)) {
+      throw new RangeError(`A timer needs a finite tick; got ${at}.`);
+    }
+
+    const tick = Math.max(Math.trunc(at), this.#cursor);
+
+    this.#size += 1;
+
+    if (tick - this.#cursor < this.#horizon) {
+      this.#place(tick, item);
+    } else {
+      this.#overflow.push(tick, item);
+    }
+  };
+
+  readonly collect = (through: number, out: (Item | undefined)[]): number => {
+    let count = 0;
+
+    while (this.#cursor <= through) {
+      const bucket = this.#buckets[this.#cursor % this.#horizon];
+
+      if (bucket !== undefined) {
+        count = this.#drainBucket(bucket, out, count);
+      }
+
+      this.#cursor += 1;
+      this.#overflow.drain(this.#cursor + this.#horizon, this.#place);
+    }
+
+    clearFrom(out, count);
+
+    return count;
+  };
+
+  /** Puts an item in its tick's bucket. */
+  readonly #place = (tick: number, item: Item): void => {
+    const bucket = this.#buckets[tick % this.#horizon];
 
     if (bucket !== undefined) {
       bucket.items[bucket.count] = item;
@@ -78,7 +128,7 @@ export const createTimingWheel = <Item extends Defined>(options: TimingWheelOpti
   };
 
   /** Moves one bucket's items into `out` from `at`, clearing the bucket; returns the next free index of `out`. */
-  const drainBucket = (bucket: Bucket<Item>, out: (Item | undefined)[], at: number): number => {
+  #drainBucket(bucket: Bucket<Item>, out: (Item | undefined)[], at: number): number {
     let next = at;
 
     for (let i = 0; i < bucket.count; i++) {
@@ -87,57 +137,16 @@ export const createTimingWheel = <Item extends Defined>(options: TimingWheelOpti
       next += 1;
     }
 
-    size -= bucket.count;
+    this.#size -= bucket.count;
     bucket.count = 0;
 
     return next;
-  };
+  }
+}
 
-  return {
-    get cursor() {
-      return cursor;
-    },
-
-    get size() {
-      return size;
-    },
-
-    schedule: (at, item) => {
-      if (!Number.isFinite(at)) {
-        throw new RangeError(`A timer needs a finite tick; got ${at}.`);
-      }
-
-      const tick = Math.max(Math.trunc(at), cursor);
-
-      size += 1;
-
-      if (tick - cursor < horizon) {
-        place(tick, item);
-      } else {
-        overflow.push(tick, item);
-      }
-    },
-
-    collect: (through, out) => {
-      let count = 0;
-
-      while (cursor <= through) {
-        const bucket = buckets[cursor % horizon];
-
-        if (bucket !== undefined) {
-          count = drainBucket(bucket, out, count);
-        }
-
-        cursor += 1;
-        overflow.drain(cursor + horizon, place);
-      }
-
-      clearFrom(out, count);
-
-      return count;
-    },
-  };
-};
+/** Creates an empty timing wheel. */
+export const createTimingWheel = <Item extends Defined>(options: TimingWheelOptions = {}): TimingWheel<Item> =>
+  new Wheel<Item>(options);
 
 /** The items beyond the horizon: a heap keyed by tick, with the scheduling order kept for items on the same tick. */
 interface Overflow<Item extends Defined> {

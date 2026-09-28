@@ -110,51 +110,56 @@ const kindsOf = <Factories extends Readonly<Record<string, () => object>>>(
   return kinds;
 };
 
-/**
- * Creates a bus from one payload factory per event kind (`{ hit: () => ({ target: 0, amount: 0 }) }`). A factory
- * returns a fresh payload with every field set, so each kind keeps one object shape.
- */
-export const createBus = <const Factories extends Readonly<Record<string, () => object>>>(
-  factories: Factories,
-  options: BusOptions = {},
-): Bus<Factories> => {
-  const maxDepth = options.maxDepth ?? 3;
+/** A bus's state: a class for fast properties, its functions arrow fields so they work detached. */
+class EventBus<Factories extends Readonly<Record<string, () => object>>> implements Bus<Factories> {
+  readonly kind: EventKinds<Factories>;
+  readonly #maxDepth: number;
+  readonly #channels: Channel[];
+  #depth = 0;
 
-  const channels: Channel[] = Object.values(factories).map((make) => ({
-    handlers: [],
-    subscribers: [],
-    make,
-    payloads: [],
-    level: 0,
-    count: 0,
-  }));
+  constructor(factories: Factories, maxDepth: number) {
+    this.kind = kindsOf(factories);
+    this.#maxDepth = maxDepth;
 
-  let depth = 0;
+    this.#channels = Object.values(factories).map((make) => ({
+      handlers: [],
+      subscribers: [],
+      make,
+      payloads: [],
+      level: 0,
+      count: 0,
+    }));
+  }
 
-  const channelOf = (kind: number): Channel => {
-    const channel = channels[kind];
+  get depth(): number {
+    return this.#depth;
+  }
 
-    if (channel === undefined) {
-      throw new RangeError(`${kind} is not an event kind of this bus.`);
-    }
+  readonly hears = (kind: EventKind<unknown>): boolean => (this.#channels[kind]?.count ?? 0) > 0;
 
-    return channel;
+  readonly payload = <Payload>(kind: EventKind<Payload>): Payload => {
+    const channel = this.#channelOf(kind);
+    const payload = channel.payloads[channel.level] ?? channel.make();
+
+    channel.payloads[channel.level] = payload;
+
+    return payloadOf(kind, payload);
   };
 
-  const raise = <Payload>(kind: EventKind<Payload>, payload: Payload): void => {
-    const channel = channelOf(kind);
+  readonly raise = <Payload>(kind: EventKind<Payload>, payload: Payload): void => {
+    const channel = this.#channelOf(kind);
     const { handlers, subscribers } = channel;
 
     channel.level += 1;
 
     try {
-      if (handlers.length > 0 && depth < maxDepth) {
-        depth += 1;
+      if (handlers.length > 0 && this.#depth < this.#maxDepth) {
+        this.#depth += 1;
 
         try {
           callAll(kind, handlers, payload);
         } finally {
-          depth -= 1;
+          this.#depth -= 1;
         }
       }
 
@@ -164,26 +169,29 @@ export const createBus = <const Factories extends Readonly<Record<string, () => 
     }
   };
 
-  return {
-    kind: kindsOf(factories),
+  readonly handle = <Payload>(kind: EventKind<Payload>, handler: Listener<Payload>): (() => void) =>
+    addTo(this.#channelOf(kind), 'handlers', handler);
 
-    get depth() {
-      return depth;
-    },
+  readonly on = <Payload>(kind: EventKind<Payload>, subscriber: Listener<Payload>): (() => void) =>
+    addTo(this.#channelOf(kind), 'subscribers', subscriber);
 
-    hears: (kind) => (channels[kind]?.count ?? 0) > 0,
+  /** The channel of a kind; throws for a number that is not one of the bus's kinds. */
+  #channelOf(kind: number): Channel {
+    const channel = this.#channels[kind];
 
-    payload: (kind) => {
-      const channel = channelOf(kind);
-      const payload = channel.payloads[channel.level] ?? channel.make();
+    if (channel === undefined) {
+      throw new RangeError(`${kind} is not an event kind of this bus.`);
+    }
 
-      channel.payloads[channel.level] = payload;
+    return channel;
+  }
+}
 
-      return payloadOf(kind, payload);
-    },
-
-    raise,
-    handle: (kind, handler) => addTo(channelOf(kind), 'handlers', handler),
-    on: (kind, subscriber) => addTo(channelOf(kind), 'subscribers', subscriber),
-  };
-};
+/**
+ * Creates a bus from one payload factory per event kind (`{ hit: () => ({ target: 0, amount: 0 }) }`). A factory
+ * returns a fresh payload with every field set, so each kind keeps one object shape.
+ */
+export const createBus = <const Factories extends Readonly<Record<string, () => object>>>(
+  factories: Factories,
+  options: BusOptions = {},
+): Bus<Factories> => new EventBus(factories, options.maxDepth ?? 3);

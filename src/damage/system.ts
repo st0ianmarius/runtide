@@ -158,6 +158,72 @@ const gameStagesOf = <G extends DamageTypes>(engine: DamageEngine<G>): readonly 
     ...engine.forceOrder.game.map((name) => `force.${name}`),
   ]);
 
+/** A damage system: a class for fast properties, its functions arrow fields so they work detached. */
+class Damage<G extends DamageTypes> implements DamageSystem<G> {
+  readonly auras: AuraSystem<G>;
+  readonly kinds: DamageKindTable<G['damageKind']>;
+  readonly host: DamageHost<G>;
+  readonly stages: readonly string[];
+  readonly healStages: readonly string[];
+  readonly forceStages: readonly string[];
+  readonly gameStages: readonly string[];
+  readonly procKinds: DamageProcKinds<G>;
+  readonly hit: (spec: BlowSpec<G>) => Blow<G>;
+  readonly heal: (spec: HealSpec<G>) => Heal<G>;
+  readonly force: (spec: ForceSpec<G>) => Force<G>;
+  readonly setHealth: (unit: G['bearer'], health: number, credit?: HealthCredit<G>) => ProcOutcome;
+  readonly regenerate: (unit: G['bearer'], seconds: number) => Heal<G>;
+  readonly #engine: DamageEngine<G>;
+
+  constructor(options: DamageSystemOptions<G>, engine: DamageEngine<G>) {
+    const force = createForcePipeline(engine);
+    const heal = createHealPipeline(engine);
+    const setHealth = setHealthWith(engine);
+
+    this.auras = options.auras;
+    this.kinds = options.kinds;
+    this.host = options.host;
+    this.stages = engine.order.names;
+    this.healStages = engine.healOrder.names;
+    this.forceStages = engine.forceOrder.names;
+    this.gameStages = gameStagesOf(engine);
+    this.hit = createDamagePipeline(engine, {
+      force,
+
+      death: (spec) => {
+        runDeath(engine, spec);
+      },
+    });
+    this.heal = heal;
+    this.force = force;
+    this.setHealth = setHealth;
+    this.regenerate = regenerateWith(engine, heal);
+    this.#engine = engine;
+
+    this.procKinds = createDamageProcKinds(engine, {
+      hit: this.hit,
+      heal,
+      setHealth: (unit, health, source) => setHealth(unit, health, { source }),
+    });
+  }
+
+  get depth(): number {
+    return this.#engine.depth;
+  }
+
+  readonly isDead = (unit: G['bearer']): boolean => this.#engine.isDeadNow(unit);
+
+  readonly explainMitigation = (
+    defender: G['bearer'],
+    query: { readonly attacker?: G['bearer'] | undefined; readonly kind?: DamageKindId | undefined },
+  ): MitigationExplanation =>
+    explainRows(this.#engine.rows, {
+      kind: query.kind ?? this.#engine.defaultKind,
+      caster: this.#engine.viewOf(query.attacker, undefined),
+      target: this.#engine.viewOf(defender, undefined),
+    });
+}
+
 /**
  * Creates the damage system (§I.5): `createDamageSystem({ auras, kinds: DAMAGE_KINDS, host, stats, outgoing: ['damage'],
  * crit: { chance: 'critChance', damage: 'critDamage' }, mitigation: MITIGATION, stages: { … } })`. Every stage order,
@@ -168,54 +234,7 @@ export const createDamageSystem = <G extends DamageTypes>(
   options: DamageSystemOptions<G> & RecordsCheck<G>,
 ): DamageSystem<G> => {
   const engine = new DamageEngine<G>(options);
-  const force = createForcePipeline(engine);
-  const heal = createHealPipeline(engine);
-
-  const hit = createDamagePipeline(engine, {
-    force,
-
-    death: (spec) => {
-      runDeath(engine, spec);
-    },
-  });
-
-  const setHealth = setHealthWith(engine);
-
-  const system: DamageSystem<G> = Object.freeze({
-    auras: options.auras,
-    kinds: options.kinds,
-    host: options.host,
-    stages: engine.order.names,
-    healStages: engine.healOrder.names,
-    forceStages: engine.forceOrder.names,
-    gameStages: gameStagesOf(engine),
-    procKinds: createDamageProcKinds(engine, {
-      hit,
-      heal,
-      setHealth: (unit, health, source) => setHealth(unit, health, { source }),
-    }),
-
-    get depth() {
-      return engine.depth;
-    },
-
-    hit,
-    heal,
-    force,
-    setHealth,
-    regenerate: regenerateWith(engine, heal),
-    isDead: (unit: G['bearer']) => engine.isDeadNow(unit),
-
-    explainMitigation: (
-      defender: G['bearer'],
-      query: { readonly attacker?: G['bearer'] | undefined; readonly kind?: DamageKindId | undefined },
-    ) =>
-      explainRows(engine.rows, {
-        kind: query.kind ?? engine.defaultKind,
-        caster: engine.viewOf(query.attacker, undefined),
-        target: engine.viewOf(defender, undefined),
-      }),
-  });
+  const system: DamageSystem<G> = Object.freeze(new Damage(options, engine));
 
   engine.system = system;
 

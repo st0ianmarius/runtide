@@ -55,3 +55,5 @@ Added at F6 (same container, Node 22.22.2, range of three runs; `bench/cues.ts`)
 | fire 200 specs + encode as bytes           | 54–58 µs |
 | emit 200 by slot + encode as numbers       | 31–35 µs |
 | decode 200 events from bytes into a buffer | 31–37 µs |
+
+After the fast-properties fix (F7's first commit: `createPool`, `createScratch`, `createClock`, `createTimingWheel`, `createBus`, `createScope`, the proc system and the damage system returned object literals with getters, which V8 keeps in dictionary mode, so every method call was a hash lookup; each is now an internal class whose functions are arrow fields, still callable detached), same container, range of two runs: timing wheel schedule + collect 38–49 ns, trigger dispatch 0.80–0.90 µs and 3.01–3.38 µs, proc list run 1.73–1.99 µs. Outside tinybench, per operation (three runs each, before → after): 16 pool acquire + get + release 0.95–1.29 µs → 0.51–0.63 µs, a nested scratch take + give pair 43–55 ns → 15–19 ns, a clock step + reads + `stampAt` 108–138 ns → 84–100 ns, a bus payload + raise to one subscriber 44–48 ns → 12–19 ns, a scope `withOwner` + reads 49–53 ns → 10–15 ns.

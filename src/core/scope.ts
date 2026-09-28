@@ -47,50 +47,74 @@ export interface Scope<Owner, Source> {
   readonly within: <Result>(frame: ScopeFrame<Owner, Source>, fn: () => Result) => Result;
 }
 
-/** Creates a scope with its starting owner and source, outside any world scope. */
-export const createScope = <Owner, Source>(
-  initial: Pick<ScopeFrame<Owner, Source>, 'owner' | 'source'>,
-): Scope<Owner, Source> => {
-  let { owner, source } = initial;
-  let isWorld = false;
+/** A scope's state: a class for fast properties, its functions arrow fields so they work detached. */
+class ScopeState<Owner, Source> implements Scope<Owner, Source> {
+  #owner: Owner;
+  #source: Source;
+  #isWorld = false;
 
-  const within = <Result>(frame: ScopeFrame<Owner, Source>, fn: () => Result): Result => {
+  constructor(owner: Owner, source: Source) {
+    this.#owner = owner;
+    this.#source = source;
+  }
+
+  get owner(): Owner {
+    return this.#owner;
+  }
+
+  get source(): Source {
+    return this.#source;
+  }
+
+  get isWorld(): boolean {
+    return this.#isWorld;
+  }
+
+  get eventOwner(): Owner | undefined {
+    return this.#isWorld ? undefined : this.#owner;
+  }
+
+  readonly within = <Result>(frame: ScopeFrame<Owner, Source>, fn: () => Result): Result => {
+    const owner = this.#owner;
+    const source = this.#source;
+    const isWorld = this.#isWorld;
+
     if (frame.owner === owner && frame.source === source && frame.isWorld === isWorld) {
       return fn();
     }
 
-    const saved = { owner, source, isWorld };
-
-    ({ owner, source, isWorld } = frame);
+    this.#owner = frame.owner;
+    this.#source = frame.source;
+    this.#isWorld = frame.isWorld;
 
     try {
       return fn();
     } finally {
-      ({ owner, source, isWorld } = saved);
+      this.#owner = owner;
+      this.#source = source;
+      this.#isWorld = isWorld;
     }
   };
 
-  return {
-    get owner() {
-      return owner;
-    },
+  readonly withOwner = <Result>(next: Owner, fn: () => Result): Result =>
+    next === this.#owner && !this.#isWorld
+      ? fn()
+      : this.within({ owner: next, source: this.#source, isWorld: false }, fn);
 
-    get source() {
-      return source;
-    },
+  readonly withSource = <Result>(next: Source, fn: () => Result): Result =>
+    next === this.#source ? fn() : this.within({ owner: this.#owner, source: next, isWorld: this.#isWorld }, fn);
 
-    get isWorld() {
-      return isWorld;
-    },
+  readonly asWorld = <Result>(fn: () => Result): Result =>
+    this.#isWorld ? fn() : this.within({ owner: this.#owner, source: this.#source, isWorld: true }, fn);
 
-    get eventOwner() {
-      return isWorld ? undefined : owner;
-    },
+  readonly capture = (): ScopeFrame<Owner, Source> => ({
+    owner: this.#owner,
+    source: this.#source,
+    isWorld: this.#isWorld,
+  });
+}
 
-    withOwner: (next, fn) => (next === owner && !isWorld ? fn() : within({ owner: next, source, isWorld: false }, fn)),
-    withSource: (next, fn) => (next === source ? fn() : within({ owner, source: next, isWorld }, fn)),
-    asWorld: (fn) => (isWorld ? fn() : within({ owner, source, isWorld: true }, fn)),
-    capture: () => ({ owner, source, isWorld }),
-    within,
-  };
-};
+/** Creates a scope with its starting owner and source, outside any world scope. */
+export const createScope = <Owner, Source>(
+  initial: Pick<ScopeFrame<Owner, Source>, 'owner' | 'source'>,
+): Scope<Owner, Source> => new ScopeState(initial.owner, initial.source);

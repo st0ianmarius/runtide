@@ -22,37 +22,38 @@ export interface Scratch<Item> {
   readonly give: (used?: number) => void;
 }
 
-/** Creates an empty stack of scratch arrays. */
-export const createScratch = <Item>(): Scratch<Item> => {
-  const levels: (Item | undefined)[][] = [];
-  let depth = 0;
+/** A scratch stack's state: a class for fast properties, its functions arrow fields so they work detached. */
+class ScratchStack<Item> implements Scratch<Item> {
+  readonly #levels: (Item | undefined)[][] = [];
+  #depth = 0;
 
-  return {
-    get depth() {
-      return depth;
-    },
+  get depth(): number {
+    return this.#depth;
+  }
 
-    take: () => {
-      const list = levels[depth] ?? [];
+  readonly take = (): (Item | undefined)[] => {
+    const list = this.#levels[this.#depth] ?? [];
 
-      levels[depth] = list;
-      depth += 1;
+    this.#levels[this.#depth] = list;
+    this.#depth += 1;
 
-      return list;
-    },
-
-    give: (used = 0) => {
-      if (depth === 0) {
-        throw new RangeError('No scratch array is taken.');
-      }
-
-      depth -= 1;
-
-      const list = levels[depth] ?? [];
-
-      for (let i = 0; i < used; i++) {
-        list[i] = undefined;
-      }
-    },
+    return list;
   };
-};
+
+  readonly give = (used = 0): void => {
+    if (this.#depth === 0) {
+      throw new RangeError('No scratch array is taken.');
+    }
+
+    this.#depth -= 1;
+
+    const list = this.#levels[this.#depth] ?? [];
+
+    for (let i = 0; i < used; i++) {
+      list[i] = undefined;
+    }
+  };
+}
+
+/** Creates an empty stack of scratch arrays. */
+export const createScratch = <Item>(): Scratch<Item> => new ScratchStack<Item>();

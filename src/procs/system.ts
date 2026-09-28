@@ -277,6 +277,65 @@ const checkDepth = (maxDepth: number | undefined): void => {
   }
 };
 
+/** A proc system: a class for fast properties, its functions arrow fields so they work detached. */
+class Procs<G extends ProcTypes> implements ProcSystem<G> {
+  readonly kinds: ProcRegistry<G>;
+  readonly auras: AuraSystem<G>;
+  readonly host: ProcHost<G> & G['host'];
+  readonly maxDepth: number;
+  readonly runs: ReadonlyMap<string, number>;
+  readonly resolver: ProcResolver<G>;
+  readonly run: (procs: readonly Proc<G>[], origin: ProcOrigin<G>) => number;
+  readonly apply: (proc: Proc<G>, origin: ProcOrigin<G>) => ProcOutcome;
+  readonly #state: RunnerState<G>;
+  readonly #parts: ResolverParts<G>;
+
+  constructor(options: ProcSystemOptions<G>) {
+    const state: RunnerState<G> = { frames: [], depth: 0, dropped: 0, runs: new Map(), auraOrigin: undefined };
+    const parts = partsOf(options, state);
+    const resolver = createResolver(parts, undefined);
+    const runner = createRunner(options, state, resolver);
+
+    this.kinds = options.kinds;
+    this.auras = options.auras;
+    this.host = options.host;
+    this.maxDepth = options.maxDepth ?? 4;
+    this.runs = state.runs;
+    this.resolver = resolver;
+    this.run = runner.list;
+    this.apply = runner.one;
+    this.#state = state;
+    this.#parts = parts;
+  }
+
+  get depth(): number {
+    return this.#state.depth;
+  }
+
+  get dropped(): number {
+    return this.#state.dropped;
+  }
+
+  readonly runAura = (procs: readonly Proc<G>[], ctx: AuraContext<G>): void => {
+    const origin = (this.#state.auraOrigin ??= {
+      self: ctx.bearer,
+      target: ctx.bearer,
+      eventUnit: undefined,
+      source: ctx.aura.source,
+      aura: ctx.aura,
+    });
+
+    origin.self = ctx.bearer;
+    origin.target = ctx.bearer;
+    origin.source = ctx.aura.source;
+    origin.aura = ctx.aura;
+    this.run(procs, origin);
+  };
+
+  readonly prepare = (procs: readonly Proc<G>[], what: string): readonly Proc<G>[] =>
+    prepareProcs(this.#parts, procs, what);
+}
+
 /**
  * Creates the proc system over a game's kinds and aura system (§I.5): `createProcSystem({ kinds: PROCS, auras, host,
  * random: stream(seed, PROC_SALT) })`. The aura system hands it what its hooks return through `runAura`.
@@ -284,48 +343,5 @@ const checkDepth = (maxDepth: number | undefined): void => {
 export const createProcSystem = <G extends ProcTypes>(options: ProcSystemOptions<G>): ProcSystem<G> => {
   checkDepth(options.maxDepth);
 
-  const state: RunnerState<G> = { frames: [], depth: 0, dropped: 0, runs: new Map(), auraOrigin: undefined };
-  const parts = partsOf(options, state);
-  const resolver = createResolver(parts, undefined);
-  const runner = createRunner(options, state, resolver);
-
-  return Object.freeze({
-    kinds: options.kinds,
-    auras: options.auras,
-    host: options.host,
-
-    get depth() {
-      return state.depth;
-    },
-
-    maxDepth: options.maxDepth ?? 4,
-
-    get dropped() {
-      return state.dropped;
-    },
-
-    runs: state.runs,
-    resolver,
-    run: runner.list,
-
-    apply: runner.one,
-
-    runAura: (procs: readonly Proc<G>[], ctx: AuraContext<G>) => {
-      const origin = (state.auraOrigin ??= {
-        self: ctx.bearer,
-        target: ctx.bearer,
-        eventUnit: undefined,
-        source: ctx.aura.source,
-        aura: ctx.aura,
-      });
-
-      origin.self = ctx.bearer;
-      origin.target = ctx.bearer;
-      origin.source = ctx.aura.source;
-      origin.aura = ctx.aura;
-      runner.list(procs, origin);
-    },
-
-    prepare: (procs: readonly Proc<G>[], what: string) => prepareProcs(parts, procs, what),
-  });
+  return Object.freeze(new Procs(options));
 };

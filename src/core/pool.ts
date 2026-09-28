@@ -43,82 +43,89 @@ export interface Pool<Item extends Defined> {
   readonly slotOf: (handle: Handle<Item>) => number;
 }
 
-/** Creates an empty pool. */
-export const createPool = <Item extends Defined>(options: PoolOptions<Item>): Pool<Item> => {
-  const items: Item[] = [];
-  const generations: number[] = [];
-  const isAcquired: boolean[] = [];
-  const free: number[] = [];
-  let live = 0;
+/** A pool's state: a class for fast properties, its functions arrow fields so they work detached. */
+class ItemPool<Item extends Defined> implements Pool<Item> {
+  readonly #create: () => Item;
+  readonly #reset: ((item: Item) => void) | undefined;
+  readonly #items: Item[] = [];
+  readonly #generations: number[] = [];
+  readonly #isAcquired: boolean[] = [];
+  readonly #free: number[] = [];
+  #live = 0;
 
-  const slotOf = (handle: number): number => handle % SLOT_SPAN;
+  constructor(options: PoolOptions<Item>) {
+    this.#create = options.create;
+    this.#reset = options.reset;
+  }
 
-  const isLive = (handle: number): boolean => {
-    const slot = slotOf(handle);
+  get created(): number {
+    return this.#items.length;
+  }
 
-    return isAcquired[slot] === true && generations[slot] === Math.floor(handle / SLOT_SPAN);
+  get live(): number {
+    return this.#live;
+  }
+
+  readonly slotOf = (handle: number): number => handle % SLOT_SPAN;
+
+  readonly isLive = (handle: number): boolean => {
+    const slot = handle % SLOT_SPAN;
+
+    return this.#isAcquired[slot] === true && this.#generations[slot] === Math.floor(handle / SLOT_SPAN);
   };
 
-  const takeSlot = (): number => {
-    const slot = free.pop();
+  readonly acquire = (): Handle<Item> => {
+    const slot = this.#takeSlot();
+    const generation = (this.#generations[slot] ?? 0) + 1;
+
+    this.#generations[slot] = generation;
+    this.#isAcquired[slot] = true;
+    this.#live += 1;
+
+    return toHandle<Item>(generation * SLOT_SPAN + slot);
+  };
+
+  readonly get = (handle: Handle<Item>): Item | undefined =>
+    this.isLive(handle) ? this.#items[handle % SLOT_SPAN] : undefined;
+
+  readonly release = (handle: Handle<Item>): boolean => {
+    if (!this.isLive(handle)) {
+      return false;
+    }
+
+    const slot = handle % SLOT_SPAN;
+    const item = this.#items[slot];
+
+    this.#isAcquired[slot] = false;
+    this.#live -= 1;
+    this.#free.push(slot);
+
+    if (item !== undefined) {
+      this.#reset?.(item);
+    }
+
+    return true;
+  };
+
+  /** A free slot, or a new one with a new item. */
+  #takeSlot(): number {
+    const slot = this.#free.pop();
 
     if (slot !== undefined) {
       return slot;
     }
 
-    if (items.length >= SLOT_SPAN) {
+    if (this.#items.length >= SLOT_SPAN) {
       throw new RangeError(`A pool holds at most ${SLOT_SPAN} items.`);
     }
 
-    items.push(options.create());
-    generations.push(0);
-    isAcquired.push(false);
+    this.#items.push(this.#create());
+    this.#generations.push(0);
+    this.#isAcquired.push(false);
 
-    return items.length - 1;
-  };
+    return this.#items.length - 1;
+  }
+}
 
-  return {
-    get created() {
-      return items.length;
-    },
-
-    get live() {
-      return live;
-    },
-
-    acquire: () => {
-      const slot = takeSlot();
-      const generation = (generations[slot] ?? 0) + 1;
-
-      generations[slot] = generation;
-      isAcquired[slot] = true;
-      live += 1;
-
-      return toHandle<Item>(generation * SLOT_SPAN + slot);
-    },
-
-    get: (handle) => (isLive(handle) ? items[slotOf(handle)] : undefined),
-    isLive,
-
-    release: (handle) => {
-      if (!isLive(handle)) {
-        return false;
-      }
-
-      const slot = slotOf(handle);
-      const item = items[slot];
-
-      isAcquired[slot] = false;
-      live -= 1;
-      free.push(slot);
-
-      if (item !== undefined) {
-        options.reset?.(item);
-      }
-
-      return true;
-    },
-
-    slotOf,
-  };
-};
+/** Creates an empty pool. */
+export const createPool = <Item extends Defined>(options: PoolOptions<Item>): Pool<Item> => new ItemPool(options);
