@@ -100,3 +100,5 @@ Added at F13 (`bench/units.ts`), same Apple Silicon Mac (arm64, Node 25.8.1), ra
 | units: spawn + despawn a grunt          | 899–910 ns |
 | units: canAct + canMove                 | 13 ns      |
 | units: a folded stat (an aura modifier) | 41–42 ns   |
+
+At F14 the block and crit stages became one roll stage over a declared roll table (`bench/damage.ts` rolls swarm's block-then-crit as an `independent` table, both rows reading a stat directly). On the Apple Silicon Mac, range of three full runs, a blow through the full pipeline measures 302–310 ns against 279–282 ns before it, and a burst of 100 blows 30.6–31.6 µs against 28.2–28.8 µs: about 25 ns a blow for the general row loop and the spell-share reads.
