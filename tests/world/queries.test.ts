@@ -346,3 +346,24 @@ describe('the memory world as a whole', () => {
     assert.deepEqual(world.extensions, []);
   });
 });
+
+describe('a limit of one and a count (§I.5.4: no sort they do not need)', () => {
+  it('keep the first unit the whole ordered query keeps, and count what it keeps, whatever the order', () => {
+    const spot = fc.tuple(fc.integer({ min: -20, max: 20 }), fc.integer({ min: -20, max: 20 }), fc.nat(1));
+    const order = fc.constantFrom('near', 'far', 'id' as const);
+
+    fc.assert(
+      fc.property(fc.array(spot, { maxLength: 40 }), order, (spots, by) => {
+        const { world } = worldOf(spots.map(([x, z, side], id) => [id + 1, x, z, side, 0.5]));
+        const all: (Mob | undefined)[] = [];
+        const one: (Mob | undefined)[] = [];
+        const options = { range: 15, order: by } as const;
+        const kept = world.nearest(vec2(1, 2), options, all);
+
+        assert.equal(world.nearest(vec2(1, 2), { ...options, limit: 1 }, one), Math.min(kept, 1));
+        assert.equal(one[0], kept === 0 ? undefined : all[0]);
+        assert.equal(world.count(circle(9, vec2(3, -1)), {}), world.inside(circle(9, vec2(3, -1)), {}, all));
+      }),
+    );
+  });
+});

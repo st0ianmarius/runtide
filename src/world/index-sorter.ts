@@ -9,6 +9,10 @@ export class IndexSorter {
   readonly #compare: (a: number, b: number) => number;
   readonly #spare: number[] = [];
 
+  /** The run a merge reads from and the array it writes to, set per pass (fields, so a merge takes no tuple). */
+  #from: number[] = [];
+  #to: number[] = [];
+
   constructor(compare: (a: number, b: number) => number) {
     this.#compare = compare;
   }
@@ -21,20 +25,28 @@ export class IndexSorter {
       return;
     }
 
-    let from = entries;
-    let to = this.#spare;
+    this.#from = entries;
+    this.#to = this.#spare;
 
     for (let width = 1; width < count; width *= 2) {
       for (let lo = 0; lo < count; lo += width * 2) {
-        this.#merge(from, to, [lo, Math.min(lo + width, count), Math.min(lo + width * 2, count)]);
+        this.#merge(lo, Math.min(lo + width, count), Math.min(lo + width * 2, count));
       }
 
-      [from, to] = [to, from];
+      const merged = this.#to;
+
+      this.#to = this.#from;
+      this.#from = merged;
     }
+
+    const from = this.#from;
 
     for (let i = 0; from !== entries && i < count; i++) {
       entries[i] = from[i] ?? 0;
     }
+
+    this.#from = this.#spare;
+    this.#to = this.#spare;
   }
 
   /** Sorts the first `count` entries by insertion. */
@@ -52,8 +64,10 @@ export class IndexSorter {
     }
   }
 
-  /** Merges the runs `[lo, mid)` and `[mid, hi)` of `from` into `to`. */
-  #merge(from: number[], to: number[], [lo, mid, hi]: readonly [number, number, number]): void {
+  /** Merges the runs `[lo, mid)` and `[mid, hi)` of the pass's `from` into its `to`. */
+  #merge(lo: number, mid: number, hi: number): void {
+    const from = this.#from;
+    const to = this.#to;
     let i = lo;
     let j = mid;
 

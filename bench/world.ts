@@ -40,6 +40,21 @@ const worldOf = (index: 'grid' | 'kd'): MemoryWorld<Mob> => {
 };
 
 const GRID = worldOf('grid');
+
+/** A horde crowding its target: 2,000 foes within 30 m of the hero at the origin (the review after F21, P6). */
+const CROWD = createMemoryWorld<Mob>({ bounds: BOUNDS, cell: 4, dt: 1 / 30 });
+const HERO: Mob = { x: 0, z: 0 };
+
+CROWD.add(HERO, { id: 1, at: vec2(0, 0), radius: 0.5, side: 0 });
+
+for (let id = 0; id < UNITS; id++) {
+  const angle = random() * Math.PI * 2;
+  const r = 1 + Math.sqrt(random()) * 29;
+
+  CROWD.add({ x: 0, z: 0 }, { id: id + 2, at: vec2(Math.cos(angle) * r, Math.sin(angle) * r), radius: 0.5, side: 1 });
+}
+
+const CROWD_NEAR = { side: 'foes', of: HERO, range: 30, limit: 1 } as const;
 const KD = worldOf('kd');
 const OUT: (Mob | undefined)[] = [];
 const CLUSTER: Cluster<Mob> = { unit: undefined, count: 0, x: 0, z: 0 };
@@ -73,6 +88,13 @@ export const WORLD_TASKS: readonly (readonly [string, () => void, number])[] = [
     'world: inside r 6, 2,000 units (grid)',
     () => {
       worldCounter.found += GRID.inside(CIRCLE, FOES, OUT);
+    },
+    1,
+  ],
+  [
+    'world: nearest foe in a crowd, 2,000 within 30 m (grid)',
+    () => {
+      worldCounter.found += CROWD.nearest(HERO, CROWD_NEAR, OUT);
     },
     1,
   ],

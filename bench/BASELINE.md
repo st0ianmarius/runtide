@@ -144,3 +144,14 @@ At the review after F21 (P4), `areaTriggers.stepOwner` walks the owner's own are
 | ----------------------------------------------------------- | ------ | -------- |
 | areas: 150 pools + 50 missiles over 2,000 units (tick)      | 51 µs  | 53–55 µs |
 | areas: the same, stepped owner by owner, 2,010 units (tick) | 461 µs | 76 µs    |
+
+At the review after F21 (P6), distances are one correctly rounded square root (`hypot` in `spellweave/math`, in place of `Math.hypot`, which the spec only approximates and which boxes a number where V8 does not inline it), the merge sort passes no tuple, a query limited to one unit scans for it in place of sorting every unit it keeps, and `count` sorts nothing unless a limit or a separation needs the order. The new row asks for the nearest foe in a horde crowding its target (2,000 foes within 30 m). Same Apple Silicon Mac, one full run each, against the P4 commit the same day:
+
+| benchmark                                               | P4       | now      |
+| ------------------------------------------------------- | -------- | -------- |
+| world: nearest foe in a crowd, 2,000 within 30 m (grid) | 185.7 µs | 50.4 µs  |
+| world: nearest foe in 10 m (grid)                       | 681 ns   | 545 ns   |
+| world: sweep 40 m, body 0.5 (grid)                      | 419 ns   | 344 ns   |
+| world: 2,000 units move, grid updated (tick)            | 76.5 µs  | 51.3 µs  |
+| world: 2,000 units move, k-d rebuilt + a query (tick)   | 167.9 µs | 129.7 µs |
+| world: seconds inside a ring over one tick              | 83.9 ns  | 65.3 ns  |

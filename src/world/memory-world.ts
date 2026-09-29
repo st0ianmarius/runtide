@@ -1,4 +1,4 @@
-import type { Box, Shape, Vec2 } from '../math/index.ts';
+import { type Box, hypot, type Shape, type Vec2 } from '../math/index.ts';
 import { Placement } from './placement.ts';
 import { GridIndex, KdIndex, type PointIndex } from './point-index.ts';
 import type {
@@ -122,7 +122,7 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly place = (unit: Unit, at: Vec2): void => {
     const table = this.#table;
     const slot = table.slotOf(unit);
-    const motion = Math.hypot(at.x - (table.px[slot] ?? 0), at.z - (table.pz[slot] ?? 0));
+    const motion = hypot(at.x - (table.px[slot] ?? 0), at.z - (table.pz[slot] ?? 0));
 
     table.x[slot] = at.x;
     table.z[slot] = at.z;
@@ -171,7 +171,7 @@ class World<Unit> implements MemoryWorld<Unit> {
     this.#selector.write(this.#selection.over(undefined, options), out);
 
   readonly count = (shape: Shape | undefined, options: QueryOptions<Unit>): number =>
-    this.#selector.run(this.#selection.over(shape, options));
+    this.#selector.count(this.#selection.over(shape, options));
 
   readonly nearest = (from: Vec2, options: RangeOptions<Unit>, out: (Unit | undefined)[]): number =>
     this.#selector.write(this.#selection.around(from, options), out);

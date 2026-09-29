@@ -72,6 +72,7 @@ export {
   distance,
   distanceSq,
   dot,
+  hypot,
   lengthOf,
   lengthSq,
   lerp,

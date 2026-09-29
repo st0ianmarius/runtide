@@ -34,6 +34,14 @@ export const cross = (a: Vec2, b: Vec2): number => a.x * b.z - a.z * b.x;
 /** The squared length, with no square root. */
 export const lengthSq = (v: Vec2): number => v.x * v.x + v.z * v.z;
 
+/**
+ * The length of `(dx, dz)`: `√(dx² + dz²)`, one correctly rounded square root, so the same float on every engine
+ * (`Math.hypot` is only approximated by the spec, and boxes a number where it is not inlined).
+ */
+export const hypot = (dx: number, dz: number): number =>
+  // oxlint-disable-next-line unicorn/prefer-modern-math-apis -- the point: one correctly rounded root, no Math.hypot
+  Math.sqrt(dx * dx + dz * dz);
+
 /** The length. */
 export const lengthOf = (v: Vec2): number => Math.sqrt(lengthSq(v));
 

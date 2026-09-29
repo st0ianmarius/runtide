@@ -1,7 +1,7 @@
 import { wrap } from './angles.ts';
 import { inPolygon, polygonEdgeDistanceSq } from './polygon.ts';
 import type { Cone, Lane, Polygon, Ring, Shape } from './shapes.ts';
-import type { Vec2 } from './vec2.ts';
+import { hypot, type Vec2 } from './vec2.ts';
 
 /**
  * Whether a body reaching `margin` past `p` overlaps a ring. Both rims are tested as distances against the radii the
@@ -9,7 +9,7 @@ import type { Vec2 } from './vec2.ts';
  * up to the rim for a body just short of it.
  */
 const coversRing = (shape: Ring, p: Vec2, margin: number): boolean => {
-  const d = Math.hypot(p.x - shape.at.x, p.z - shape.at.z);
+  const d = hypot(p.x - shape.at.x, p.z - shape.at.z);
 
   return d < shape.outer + margin && d >= shape.inner - margin;
 };
@@ -21,7 +21,7 @@ const coversRing = (shape: Ring, p: Vec2, margin: number): boolean => {
 const coversCone = (shape: Cone, p: Vec2, margin: number): boolean => {
   const dx = p.x - shape.at.x;
   const dz = p.z - shape.at.z;
-  const d = Math.hypot(dx, dz);
+  const d = hypot(dx, dz);
 
   if (d >= shape.r + margin) {
     return false;
@@ -65,9 +65,9 @@ const coversPolygon = (shape: Polygon, p: Vec2, margin: number): boolean => {
 const coversBy = (shape: Shape, p: Vec2, margin: number): boolean => {
   switch (shape.kind) {
     case 'point':
-      return Math.hypot(p.x - shape.at.x, p.z - shape.at.z) <= margin;
+      return hypot(p.x - shape.at.x, p.z - shape.at.z) <= margin;
     case 'circle':
-      return Math.hypot(p.x - shape.at.x, p.z - shape.at.z) < shape.r + margin;
+      return hypot(p.x - shape.at.x, p.z - shape.at.z) < shape.r + margin;
     case 'ring':
       return coversRing(shape, p, margin);
     case 'cone':

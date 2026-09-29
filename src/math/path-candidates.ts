@@ -1,5 +1,5 @@
 import type { Shape } from './shapes.ts';
-import type { Vec2 } from './vec2.ts';
+import { hypot, type Vec2 } from './vec2.ts';
 
 /**
  * The shares along a segment where a moving point may cross a shape's boundary, gathered from every curve that bounds
@@ -120,7 +120,7 @@ export class PathCandidates {
 
     for (const b of shape.points) {
       if (a !== undefined) {
-        const length = Math.hypot(b.x - a.x, b.z - a.z);
+        const length = hypot(b.x - a.x, b.z - a.z);
 
         if (length > 0) {
           const nx = -(b.z - a.z) / length;

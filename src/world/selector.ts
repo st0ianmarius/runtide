@@ -1,4 +1,4 @@
-import { boundsOf, covers, emptyBox, type MutableBox, ORIGIN } from '../math/index.ts';
+import { boundsOf, covers, emptyBox, hypot, type MutableBox, ORIGIN } from '../math/index.ts';
 import { IndexSorter } from './index-sorter.ts';
 import type { PointIndex } from './point-index.ts';
 import type { QueryOptions } from './query.ts';
@@ -63,10 +63,26 @@ export class Selector<Unit> {
   /** Runs a selection and returns how many slots it kept (read them from `selected`). */
   run(selection: Selection<Unit>): number {
     const kept = this.gather(selection);
+    const { options } = selection;
+
+    if (kept > 1 && options.limit === 1 && !((options.minSeparation ?? 0) > 0)) {
+      this.#first(selection, kept);
+
+      return 1;
+    }
 
     this.#sort(selection, kept);
 
-    return this.#space(selection.options, kept);
+    return this.#space(options, kept);
+  }
+
+  /** How many units a selection keeps: its gather alone, unless a limit or a separation needs them ordered. */
+  count(selection: Selection<Unit>): number {
+    const { options } = selection;
+
+    return options.limit === undefined && !((options.minSeparation ?? 0) > 0)
+      ? this.gather(selection)
+      : this.run(selection);
   }
 
   /** Runs a selection and writes its units into `out` from index 0; returns how many. */
@@ -83,7 +99,7 @@ export class Selector<Unit> {
   /** The distance from the selection's point to a slot's centre, or to its edge when measured so. */
   distance(selection: Selection<Unit>, slot: number): number {
     const table = this.#table;
-    const d = Math.hypot((table.x[slot] ?? 0) - selection.x, (table.z[slot] ?? 0) - selection.z);
+    const d = hypot((table.x[slot] ?? 0) - selection.x, (table.z[slot] ?? 0) - selection.z);
 
     return selection.options.measure === 'edge' ? d - (table.radius[slot] ?? 0) : d;
   }
@@ -205,8 +221,8 @@ export class Selector<Unit> {
     return selection.options.inclusive === true ? d <= selection.range : d < selection.range;
   }
 
-  /** Orders the kept entries into `#order` (their slots) and `#contacts` by the selection's keys. */
-  #sort(selection: Selection<Unit>, kept: number): void {
+  /** Reads every kept entry's keys into `#keys`, and numbers the entries in `#order`. */
+  #readKeys(selection: Selection<Unit>, kept: number): void {
     const keys = this.#keysOf(selection);
 
     for (let i = 0; i < kept; i++) {
@@ -216,7 +232,25 @@ export class Selector<Unit> {
         this.#keys[i * keys.length + k] = this.#keyOf(keys[k] ?? 'id', i);
       }
     }
+  }
 
+  /** Puts the first kept entry by the selection's keys first (a limit of 1): one scan, where a sort would order all. */
+  #first(selection: Selection<Unit>, kept: number): void {
+    let best = 0;
+
+    this.#readKeys(selection, kept);
+
+    for (let i = 1; i < kept; i++) {
+      best = this.#compare(i, best) < 0 ? i : best;
+    }
+
+    this.#order[0] = this.#kept[best] ?? -1;
+    this.#contacts[0] = this.#contacts[best] ?? 0;
+  }
+
+  /** Orders the kept entries into `#order` (their slots) and `#contacts` by the selection's keys. */
+  #sort(selection: Selection<Unit>, kept: number): void {
+    this.#readKeys(selection, kept);
     this.#sorter.sort(this.#order, kept);
 
     // The keys are spent: the contacts are reordered through them, then the entries become their slots.
@@ -271,7 +305,7 @@ export class Selector<Unit> {
       return this.#contacts[i] ?? 0;
     }
 
-    const d = Math.hypot((table.x[slot] ?? 0) - this.#fromX, (table.z[slot] ?? 0) - this.#fromZ);
+    const d = hypot((table.x[slot] ?? 0) - this.#fromX, (table.z[slot] ?? 0) - this.#fromZ);
 
     return key === 'near' ? d : -d;
   }
@@ -324,7 +358,7 @@ export class Selector<Unit> {
     for (let j = 0; j < count; j++) {
       const other = this.#order[j] ?? -1;
 
-      if (Math.hypot(x - (table.x[other] ?? 0), z - (table.z[other] ?? 0)) < separation) {
+      if (hypot(x - (table.x[other] ?? 0), z - (table.z[other] ?? 0)) < separation) {
         return false;
       }
     }
