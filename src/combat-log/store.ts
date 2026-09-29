@@ -63,6 +63,7 @@ export class EntryStore {
     rows[at + 13] = entry.overflow;
     rows[at + 14] = entry.flags;
     rows[at + 15] = entry.reason;
+    rows[at + 16] = entry.outcome;
     this.total += 1;
   }
 
@@ -91,6 +92,7 @@ export class EntryStore {
     out.overflow = this.#number(at + 13);
     out.flags = this.#number(at + 14);
     out.reason = this.#number(at + 15);
+    out.outcome = this.#number(at + 16);
 
     return true;
   }

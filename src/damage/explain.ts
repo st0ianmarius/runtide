@@ -1,6 +1,9 @@
 import type { StatView } from '../modifiers/index.ts';
-import type { DamageKindId } from './damage-types.ts';
+import type { DamageKindId, DamageTypes } from './damage-types.ts';
+import type { DamageEngine } from './engine.ts';
 import { type CompiledRow, isAmplifyingAt, penetrated, RowContext, rowFactor } from './mitigation.ts';
+import { chanceOf, ROLL_EFFECTS, valueOf } from './rolls.ts';
+import type { RollExplanation, RollQuery } from './system.ts';
 
 /** One mitigation row as data (§II.3.14, §I.5.3), for the client to phrase ("Armor 120: 54.5% less damage"). */
 export interface MitigationRowExplanation {
@@ -68,4 +71,34 @@ export const explainRows = (
     rows: explained,
     factor: explained.reduce((product, row) => product * row.factor, 1),
   };
+};
+
+/** The outcome rows explained for a defender and an attacker (`damage.explainRolls`). */
+export const explainRolls = <G extends DamageTypes>(
+  engine: DamageEngine<G>,
+  defender: G['bearer'],
+  query: RollQuery<G>,
+): RollExplanation[] => {
+  const table = engine.rolls;
+
+  if (table === undefined) {
+    return [];
+  }
+
+  const views = engine.rollViews;
+
+  views.shared.view = engine.viewOf(query.attacker, undefined);
+  views.shared.spell = query.spell;
+  views.target = engine.viewOf(defender, undefined);
+
+  const explained = table.rows.map((row): RollExplanation => ({
+    outcome: row.outcome,
+    effect: ROLL_EFFECTS[row.effect] ?? 'scale',
+    chance: chanceOf(row, views),
+    multiplier: row.multiplier === undefined ? undefined : valueOf(row.multiplier, views),
+  }));
+
+  views.shared.spell = undefined;
+
+  return explained;
 };

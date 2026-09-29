@@ -3,8 +3,9 @@
 import type { ActiveAura, AuraContext, BlowChange } from '../auras/index.ts';
 import type { BlowRecord } from './blow.ts';
 import type { BlowStop, DamageTypes } from './damage-types.ts';
-import type { DamageEngine, HookWalk } from './engine.ts';
+import { type DamageEngine, type HookWalk, missing } from './engine.ts';
 import { mitigate } from './mitigation.ts';
+import { chanceOf, type CompiledRollRow, ROLL_EFFECTS, valueOf } from './rolls.ts';
 
 /** A built-in stage of the damage pipeline. */
 export type BuiltInStage<G extends DamageTypes> = (
@@ -134,38 +135,118 @@ export const outgoingStage = <G extends DamageTypes>(engine: DamageEngine<G>, bl
   return undefined;
 };
 
-/** The attacker's crit: one roll at its chance, then its damage multiplier, each at the spell's share. */
-export const critStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
-  const { critChance, critDamage } = engine.stats;
+/** The effect code of an avoid row. */
+const AVOID = ROLL_EFFECTS.indexOf('avoid');
 
-  if (blow.attacker === undefined || critChance === undefined || critDamage === undefined) {
-    return undefined;
+/** The effect code of a block row. */
+const BLOCK = ROLL_EFFECTS.indexOf('block');
+
+/** Applies a row a blow rolled: an avoid or a block ends it, a scale multiplies it and it goes on. */
+const applyRow = <G extends DamageTypes>(
+  engine: DamageEngine<G>,
+  blow: BlowRecord<G>,
+  row: CompiledRollRow,
+): BlowStop | undefined => {
+  blow.outcome = row.outcome;
+
+  if (row.effect === AVOID) {
+    return 'avoided';
   }
 
-  const view = engine.viewOf(blow.attacker, blow);
+  if (row.effect === BLOCK) {
+    return 'blocked';
+  }
 
-  if (engine.hits(engine.shared(view, critChance, blow), 'crit', blow)) {
-    blow.isCrit = true;
-    blow.amount *= engine.shared(view, critDamage, blow);
+  if (row.multiplier !== undefined) {
+    blow.amount *= valueOf(row.multiplier, engine.rollViews);
+  }
+
+  blow.isCrit ||= row.isCrit;
+
+  return undefined;
+};
+
+/** Whether a blow rolls a row: neither its kind's unrolled effects nor its own skips name it. */
+const rollsRow = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>, row: CompiledRollRow): boolean =>
+  (((engine.unrolled[blow.kind] ?? 0) >> row.effect) & 1) === 0 && !blow.skips.includes(row.outcome);
+
+/** `single` mode: one draw, each row taking its chance of it in order, the first it falls in deciding. */
+const rollSingle = <G extends DamageTypes>(
+  engine: DamageEngine<G>,
+  blow: BlowRecord<G>,
+  rows: readonly CompiledRollRow[],
+): BlowStop | undefined => {
+  let draw = -1;
+  let reach = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const chance = row === undefined || !rollsRow(engine, blow, row) ? 0 : chanceOf(row, engine.rollViews);
+
+    if (row !== undefined && chance > 0) {
+      draw = draw < 0 ? (engine.host.roll ?? missing('roll'))('table', blow) : draw;
+      reach += chance;
+
+      if (draw < reach) {
+        return applyRow(engine, blow, row);
+      }
+    }
   }
 
   return undefined;
 };
 
-/** The defender's block: one roll at its chance, unless the blow is unblockable. */
-export const blockStage = <G extends DamageTypes>(
+/** `independent` mode: each row draws on its own, in order, until an avoid or a block ends the blow. */
+const rollIndependent = <G extends DamageTypes>(
+  engine: DamageEngine<G>,
+  blow: BlowRecord<G>,
+  rows: readonly CompiledRollRow[],
+): BlowStop | undefined => {
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+
+    if (
+      row !== undefined &&
+      rollsRow(engine, blow, row) &&
+      engine.hits(chanceOf(row, engine.rollViews), row.outcome, blow)
+    ) {
+      const stop = applyRow(engine, blow, row);
+
+      if (stop !== undefined) {
+        return stop;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * The roll stage (§II.3.14, §I.7.1 F14): the game's outcome rows, read with the attacker's stats by the blow's
+ * spell's shares and the defender's, in the table's mode. A world blow (no attacker) reads empty attacker stats.
+ */
+export const rollStage = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   blow: BlowRecord<G>,
 ): BlowStop | undefined => {
-  const chanceStat = engine.stats.blockChance;
+  const table = engine.rolls;
 
-  if (chanceStat === undefined || blow.isUnblockable) {
+  if (table === undefined) {
     return undefined;
   }
 
-  const chance = engine.viewOf(blow.target, blow).total(chanceStat);
+  const views = engine.rollViews;
 
-  return engine.hits(chance, 'block', blow) ? 'blocked' : undefined;
+  views.shared.view = engine.viewOf(blow.attacker, blow);
+  views.shared.spell = blow.spell;
+  views.target = engine.viewOf(blow.target, blow);
+
+  const stop =
+    table.mode === 'single' ? rollSingle(engine, blow, table.rows) : rollIndependent(engine, blow, table.rows);
+
+  views.shared.spell = undefined;
+
+  return stop;
 };
 
 /** Crushing: a share of the target's maximum health added to the blow. */

@@ -41,6 +41,9 @@ export interface CombatLogOptions<Unit, Spell = unknown> {
   /** A spell's id, from what a blow, heal or death carries as its spell; a number as it is, else −1, when absent. */
   readonly spellIdOf?: (spell: Spell) => number;
 
+  /** The roll table's outcome names (`rolls.names`), which a blow's outcome is coded by; none when absent. */
+  readonly outcomes?: readonly string[];
+
   /** How many of the latest entries it holds; 4,096 when absent. */
   readonly capacity?: number;
 
@@ -174,6 +177,7 @@ class Log<Unit, Spell> implements CombatLog {
 
       idOf: (unit) => (unit === undefined ? -1 : options.idOf(unit)),
       spellOf: (spell) => (spell === undefined ? -1 : spellIdOf(spell)),
+      outcomeOf: (outcome) => (outcome === undefined ? -1 : (options.outcomes?.indexOf(outcome) ?? -1)),
     });
   }
 

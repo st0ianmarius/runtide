@@ -88,6 +88,9 @@ export interface CombatEntry {
   /** Its flag bits (`ENTRY_CRIT`, `ENTRY_CRUSHING`, `ENTRY_KILLED`, `ENTRY_DEATH_PREVENTED`). */
   readonly flags: number;
 
+  /** A blow's outcome row, as its index in the log's `outcomes` (the roll table's names); −1 for none. */
+  readonly outcome: number;
+
   /**
    * A code for how it ended: a blow's status (`BLOW_STATUSES`), a heal's (`skipped`, `blocked`, `landed`), a cast end's
    * outcome (`CAST_OUTCOMES`), an area trigger end's reason (`END_REASONS`); −1 for none.
@@ -113,6 +116,7 @@ export const ENTRY_FIELDS = [
   'overflow',
   'flags',
   'reason',
+  'outcome',
 ] as const;
 
 /** An entry being written or read: a class for fast properties, reused. */
@@ -134,6 +138,7 @@ export class EntryRecord implements CombatEntry {
   overflow = 0;
   flags = 0;
   reason = -1;
+  outcome = -1;
 
   /** Clears it for a new entry of a kind on a tick. */
   begin(kind: CombatEntryKind, tick: number): this {
@@ -153,6 +158,7 @@ export class EntryRecord implements CombatEntry {
     this.overflow = 0;
     this.flags = 0;
     this.reason = -1;
+    this.outcome = -1;
 
     return this;
   }

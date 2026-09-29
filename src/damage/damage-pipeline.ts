@@ -1,15 +1,14 @@
 import type { EventKind } from '../core/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import {
-  blockStage,
   type BlowWalks,
   type BuiltInStage,
   createBlowWalks,
-  critStage,
   crushingStage,
   healthStage,
   mitigationStage,
   outgoingStage,
+  rollStage,
 } from './blow-stages.ts';
 import type { Blow, BlowRecord, BlowSpec } from './blow.ts';
 import type { BlowStop, DamageTypes, ForceKind } from './damage-types.ts';
@@ -145,8 +144,7 @@ const builtInStages = <G extends DamageTypes>(
   return {
     ignore: (_engine, blow) => (engine.eachHook(walks.ignore, blow) ? 'ignored' : undefined),
     outgoing: outgoingStage,
-    crit: critStage,
-    block: blockStage,
+    roll: rollStage,
     crushing: crushingStage,
     mitigation: mitigationStage,
 

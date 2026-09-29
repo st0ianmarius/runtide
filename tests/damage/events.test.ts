@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { BLOW_STATUSES, damageTriggerEvent, deathTriggerEvent, healTriggerEvent } from '../../src/damage/index.ts';
 import { applyAura } from '../../src/procs/index.ts';
 import { createTriggerSystem } from '../../src/triggers/index.ts';
-import { aura, type DamageOverrides, type Game, KINDS, makeDamageGame } from '../helpers/damage-game.ts';
+import { aura, CRIT, type DamageOverrides, type Game, KINDS, makeDamageGame } from '../helpers/damage-game.ts';
 
 /** Auras whose triggers answer the damage events, each marking its owner with a flag aura. */
 const AURAS = {
@@ -82,13 +82,13 @@ describe('the damage events', () => {
   });
 
   it('name the blow statuses in code order', () => {
-    assert.deepEqual(BLOW_STATUSES, ['skipped', 'ignored', 'blocked', 'absorbed', 'landed']);
+    assert.deepEqual(BLOW_STATUSES, ['skipped', 'ignored', 'blocked', 'absorbed', 'landed', 'avoided']);
   });
 });
 
 describe('the damage trigger events', () => {
   it('carry the crit, status, amount and kind filters to the attacker’s and the target’s triggers', () => {
-    const game = makeTriggerGame({ crit: { chance: 'critChance', damage: 'critDamage' } });
+    const game = makeTriggerGame({ rolls: CRIT });
     const [target, attacker] = [game.listening(1), game.listening(2)];
 
     game.set(attacker, 'critChance', 1);

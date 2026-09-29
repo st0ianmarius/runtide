@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { type BlowStep, DAMAGE_STAGES, FORCE_STAGES, HEAL_STAGES } from '../../src/damage/index.ts';
-import { type DamageOverrides, makeDamageGame } from '../helpers/damage-game.ts';
+import { type BlowStep, DAMAGE_STAGES, defineRollTable, FORCE_STAGES, HEAL_STAGES } from '../../src/damage/index.ts';
+import { type DamageOverrides, makeDamageGame, STATS } from '../helpers/damage-game.ts';
 import { invalid } from '../helpers/trigger-game.ts';
 
 describe('the damage pipeline order (§II.6 D1)', () => {
@@ -11,9 +11,8 @@ describe('the damage pipeline order (§II.6 D1)', () => {
 
     assert.deepEqual(damage.stages, [
       'ignore',
-      'block',
       'outgoing',
-      'crit',
+      'roll',
       'crushing',
       'mitigation',
       'absorb',
@@ -44,8 +43,8 @@ describe('the damage pipeline order (§II.6 D1)', () => {
       },
     );
 
-    assert.deepEqual(damage.stages.slice(0, 7), ['window', 'grace', 'ignore', 'shelter', 'wound', 'horde', 'block']);
-    assert.deepEqual(damage.stages.slice(13, 16), ['health', 'shove', 'dealt']);
+    assert.deepEqual(damage.stages.slice(0, 7), ['window', 'grace', 'ignore', 'shelter', 'wound', 'horde', 'outgoing']);
+    assert.deepEqual(damage.stages.slice(12, 15), ['health', 'shove', 'dealt']);
     assert.deepEqual(damage.gameStages, [
       'damage.window',
       'damage.shelter',
@@ -66,9 +65,8 @@ describe('the damage pipeline order (§II.6 D1)', () => {
       trace.map((step) => `${step.stage}:${step.amount}:${step.status}`),
       [
         'ignore:30:landed',
-        'block:30:landed',
         'outgoing:30:landed',
-        'crit:30:landed',
+        'roll:30:landed',
         'crushing:30:landed',
         'mitigation:30:landed',
         'absorb:30:landed',
@@ -149,7 +147,7 @@ describe('a blow', () => {
       {},
       {
         stages: {
-          parry: { after: 'crit', run: () => 'blocked' },
+          parry: { after: 'roll', run: () => 'blocked' },
 
           afterMath: {
             after: 'health',
@@ -237,17 +235,17 @@ describe('the load-time checks', () => {
     const run = (): undefined => undefined;
 
     assert.throws(() => makeDamageGame({}, { stages: { x: { after: 'nowhere', run } } }), /no stage nowhere/);
-    assert.throws(() => makeDamageGame({}, { stages: { x: { after: 'crit', before: 'crit', run } } }), /exactly one/);
+    assert.throws(() => makeDamageGame({}, { stages: { x: { after: 'roll', before: 'roll', run } } }), /exactly one/);
     assert.throws(() => makeDamageGame({}, { stages: { x: { run } } }), /exactly one/);
-    assert.throws(() => makeDamageGame({}, { stages: { crit: { after: 'ignore', run } } }), /name is taken/);
-    assert.throws(() => makeDamageGame({}, { healStages: { x: { after: 'crit', run } } }), /Heal stage x/);
+    assert.throws(() => makeDamageGame({}, { stages: { roll: { after: 'ignore', run } } }), /name is taken/);
+    assert.throws(() => makeDamageGame({}, { healStages: { x: { after: 'roll', run } } }), /Heal stage x/);
   });
 
   it('refuse stats of the wrong kind, and stages that read what the host lacks', () => {
     assert.throws(() => makeDamageGame({}, { outgoing: ['armor'] }), /armor must be a multiplier stat/);
     assert.throws(
-      () => makeDamageGame({}, { crit: { chance: 'power', damage: 'critDamage' } }),
-      /power must be a flat/,
+      () => defineRollTable(STATS, { mode: 'independent', rows: { crit: { effect: 'scale', chance: 'critChance' } } }),
+      /roll row crit: a scale row takes a multiplier/,
     );
     assert.throws(() => makeDamageGame({}, invalid<DamageOverrides>({}, { outgoing: ['nothing'] })), /no stat nothing/);
     assert.throws(

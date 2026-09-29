@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  type BlowPayload,
   type CombatEntry,
   type CombatLog,
   createCombatLog,
   createDamageMeter,
   ENTRY_KILLED,
 } from '../../src/combat-log/index.ts';
+import { createBus } from '../../src/core/index.ts';
 import { circle, vec2 } from '../../src/math/index.ts';
 import { aura, type Game, makeSpellGame, spell } from '../helpers/spell-game.ts';
 
@@ -158,6 +160,48 @@ describe('the combat log (§I.7.1 F11)', () => {
     log.close();
     game.damage.hit({ target: foe, amount: 1 });
     assert.equal(log.total, 0);
+  });
+});
+
+describe('outcomes in the log (§I.7.1 F14)', () => {
+  it('codes a blow’s outcome row by the roll table’s names', () => {
+    const bus = createBus({ taken: (): BlowPayload<number, number> => ({ blow: undefined }) });
+
+    const log = createCombatLog<number, number>({
+      bus,
+      clock: { tick: 0 },
+      idOf: (unit) => unit,
+      outcomes: ['miss', 'dodge', 'crit'],
+      damage: { taken: bus.kind.taken },
+    });
+
+    const blow = {
+      target: 2,
+      attacker: 1,
+      source: 1,
+      spell: undefined,
+      kind: 0,
+      base: 10,
+      amount: 0,
+      dealt: 0,
+      absorbed: 0,
+      mitigated: 0,
+      status: 'avoided',
+      isCrit: false,
+      crushing: 0,
+      hasKilled: false,
+      isDeathPrevented: false,
+      outcome: 'dodge',
+    };
+
+    const entry = log.createEntry();
+
+    bus.raise(bus.kind.taken, { blow });
+    bus.raise(bus.kind.taken, { blow: { ...blow, outcome: undefined, status: 'landed', dealt: 10 } });
+    log.read(0, entry);
+    assert.deepEqual([entry.outcome, entry.reason], [1, 5]);
+    log.read(1, entry);
+    assert.deepEqual([entry.outcome, entry.reason, entry.amount], [-1, 4, 10]);
   });
 });
 

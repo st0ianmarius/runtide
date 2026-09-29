@@ -49,6 +49,9 @@ export interface BlowView<Unit, Spell> {
 
   /** Whether a death it would have dealt was prevented. */
   readonly isDeathPrevented: boolean;
+
+  /** The outcome row it rolled (`dodge`, `crit`), if any. */
+  readonly outcome: string | undefined;
 }
 
 /** What the log reads of a heal (a damage system's `Heal` is one). */

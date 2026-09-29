@@ -15,9 +15,8 @@ import { compileStageOrder, type StageDef, type StageOrder } from './stage-order
  */
 export const DAMAGE_STAGES = Object.freeze([
   'ignore',
-  'block',
   'outgoing',
-  'crit',
+  'roll',
   'crushing',
   'mitigation',
   'absorb',
@@ -42,15 +41,6 @@ export const FORCE_STAGES = Object.freeze(['resist', 'apply'] as const);
 export interface StageStats {
   /** The outgoing multiplier stats. */
   readonly outgoing: readonly StatId[];
-
-  /** The crit chance stat. */
-  readonly critChance: StatId | undefined;
-
-  /** The crit damage stat. */
-  readonly critDamage: StatId | undefined;
-
-  /** The block chance stat. */
-  readonly blockChance: StatId | undefined;
 
   /** The healing received stat. */
   readonly healReceived: StatId | undefined;
@@ -105,9 +95,6 @@ export const compileStats = <G extends DamageTypes>(options: DamageSystemOptions
 
   return {
     outgoing: outgoing.filter((id): id is StatId => id !== undefined),
-    critChance: statIn(stats, options.crit?.chance, false),
-    critDamage: statIn(stats, options.crit?.damage, true),
-    blockChance: statIn(stats, options.block?.chance, false),
     healReceived: statIn(stats, options.heal?.received, true),
     healDone: statIn(stats, options.heal?.done, true),
     regeneration: statIn(stats, options.heal?.regeneration, false),
@@ -121,10 +108,9 @@ export const checkHost = <G extends DamageTypes>(options: DamageSystemOptions<G>
 
   const readsStats =
     stats.outgoing.length > 0 ||
-    [stats.critChance, stats.blockChance, stats.healReceived, stats.healDone, stats.regeneration].some(
-      (stat) => stat !== undefined,
-    ) ||
-    options.mitigation !== undefined;
+    [stats.healReceived, stats.healDone, stats.regeneration].some((stat) => stat !== undefined) ||
+    options.mitigation !== undefined ||
+    options.rolls !== undefined;
 
   if (typeof host.health !== 'function' || typeof host.setHealth !== 'function') {
     refuse('the host needs health and setHealth.');
@@ -134,12 +120,10 @@ export const checkHost = <G extends DamageTypes>(options: DamageSystemOptions<G>
     refuse('stages that read stats need host.statsOf.');
   }
 
-  if (
-    (stats.critChance !== undefined || stats.blockChance !== undefined) &&
-    host.roll === undefined &&
-    options.rollChance === undefined
-  ) {
-    refuse('crit and block need host.roll or rollChance.');
+  const { rolls } = options;
+
+  if (rolls !== undefined && host.roll === undefined && (rolls.mode === 'single' || options.rollChance === undefined)) {
+    refuse('outcome rows need host.roll (or rollChance, in independent mode).');
   }
 };
 

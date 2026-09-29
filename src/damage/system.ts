@@ -5,7 +5,7 @@ import { createDamagePipeline } from './damage-pipeline.ts';
 import type { DamageKindId, DamageTypes } from './damage-types.ts';
 import { runDeath } from './death-pipeline.ts';
 import { DamageEngine } from './engine.ts';
-import { explainRows, type MitigationExplanation } from './explain.ts';
+import { explainRolls, explainRows, type MitigationExplanation } from './explain.ts';
 import { createForcePipeline } from './force-pipeline.ts';
 import type { Force, ForceSpec } from './force.ts';
 import { createHealPipeline } from './heal-pipeline.ts';
@@ -15,6 +15,7 @@ import type { DamageHost, DamageSystemOptions } from './options.ts';
 import { createDamageProcKinds, SET_KILLED } from './proc-kinds.ts';
 import type { DamageProcKinds } from './procs.ts';
 import type { RecordsCheck } from './records-check.ts';
+import type { RollEffect } from './rolls.ts';
 
 /** Who a `setHealth` is credited to, for a death it causes. */
 export interface HealthCredit<G extends DamageTypes> {
@@ -96,6 +97,37 @@ export interface DamageSystem<G extends DamageTypes> {
       readonly kind?: DamageKindId | undefined;
     },
   ) => MitigationExplanation;
+
+  /**
+   * The outcome rows explained for a pair (§II.3.14, §I.5.3): each row's outcome, effect, chance (clamped to [0, 1])
+   * and multiplier, read from the attacker's stats (by a spell's shares when one is given) and the defender's, so
+   * the client can print "12% to dodge". In `single` mode each chance is the row's own, before earlier rows push it.
+   */
+  readonly explainRolls: (defender: G['bearer'], query?: RollQuery<G>) => RollExplanation[];
+}
+
+/** Who a roll explanation is for, beyond the defender. */
+export interface RollQuery<G extends DamageTypes> {
+  /** The attacker, if any. */
+  readonly attacker?: G['bearer'] | undefined;
+
+  /** The spell whose shares the attacker's stats are read by. */
+  readonly spell?: G['spell'] | undefined;
+}
+
+/** One outcome row explained. */
+export interface RollExplanation {
+  /** Its outcome name. */
+  readonly outcome: string;
+
+  /** What it does. */
+  readonly effect: RollEffect;
+
+  /** Its chance, clamped to [0, 1]. */
+  readonly chance: number;
+
+  /** Its multiplier, for a `scale` row. */
+  readonly multiplier: number | undefined;
 }
 
 /** Builds `setHealth` over the death pipeline. */
@@ -222,6 +254,9 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
       caster: this.#engine.viewOf(query.attacker, undefined),
       target: this.#engine.viewOf(defender, undefined),
     });
+
+  readonly explainRolls = (defender: G['bearer'], query: RollQuery<G> = {}): RollExplanation[] =>
+    explainRolls(this.#engine, defender, query);
 }
 
 /**

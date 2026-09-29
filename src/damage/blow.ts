@@ -3,6 +3,9 @@ import type { Vec2 } from '../math/index.ts';
 import type { ProcOutcome } from '../procs/index.ts';
 import type { BlowStatus, DamageKindId, DamageTypes } from './damage-types.ts';
 
+/** No skipped outcome rows. */
+const NO_SKIPS: readonly string[] = Object.freeze([]);
+
 /** One stage a traced blow went through (§I.5.3: explanations are data): the stage and the amount after it. */
 export interface BlowStep {
   /** The stage's developer name (`mitigation`, or a game stage's name). */
@@ -44,8 +47,11 @@ export interface BlowSpec<G extends DamageTypes> {
   /** A share of the target's maximum health added at the crushing stage; 0 when absent. */
   readonly crushing?: number | undefined;
 
-  /** Whether it skips the block roll. */
-  readonly isUnblockable?: boolean | undefined;
+  /**
+   * The outcome rows it cannot roll, by name (§II.3.14): `['block']` for an unblockable blow, `['dodge', 'parry']` for
+   * an undodgeable one, `['miss']` for one that cannot miss. None when absent.
+   */
+  readonly skips?: readonly string[] | undefined;
 
   /** The game's own fields for this blow. */
   readonly ext?: G['blowExt'] | undefined;
@@ -93,8 +99,11 @@ export interface Blow<G extends DamageTypes> extends ProcOutcome {
   /** The share of the target's maximum health the crushing stage adds. */
   readonly crushing: number;
 
-  /** Whether it skips the block roll. */
-  readonly isUnblockable: boolean;
+  /** The outcome rows it cannot roll. */
+  readonly skips: readonly string[];
+
+  /** The outcome row it rolled that decided or changed it (`dodge`, `block`, `crit`); `undefined` for none. */
+  readonly outcome: string | undefined;
 
   /** Whether the crit stage made it critical. */
   readonly isCrit: boolean;
@@ -145,7 +154,8 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   from: Vec2 | undefined = undefined;
   knock = 0;
   crushing = 0;
-  isUnblockable = false;
+  skips: readonly string[] = NO_SKIPS;
+  outcome: string | undefined = undefined;
   isCrit = false;
   mitigated = 0;
   absorbed = 0;
@@ -179,7 +189,7 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
     this.from = spec.from;
     this.knock = spec.knock ?? 0;
     this.crushing = spec.crushing ?? 0;
-    this.isUnblockable = spec.isUnblockable ?? false;
+    this.skips = spec.skips ?? NO_SKIPS;
     this.ext = spec.ext;
     this.trace = spec.trace;
     this.clearOutcome();
@@ -188,6 +198,7 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   /** Clears what the stages decide. */
   clearOutcome(): void {
     this.isCrit = false;
+    this.outcome = undefined;
     this.mitigated = 0;
     this.absorbed = 0;
     this.prevented = 0;

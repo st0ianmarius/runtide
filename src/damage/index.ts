@@ -78,4 +78,24 @@ export {
 } from './procs.ts';
 
 export type { StageDef, StagePosition } from './stage-order.ts';
-export { createDamageSystem, type DamageSystem, type HealthCredit } from './system.ts';
+
+export {
+  type CompiledRollRow,
+  defineRollTable,
+  ROLL_EFFECTS,
+  type RollEffect,
+  type RollMode,
+  type RollRow,
+  type RollStat,
+  type RollTable,
+  type RollTableSpec,
+  type RollValue,
+} from './rolls.ts';
+
+export {
+  createDamageSystem,
+  type DamageSystem,
+  type HealthCredit,
+  type RollExplanation,
+  type RollQuery,
+} from './system.ts';

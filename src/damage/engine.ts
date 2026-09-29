@@ -34,6 +34,7 @@ import type {
   HealStage,
   HealState,
 } from './options.ts';
+import { ROLL_EFFECTS, type RollTable } from './rolls.ts';
 import type { StageOrder } from './stage-order.ts';
 import type { DamageSystem } from './system.ts';
 
@@ -44,6 +45,37 @@ const isAtOrBelowZero = (health: number): boolean => health <= 0;
 export const missing = (what: string): never => {
   throw new TypeError(`The damage system needs ${what}, which its host does not have.`);
 };
+
+/** A stat view of an attacker read by a blow's spell's shares (§II.3.13), as outgoing multipliers are. Reused. */
+class SharedView<G extends DamageTypes> implements StatView {
+  view: StatView = NO_STATS;
+  spell: G['spell'] | undefined = undefined;
+  readonly #engine: DamageEngine<G>;
+
+  constructor(engine: DamageEngine<G>) {
+    this.#engine = engine;
+  }
+
+  total(stat: StatId): number {
+    return this.#engine.sharedBy(this.view, stat, this.spell);
+  }
+
+  base(stat: StatId): number {
+    return this.view.base(stat);
+  }
+}
+
+/** The views an outcome row's values read: the attacker's (by shares) as the caster, the defender's as the target. */
+class RollViews<G extends DamageTypes> {
+  readonly shared: SharedView<G>;
+  readonly caster: StatView;
+  target: StatView | undefined = undefined;
+
+  constructor(engine: DamageEngine<G>) {
+    this.shared = new SharedView<G>(engine);
+    this.caster = this.shared;
+  }
+}
 
 /**
  * The machinery behind one damage system: its compiled tables, its records pooled per nesting level, and the helpers
@@ -61,6 +93,15 @@ export class DamageEngine<G extends DamageTypes> {
   readonly bypass: Uint8Array;
   readonly rows: readonly CompiledRow[];
   readonly rowContext = new RowContext();
+
+  /** The outcome rows the roll stage rolls, or `undefined` for none. */
+  readonly rolls: RollTable | undefined;
+
+  /** Each kind's unrolled effects, as bits over `ROLL_EFFECTS`. */
+  readonly unrolled: Uint8Array;
+
+  /** The reused views a roll reads: the attacker's by the blow's spell's shares, and the defender's. */
+  readonly rollViews = new RollViews<G>(this);
   readonly isDead: (health: number) => boolean;
   readonly maxDepth: number;
   readonly lists: Scratch<ActiveAura<G>> = createScratch<ActiveAura<G>>();
@@ -83,6 +124,10 @@ export class DamageEngine<G extends DamageTypes> {
     this.forceOrder = orderOf('Force', { builtIn: FORCE_STAGES, boundary: 'apply' }, options.forceStages);
     this.bypass = compileBypass(options.kinds, this.order);
     this.rows = rowsOf(options, { bypass: this.bypass, order: this.order });
+    this.rolls = options.rolls;
+    this.unrolled = Uint8Array.from(options.kinds.ids, (kind) =>
+      (options.kinds.get(kind).unrolled ?? []).reduce((bits, effect) => bits | (1 << ROLL_EFFECTS.indexOf(effect)), 0),
+    );
     this.isDead = options.isDead ?? isAtOrBelowZero;
     this.maxDepth = options.maxDepth ?? 8;
 
@@ -130,8 +175,13 @@ export class DamageEngine<G extends DamageTypes> {
    * one times the share; a share of exactly 1 reads the stat unchanged.
    */
   shared(view: StatView, stat: StatId, blow: Blow<G>): number {
+    return this.sharedBy(view, stat, blow.spell);
+  }
+
+  /** A stat of a view by a spell's share of it (the whole stat for no spell or no share). */
+  sharedBy(view: StatView, stat: StatId, spell: G['spell'] | undefined): number {
     const value = view.total(stat);
-    const share = blow.spell === undefined ? undefined : this.host.shareOf?.(blow.spell, stat);
+    const share = spell === undefined ? undefined : this.host.shareOf?.(spell, stat);
 
     if (share === undefined || share === 1) {
       return value;

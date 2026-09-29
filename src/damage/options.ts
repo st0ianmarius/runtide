@@ -10,6 +10,7 @@ import type { Force } from './force.ts';
 import type { Heal } from './heal.ts';
 import type { DamageKindTable } from './kinds.ts';
 import type { MitigationTable } from './mitigation.ts';
+import type { RollTable } from './rolls.ts';
 import type { StageDef } from './stage-order.ts';
 import type { DamageSystem } from './system.ts';
 
@@ -21,8 +22,8 @@ export interface BlowState<G extends DamageTypes> extends Blow<G> {
   /** Whether it is critical. */
   isCrit: boolean;
 
-  /** Whether it skips the block roll. */
-  isUnblockable: boolean;
+  /** The outcome row that decided or changed it. */
+  outcome: string | undefined;
 
   /** The crushing share. */
   crushing: number;
@@ -159,20 +160,11 @@ export interface DamageSystemOptions<G extends DamageTypes> {
   /** The attacker's multiplier stats every blow is multiplied by, in order, each by its spell's share (§II.3.13). */
   readonly outgoing?: readonly G['stat'][];
 
-  /** The attacker's crit: a flat chance stat on 0..1 and a multiplier damage stat, each by its spell's share. */
-  readonly crit?: {
-    /** The chance. */
-    readonly chance: G['stat'];
-
-    /** The damage multiplier a critical blow gets. */
-    readonly damage: G['stat'];
-  };
-
-  /** The defender's block: a flat chance stat on 0..1; a blocked blow ends `blocked`. */
-  readonly block?: {
-    /** The chance. */
-    readonly chance: G['stat'];
-  };
+  /**
+   * The outcome rows the roll stage rolls (§II.3.14, `defineRollTable`): miss, dodge, parry, glancing, block, crit, or
+   * the game's own, in `single` or `independent` mode. No rolls when absent.
+   */
+  readonly rolls?: RollTable;
 
   /** The mitigation rows (§II.3.14), run in order by the mitigation stage. */
   readonly mitigation?: MitigationTable<G['stat'], G['damageKind']>;

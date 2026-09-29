@@ -1,8 +1,9 @@
 import { createRegistry, type Registry } from '../core/index.ts';
+import type { RollEffect } from './rolls.ts';
 
 /**
- * One damage kind (§II.3.14, §II.6 D1): which blow and heal stages its blows skip. True damage is a kind that skips
- * the block roll, mitigation and absorbs (`TRUE_DAMAGE`), but still passes the ignore gates and `onLethal`; a kind
+ * One damage kind (§II.3.14, §II.6 D1): which blow and heal stages its blows skip, and which outcome rows they never
+ * roll. True damage is a kind that is never avoided or blocked and skips mitigation and absorbs (`TRUE_DAMAGE`), but still passes the ignore gates and `onLethal`; a kind
  * that only its own immunity stops (fire walls that kill the invulnerable) is read by the ignore hooks, which see the
  * blow's kind.
  */
@@ -13,10 +14,19 @@ export interface DamageKindDef {
    * damage system is built.
    */
   readonly bypass?: readonly string[];
+
+  /** The outcome rows a blow of this kind never rolls, by effect (§II.3.14): `avoid`, `block`, `scale`. */
+  readonly unrolled?: readonly RollEffect[];
 }
 
-/** The stages true damage skips: the block roll, the mitigation rows and absorbs (§II.3.8). */
-export const TRUE_DAMAGE: DamageKindDef = Object.freeze({ bypass: Object.freeze(['block', 'mitigation', 'absorb']) });
+/**
+ * True damage (§II.3.8): it cannot be missed, dodged, parried or blocked, and skips the mitigation rows and absorbs;
+ * it can still crit, and still passes the ignore gates and `onLethal`.
+ */
+export const TRUE_DAMAGE: DamageKindDef = Object.freeze({
+  bypass: Object.freeze(['mitigation', 'absorb']),
+  unrolled: Object.freeze(['avoid', 'block'] as const),
+});
 
 /** The game's damage kinds: dense ids by key order (the first is a blow's default), append-only like any registry. */
 export type DamageKindTable<Name extends string = string> = Registry<

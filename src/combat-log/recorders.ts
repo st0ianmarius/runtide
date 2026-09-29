@@ -44,6 +44,9 @@ export interface Recording<Unit, Spell> {
 
   /** A spell's id; −1 for none. */
   readonly spellOf: (spell: Spell | undefined) => number;
+
+  /** An outcome row's code; −1 for none or one the log was not told of. */
+  readonly outcomeOf: (outcome: string | undefined) => number;
 }
 
 /** Records a blow: `damage`, or `immune` for one its target's ignore stage ignored. */
@@ -73,6 +76,7 @@ export const recordBlow = <Unit, Spell>(
     (blow.hasKilled ? ENTRY_KILLED : 0) |
     (blow.isDeathPrevented ? ENTRY_DEATH_PREVENTED : 0);
   entry.reason = BLOW_CODES.indexOf(blow.status);
+  entry.outcome = recording.outcomeOf(blow.outcome);
   recording.commit();
 };
 

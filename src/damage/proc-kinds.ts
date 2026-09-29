@@ -60,7 +60,7 @@ class ProcBlowSpec<G extends DamageTypes> implements BlowSpec<G> {
   from: Vec2 | undefined = undefined;
   knock: number | undefined = undefined;
   crushing: number | undefined = undefined;
-  isUnblockable: boolean | undefined = undefined;
+  skips: readonly string[] | undefined = undefined;
 
   constructor(target: G['bearer']) {
     this.target = target;
@@ -136,7 +136,7 @@ const damageKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: P
       spec.from = proc.from;
       spec.knock = proc.knock;
       spec.crushing = proc.crushing;
-      spec.isUnblockable = proc.isUnblockable;
+      spec.skips = proc.skips;
 
       return pipelines.hit(spec);
     },

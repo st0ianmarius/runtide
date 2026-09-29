@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import fc from 'fast-check';
 
 import { DAMAGE_STAGES, type DamageStage } from '../../src/damage/index.ts';
-import { aura, type Game, makeDamageGame } from '../helpers/damage-game.ts';
+import { aura, BLOCK, type Game, makeDamageGame } from '../helpers/damage-game.ts';
 
 /** An absorb that keeps its aura when emptied, so its value can be read afterwards. */
 const absorb = () =>
@@ -62,7 +62,7 @@ describe('true damage, for any defence', () => {
           shell: fc.nat(100),
         }),
         (amount, defence) => {
-          const game = makeDamageGame(ABSORBS, { block: { chance: 'blockChance' } });
+          const game = makeDamageGame(ABSORBS, { rolls: BLOCK });
           const target = game.unit(1);
 
           game.set(target, 'armor', defence.armor);

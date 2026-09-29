@@ -30,6 +30,7 @@ const BLOW: BlowView<Unit, number> = {
   crushing: 0,
   hasKilled: false,
   isDeathPrevented: false,
+  outcome: 'crit',
 };
 
 const CLOCK = createClock({ dt: 1 / 30 });

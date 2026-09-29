@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { type DamageOverrides, makeDamageGame } from '../helpers/damage-game.ts';
+import { CRIT, type DamageOverrides, makeDamageGame } from '../helpers/damage-game.ts';
 
 /** The attacker side of the test game: `power` as the outgoing multiplier, and a crit. */
-const ATTACKER: DamageOverrides = { outgoing: ['power'], crit: { chance: 'critChance', damage: 'critDamage' } };
+const ATTACKER: DamageOverrides = { outgoing: ['power'], rolls: CRIT };
 
 describe('outgoing multipliers (§II.3.13)', () => {
   it('multiply every blow by the attacker’s stat, reading it unchanged at a share of 1', () => {
@@ -113,11 +113,11 @@ describe('the crit stage (§II.6 D2)', () => {
     assert.deepEqual(draws, ['crit 1']);
   });
 
-  it('refuses a crit or block with neither a host roll nor a roll rule', () => {
+  it('refuses outcome rows with neither a host roll nor a roll rule', () => {
     const { damage } = makeDamageGame({});
     const { roll: _roll, ...host } = damage.host;
 
-    assert.throws(() => makeDamageGame({}, { ...ATTACKER, host }), /host.roll or rollChance/);
+    assert.throws(() => makeDamageGame({}, { ...ATTACKER, host }), /outcome rows need host.roll/);
   });
 });
 

@@ -6,6 +6,7 @@ import type { BlowStatus, DamageTypes } from './damage-types.ts';
 import type { Death } from './death.ts';
 import type { Heal } from './heal.ts';
 import type { DamageKindTable } from './kinds.ts';
+import type { RollTable } from './rolls.ts';
 
 /** The payload of a damage event: the blow, reused between raises, read while the listener runs. */
 export interface DamageEvent<G extends DamageTypes> {
@@ -71,6 +72,7 @@ export const BLOW_STATUSES: readonly BlowStatus[] = Object.freeze([
   'blocked',
   'absorbed',
   'landed',
+  'avoided',
 ]);
 
 /** Resolves a status name to its code. */
@@ -84,6 +86,19 @@ const statusCode = (name: string): number => {
 
   return code;
 };
+
+/** Resolves an outcome row's name to its index in a roll table. */
+const outcomeCode =
+  (rolls: RollTable | undefined) =>
+  (name: string): number => {
+    const code = rolls?.names.indexOf(name) ?? -1;
+
+    if (code < 0) {
+      throw new RangeError(`unknown outcome ${name}.`);
+    }
+
+    return code;
+  };
 
 /** Resolves a damage kind's name to its id, in one kind table. */
 const kindCode =
@@ -101,8 +116,9 @@ const kindCode =
 
 /**
  * A damage event kind as a trigger event: about the blow's `attacker` (for `dealt`) or its `target` (for `taken`), with
- * the filters `crit` (a critical blow), `status` (by name: `blocked`, `absorbed`, `landed`), `damageKind` (by name),
- * `minAmount` (at least the argument reached health) and `crushing` (a crushing blow). A trigger names them in `when`.
+ * the filters `crit` (a critical blow), `status` (by name: `blocked`, `absorbed`, `landed`, `avoided`), `damageKind`
+ * (by name), `outcome` (an outcome row by name: `dodge`, `block`, `crit`; needs the roll table), `minAmount` (at least
+ * the argument reached health) and `crushing` (a crushing blow). A trigger names them in `when`.
  */
 export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<DamageEvent<G>>,
@@ -112,6 +128,9 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
 
     /** The game's damage kinds, which the `damageKind` filter names. */
     readonly kinds: DamageKindTable<G['damageKind']>;
+
+    /** The game's roll table, which the `outcome` filter names; the filter refuses every name when absent. */
+    readonly rolls?: RollTable;
   },
 ): TriggerEvent<G> => {
   const resolveKind = kindCode(spec.kinds);
@@ -129,6 +148,13 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
       damageKind: { test: (event: DamageEvent<G>, id: number) => event.blow?.kind === id, resolve: resolveKind },
       minAmount: { test: (event: DamageEvent<G>, least: number) => (event.blow?.amount ?? 0) >= least },
       crushing: { test: (event: DamageEvent<G>) => (event.blow?.crushing ?? 0) > 0 },
+
+      outcome: {
+        test: (event: DamageEvent<G>, code: number) =>
+          event.blow?.outcome !== undefined && event.blow.outcome === spec.rolls?.names[code],
+
+        resolve: outcomeCode(spec.rolls),
+      },
     }),
   });
 };

@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { defineMitigation, flat, percent } from '../../src/damage/index.ts';
 import { hyperbolic, linear } from '../../src/modifiers/index.ts';
-import { type DamageOverrides, makeDamageGame } from '../helpers/damage-game.ts';
+import { BLOCK, BLOCK_THEN_CRIT, type DamageOverrides, makeDamageGame } from '../helpers/damage-game.ts';
 import { invalid } from '../helpers/trigger-game.ts';
 
 /** Armor with percentage then flat penetration (League of Legends' order), then damage taken. */
@@ -20,7 +20,7 @@ const PENETRATING = defineMitigation({
 
 describe('the block stage', () => {
   it('rolls once below the defender’s chance and ends a blocked blow, which leaves health alone', () => {
-    const { damage, unit, set, rolls, log } = makeDamageGame({}, { block: { chance: 'blockChance' } });
+    const { damage, unit, set, rolls, log } = makeDamageGame({}, { rolls: BLOCK });
     const target = unit(1);
 
     set(target, 'blockChance', 0.5);
@@ -34,10 +34,7 @@ describe('the block stage', () => {
   });
 
   it('rolls before the attacker’s crit, so a blocked blow rolls no crit (the roll table’s independent order)', () => {
-    const { damage, unit, set, rolls, log } = makeDamageGame(
-      {},
-      { block: { chance: 'blockChance' }, crit: { chance: 'critChance', damage: 'critDamage' } },
-    );
+    const { damage, unit, set, rolls, log } = makeDamageGame({}, { rolls: BLOCK_THEN_CRIT });
 
     const [target, attacker] = [unit(1), unit(2)];
 
@@ -50,12 +47,12 @@ describe('the block stage', () => {
   });
 
   it('is skipped by an unblockable blow and by a kind that bypasses it, with no draw', () => {
-    const { damage, unit, set, log } = makeDamageGame({}, { block: { chance: 'blockChance' } });
+    const { damage, unit, set, log } = makeDamageGame({}, { rolls: BLOCK });
     const target = unit(1);
 
     set(target, 'blockChance', 0.5);
 
-    assert.equal(damage.hit({ target, amount: 10, isUnblockable: true }).status, 'landed');
+    assert.equal(damage.hit({ target, amount: 10, skips: ['block'] }).status, 'landed');
     assert.equal(damage.hit({ target, amount: 10, kind: damage.kinds.id.pure }).status, 'landed');
     assert.deepEqual(log, []);
   });

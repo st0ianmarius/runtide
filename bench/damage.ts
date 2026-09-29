@@ -10,6 +10,7 @@ import {
   type DamageTypes,
   defineDamageKinds,
   defineMitigation,
+  defineRollTable,
   type Force,
   TRUE_DAMAGE,
 } from '../src/damage/index.ts';
@@ -154,8 +155,13 @@ const damage = createDamageSystem<BenchGame>({
   kinds: defineDamageKinds({ physical: {}, pure: TRUE_DAMAGE }),
   stats: STATS,
   outgoing: ['power'],
-  crit: { chance: 'critChance', damage: 'critDamage' },
-  block: { chance: 'blockChance' },
+  rolls: defineRollTable(STATS, {
+    mode: 'independent',
+    rows: {
+      block: { effect: 'block', chance: { stat: 'blockChance', of: 'defender' } },
+      crit: { effect: 'scale', chance: 'critChance', multiplier: 'critDamage', isCrit: true },
+    },
+  }),
   mitigation: defineMitigation({
     armor: { kinds: ['physical'], rating: 'armor', curve: hyperbolic({ k: 100, negative: 'amplify' }) },
     taken: { kinds: ['physical'], multiplier: 'taken' },

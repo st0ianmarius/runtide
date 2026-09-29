@@ -27,16 +27,19 @@ export interface DamageTypes extends ProcTypes {
 /**
  * How a blow ended (a subset of the proc statuses, so a damage proc reports it as is): `skipped` (nothing to act on:
  * no amount, a target already dead, the pipeline too deep), `ignored` (an ignore gate let it pass the target by),
- * `blocked` (a block roll or a game stage stopped it), `absorbed` (absorbs ate all of it), `landed` (it reached health,
- * even when that took nothing or a death was prevented).
+ * `blocked` (a block row or a game stage stopped it), `absorbed` (absorbs ate all of it), `landed` (it reached health,
+ * even when that took nothing or a death was prevented), `avoided` (an avoid row: a miss, a dodge, a parry).
  */
-export type BlowStatus = 'skipped' | 'ignored' | 'blocked' | 'absorbed' | 'landed';
+export type BlowStatus = 'skipped' | 'ignored' | 'blocked' | 'absorbed' | 'landed' | 'avoided';
 
 /** What a stage may end a blow with; the rest of the blow's stages are skipped and the after-stages still run. */
-export type BlowStop = 'ignored' | 'blocked';
+export type BlowStop = 'ignored' | 'blocked' | 'avoided';
 
-/** The roll slots of the damage pipeline: the attacker's crit and the defender's block (§II.3.14 rows, F14). */
-export type RollSlot = 'crit' | 'block';
+/**
+ * A roll slot of the damage pipeline (§II.3.14): an outcome row's name in `independent` mode, `table` for the one draw
+ * of `single` mode. The host's `roll` and the options' `rollChance` receive it.
+ */
+export type RollSlot = string;
 
 /** How a heal ended: `skipped` (no amount, a dead target), `blocked` (a heal-block tag or a stage), `landed`. */
 export type HealStatus = 'skipped' | 'blocked' | 'landed';

@@ -54,9 +54,10 @@ export type ProcTarget<G extends ProcTypes> = 'self' | 'target' | 'eventUnit' | 
 /**
  * What became of one proc: `skipped` (it did not go off: its chance failed, its list was too deep, its target was
  * already killed by the list, or there was nothing to act on), `refused` (the target turned it away: an immunity, an
- * application policy), and the damage outcomes a pipeline reports (`ignored`, `blocked`, `absorbed`, `landed`).
+ * application policy), and the damage outcomes a pipeline reports (`ignored`, `blocked`, `absorbed`, `landed`,
+ * `avoided`).
  */
-export type ProcStatus = 'skipped' | 'refused' | 'ignored' | 'blocked' | 'absorbed' | 'landed';
+export type ProcStatus = 'skipped' | 'refused' | 'ignored' | 'blocked' | 'absorbed' | 'landed' | 'avoided';
 
 /** What applying one proc did (§II.6.1 rule 2), which `ctx.apply` returns and the runner reads. */
 export interface ProcOutcome {

@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { damage, heal, setHealth } from '../../src/damage/index.ts';
 import { add, compileScaled, scaled, snapshotScaled } from '../../src/modifiers/index.ts';
 import { applyAura, escapeReport, explainProc, type Proc, run } from '../../src/procs/index.ts';
-import { aura, type Game, makeDamageGame, STATS } from '../helpers/damage-game.ts';
+import { aura, BLOCK, type Game, makeDamageGame, STATS } from '../helpers/damage-game.ts';
 import { invalid } from '../helpers/trigger-game.ts';
 
 /** A fire blow, which the test armor does not touch. */
@@ -99,7 +99,7 @@ describe('outcome-gated procs (§II.6 P4)', () => {
   });
 
   it('wait for the statuses they name', () => {
-    const game = makeDamageGame(gated, { block: { chance: 'blockChance' } });
+    const game = makeDamageGame(gated, { rolls: BLOCK });
     const [target, attacker] = [game.unit(1), game.unit(2)];
 
     game.set(target, 'blockChance', 1);

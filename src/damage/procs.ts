@@ -39,8 +39,8 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
   /** Its crushing share of the target's maximum health. */
   readonly crushing?: number;
 
-  /** Whether it skips the block roll. */
-  readonly isUnblockable?: boolean;
+  /** The outcome rows it cannot roll (`['block']`: unblockable), by name. */
+  readonly skips?: readonly string[];
 
   /**
    * Procs that follow it in the same list when the blow ends with a status of `on` (§II.6 P4: the frost nova's slow

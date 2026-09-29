@@ -25,6 +25,7 @@ import {
   type DeathEvent,
   defineDamageKinds,
   defineMitigation,
+  defineRollTable,
   type Force,
   type HealEvent,
   TRUE_DAMAGE,
@@ -150,6 +151,24 @@ type StatName = keyof typeof STATS.id;
 
 /** The test damage kinds: two that mitigation covers, and true damage. */
 export const KINDS = defineDamageKinds({ physical: {}, fire: {}, pure: TRUE_DAMAGE });
+
+/** The defender's block row: a flat chance of the target's, which ends the blow blocked. */
+const BLOCK_ROW = { effect: 'block', chance: { stat: 'blockChance', of: 'defender' } } as const;
+
+/** The attacker's crit row: its chance and its crit damage. */
+const CRIT_ROW = { effect: 'scale', chance: 'critChance', multiplier: 'critDamage', isCrit: true } as const;
+
+/** Independent rolls: the defender's block only. */
+export const BLOCK = defineRollTable(STATS, { mode: 'independent', rows: { block: BLOCK_ROW } });
+
+/** Independent rolls: the attacker's crit only. */
+export const CRIT = defineRollTable(STATS, { mode: 'independent', rows: { crit: CRIT_ROW } });
+
+/** Independent rolls in swarm's order: the defender's block, then the attacker's crit. */
+export const BLOCK_THEN_CRIT = defineRollTable(STATS, {
+  mode: 'independent',
+  rows: { block: BLOCK_ROW, crit: CRIT_ROW },
+});
 
 /** The test mitigation rows: armor on physical (LoL's curve), then damage taken on both mitigated kinds. */
 const MITIGATION = defineMitigation({
