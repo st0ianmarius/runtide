@@ -1,5 +1,6 @@
 import type { Vec2 } from '../math/index.ts';
 import type { ChanceOption, ProcContext, ProcKindDef, ProcShape, ProcTarget } from '../procs/index.ts';
+import type { EndReason } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 
 /**
@@ -42,13 +43,38 @@ export interface SpawnProc<G extends AreaTriggerTypes> extends ProcShape {
   readonly shareState?: boolean;
 }
 
+/**
+ * Withdraws what a unit owns and has not fired (§II.6 P3, §I.7.1 F16: an elite's enrage withdrawing its own
+ * telegraphs, from casts that already ended too): its live area triggers (those with a tag, or every one), ended with
+ * a reason, and its delayed lists that have not landed. Its amount is how many it withdrew; `skipped` for none.
+ */
+export interface DespawnOwnedProc<G extends AreaTriggerTypes> extends ProcShape {
+  /** The discriminant. */
+  readonly kind: 'despawnOwned';
+
+  /** Whose; the list's self when absent. */
+  readonly of?: ProcTarget<G>;
+
+  /** Only area triggers with this tag (`telegraph`); every one the unit owns when absent. */
+  readonly tag?: G['areaTag'];
+
+  /** Whether its delayed lists are withdrawn too (`withdraw`, the default) or kept (`keep`). */
+  readonly delayed?: 'withdraw' | 'keep';
+
+  /** Why its area triggers end; `self` when absent. */
+  readonly reason?: EndReason;
+}
+
 /** The area trigger system's proc kinds, as a union: a game adds them to its proc union (`gameProc`). */
-export type AreaTriggerProcs<G extends AreaTriggerTypes> = SpawnProc<G>;
+export type AreaTriggerProcs<G extends AreaTriggerTypes> = SpawnProc<G> | DespawnOwnedProc<G>;
 
 /** The area trigger system's proc kinds, by name: `createProcRegistry({ ...CORE_PROCS, ...areaTriggers.procKinds })`. */
 export interface AreaTriggerProcKinds<G extends AreaTriggerTypes> {
   /** Spawns an area trigger. */
   readonly spawn: ProcKindDef<SpawnProc<G>, G>;
+
+  /** Withdraws what a unit owns and has not fired. */
+  readonly despawnOwned: ProcKindDef<DespawnOwnedProc<G>, G>;
 }
 
 /** A `spawn` proc: `spawn('pool')`, `spawn('fork', { heading: 0.5, now: 0.1, to: 'eventUnit' })`. */
@@ -56,3 +82,11 @@ export const spawn = <G extends AreaTriggerTypes = AreaTriggerTypes>(
   areaTrigger: G['areaTriggerName'] | AreaTriggerId,
   options: ChanceOption & Omit<SpawnProc<G>, 'kind' | 'areaTrigger' | 'chance'> = {},
 ): SpawnProc<G> => ({ ...options, kind: 'spawn', areaTrigger });
+
+/**
+ * A `despawnOwned` proc: `despawnOwned({ tag: 'telegraph' })` withdraws the list's self's telegraphs and pending
+ * delayed lists.
+ */
+export const despawnOwned = <G extends AreaTriggerTypes = AreaTriggerTypes>(
+  options: ChanceOption & Omit<DespawnOwnedProc<G>, 'kind' | 'chance'> = {},
+): DespawnOwnedProc<G> => ({ ...options, kind: 'despawnOwned' });

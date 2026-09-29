@@ -42,6 +42,9 @@ class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
   /** Its tick slot. */
   slot = 0;
 
+  /** Its index in the live list. */
+  index = -1;
+
   constructor(self: G['bearer']) {
     this.self = self;
     this.target = self;
@@ -72,6 +75,9 @@ export class DelayedProcs<G extends SpellTypes> {
   readonly #pool: Pool<Delayed<G>>;
   readonly #wheels: readonly TimingWheel<Handle<Delayed<G>>>[];
   readonly #due: Scratch<Handle<Delayed<G>>> = createScratch();
+
+  /** The lists waiting, in no order, each at its `index`: what `withdraw` walks. */
+  readonly #live: Delayed<G>[] = [];
   #pending: G['bearer'] | undefined = undefined;
 
   /** The delayed list landing now, which a `due` delay counts from; none outside a landing. */
@@ -122,6 +128,8 @@ export class DelayedProcs<G extends SpellTypes> {
     record.offset = (parent?.offset ?? 0) + spec.seconds;
     record.slot = spec.slot ?? parent?.slot ?? 0;
     record.cast = engine.current;
+    record.index = this.#live.length;
+    this.#live.push(record);
 
     if (record.cast !== undefined) {
       record.cast.holds += 1;
@@ -138,6 +146,7 @@ export class DelayedProcs<G extends SpellTypes> {
     const wheel = this.#wheels[slot] ?? missing(`tick slot ${slot}`);
     const due = this.#due.take();
     const count = wheel.collect(this.#engine.clock.tick, due);
+    let landed = 0;
 
     try {
       for (let i = 0; i < count; i++) {
@@ -146,21 +155,46 @@ export class DelayedProcs<G extends SpellTypes> {
 
         if (record !== undefined) {
           this.#landOne(record);
+          landed += 1;
         }
       }
     } finally {
       this.#due.give(count);
     }
 
-    return count;
+    return landed;
   }
 
-  /** Runs one list for its origin, as its cast's procs, then lets go of the cast and the record. */
+  /**
+   * Withdraws every list a unit owns that has not landed (§II.6 P3 `despawnOwned`): those its casts scheduled, and those
+   * scheduled for it outside a cast. None of their procs run; returns how many it withdrew.
+   */
+  withdraw(owner: G['bearer']): number {
+    const live = this.#live;
+    let withdrawn = 0;
+
+    for (let i = live.length - 1; i >= 0; i--) {
+      const record = live[i];
+
+      if (record !== undefined && (record.cast?.caster ?? record.self) === owner) {
+        this.#free(record);
+        withdrawn += 1;
+      }
+    }
+
+    return withdrawn;
+  }
+
+  /**
+   * Runs one list for its origin, as its cast's procs, then lets go of the cast and the record. It leaves the live list
+   * first, so its own procs cannot withdraw it while it runs.
+   */
   #landOne(record: Delayed<G>): void {
     const engine = this.#engine;
     const { current } = engine;
     const { landing } = this;
 
+    this.#unlist(record);
     engine.current = record.cast;
     this.landing = record;
 
@@ -171,6 +205,30 @@ export class DelayedProcs<G extends SpellTypes> {
       this.landing = landing;
     }
 
+    this.#release(record);
+  }
+
+  /** Lets go of a list that has not landed: out of the live list, then released. */
+  #free(record: Delayed<G>): void {
+    this.#unlist(record);
+    this.#release(record);
+  }
+
+  /** Takes a list out of the live list, moving the last one into its place. */
+  #unlist(record: Delayed<G>): void {
+    const live = this.#live;
+    const last = live.pop();
+
+    if (last !== undefined && last !== record) {
+      live[record.index] = last;
+      last.index = record.index;
+    }
+
+    record.index = -1;
+  }
+
+  /** Gives a list's record back to the pool and lets go of its cast. */
+  #release(record: Delayed<G>): void {
     const { cast } = record;
 
     record.cast = undefined;
@@ -179,7 +237,7 @@ export class DelayedProcs<G extends SpellTypes> {
     this.#pool.release(record.handle);
 
     if (cast !== undefined) {
-      engine.unhold(cast);
+      this.#engine.unhold(cast);
     }
   }
 }

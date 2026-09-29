@@ -35,6 +35,15 @@ export class CasterRecord implements CasterState {
     this.count += 1;
   }
 
+  /** Writes the running casts' handles into `out` from index 0, in the order they started; returns how many. */
+  copyInto(out: CastHandle[]): number {
+    for (let i = 0; i < this.count; i++) {
+      out[i] = this.handles[i] ?? NO_CAST;
+    }
+
+    return this.count;
+  }
+
   /** Removes a cast's handle, keeping the others in order; false when it was not there. */
   remove(handle: CastHandle): boolean {
     let index = -1;

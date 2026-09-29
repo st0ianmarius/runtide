@@ -1,10 +1,19 @@
 import type { Vec2 } from '../math/index.ts';
-import { PROC_LANDED, PROC_REFUSED, PROC_SKIPPED, type ProcContext, type ProcKindDef } from '../procs/index.ts';
+import {
+  PROC_LANDED,
+  PROC_REFUSED,
+  PROC_SKIPPED,
+  type ProcContext,
+  type ProcKindDef,
+  type ProcOutcome,
+  procOutcome,
+} from '../procs/index.ts';
 import type { CastHandle } from '../spells/index.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import type { AreaEngine } from './engine.ts';
 import { NO_AREA_TRIGGER } from './ids.ts';
-import type { AreaTriggerProcKinds, SpawnProc } from './procs.ts';
+import type { AreaTriggerProcKinds, DespawnOwnedProc, SpawnProc } from './procs.ts';
+import { despawnWhere } from './queries.ts';
 import { spawnArea, type SpawnSpec } from './spawner.ts';
 
 /** The spec a `spawn` proc spawns with, reused: the spawn reads it before any hook runs. */
@@ -93,7 +102,44 @@ const spawnKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindD
   };
 };
 
+/** The outcomes of a withdrawal of a few things, made once so a withdrawal allocates no outcome. */
+const WITHDRAWN: readonly ProcOutcome[] = Array.from({ length: 17 }, (_unused, amount) =>
+  procOutcome('landed', { amount }),
+);
+
+/** Throws for an area tag the registry does not have. */
+const checkTag = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, tag: G['areaTag'] | undefined): void => {
+  const ids: Readonly<Record<string, number | undefined>> = engine.registry.tags.id;
+
+  if (tag !== undefined && ids[tag] === undefined) {
+    throw new RangeError(`unknown area trigger tag ${tag}.`);
+  }
+};
+
+/** The `despawnOwned` kind: a unit's area triggers (with a tag) ended, and its delayed lists withdrawn. */
+const despawnOwnedKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindDef<DespawnOwnedProc<G>, G> => ({
+  targetOf: (proc) => proc.of ?? 'self',
+
+  apply: (proc, _ctx, unit) => {
+    if (unit === undefined) {
+      return PROC_SKIPPED;
+    }
+
+    const query = proc.tag === undefined ? { owner: unit } : { owner: unit, tag: proc.tag };
+    const areas = despawnWhere(engine, query, proc.reason ?? 'self');
+    const count = areas + (proc.delayed === 'keep' ? 0 : engine.spells.withdrawDelayed(unit));
+
+    return count === 0 ? PROC_SKIPPED : (WITHDRAWN[count] ?? procOutcome('landed', { amount: count }));
+  },
+
+  prepare: (proc) => {
+    checkTag(engine, proc.tag);
+
+    return proc;
+  },
+});
+
 /** Builds the area trigger system's proc kinds over its engine. */
 export const createAreaTriggerProcKinds = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
-): AreaTriggerProcKinds<G> => Object.freeze({ spawn: spawnKind(engine) });
+): AreaTriggerProcKinds<G> => Object.freeze({ spawn: spawnKind(engine), despawnOwned: despawnOwnedKind(engine) });

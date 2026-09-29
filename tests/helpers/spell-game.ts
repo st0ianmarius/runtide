@@ -313,7 +313,7 @@ export interface SpellGameOptions<Aura extends string, Area extends string = nev
   readonly activations?: ActivationRegistry<Game>;
 
   /** Spell system overrides. */
-  readonly spells?: Partial<Pick<SpellSystemBase<Game>, 'random' | 'streams' | 'slots' | 'world'>>;
+  readonly spells?: Partial<Pick<SpellSystemBase<Game>, 'random' | 'streams' | 'slots' | 'world' | 'interrupts'>>;
 }
 
 /** A small spell test game. */

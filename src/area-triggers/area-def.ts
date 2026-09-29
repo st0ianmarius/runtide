@@ -171,6 +171,12 @@ export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
   /** What it does while its standing-bound owner is down: `end` (the default) or `suspend` (its clock waits). */
   readonly whileDown?: 'end' | 'suspend';
 
+  /**
+   * The owner's interrupts it waits out (§II.6 S5, §I.7.1 F16): suspended, its clock and hooks too, while its owner
+   * holds any of them (`spells.isInterrupted`): a frozen caster's telegraphs pause, even from casts that ended.
+   */
+  readonly pausedBy?: readonly G['interrupt'][];
+
   /** A condition it lives under (the granting spell still owned): false ends it as `bound`. */
   when?(this: void, c: AreaTriggerContext<G, State>): boolean;
 

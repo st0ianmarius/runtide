@@ -40,6 +40,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   readonly ownerAuras: readonly (AuraId | undefined)[];
   readonly slotKinds: readonly (readonly number[])[];
   readonly bindings: Uint8Array;
+  readonly pauseMasks: Int32Array;
   readonly pool: Pool<AreaTrigger<G>>;
 
   /** The head and tail of each kind's tick-order list (its own and its after-parent children). */
@@ -114,6 +115,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.ownerAuras = parts.ownerAuras;
     this.slotKinds = parts.slotKinds;
     this.bindings = parts.bindings;
+    this.pauseMasks = parts.pauseMasks;
     this.pulseBase = parts.pulseBase;
     this.casterSpells = parts.casterSpells;
     this.areaAuras = parts.areaAuras;

@@ -159,6 +159,7 @@ export const areaEngineOf = <G extends AreaTriggerTypes>(options: AreaTriggerSys
     ownerAuras: registry.defs.map((def, id) => ownerAuraOf(options.auras, def, registry.names[id] ?? '')),
     slotKinds: slotKindsOf(registry, options.slots?.size ?? 1),
     bindings: Uint8Array.from(registry.defs, bindingOf),
+    pauseMasks: Int32Array.from(registry.defs, (def) => options.spells.interruptMask(def?.bound?.pausedBy ?? [])),
     pulseBase: pulseBaseOf(registry),
     areaAuras: registry.defs.map((def, id) => areaAurasOf(options.auras, def, registry.names[id] ?? '')),
     casterSpells: registry.defs.map((def, id) => casterSpellOf(options, def?.caster, registry.names[id] ?? '')),

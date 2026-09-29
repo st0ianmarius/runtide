@@ -5,7 +5,7 @@ import type { SpellEngine } from './engine.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
 import { afterPayload, endCast, isEnded, releaseCast } from './runner.ts';
 import type { CastOutcome } from './spell-def.ts';
-import type { SpellTypes } from './spell-types.ts';
+import type { SpellId, SpellTypes } from './spell-types.ts';
 import { refreshLive } from './take-stats.ts';
 
 /** The pause bit `spells.pause` sets; each interrupt that pauses has a bit of its own above it. */
@@ -309,4 +309,25 @@ export const cancelCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caste
   }
 
   return cancelled;
+};
+
+/** Whether a caster runs any cast, or a cast of one spell. */
+export const isCasting = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  caster: G['bearer'],
+  spell: SpellId | undefined,
+): boolean => {
+  const record = recordOf(caster);
+
+  if (spell === undefined) {
+    return record.count > 0;
+  }
+
+  for (let i = 0; i < record.count; i++) {
+    if (engine.castOf(record.handles[i] ?? NO_CAST)?.spell === spell) {
+      return true;
+    }
+  }
+
+  return false;
 };

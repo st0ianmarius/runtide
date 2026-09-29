@@ -66,9 +66,20 @@ const checkOwner = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
   return false;
 };
 
-/** Checks what binds it before its frame: its owner, then its condition. Returns whether it runs this frame. */
+/**
+ * Checks what binds it before its frame: its owner, the owner's interrupts it waits out (suspended while held), then
+ * its condition. Returns whether it runs this frame.
+ */
 const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): boolean => {
   if (!checkOwner(engine, area)) {
+    return false;
+  }
+
+  const pausedBy = engine.pauseMasks[area.kind] ?? 0;
+
+  area.isSuspended = pausedBy !== 0 && (engine.spells.heldInterrupts(area.owner) & pausedBy) !== 0;
+
+  if (area.isSuspended) {
     return false;
   }
 

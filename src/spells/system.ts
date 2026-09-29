@@ -27,6 +27,7 @@ import {
   cancelCaster,
   finishCast,
   interruptCaster,
+  isCasting,
   MANUAL_PAUSE,
   setPause,
   stepCaster,
@@ -124,6 +125,12 @@ export interface SpellSystem<G extends SpellTypes> {
    */
   readonly stepDelayed: (slot?: TickSlotId) => number;
 
+  /**
+   * Withdraws every delayed list a unit owns that has not landed (§II.6 P3 `despawnOwned`: an enraged elite's pending
+   * volleys): those its casts scheduled, even casts that ended, and those scheduled for it outside a cast. How many.
+   */
+  readonly withdrawDelayed: (owner: G['bearer']) => number;
+
   /** Pauses a running cast: its stage stops counting until `resume`; false for a stale or ended cast. */
   readonly pause: (cast: CastHandle) => boolean;
 
@@ -154,6 +161,15 @@ export interface SpellSystem<G extends SpellTypes> {
    * declare (`interrupts`) and no timeline names. A cast started while it holds does not answer it.
    */
   readonly isInterrupted: (caster: G['bearer'], reason: G['interrupt']) => boolean;
+
+  /**
+   * The bits of a list of interrupts, for a system that checks them often (`heldInterrupts`): an area trigger's
+   * `pausedBy`, resolved at load. Throws for one the game did not declare (`interrupts`) and no timeline names.
+   */
+  readonly interruptMask: (reasons: readonly G['interrupt'][]) => number;
+
+  /** The bits of the interrupts a caster holds now, to test against an `interruptMask`. */
+  readonly heldInterrupts: (caster: G['bearer']) => number;
 
   /** Cancels every cast a caster runs (§I.7.1 F16: its death), in the order they started; how many. */
   readonly cancelAll: (caster: G['bearer']) => number;
@@ -270,31 +286,9 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     return stage !== undefined && stage !== 'ended';
   };
 
-  readonly isCasting = (caster: G['bearer'], spell?: SpellId): boolean => {
-    const record = recordOf(caster);
+  readonly isCasting = (caster: G['bearer'], spell?: SpellId): boolean => isCasting(this.#engine, caster, spell);
 
-    if (spell === undefined) {
-      return record.count > 0;
-    }
-
-    for (let i = 0; i < record.count; i++) {
-      if (this.#engine.castOf(record.handles[i] ?? NO_CAST)?.spell === spell) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  readonly castsOf = (caster: G['bearer'], out: CastHandle[]): number => {
-    const record = recordOf(caster);
-
-    for (let i = 0; i < record.count; i++) {
-      out[i] = record.handles[i] ?? NO_CAST;
-    }
-
-    return record.count;
-  };
+  readonly castsOf = (caster: G['bearer'], out: CastHandle[]): number => recordOf(caster).copyInto(out);
 
   readonly stepAuto = (caster: G['bearer']): void => {
     stepAutoClocks(this.#engine, caster, this.cast);
@@ -307,6 +301,8 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly step = (caster: G['bearer']): void => {
     stepCaster(this.#engine, caster);
   };
+
+  readonly withdrawDelayed = (owner: G['bearer']): number => this.#engine.delayed.withdraw(owner);
 
   readonly pause = (cast: CastHandle): boolean => setPause(this.#engine, cast, { bits: MANUAL_PAUSE, isOn: true });
   readonly resume = (cast: CastHandle): boolean => setPause(this.#engine, cast, { bits: MANUAL_PAUSE, isOn: false });
@@ -325,6 +321,11 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     (recordOf(caster).interrupts & (this.#engine.interruptBits.get(reason) ?? 0)) !== 0;
 
   readonly cancelAll = (caster: G['bearer']): number => cancelCaster(this.#engine, caster);
+
+  readonly interruptMask = (reasons: readonly G['interrupt'][]): number =>
+    reasons.reduce((mask, reason) => mask | (this.#engine.interruptBits.get(reason) ?? unknownInterrupt(reason)), 0);
+
+  readonly heldInterrupts = (caster: G['bearer']): number => recordOf(caster).interrupts;
 
   get current(): CastHandle {
     return this.#engine.current?.cast ?? NO_CAST;
@@ -380,6 +381,11 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     return share === undefined || Number.isNaN(share) ? undefined : share;
   };
 }
+
+/** An interrupt with no bit: neither declared by the game nor named by a timeline. */
+const unknownInterrupt = (reason: string): never => {
+  throw new RangeError(`Interrupt ${reason} is not one the spell system knows: declare it in its interrupts.`);
+};
 
 /**
  * Creates the spell system over a game's spells (§I.5): `createSpellSystem({ registry: SPELLS, auras, procs: () =>

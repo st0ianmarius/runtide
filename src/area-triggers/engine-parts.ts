@@ -77,6 +77,9 @@ export interface AreaEngineParts<G extends AreaTriggerTypes> {
   /** Each kind's binding bits (what its bound makes of its owner leaving or going down). */
   readonly bindings: Uint8Array;
 
+  /** Each kind's mask of the owner's interrupts it waits out (`bound.pausedBy`); 0 for none. */
+  readonly pauseMasks: Int32Array;
+
   /** Each kind's first slot among every kind's pulses. */
   readonly pulseBase: readonly number[];
 

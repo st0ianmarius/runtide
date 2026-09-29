@@ -53,7 +53,16 @@ export {
 } from './events.ts';
 
 export { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
-export { type AreaTriggerProcKinds, type AreaTriggerProcs, spawn, type SpawnProc } from './procs.ts';
+
+export {
+  type AreaTriggerProcKinds,
+  type AreaTriggerProcs,
+  despawnOwned,
+  type DespawnOwnedProc,
+  spawn,
+  type SpawnProc,
+} from './procs.ts';
+
 export type { AreaInterception, AreaQueries, AreaQuery, CoverQuery } from './queries.ts';
 
 export {
