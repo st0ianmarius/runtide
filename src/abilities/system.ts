@@ -10,6 +10,18 @@ import { createAbilityProcKinds } from './proc-kinds.ts';
 import type { AbilityProcKinds } from './procs.ts';
 import type { SlotTable } from './slots.ts';
 
+/** One press's data: what its casts are handed, and the key their predicted cast cues carry. */
+export interface Press<G extends AbilityTypes> {
+  /** What its casts and `activate` hooks are handed: an aim, a direction. */
+  readonly input?: G['input'] | undefined;
+
+  /**
+   * The press's key (the game's input sequence), the same on the server and the predicting client, which each fired
+   * spell's cast cue carries (§II.6 R2); 0 when absent.
+   */
+  readonly key?: number | undefined;
+}
+
 /** A button spell equipped at a rank. */
 export interface Equipped {
   /** The button spell. */
@@ -81,11 +93,11 @@ export interface AbilitySystem<G extends AbilityTypes> {
    * A press (§II.6 S4): every pressed slot (a mask of `bit`s) is decided against the bearer before any fires, then each
    * accepted one fires in slot order: pays its cost, runs `activate` (with a `MirrorCtx` of the press's input and the
    * clock's step), starts its slot's cooldown (on `activation`),
-   * lands `applies` then `resets`, and casts its spell with `input` (a no-windup spell releases here, before the
+   * lands `applies` then `resets`, and casts its spell with the press's input and key (a no-windup spell releases here, before the
    * bearer travels), starting a `cast` cooldown once the cast was not refused. Returns the mask of the slots that
    * fired. The game calls it inside its motion step, on the server and on a prediction mirror alike.
    */
-  readonly tryActivate: (bearer: G['bearer'], pressed: number, input?: G['input']) => number;
+  readonly tryActivate: (bearer: G['bearer'], pressed: number, press?: Press<G>) => number;
 
   /**
    * The trigger path (§II.6 S4): fires a button spell with no slot cooldown (none gates it, none starts), gated by its
@@ -231,8 +243,9 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
       return aura < 0 ? 0 : auras.remaining(bearer, toId<'auras'>(aura));
     },
 
-    tryActivate: (bearer, pressed, input) => {
-      engine.input = input;
+    tryActivate: (bearer, pressed, data) => {
+      engine.input = data?.input;
+      engine.key = data?.key ?? 0;
 
       return press(engine, bearer, pressed);
     },

@@ -5,6 +5,7 @@ import type { ProcSystem } from '../procs/index.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import type { SpellClock } from './engine.ts';
 import type { SpellEvents } from './events.ts';
+import type { StaticWorld } from './mirror.ts';
 import type { SpellHost } from './spell-host.ts';
 import type { SpellTypes } from './spell-types.ts';
 
@@ -42,6 +43,9 @@ export interface SpellSystemBase<G extends SpellTypes> {
 
   /** The buffer spell cues fire into; required when any spell has cues. */
   readonly cues?: CueBuffer;
+
+  /** The static world a spell's mirror-safe cast cue reads (`MirrorCtx.world`); an open one when absent. */
+  readonly world?: StaticWorld;
 
   /** The game's tick slots (`defineTickSlots`), each with its own delayed procs; one slot when absent. */
   readonly slots?: {

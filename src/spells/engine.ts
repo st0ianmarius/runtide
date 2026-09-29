@@ -1,7 +1,7 @@
 import { type AuraApplication, type AuraId, type AuraSystem, NO_SOURCE } from '../auras/index.ts';
 import { toHandle } from '../core/ids.ts';
 import { type CountdownRule, createPool, type Pool, type Random } from '../core/index.ts';
-import type { CueBuffer, CuePlace, CueSpec } from '../cues/index.ts';
+import type { CueBuffer, CueEvent, CuePlace, CueSpec } from '../cues/index.ts';
 import { fireCue } from '../cues/index.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { Proc, ProcOutcome, ProcSystem } from '../procs/index.ts';
@@ -12,6 +12,7 @@ import type { SpellRegistry } from './define-spells.ts';
 import { DelayedProcs } from './delayed.ts';
 import type { SpellEvent, SpellEvents } from './events.ts';
 import { type CastHandle, NO_CAST, toCastHandle } from './ids.ts';
+import type { MirrorContext, StaticWorld } from './mirror.ts';
 import { missing } from './missing.ts';
 import { ProcList } from './proc-out.ts';
 import type { ProcReturn, SpellHit } from './spell-def.ts';
@@ -78,6 +79,9 @@ export interface EngineParts<G extends SpellTypes> {
   /** The cue buffer. */
   readonly cues: CueBuffer | undefined;
 
+  /** The static world mirror-safe cast cues read. */
+  readonly world: StaticWorld;
+
   /** Each spell's plan, by id. */
   readonly plans: readonly (CastPlan<G> | undefined)[];
 
@@ -115,6 +119,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   readonly host: SpellHost<G> & G['host'];
   readonly events: SpellEvents<G> | undefined;
   readonly cues: CueBuffer | undefined;
+  readonly world: StaticWorld;
   readonly plans: readonly (CastPlan<G> | undefined)[];
   readonly castAuras: readonly (AuraId | undefined)[];
   readonly boxes: StatsBoxes;
@@ -129,6 +134,9 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
 
   /** The delayed procs, on a timing wheel per tick slot. */
   readonly delayed: DelayedProcs<G>;
+
+  /** The mirror context mirror-safe cast cues are handed, made on first use. */
+  mirror: MirrorContext<G> | undefined = undefined;
 
   /** The cast whose hook's procs are running now, which a delayed or `castSpell` proc belongs to; none outside. */
   current: Cast<G> | undefined = undefined;
@@ -152,6 +160,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     this.host = parts.host;
     this.events = parts.events;
     this.cues = parts.cues;
+    this.world = parts.world;
     this.plans = parts.plans;
     this.castAuras = parts.castAuras;
     this.boxes = parts.boxes;
@@ -288,18 +297,22 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
 
   /** Fires a cue a spell's cue hook returned, on the caster and credited to it; nothing for `undefined`. */
   fire(cast: Cast<G>, spec: CueSpec | undefined): void {
-    if (spec === undefined) {
-      return;
+    if (spec !== undefined) {
+      this.fireOn(cast.caster, cast.casterId, spec);
     }
+  }
 
+  /** Fires a cue on a caster, credited to its entity id; returns the event, for a key to be set on it. */
+  fireOn(caster: G['bearer'], casterId: number, spec: CueSpec): CueEvent {
     const place = this.#place;
-    const point = (this.host.positionOf ?? missing('host.positionOf'))(cast.caster);
+    const point = (this.host.positionOf ?? missing('host.positionOf'))(caster);
 
-    place.owner = cast.casterId;
-    place.entity = cast.casterId;
+    place.owner = casterId;
+    place.entity = casterId;
     place.x = point.x;
     place.z = point.z;
-    fireCue(this.cues ?? missing('a cue buffer'), spec, place);
+
+    return fireCue(this.cues ?? missing('a cue buffer'), spec, place);
   }
 
   /** Raises one of the spell events about a cast, when something hears it; an end carries the cast's outcome. */

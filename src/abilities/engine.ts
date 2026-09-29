@@ -1,7 +1,13 @@
 import type { AuraSystem } from '../auras/index.ts';
-import type { Vec2 } from '../math/index.ts';
 import type { StatId, StatView } from '../modifiers/index.ts';
-import type { CastOptions, MirrorCtx, SpellId, SpellSystem, StaticWorld } from '../spells/index.ts';
+import {
+  type CastOptions,
+  type MirrorCtx,
+  OPEN_WORLD,
+  type SpellId,
+  type SpellSystem,
+  type StaticWorld,
+} from '../spells/index.ts';
 import type { AbilityTypes } from './ability-types.ts';
 import { compileButtons, type CompiledButton } from './buttons.ts';
 import type { SlotTable } from './slots.ts';
@@ -9,6 +15,7 @@ import type { SlotTable } from './slots.ts';
 /** The options a button casts with, reused: the cast order reads them before any hook runs. */
 class PressOptions<G extends AbilityTypes> implements CastOptions<G> {
   input: G['input'] | undefined = undefined;
+  key = 0;
   rank = 1;
 }
 
@@ -28,21 +35,6 @@ class BaseView implements StatView {
     return this.#bases[stat] ?? 0;
   }
 }
-
-/** A static world with no geometry and no bounds: every line is clear and every move is made in full. */
-const OPEN_WORLD: StaticWorld = Object.freeze({
-  bounds: Object.freeze({
-    minX: Number.NEGATIVE_INFINITY,
-    minZ: Number.NEGATIVE_INFINITY,
-    maxX: Number.POSITIVE_INFINITY,
-    maxZ: Number.POSITIVE_INFINITY,
-  }),
-
-  lineClear: () => true,
-  isPositionClear: () => true,
-  clamp: (p: Vec2) => p,
-  moveBody: ([, to]: readonly [Vec2, Vec2]) => ({ position: to, hit: false, share: 1 }),
-});
 
 /** The one mirror context of an engine, reused for every motion hook (they never nest). */
 export class MirrorContext<G extends AbilityTypes> implements MirrorCtx<G> {
@@ -74,6 +66,13 @@ export interface AbilityParts<G extends AbilityTypes> {
     /** The fixed step, in seconds. */
     readonly dt: number;
   };
+
+  /**
+   * Whether this system runs on a prediction mirror (§II.6 R2, R3): a press runs the motion half, cooldowns, costs and
+   * auras as on the server, but fires only each spell's mirror-safe cast cue (`spells.predictCast`) with the press's
+   * key, and casts nothing; a `cast` cooldown comes from the wire. False when absent.
+   */
+  readonly mirror?: boolean | undefined;
 
   /** The static world the motion hooks read (`MirrorCtx.world`); an open world, with nothing in it, when absent. */
   readonly world?: StaticWorld | undefined;
@@ -109,6 +108,12 @@ export class AbilityEngine<G extends AbilityTypes> {
   /** The input of the press being fired, read at once by each slot's firing. */
   input: G['input'] | undefined = undefined;
 
+  /** The key of the press being fired, which its cast cues carry; 0 outside a press. */
+  key = 0;
+
+  /** Whether it runs on a prediction mirror: a press fires only the spells' cast cues, and casts nothing. */
+  readonly isMirror: boolean;
+
   readonly #statsOf: AbilityParts<G>['statsOf'];
   readonly #world: StaticWorld;
   #mirror: MirrorContext<G> | undefined = undefined;
@@ -122,6 +127,7 @@ export class AbilityEngine<G extends AbilityTypes> {
     this.baseView = new BaseView(parts.spells.registry.stats?.columns.base ?? []);
     this.#statsOf = parts.statsOf;
     this.dt = parts.clock.dt;
+    this.isMirror = parts.mirror === true;
     this.#world = parts.world ?? OPEN_WORLD;
 
     for (const slot of parts.slots.ids) {

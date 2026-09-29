@@ -17,6 +17,7 @@ import {
   defineAuraTags,
 } from '../../src/auras/index.ts';
 import { createClock, type SimClock } from '../../src/core/index.ts';
+import { createCueBuffer, type CueBuffer, defineCue, defineCues } from '../../src/cues/index.ts';
 import type { Vec2 } from '../../src/math/index.ts';
 import { defineStats, type StatView } from '../../src/modifiers/index.ts';
 import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc, type ProcSystem } from '../../src/procs/index.ts';
@@ -203,6 +204,26 @@ const SLOTS = defineSlots({
 /** The test clock's step: a quarter second, so a second is four steps. */
 const STEP = 0.25;
 
+/** What a test ability game is built with beyond its spells. */
+export interface AbilityGameOptions {
+  /** The slots; the test slots when absent. */
+  readonly slots?: SlotTable<AbilityGame['slot']>;
+
+  /** The static world the motion hooks and cast cues read; an open one when absent. */
+  readonly world?: StaticWorld;
+
+  /** Whether the ability system runs as a prediction mirror. */
+  readonly mirror?: boolean;
+}
+
+/**
+ * The test cues: `swish`, a predicted cue on its caster (a cast cue), and `flash`, one that is not predicted.
+ */
+export const CUES = defineCues({
+  swish: defineCue({ anchor: 'self', isPredicted: true, params: { size: { kind: 'uint8' } } }),
+  flash: defineCue({ anchor: 'self' }),
+});
+
 /** A small ability test game. */
 export interface AbilityTestGame<Spell extends string> {
   /** The clock. */
@@ -219,6 +240,9 @@ export interface AbilityTestGame<Spell extends string> {
 
   /** The ability system. */
   readonly abilities: AbilitySystem<AbilityGame>;
+
+  /** The cue buffer spells fire into. */
+  readonly cues: CueBuffer;
 
   /** The id of every spell, by name. */
   readonly id: Readonly<Record<Spell, SpellId>>;
@@ -242,13 +266,13 @@ const viewOf = (hero: Hero): StatView => ({
 /**
  * A small ability test game over `defs`: a clock of 0.25 s steps, the test auras, a spell system, a proc system with
  * the core, spell and ability kinds, and an ability system over the three slots (the test slots when absent) whose
- * stats are each hero's, in a static world (an open one when absent).
+ * stats are each hero's, in a static world (an open one when absent), with a cue buffer over the test cues.
  */
 export const makeAbilityGame = <const Spell extends string>(
   defs: Readonly<Record<Spell, AnySpellDef<AbilityGame>>>,
-  slots: SlotTable<AbilityGame['slot']> = SLOTS,
-  world?: StaticWorld,
+  options: AbilityGameOptions = {},
 ): AbilityTestGame<Spell> => {
+  const { slots = SLOTS, world, mirror } = options;
   const log: string[] = [];
   const clock = createClock({ dt: STEP });
   const late: { procs?: ProcSystem<AbilityGame> } = {};
@@ -268,15 +292,19 @@ export const makeAbilityGame = <const Spell extends string>(
     host: { run: (list, ctx) => late.procs?.runAura(list, ctx) },
   });
 
+  const cues = createCueBuffer(CUES);
+
   const spells = createSpellSystem<AbilityGame>({
     registry,
     auras,
     procs: () => late.procs ?? missing(),
     clock,
     host,
+    cues,
+    ...(world === undefined ? {} : { world }),
   });
 
-  const abilities = createAbilitySystem<AbilityGame>({ spells, auras, slots, clock, world, statsOf: viewOf });
+  const abilities = createAbilitySystem<AbilityGame>({ spells, auras, slots, clock, world, mirror, statsOf: viewOf });
 
   const procs = createProcSystem<AbilityGame>({
     kinds: createProcRegistry<AbilityGame>({ ...CORE_PROCS, ...spells.procKinds, ...abilities.procKinds }),
@@ -292,6 +320,7 @@ export const makeAbilityGame = <const Spell extends string>(
     spells,
     procs,
     abilities,
+    cues,
     id: registry.id,
     log,
 

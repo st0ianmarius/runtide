@@ -110,7 +110,7 @@ describe('loadouts (§I.6 Abilities)', () => {
 
   it('refuses a cooldown on a slot without one, and a unit whose loadout it did not make', () => {
     const slots = defineSlots({ dodge: { cooldown: auraNamed('dodgeCooldown') }, skill: {}, ultimate: {} });
-    const lone = makeAbilityGame({ roll: button({ cooldown: 2 }), free: button() }, slots);
+    const lone = makeAbilityGame({ roll: button({ cooldown: 2 }), free: button() }, { slots });
     const hero = lone.hero(1);
     const stray: LoadoutState = { size: 3 };
 
@@ -126,6 +126,6 @@ describe('loadouts (§I.6 Abilities)', () => {
   it('refuses a slot cooling on an aura that is not live', () => {
     const slots = defineSlots({ dodge: { cooldown: toId<'auras'>(auraNamed('root') + 1) }, skill: {}, ultimate: {} });
 
-    assert.throws(() => makeAbilityGame({}, slots), /Slot dodge: its cooldown 7 is not a live aura/);
+    assert.throws(() => makeAbilityGame({}, { slots }), /Slot dodge: its cooldown 7 is not a live aura/);
   });
 });

@@ -6,6 +6,7 @@ import type { Scaled, ScaledSnapshot, StatView } from '../modifiers/index.ts';
 import type { Proc, ProcOutcome } from '../procs/index.ts';
 import type { Activation } from './activation.ts';
 import type { CastHandle } from './ids.ts';
+import type { MirrorCtx } from './mirror.ts';
 import type { ProcOut } from './proc-out.ts';
 import type { SpellHost } from './spell-host.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
@@ -198,6 +199,14 @@ export type ProcReturn<G extends SpellTypes> = readonly Proc<G>[] | ProcOut<G> |
  * `undefined`, fired into the system's cue buffer on the caster, before the moment's event.
  */
 export interface SpellCues<G extends SpellTypes, Source extends StatsSource<G>, Target, State> {
+  /**
+   * The cast as its caster's own client predicts it (§II.3.9, §II.6 R2): mirror-safe, it reads only a `MirrorCtx` (the
+   * caster, the input, its stats for the spell, the static world), so the prediction mirror fires it at the press
+   * (`spells.predictCast`) and the server as the cast starts, both with the cast's key, and the client drops the
+   * server's echo. It must return a predicted cue. It fires before `start`.
+   */
+  cast?(this: void, ctx: MirrorCtx<G>): CueSpec | undefined;
+
   /** The cast starts (its windup, or an instant release). */
   start?(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target): CueSpec | undefined;
 

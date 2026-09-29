@@ -16,4 +16,5 @@ export {
   createAbilitySystem,
   type Equipped,
   type MirrorReads,
+  type Press,
 } from './system.ts';

@@ -87,8 +87,7 @@ const makeGame = (world?: StaticWorld) =>
         release: logRelease('wall'),
       }),
     },
-    undefined,
-    world,
+    world === undefined ? {} : { world },
   );
 
 /** A test game over every test ability, and a hero. */
@@ -164,7 +163,7 @@ describe('a press (§II.6 S4)', () => {
 
     hero.stats[STATS.id.duration] = 1.5;
     abilities.equip(hero, dodge, game.id.roll);
-    abilities.tryActivate(hero, abilities.bit(dodge), { x: 0, z: 1 });
+    abilities.tryActivate(hero, abilities.bit(dodge), { input: { x: 0, z: 1 } });
     abilities.travel(hero, 0.25);
     assert.deepEqual(seen.lines, [
       'activate roll dt 0.25 duration 1.5',
@@ -187,7 +186,7 @@ describe('a press (§II.6 S4)', () => {
     const { abilities } = game;
 
     abilities.equip(hero, abilities.slots.id.dodge, game.id.roll);
-    abilities.tryActivate(hero, abilities.bit(abilities.slots.id.dodge), { x: 0, z: 1 });
+    abilities.tryActivate(hero, abilities.bit(abilities.slots.id.dodge), { input: { x: 0, z: 1 } });
     abilities.travel(hero, 0.25);
     assert.deepEqual(hero.at, { x: 1, z: 0 });
   });
@@ -230,9 +229,9 @@ describe('a press (§II.6 S4)', () => {
 
     abilities.equip(hero, skill, game.id.sentry);
     abilities.equip(hero, ultimate, game.id.wall);
-    assert.equal(abilities.tryActivate(hero, abilities.bit(skill), { x: -1, z: 0 }), abilities.bit(skill));
+    assert.equal(abilities.tryActivate(hero, abilities.bit(skill), { input: { x: -1, z: 0 } }), abilities.bit(skill));
     assert.equal(abilities.cooldownLeft(hero, skill), 0);
-    abilities.tryActivate(hero, abilities.bit(skill), { x: 1, z: 0 });
+    abilities.tryActivate(hero, abilities.bit(skill), { input: { x: 1, z: 0 } });
     assert.equal(abilities.cooldownLeft(hero, skill), 5);
     abilities.tryActivate(hero, abilities.bit(ultimate));
     assert.equal(abilities.cooldownLeft(hero, ultimate), 4);

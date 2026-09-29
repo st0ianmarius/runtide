@@ -53,7 +53,7 @@ export {
 } from './explain.ts';
 
 export { type CastHandle, NO_CAST } from './ids.ts';
-export type { MirrorCtx, MirrorHook, StaticWorld } from './mirror.ts';
+export { type MirrorCtx, type MirrorHook, OPEN_WORLD, type StaticWorld } from './mirror.ts';
 export type { ProcOut } from './proc-out.ts';
 
 export { after, type AfterProc, castSpell, type CastSpellProc, type SpellProcKinds, type SpellProcs } from './procs.ts';

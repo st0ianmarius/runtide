@@ -131,7 +131,11 @@ const land = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
   }
 };
 
-/** Casts a button's spell with an input at a rank; whether the cast was refused. */
+/**
+ * Casts a button's spell with an input at a rank and the press's key; whether the cast was refused. On a prediction
+ * mirror it fires only the spell's cast cue (`spells.predictCast`) and counts as refused, so no `cast` cooldown starts
+ * there: the mirror takes that one from the wire.
+ */
 const castButton = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
@@ -141,12 +145,19 @@ const castButton = <G extends AbilityTypes>(
 
   options.input = input;
   options.rank = rank;
+  options.key = engine.key;
 
-  const { status } = engine.spells.cast(bearer, spell, options);
+  let isRefused = true;
+
+  if (engine.isMirror) {
+    engine.spells.predictCast(bearer, spell, options);
+  } else {
+    isRefused = engine.spells.cast(bearer, spell, options).status === 'refused';
+  }
 
   options.input = undefined;
 
-  return status === 'refused';
+  return isRefused;
 };
 
 /** Pays a button's cost; false when the bearer can no longer pay it. */
@@ -200,7 +211,7 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
 };
 
 /**
- * A press (§II.6 S4) with the input in `engine.input`: decides every pressed slot against the bearer as it stands
+ * A press (§II.6 S4) with the input and key in `engine.input` and `engine.key`: decides every pressed slot against the bearer as it stands
  * before any fires, so a dodge and an ability that resets the dodge's cooldown on one press both fire, then fires them
  * in slot order. Returns the mask of the slots that fired.
  */
@@ -209,7 +220,7 @@ export const press = <G extends AbilityTypes>(
   bearer: G['bearer'],
   pressed: number,
 ): number => {
-  const { input } = engine;
+  const { input, key } = engine;
   const count = engine.slots.size;
   let accepted = 0;
 
@@ -225,6 +236,7 @@ export const press = <G extends AbilityTypes>(
     const bit = 1 << slot;
 
     engine.input = input;
+    engine.key = key;
 
     if ((accepted & bit) !== 0 && !fire(engine, bearer, slot)) {
       accepted &= ~bit;
@@ -232,6 +244,7 @@ export const press = <G extends AbilityTypes>(
   }
 
   engine.input = undefined;
+  engine.key = 0;
 
   return accepted;
 };

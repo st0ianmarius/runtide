@@ -1,6 +1,7 @@
 import { NO_SOURCE } from '../auras/index.ts';
 import { isRunOut } from '../core/index.ts';
 import type { ActivationKindDef, CastSeconds } from './activation.ts';
+import { fireCastCue } from './cast-cue.ts';
 import type { Cast } from './cast.ts';
 import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
@@ -49,6 +50,12 @@ export interface CastOptions<G extends SpellTypes> {
 
   /** The entity id its hits are credited to; the caster's (`host.idOf`) when absent. */
   readonly source?: number | undefined;
+
+  /**
+   * The key its predicted cast cue carries (§II.6 R2): the game's press key (its input sequence), the same on the
+   * server and the predicting client; 0 (none) when absent.
+   */
+  readonly key?: number | undefined;
 }
 
 /** No options: every default. */
@@ -99,6 +106,7 @@ const initCast = <G extends SpellTypes>(
   cast.source = options.source ?? casterId;
   cast.origin.source = cast.source;
   cast.startTick = engine.clock.tick;
+  cast.cueKey = options.key ?? 0;
   cast.target = undefined;
   cast.state = undefined;
   cast.outcome = undefined;
@@ -320,6 +328,10 @@ const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, 
   engine.holdCastAura(cast, true);
   enterStage(cast, 'windup', engine.plans[cast.spell]?.windup);
   cast.isLocked = engine.plans[cast.spell]?.track === undefined;
+  if (def.cues?.cast !== undefined) {
+    fireCastCue(engine, cast.caster, [cast.spell, cast.input, cast.cueKey]);
+  }
+
   engine.fire(cast, def.cues?.start?.(cast, cast.target));
   runBegin(engine, cast);
 

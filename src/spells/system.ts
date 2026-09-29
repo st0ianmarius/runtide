@@ -2,6 +2,7 @@ import type { TickSlotId } from '../core/index.ts';
 import type { StatId } from '../modifiers/index.ts';
 import { autoClockOf, stepAutoClocks } from './auto.ts';
 import { engineOf, gameActivationsOf } from './build-engine.ts';
+import { fireCastCue } from './cast-cue.ts';
 import { CasterRecord, type CasterState, recordOf } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import type { SpellEngine } from './engine.ts';
@@ -153,6 +154,14 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /** A running cast as the wire carries it (§II.6 C10): its spell, stage, stage end stamp and credit. */
   readonly viewOf: (cast: CastHandle) => CastView | undefined;
+
+  /**
+   * The prediction mirror's side of a cast (§II.6 R2, §II.3.9): fires only the spell's mirror-safe cast cue
+   * (`SpellCues.cast`) on the caster, with the options' input and key, into the system's cue buffer, and starts no
+   * cast. The client notes the event in its echo ring, so the server's copy (same cue, owner and key) is dropped.
+   * Returns whether a cue was fired.
+   */
+  readonly predictCast: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => boolean;
 }
 
 /** The request a system reuses for every cast. */
@@ -316,6 +325,12 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   };
 
   readonly viewOf = (cast: CastHandle): CastView | undefined => viewCast(this.#engine, cast);
+
+  readonly predictCast = (caster: G['bearer'], spell: SpellId, options: CastOptions<G> = NO_OPTIONS): boolean => {
+    this.registry.get(spell);
+
+    return fireCastCue(this.#engine, caster, [spell, options.input, options.key ?? 0]);
+  };
 
   readonly shareOf = (spell: SpellId, stat: StatId): number | undefined => {
     const share = this.registry.shares[spell]?.[stat];

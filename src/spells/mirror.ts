@@ -1,3 +1,4 @@
+import type { Vec2 } from '../math/index.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { WorldQuery } from '../world/index.ts';
 import type { SpellTypes } from './spell-types.ts';
@@ -33,3 +34,32 @@ export interface MirrorCtx<G extends SpellTypes> {
 
 /** A mirror-safe hook: a function of `MirrorCtx` only, run alike on the server and on a prediction mirror. */
 export type MirrorHook<G extends SpellTypes, Result = void> = (ctx: MirrorCtx<G>) => Result;
+
+/** A static world with no geometry and no bounds: every line is clear and every move is made in full. */
+export const OPEN_WORLD: StaticWorld = Object.freeze({
+  bounds: Object.freeze({
+    minX: Number.NEGATIVE_INFINITY,
+    minZ: Number.NEGATIVE_INFINITY,
+    maxX: Number.POSITIVE_INFINITY,
+    maxZ: Number.POSITIVE_INFINITY,
+  }),
+
+  lineClear: () => true,
+  isPositionClear: () => true,
+  clamp: (p: Vec2) => p,
+  moveBody: ([, to]: readonly [Vec2, Vec2]) => ({ position: to, hit: false, share: 1 }),
+});
+
+/** A mirror context a system reuses for every mirror-safe hook it runs (they never nest); set it, then hand it over. */
+export class MirrorContext<G extends SpellTypes> implements MirrorCtx<G> {
+  bearer: G['bearer'];
+  input: G['input'] | undefined = undefined;
+  stats: StatView | undefined = undefined;
+  readonly world: StaticWorld;
+  dt = 0;
+
+  constructor(world: StaticWorld, bearer: G['bearer']) {
+    this.world = world;
+    this.bearer = bearer;
+  }
+}

@@ -3,6 +3,7 @@ import { type ActivationRegistry, CORE_ACTIVATIONS } from './activation.ts';
 import { planOf } from './cast-plan.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import { SpellEngine } from './engine.ts';
+import { OPEN_WORLD } from './mirror.ts';
 import type { AnySpellDef } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
 import { baseView, StatsBoxes } from './stats-box.ts';
@@ -96,6 +97,7 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     streams: options.streams,
     events: options.events,
     cues: options.cues,
+    world: options.world ?? OPEN_WORLD,
     plans: registry.defs.map((def) => (def === undefined ? undefined : planOf(def, registry.activations))),
     castAuras: registry.defs.map((def, id) => castAuraOf(options.auras, def, registry.names[id] ?? '')),
     boxes: new StatsBoxes(registry.compiled),
