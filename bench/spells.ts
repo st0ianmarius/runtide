@@ -147,11 +147,24 @@ const ARSENAL = Object.fromEntries(
 /**
  * The bench spells: `strike`, an auto spell every 3 s that winds up 0.5 s, channels 2 s beating every 0.5 s and
  * recovers 0.25 s, so a caster almost always has it in flight; `bolt`, an instant cast with a stats table; and the
- * arsenal, so 20 `auto` spells are defined and each caster arms one.
+ * arsenal; and a melee swing whose target is out of reach, `lunge` polling a cast every step and `swing` waiting on
+ * its `ready` hook (the distance the game measured to steer). 22 `auto` spells are defined.
  */
 const SPELLS = defineSpells<BenchGame, string>(
   {
     ...ARSENAL,
+    lunge: spell({
+      activation: { kind: 'auto', interval: 1 },
+      stats: { power: scaled(10, add('power', 1)) },
+      target: () => undefined,
+      release: () => GRANT,
+    }),
+    swing: spell({
+      activation: { kind: 'auto', interval: 1, ready: () => false },
+      stats: { power: scaled(10, add('power', 1)) },
+      target: () => undefined,
+      release: () => GRANT,
+    }),
     strike: spell({
       activation: { kind: 'auto', interval: 3 },
       stats: { power: scaled(10, add('power', 1)) },
@@ -302,6 +315,34 @@ export const spellHordeStats = (): { readonly inFlight: number; readonly created
   created: SYSTEM.pool.created,
 });
 
+/** 2,000 walking mobs each with a swing out of reach, polling (`lunge`) or waiting on `ready` (`swing`). */
+const [POLLERS, WAITERS] = ['lunge', 'swing'].map((name, which) =>
+  Array.from({ length: 2000 }, (_unused, index) => {
+    const unit = casterOf(40_000 + which * 2000 + index);
+
+    SYSTEM.arm(unit, spellId(name));
+
+    return unit;
+  }),
+);
+
+/** One tick of a crowd's auto step. */
+const autoTick = (crowd: readonly Unit[] | undefined): void => {
+  for (const unit of crowd ?? []) {
+    SYSTEM.stepAuto(unit);
+  }
+};
+
+/** One tick of the polling crowd. */
+const pollTick = (): void => {
+  autoTick(POLLERS);
+};
+
+/** One tick of the waiting crowd. */
+const waitTick = (): void => {
+  autoTick(WAITERS);
+};
+
 /** One tick of the idle casters' auto step: one armed clock each, 20 defined. */
 const idleTick = (): void => {
   for (const unit of IDLERS) {
@@ -313,6 +354,8 @@ const idleTick = (): void => {
 export const SPELL_TASKS: readonly (readonly [string, () => void, number])[] = [
   ['spells: horde tick, 2,000 casters in flight (tick)', hordeTick, 1000],
   ['spells: auto step, 2,000 casters, 1 of 20 auto spells armed (tick)', idleTick, 1000],
+  ['spells: 2,000 mobs, swing out of reach, polling a cast (tick)', pollTick, 1000],
+  ['spells: 2,000 mobs, swing out of reach, waiting on ready (tick)', waitTick, 1000],
   ['spells: instant cast, table stats + release', castBolt, 1],
   ['spells: after(0), scheduled + landed (per list)', delayOne, 1],
   ['spells: 1,000 after(0) landing on one tick (tick)', delayThousand, 1000],

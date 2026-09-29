@@ -15,7 +15,8 @@ const isReachRefusal = (refusal: CastReport['refusal']): boolean =>
 
 /**
  * What a cast costs its clock (§II.6 S2): a refusal by the gates or `canCast` answers `onRefused` (spend by default),
- * a refusal for no target or out of reach `onNoTarget` (retry: a swing's reach polled every step), an instant cast whose release set nothing off `onMiss` (retry), and
+ * a refusal for no target or out of reach `onNoTarget` (retry: a swing's reach polled every step, unless its `ready`
+ * hook holds it), an instant cast whose release set nothing off `onMiss` (retry), and
  * any other cast spends.
  */
 const costOf = <G extends SpellTypes>(activation: AutoActivation<G>, report: CastReport): Cost => {
@@ -48,7 +49,8 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
  * that ran out casts its spell, unless it resets after casts (`afterCast: 'reset'`) and the caster is casting: it
  * waits for the cast to end, which resets it. After the cast the clock is set, with no carry-over, to the interval
  * read at the cast (spend) or to the activation's `retry` seconds (the next step when it has none), as the outcome's
- * cost says. A caster with nothing armed costs one length check.
+ * cost says. A clock whose activation says the caster is not `ready` waits at zero, casting nothing. A caster with
+ * nothing armed costs one length check.
  */
 export const stepAutoClocks = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -73,8 +75,13 @@ export const stepAutoClocks = <G extends SpellTypes>(
       continue;
     }
 
-    const report = cast(caster, spell);
     const activation = autoOf(engine, spell);
+
+    if (activation.ready?.(caster) === false) {
+      continue;
+    }
+
+    const report = cast(caster, spell);
     const next = costOf(activation, report) === 'spend' ? report.interval : (activation.retry ?? 0);
 
     record.settle(spell, report.interval, next);

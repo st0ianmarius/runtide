@@ -130,3 +130,10 @@ At the review after F21 (P2), a caster steps only the `auto` clocks it has armed
 | spells: auto step, 2,000 casters, 1 of 20 auto spells armed    | 20.2–20.3 µs   |
 | spells: horde tick, 2,000 casters in flight (tick)             | 142.8 µs       |
 | units: spawn + despawn a grunt (template stats), now arming it | 1,133–1,163 ns |
+
+At the review after F21 (P3), an `auto` activation takes a `ready` hook: while it answers no, a run-out clock waits at zero and no cast is attempted. A melee swing out of reach otherwise polls a whole refused cast every step (a pooled cast, the host's id, rank and variant, the gates, the stats table, the target and reach, the interval), which is most of a walking horde. Same Apple Silicon Mac, range of two full runs; the two new rows arm 2,000 mobs each with a swing whose target is out of reach:
+
+| benchmark                                                | per tick   |
+| -------------------------------------------------------- | ---------- |
+| spells: 2,000 mobs, swing out of reach, polling a cast   | 529–553 µs |
+| spells: 2,000 mobs, swing out of reach, waiting on ready | 48–49 µs   |

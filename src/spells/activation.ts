@@ -18,9 +18,9 @@ export type CastSeconds<G extends SpellTypes, Source extends StatsSource<G> = St
     }['bivarianceHack'];
 
 /**
- * An `auto` activation (§II.3.2, §II.6 S2): the attack clock pulls it. The clock counts while the spell is not owned
- * (so a new spell fires at once), resets to the interval read at the cast (no carry-over), and answers each way a
- * cast can fail with `spend` (the whole interval) or `retry` (again after `retry` seconds).
+ * An `auto` activation (§II.3.2, §II.6 S2): the attack clock pulls it, on the casters that armed it (`spells.arm`).
+ * The clock resets to the interval read at the cast (no carry-over), and answers each way a cast can fail with `spend`
+ * (the whole interval) or `retry` (again after `retry` seconds).
  */
 export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extends StatsSource<G> = StatsSource<G>> {
   /** The discriminant. */
@@ -31,6 +31,16 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
 
   /** The seconds before a retry; 0 (the next step) when absent. */
   readonly retry?: number;
+
+  /**
+   * Whether the caster is ready to try, asked on each step while the clock has run out and before any cast is
+   * attempted: while it says no, the clock waits at zero and nothing is cast, refused or paid (a swing waiting on the
+   * distance the game already measured to steer, so a walking horde polls no cast). Every step tries when absent.
+   */
+  readonly ready?: {
+    /** Reads the caster; declared as a method so a function over a narrower caster still fits. */
+    bivarianceHack(caster: G['bearer']): boolean;
+  }['bivarianceHack'];
 
   /** What a refusal by the gates or `canCast` costs: `spend` (the default) or `retry`. */
   readonly onRefused?: 'spend' | 'retry';
@@ -246,6 +256,10 @@ const AUTO: ActivationKindDef<AutoActivation, never> = {
 
     if (activation.afterCast !== undefined && activation.afterCast !== 'reset' && activation.afterCast !== 'keep') {
       return "an auto clock's afterCast is 'reset' or 'keep'.";
+    }
+
+    if (activation.ready !== undefined && typeof activation.ready !== 'function') {
+      return "an auto clock's ready is a function of the caster.";
     }
 
     return isSound && isSeconds(retry) ? undefined : 'an auto interval must be above 0 and its retry from 0 seconds.';

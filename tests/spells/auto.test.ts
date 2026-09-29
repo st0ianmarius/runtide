@@ -137,6 +137,46 @@ describe('auto clocks (§II.3.2, §II.6 S2)', () => {
     assert.equal(game.spells.autoClock(game.a, game.id.patient), 0.5);
   });
 
+  it('waits at zero while the caster is not ready, attempting no cast, and casts on the first step it is', () => {
+    let isNear = false;
+    let asked = 0;
+    let aims = 0;
+
+    const game = autoGame({
+      swing: spell({
+        activation: {
+          kind: 'auto',
+          interval: 1,
+
+          ready: () => {
+            asked += 1;
+
+            return isNear;
+          },
+        },
+
+        target: (ctx) => {
+          aims += 1;
+
+          return ctx.caster;
+        },
+
+        release: () => [mark('swing')],
+      }),
+    });
+
+    game.advance(3);
+    assert.deepEqual(
+      [asked, aims, game.ticksOf('swing@1'), game.spells.autoClock(game.a, game.id.swing)],
+      [3, 0, [], 0],
+    );
+    isNear = true;
+    game.advance(1);
+    assert.deepEqual(game.ticksOf('swing@1'), [4]);
+    game.advance(3);
+    assert.equal(asked, 4, 'a clock still counting asks nothing');
+  });
+
   it('retries an instant cast whose release set nothing off, or spends when told to', () => {
     const game = autoGame({
       whiff: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [] }),
@@ -188,10 +228,13 @@ describe('an auto clock after the caster’s other casts (§II.6 S3)', () => {
     assert.equal(game.spells.autoClock(game.a, game.id.bolt), 0.75);
   });
 
-  it('refuses an afterCast that is neither reset nor keep', () => {
+  it('refuses an afterCast that is neither reset nor keep, and a ready that is not a function', () => {
     const forged = { kind: 'auto', interval: 1 } as const;
+    const unready = { kind: 'auto', interval: 1 } as const;
 
     Reflect.set(forged, 'afterCast', 'hold');
+    Reflect.set(unready, 'ready', true);
     assert.throws(() => autoGame({ x: spell({ activation: forged, release: () => undefined }) }), /afterCast/);
+    assert.throws(() => autoGame({ x: spell({ activation: unready, release: () => undefined }) }), /ready/);
   });
 });
