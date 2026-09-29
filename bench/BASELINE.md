@@ -155,3 +155,11 @@ At the review after F21 (P6), distances are one correctly rounded square root (`
 | world: 2,000 units move, grid updated (tick)            | 76.5 µs  | 51.3 µs  |
 | world: 2,000 units move, k-d rebuilt + a query (tick)   | 167.9 µs | 129.7 µs |
 | world: seconds inside a ring over one tick              | 83.9 ns  | 65.3 ns  |
+
+At the review after F21 (P7), a step of a bearer's clock first scans its auras for anything to do (an aura on that clock counting down, beating or with its own expiry rule, or any aura that has run out) and returns before opening its events when there is nothing: a bearer holding only a passive and a long buff no longer runs the expiry walk and the event bookkeeping every tick. The new row ticks 2,000 such bearers. Same Apple Silicon Mac, one full run each, against the P6 commit the same day:
+
+| benchmark                                                  | P6       | now      |
+| ---------------------------------------------------------- | -------- | -------- |
+| aura tick, 2,000 bearers x 2 auras, nothing due (per tick) | 90.7 µs  | 53.8 µs  |
+| aura tick, 2,000 bearers x 3 auras (per tick)              | 133.3 µs | 122.8 µs |
+| abilities: 1,000 heroes press 3 slots (tick)               | 174.6 µs | 161.1 µs |

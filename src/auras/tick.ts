@@ -121,6 +121,37 @@ const countDownLife = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<
 };
 
 /**
+ * Whether a step of `clock` has anything to do on a bearer (§I.5.4): an aura on it counting down, beating or with its
+ * own expiry rule, or any aura that has run out. Asked before the step opens its events, so a bearer holding only
+ * auras with nothing due (a passive, a long buff) costs a scan of its list and nothing more.
+ */
+const hasWork = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, clock: number): boolean => {
+  const { items } = set;
+  const isCountdown = engine.countsDown(clock);
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    if (item === undefined) {
+      continue;
+    }
+
+    const isOwn = item.clock === clock;
+
+    if (
+      engine.tables.beatClock[item.id] === clock ||
+      (isOwn &&
+        ((isCountdown && item.left !== Infinity) || engine.registry.hooks.expiresWhen[item.id] !== undefined)) ||
+      engine.isDue(set, item)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+/**
  * Steps a bearer's clock once (§I.5): the clock's count rises; in list order each aura on it counts down (on a clock
  * that keeps countdowns) and the beats counting on it come due, and the beats are dispatched; then every aura that
  * has run out (or whose own rule says so) expires, in list order, and those events are dispatched. So a beat due on
@@ -132,7 +163,7 @@ export const tickAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
 
   set.clocks[clock] = (set.clocks[clock] ?? 0) + 1;
 
-  if (items.length === 0) {
+  if (!hasWork(engine, set, clock)) {
     return;
   }
 

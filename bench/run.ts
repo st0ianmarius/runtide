@@ -227,8 +227,21 @@ const HORDE: AuraBearer[] = Array.from({ length: 2000 }, () => {
   return bearer;
 });
 
+/** 2,000 bearers holding two auras with nothing due on a tick: an infinite passive and a long buff. */
+const PASSIVES: AuraBearer[] = Array.from({ length: 2000 }, () => {
+  const bearer: AuraBearer = { auras: AURA_SYSTEM.createState() };
+
+  AURA_SYSTEM.apply(bearer, AURAS.id.slow);
+  AURA_SYSTEM.apply(bearer, { aura: AURAS.id.might, duration: 600 });
+
+  return bearer;
+});
+
 /** Operations per call of each task, where it is not `BATCH`. */
-const BATCHES = new Map([['aura tick, 2,000 bearers x 3 auras (per tick)', 1]]);
+const BATCHES = new Map([
+  ['aura tick, 2,000 bearers x 3 auras (per tick)', 1],
+  ['aura tick, 2,000 bearers x 2 auras, nothing due (per tick)', 1],
+]);
 
 const bench = new Bench({ time: 400, warmup: true });
 
@@ -323,6 +336,11 @@ bench
   })
   .add('aura tick, 2,000 bearers x 3 auras (per tick)', () => {
     for (const bearer of HORDE) {
+      AURA_SYSTEM.tick(bearer, 'world');
+    }
+  })
+  .add('aura tick, 2,000 bearers x 2 auras, nothing due (per tick)', () => {
+    for (const bearer of PASSIVES) {
       AURA_SYSTEM.tick(bearer, 'world');
     }
   });
