@@ -2,6 +2,7 @@ import type { BoundTest, CompiledCondition, ConditionTest, ValueRead } from '../
 import type { Bitset } from '../core/index.ts';
 import type { ScaledContext, StatView } from './compiled.ts';
 import type { CompiledModifier, ModifierList } from './modifier.ts';
+import type { SharedAt, SharedLists } from './shared.ts';
 import type { SourceId } from './sources.ts';
 import type { StatId } from './stat-id.ts';
 import type { Derivation } from './stats.ts';
@@ -102,6 +103,12 @@ export interface Entry<Host> {
 
   /** The compiled modifier, for explanations. */
   readonly modifier: CompiledModifier;
+
+  /**
+   * On a marker, the shared entries it stands for: a sheet's list holds one where the lists every sheet shares fold,
+   * and the fold walks the host's held gates there. `undefined` on every modifier's own entry.
+   */
+  readonly shared: SharedAt<Host> | undefined;
 }
 
 /** A stat's adds, muls and mins, each in source order. */
@@ -114,6 +121,12 @@ export interface CompiledStat<Host> {
 
   /** The caps. */
   readonly mins: readonly Entry<Host>[];
+}
+
+/** One gate a host holds, as its `held` report lists it: an aura instance, whose `id` is the gate. */
+export interface HeldGate {
+  /** The gate (an aura id). */
+  readonly id: number;
 }
 
 /** What a sheet's fold reads from its system. */
@@ -132,6 +145,12 @@ export interface FoldTables<Host> {
 
   /** The host's stacks of a gate. */
   readonly stacks: ((host: Host, gate: number) => number) | undefined;
+
+  /** The gates the host holds, in ascending order; without it a read checks every shared gate. */
+  readonly held: ((host: Host) => readonly HeldGate[]) | undefined;
+
+  /** The lists every sheet folds, compiled once for the system. */
+  readonly shared: SharedLists<Host>;
 
   /** A compiled condition as the test and argument a fold entry keeps, bound once per condition. */
   readonly testOf: (condition: CompiledCondition) => BoundTest<Host>;
@@ -186,6 +205,10 @@ export class Sheet<Host> implements StatSheet {
   isDirty = true;
   compiles = 0;
   sharedRevision = -1;
+
+  /** Which list the current walk folds, and how (the fold's `ADD`, `MUL`, `MIN` and mode bits); set like `read`. */
+  how = 0;
+
   readonly view: SheetView<Host>;
 
   constructor(tables: FoldTables<Host>, resolve: Resolve<Host>) {

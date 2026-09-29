@@ -1,6 +1,13 @@
 import { Bench } from 'tinybench';
 
-import { type AuraBearer, auraStacks, createAuraSystem, defineAuras, defineAuraTags } from '../src/auras/index.ts';
+import {
+  type AuraBearer,
+  auraGates,
+  auraStacks,
+  createAuraSystem,
+  defineAuras,
+  defineAuraTags,
+} from '../src/auras/index.ts';
 import { defineConditions } from '../src/conditions/index.ts';
 import {
   createBitset,
@@ -133,7 +140,13 @@ const AURA_STATS = defineStats({
 });
 
 const AURA_SOURCES = defineSources(['base', 'auras']);
-const AURA_MODIFIERS = createModifierSystem({ stats: AURA_STATS, sources: AURA_SOURCES, stacks: auraStacks });
+
+const AURA_MODIFIERS = createModifierSystem({
+  stats: AURA_STATS,
+  sources: AURA_SOURCES,
+  stacks: auraStacks,
+  held: auraGates,
+});
 
 const AURAS = defineAuras({
   might: { duration: 8, stacking: 'stack', maxStacks: 5, modifiers: [plus('armor', 10), mul('damage', 1.05)] },
@@ -163,6 +176,45 @@ const AURA_SYSTEM = createAuraSystem({
 const AURA_BEARER: AuraBearer = { auras: AURA_SYSTEM.createState() };
 const AURA_SHEET = AURA_MODIFIERS.createSheet();
 const AURA_READ = { host: AURA_BEARER };
+
+/** A game-sized aura catalogue: 120 auras folding moveSpeed and armor, on a bearer holding two of them. */
+const CATALOGUE_MODIFIERS = createModifierSystem({
+  stats: AURA_STATS,
+  sources: AURA_SOURCES,
+  stacks: auraStacks,
+  held: auraGates,
+});
+
+const CATALOGUE = defineAuras(
+  Object.fromEntries(
+    Array.from({ length: 120 }, (_unused, i) => [
+      `a${i}`,
+      { duration: 'infinite' as const, modifiers: [mul('moveSpeed', 1 + i / 1000), plus('armor', 1)] },
+    ]),
+  ),
+);
+
+const CATALOGUE_SYSTEM = createAuraSystem({
+  registry: CATALOGUE,
+  tags: defineAuraTags([]),
+  clocks: { world: createClock({ dt: 1 / 60 }) },
+  modifiers: CATALOGUE_MODIFIERS,
+  fold: 'auras',
+  host: { run: () => undefined },
+});
+
+const CATALOGUE_BEARER: AuraBearer = { auras: CATALOGUE_SYSTEM.createState() };
+
+for (const name of ['a7', 'a90']) {
+  const id = CATALOGUE.id[name];
+
+  if (id !== undefined) {
+    CATALOGUE_SYSTEM.apply(CATALOGUE_BEARER, id);
+  }
+}
+
+const CATALOGUE_SHEET = CATALOGUE_MODIFIERS.createSheet();
+const CATALOGUE_READ = { host: CATALOGUE_BEARER };
 
 /** The horde: 2,000 bearers with three auras each, one of them beating twice a second. */
 const HORDE: AuraBearer[] = Array.from({ length: 2000 }, () => {
@@ -262,6 +314,11 @@ bench
       sink +=
         AURA_MODIFIERS.resolve(AURA_SHEET, AURA_STATS.id.damage, AURA_READ) +
         AURA_MODIFIERS.resolve(AURA_SHEET, AURA_STATS.id.moveSpeed, AURA_READ);
+    }
+  })
+  .add('fold a stat, 120 aura lists in the game, 2 held', () => {
+    for (let i = 0; i < BATCH; i++) {
+      sink += CATALOGUE_MODIFIERS.resolve(CATALOGUE_SHEET, AURA_STATS.id.moveSpeed, CATALOGUE_READ);
     }
   })
   .add('aura tick, 2,000 bearers x 3 auras (per tick)', () => {

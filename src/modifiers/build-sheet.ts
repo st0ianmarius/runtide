@@ -1,5 +1,6 @@
-import type { CompiledModifier, CompiledValue, ModifierList } from './modifier.ts';
-import { type CompiledStat, type Entry, FROM_HOST, FROM_STAT, PLAIN, type Sheet } from './sheet.ts';
+import type { CompiledModifier, CompiledValue } from './modifier.ts';
+import { INLINE_GATES, type SharedAt } from './shared.ts';
+import { type CompiledStat, type Entry, type FoldTables, FROM_HOST, FROM_STAT, PLAIN, type Sheet } from './sheet.ts';
 import type { SourceId } from './sources.ts';
 
 /** The value fields of an entry. */
@@ -41,14 +42,14 @@ const valueFields = (value: CompiledValue): ValueFields => {
 };
 
 /** The fold entry of one compiled modifier from one source, every field present (one hidden class, §I.5.4). */
-const entryOf = <Host>(
-  sheet: Sheet<Host>,
+export const entryOf = <Host>(
+  tables: FoldTables<Host>,
   modifier: CompiledModifier,
-  at: { readonly source: SourceId; readonly gate: number },
+  at: { readonly source: SourceId; readonly gate: number; readonly shared?: SharedAt<Host> },
 ): Entry<Host> => {
   const fields = valueFields(modifier.value);
   const { when } = modifier;
-  const bound = when === undefined ? undefined : sheet.tables.testOf(when);
+  const bound = when === undefined ? undefined : tables.testOf(when);
 
   return {
     value: fields.value,
@@ -57,7 +58,7 @@ const entryOf = <Host>(
     per: fields.per,
     neutral: fields.neutral,
     cap: fields.cap,
-    read: fields.readId < 0 ? undefined : sheet.tables.reads[fields.readId],
+    read: fields.readId < 0 ? undefined : tables.reads[fields.readId],
     readArg: fields.readArg,
     test: bound?.test,
     testArg: bound?.arg ?? 0,
@@ -66,21 +67,27 @@ const entryOf = <Host>(
     gate: at.gate,
     isLinear: modifier.stacking === 'linear',
     modifier,
+    shared: at.shared,
   };
 };
 
 /** A stat's lists while they are gathered. */
-interface Gathering<Host> {
+export interface Gathering<Host> {
+  /** The additions. */
   readonly adds: Entry<Host>[];
+
+  /** The multipliers. */
   readonly muls: Entry<Host>[];
+
+  /** The caps. */
   readonly mins: Entry<Host>[];
 }
 
 /** Empty lists for one stat. */
-const gathering = <Host>(): Gathering<Host> => ({ adds: [], muls: [], mins: [] });
+export const gathering = <Host>(): Gathering<Host> => ({ adds: [], muls: [], mins: [] });
 
 /** The list of a stat an op goes into. */
-const listFor = <Host>(into: Gathering<Host>, op: CompiledModifier['op']): Entry<Host>[] => {
+export const listFor = <Host>(into: Gathering<Host>, op: CompiledModifier['op']): Entry<Host>[] => {
   if (op === 'add') {
     return into.adds;
   }
@@ -95,6 +102,7 @@ const checkAcyclic = <Host>(sheet: Sheet<Host>, lists: readonly Gathering<Host>[
     ...[...(lists[stat]?.adds ?? []), ...(lists[stat]?.muls ?? []), ...(lists[stat]?.mins ?? [])]
       .filter((entry) => entry.valueKind === FROM_STAT)
       .map((entry) => entry.valueStat),
+    ...(sheet.tables.shared.follows[stat] ?? []),
   ];
 
   const state = new Uint8Array(sheet.tables.base.length);
@@ -120,19 +128,44 @@ const checkAcyclic = <Host>(sheet: Sheet<Host>, lists: readonly Gathering<Host>[
 };
 
 /**
- * Rebuilds a sheet's compiled cache: every stat's adds, muls and mins, source by source in fold order (within a
- * source, the sheet's own lists, then the lists shared by every sheet), each list in authored order.
+ * A stat's shared entries at one source into a sheet's lists: the entries themselves (shared objects, not copies)
+ * while they have few gates, which the fold checks one by one as fast as its own; else one marker per list, where the
+ * fold walks the gates the host holds, so a read never grows with the number of gates the game defines.
  */
-export const buildSheet = <Host>(sheet: Sheet<Host>, shared: readonly (readonly ModifierList[])[]): void => {
+const addShared = <Host>(into: Gathering<Host>, shared: SharedAt<Host>): void => {
+  for (const op of shared.ops) {
+    const list = listFor(into, op);
+
+    if (shared.gates.length > INLINE_GATES) {
+      list.push(shared.marker);
+    } else {
+      for (const gathered of shared.entries) {
+        list.push(...listFor(gathered, op));
+      }
+    }
+  }
+};
+
+/**
+ * Rebuilds a sheet's compiled cache: every stat's adds, muls and mins, source by source in fold order, the sheet's own
+ * lists in authored order and then, where the lists every sheet shares have entries for the stat, those entries or
+ * their marker (`addShared`). Shared entries are compiled once for the system (`SharedLists`), never per sheet; the
+ * check for stats following themselves reads both.
+ */
+export const buildSheet = <Host>(sheet: Sheet<Host>): void => {
   const lists = Array.from(sheet.tables.base, () => gathering<Host>());
 
   for (const source of sheet.tables.sourceIds) {
-    for (const list of [...(sheet.lists[source] ?? []), ...(shared[source] ?? [])]) {
+    for (const list of sheet.lists[source] ?? []) {
       for (const modifier of list.modifiers) {
         const into = lists[modifier.stat] ?? gathering<Host>();
 
-        listFor(into, modifier.op).push(entryOf(sheet, modifier, { source, gate: list.gate ?? -1 }));
+        listFor(into, modifier.op).push(entryOf(sheet.tables, modifier, { source, gate: list.gate ?? -1 }));
       }
+    }
+
+    for (const shared of sheet.tables.shared.bySource[source] ?? []) {
+      addShared(lists[shared.stat] ?? gathering<Host>(), shared);
     }
   }
 

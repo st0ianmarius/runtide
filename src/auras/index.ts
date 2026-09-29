@@ -40,7 +40,7 @@ export {
 
 export { type AuraEvent, type AuraEventBus, createAuraEvent } from './events.ts';
 export type { AuraExplanation } from './explain.ts';
-export { type AuraBearer, auraStacks, type AuraState } from './state.ts';
+export { type AuraBearer, auraGates, auraStacks, type AuraState } from './state.ts';
 
 export type { AuraPipelineHook } from './collect.ts';
 

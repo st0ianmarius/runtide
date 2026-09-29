@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { auraStacks } from '../../src/auras/index.ts';
+import { auraGates, auraStacks } from '../../src/auras/index.ts';
 import { defineConditions } from '../../src/conditions/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul } from '../../src/modifiers/index.ts';
 import { checkPredicted } from '../../src/prediction/index.ts';
@@ -20,6 +20,7 @@ const setUp = () => {
     stats,
     sources: defineSources(['base', 'auras', 'late']),
     stacks: auraStacks,
+    held: auraGates,
   });
 
   return makeGame(
@@ -93,6 +94,7 @@ describe('mirror-safe conditions on predicted auras (§II.6 M8)', () => {
       sources: defineSources(['base', 'auras', 'late']),
       conditions,
       stacks: auraStacks,
+      held: auraGates,
     });
 
     /** A speed modifier waiting on a game condition (the test game's types name none, so it is set by hand). */

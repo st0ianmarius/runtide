@@ -1,5 +1,12 @@
 import { createAiSystem, defineTimers } from '../src/ai/index.ts';
-import { auraStacks, createAuraSystem, defineAura, defineAuras, defineAuraTags } from '../src/auras/index.ts';
+import {
+  auraGates,
+  auraStacks,
+  createAuraSystem,
+  defineAura,
+  defineAuras,
+  defineAuraTags,
+} from '../src/auras/index.ts';
 import { createClock, stream } from '../src/core/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul } from '../src/modifiers/index.ts';
 import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc } from '../src/procs/index.ts';
@@ -151,7 +158,7 @@ const AURAS = defineAuras<BenchGame, 'haste'>({
 
 const CLOCK = createClock({ dt: 1 / 30 });
 const SOURCES = defineSources(['base', 'auras']);
-const MODIFIERS = createModifierSystem({ stats: STATS, sources: SOURCES, stacks: auraStacks });
+const MODIFIERS = createModifierSystem({ stats: STATS, sources: SOURCES, stacks: auraStacks, held: auraGates });
 
 const AURA_SYSTEM = createAuraSystem<BenchGame>({
   registry: AURAS,

@@ -2,6 +2,7 @@ import { type AiProcs, type AiSystem, createAiSystem, defineTimers } from '../..
 import {
   type AuraApplication,
   type AuraDecision,
+  auraGates,
   type AuraId,
   auraStacks,
   type AuraSystem,
@@ -309,7 +310,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
   const clock = createClock({ dt: 0.25 });
   const registry = defineUnits<UnitGame, Name>(templates, { stats: STATS, tags: UNIT_TAGS });
   const sources = defineSources(['base', 'auras']);
-  const modifiers = createModifierSystem({ stats: STATS, sources, stacks: auraStacks });
+  const modifiers = createModifierSystem({ stats: STATS, sources, stacks: auraStacks, held: auraGates });
 
   const late: {
     units?: UnitSystem<UnitGame>;

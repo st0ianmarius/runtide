@@ -1,7 +1,10 @@
 // Hot path (§I.4.2, §I.5.4): indexed loops, since an iterator over a frozen list was measured to allocate here.
 /* oxlint-disable typescript/prefer-for-of */
 import { evaluateCurve } from './evaluate.ts';
-import { type Entry, FROM_HOST, FROM_STAT, type Sheet } from './sheet.ts';
+import { liveStacks } from './live.ts';
+import type { SharedAt } from './shared.ts';
+import { type CompiledStat, type Entry, FROM_HOST, FROM_STAT, type Sheet } from './sheet.ts';
+import { clampStat, stackedAdd, stackedMul } from './stacked.ts';
 import type { Derivation } from './stats.ts';
 
 /**
@@ -10,79 +13,41 @@ import type { Derivation } from './stats.ts';
  * turn, the clamp last. Every function here reads the sheet's current read (`sheet.view.read`), which the system sets
  * around each top-level read, and allocates nothing: the loops are indexed, since an iterator over a frozen list was
  * measured to allocate on this path (§I.5.4). A game's own gain measure is the one exception: it is handed a fresh
- * parts object on each call.
+ * parts object on each call. The shared (aura) lists are walked by the gates the host holds, so a read costs what the
+ * bearer holds and never grows with the number of gated lists the game defines.
  */
 
 /** The empty list, so that a missing list costs no allocation. */
 const NONE: readonly never[] = Object.freeze([]);
 
-/** Clamps a folded value to its stat's `min` / `max`: the ceiling first, then the floor. A NaN stays NaN. */
-export const clampStat = <Host>(sheet: Sheet<Host>, stat: number, value: number): number => {
-  const max = sheet.tables.max[stat] ?? Infinity;
-  const min = sheet.tables.min[stat] ?? -Infinity;
-  let clamped = value;
+/** A walk over a stat's additions. */
+const ADD = 0;
 
-  if (clamped > max) {
-    clamped = max;
+/** A walk over a stat's multipliers. */
+const MUL = 1;
+
+/** A walk over a stat's caps. */
+const MIN = 2;
+
+/** A walk that takes only the scoped entries (a scoped product). */
+const SCOPED_ONLY = 4;
+
+/** A walk that only asks whether any entry counts: its value turns 1 on the first that does. */
+const ANY_LIVE = 8;
+
+/** The list of a stat's entries a walk reads, by its low bits (a named read, not a keyed one: this is hot). */
+const listOf = <Host>(lists: CompiledStat<Host> | undefined, how: number): readonly Entry<Host>[] => {
+  const op = how & 3;
+
+  if (lists === undefined) {
+    return NONE;
   }
 
-  if (clamped < min) {
-    clamped = min;
+  if (op === ADD) {
+    return lists.adds;
   }
 
-  return clamped;
-};
-
-/** The stacks of a gated entry: the read's what-if override, else the host's report, else none. */
-const gateStacks = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number => {
-  const read = sheet.view.read;
-  const whatIf = read?.whatIf;
-
-  if (whatIf?.gate === entry.gate) {
-    return whatIf.stacks;
-  }
-
-  const host = read?.host;
-  const { stacks } = sheet.tables;
-
-  return host === undefined || stacks === undefined ? 0 : stacks(host, entry.gate);
-};
-
-/** Whether an entry's source is folded and its scope reached by the current read. */
-const isReached = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): boolean => {
-  const read = sheet.view.read;
-  const sources = read?.sources;
-
-  if (sources !== undefined && ((sources >>> entry.source) & 1) === 0) {
-    return false;
-  }
-
-  return entry.scope < 0 || read?.scope?.has(entry.scope) === true;
-};
-
-/**
- * How many stacks an entry counts with for the current read, or 0 when it does not count. Tested in this order, each
- * test only when the ones before it passed: the source is folded, the scope reached, the gate stacked, then the
- * condition met (a host value also needs a host). So a condition is asked only for an entry that would otherwise
- * count. An ungated entry counts with 1.
- */
-export const liveStacks = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number => {
-  if (!isReached(sheet, entry)) {
-    return 0;
-  }
-
-  const stacks = entry.gate >= 0 ? gateStacks(sheet, entry) : 1;
-  const host = sheet.view.read?.host;
-
-  if (stacks <= 0) {
-    return 0;
-  }
-
-  if (host === undefined) {
-    return entry.test === undefined && entry.valueKind !== FROM_HOST ? stacks : 0;
-  }
-
-  return entry.test === undefined || entry.test(host, entry.testArg) ? stacks : 0;
+  return op === MUL ? lists.muls : lists.mins;
 };
 
 /** The value an entry lands with at one stack: its number, its followed stat's bonus (capped), or its game read. */
@@ -102,35 +67,135 @@ export const entryValue = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number
   return entry.value;
 };
 
-/** An add at `stacks` stacks: the authored float at one stack or fewer, else `value × stacks`. */
-export const stackedAdd = (value: number, stacks: number): number => (stacks <= 1 ? value : value * stacks);
+/** Whether the current walk takes an entry: a scoped product only scoped ones, a fold skipping scoped muls none. */
+const isTaken = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, how: number): boolean => {
+  if ((how & SCOPED_ONLY) !== 0) {
+    return entry.scope >= 0;
+  }
 
-/**
- * A mul at `stacks` stacks: the authored float at one stack or fewer, else `value ^ stacks`, or `1 + (value − 1) ×
- * stacks` for linear stacking (§II.6 M4).
- */
-export const stackedMul = (entry: { readonly isLinear: boolean }, value: number, stacks: number): number => {
-  if (stacks <= 1) {
+  return entry.scope < 0 || (how & (3 | ANY_LIVE)) !== MUL || sheet.view.read?.scopedMuls !== 'skip';
+};
+
+/** What a counted entry lands with at `stacks` stacks: a stacked add, a stacked multiplier, or a cap. */
+const landedAt = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, stacks: number): number => {
+  const value = entryValue(sheet, entry);
+  const { op } = entry.modifier;
+
+  if (op === 'add') {
+    return stackedAdd(value, stacks);
+  }
+
+  return op === 'mul' ? stackedMul(entry, value, stacks) : value;
+};
+
+/** One entry folded into the current walk's running value, when the walk takes it and it counts. */
+const step = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, value: number): number => {
+  const how = sheet.how;
+  const stacks = isTaken(sheet, entry, how) ? liveStacks(sheet, entry) : 0;
+
+  if (stacks <= 0) {
     return value;
   }
 
-  return entry.isLinear ? 1 + (value - 1) * stacks : value ** stacks;
+  if ((how & ANY_LIVE) !== 0) {
+    return 1;
+  }
+
+  const landed = landedAt(sheet, entry, stacks);
+  const op = how & 3;
+
+  if (op === ADD) {
+    return value + landed;
+  }
+
+  if (op === MUL) {
+    return value * landed;
+  }
+
+  return landed < value ? landed : value;
 };
 
-/** Whether any entry of a list counts for the current read. */
-const isAnyLive = <Host>(sheet: Sheet<Host>, entries: readonly Entry<Host>[] | undefined): boolean => {
-  const list = entries ?? NONE;
+/** The shared entries of one gate for the current walk's list, or none. */
+const gateList = <Host>(sheet: Sheet<Host>, at: SharedAt<Host>, gate: number): readonly Entry<Host>[] => {
+  const index = gate < 0 ? -1 : (at.slots[gate] ?? -1);
+
+  return index < 0 ? NONE : listOf(at.entries[index], sheet.how);
+};
+
+/** The gates the current read's host holds (`held`), in ascending order, or none without a host. */
+const heldGates = <Host>(sheet: Sheet<Host>): readonly { readonly id: number }[] => {
+  const host = sheet.view.read?.host;
+
+  return host === undefined ? NONE : (sheet.tables.held?.(host) ?? NONE);
+};
+
+/**
+ * The shared entries at a marker folded for the gates the host holds (`held`), in gate order, with the read's what-if
+ * gate (`pending`) walked in its place: the cost follows what the host holds, never what the game defines.
+ */
+const walkHeld = <Host>(sheet: Sheet<Host>, at: SharedAt<Host>, value: number): number => {
+  const gates = heldGates(sheet);
+  let pending = sheet.view.read?.whatIf?.gate ?? -1;
+  let previous = -1;
+  let result = value;
+
+  for (let i = 0; i < gates.length; i++) {
+    const gate = gates[i]?.id ?? previous;
+
+    if (gate !== previous && pending >= 0 && pending <= gate) {
+      result = walkList(sheet, gateList(sheet, at, pending === gate ? -1 : pending), result);
+      pending = -1;
+    }
+
+    result = gate === previous ? result : walkList(sheet, gateList(sheet, at, gate), result);
+    previous = gate;
+  }
+
+  return walkList(sheet, gateList(sheet, at, pending), result);
+};
+
+/**
+ * The shared entries at a marker folded into the current walk's running value, in gate order: only the host's held
+ * gates when the system has a `held` report or the read no host (which counts only its what-if gate), else every gate.
+ */
+const walkShared = <Host>(sheet: Sheet<Host>, at: SharedAt<Host>, value: number): number => {
+  if (sheet.tables.held !== undefined || sheet.view.read?.host === undefined) {
+    return walkHeld(sheet, at, value);
+  }
+
+  let result = value;
+
+  for (let i = 0; i < at.gates.length; i++) {
+    result = walkList(sheet, gateList(sheet, at, at.gates[i] ?? -1), result);
+  }
+
+  return result;
+};
+
+/**
+ * Every entry of a list folded into the current walk's running value, in order, a marker walking its shared entries
+ * in its place. A caller sets `sheet.how` and restores it after, as it does `read`, so a nested fold (a stat-valued
+ * entry, a condition reading a stat) walks its own.
+ */
+const walkList = <Host>(sheet: Sheet<Host>, list: readonly Entry<Host>[], value: number): number => {
+  let result = value;
 
   for (let i = 0; i < list.length; i++) {
     const entry = list[i];
 
-    if (entry !== undefined && liveStacks(sheet, entry) > 0) {
-      return true;
+    if (entry?.shared !== undefined) {
+      result = walkShared(sheet, entry.shared, result);
+    } else if (entry !== undefined) {
+      result = step(sheet, entry, result);
     }
   }
 
-  return false;
+  return result;
 };
+
+/** Walks one list of a stat as `sheet.how` says, from `value`. */
+const walk = <Host>(sheet: Sheet<Host>, stat: number, value: number): number =>
+  walkList(sheet, listOf(sheet.compiled[stat], sheet.how), value);
 
 /** How far a stat's folded total sits above its base for the current read: `total − base`. */
 const gain = <Host>(sheet: Sheet<Host>, stat: number): number => foldStat(sheet, stat) - (sheet.tables.base[stat] ?? 0);
@@ -146,17 +211,27 @@ export const derivedGain = <Host>(sheet: Sheet<Host>, derivation: Extract<Deriva
     return gain(sheet, stat);
   }
 
-  const lists = sheet.compiled[stat];
+  const how = sheet.how;
+
+  sheet.how = ADD;
+
+  const adds = walk(sheet, stat, 0);
+
+  sheet.how = MUL | ANY_LIVE;
+
+  const anyMul = walk(sheet, stat, 0);
+
+  sheet.how = MIN | ANY_LIVE;
+
+  const anyMin = walk(sheet, stat, 0);
+
+  sheet.how = how;
 
   return derivation.gain({
     base: sheet.tables.base[stat] ?? 0,
     total: foldStat(sheet, stat),
-    adds: lists === undefined ? 0 : foldAdds(sheet, lists.adds, 0),
-
-    isAddOnly:
-      (sheet.tables.derivations[stat]?.length ?? 0) === 0 &&
-      !isAnyLive(sheet, lists?.muls) &&
-      !isAnyLive(sheet, lists?.mins),
+    adds,
+    isAddOnly: (sheet.tables.derivations[stat]?.length ?? 0) === 0 && anyMul === 0 && anyMin === 0,
 
     min: sheet.tables.min[stat] ?? -Infinity,
     max: sheet.tables.max[stat] ?? Infinity,
@@ -184,15 +259,20 @@ const addDerived = <Host>(sheet: Sheet<Host>, stat: number, value: number): numb
   return result;
 };
 
+// The fold's own loops, one per list, as plain as the float order allows (§I.5.4): each walks a marker's shared
+// entries (`walkShared`, for which the caller set `sheet.how`) and counts every other entry itself.
+
 /** Every live addition of a list summed onto `value`, in order. */
 const foldAdds = <Host>(sheet: Sheet<Host>, adds: readonly Entry<Host>[], value: number): number => {
   let result = value;
 
   for (let i = 0; i < adds.length; i++) {
     const entry = adds[i];
-    const stacks = entry === undefined ? 0 : liveStacks(sheet, entry);
+    const stacks = entry === undefined || entry.shared !== undefined ? 0 : liveStacks(sheet, entry);
 
-    if (entry !== undefined && stacks > 0) {
+    if (entry?.shared !== undefined) {
+      result = walkShared(sheet, entry.shared, result);
+    } else if (entry !== undefined && stacks > 0) {
       result += stackedAdd(entryValue(sheet, entry), stacks);
     }
   }
@@ -207,9 +287,12 @@ const foldMuls = <Host>(sheet: Sheet<Host>, muls: readonly Entry<Host>[], value:
 
   for (let i = 0; i < muls.length; i++) {
     const entry = muls[i];
-    const stacks = entry === undefined || (skipsScoped && entry.scope >= 0) ? 0 : liveStacks(sheet, entry);
+    const isSkipped = entry === undefined || entry.shared !== undefined || (skipsScoped && entry.scope >= 0);
+    const stacks = isSkipped ? 0 : liveStacks(sheet, entry);
 
-    if (entry !== undefined && stacks > 0) {
+    if (entry?.shared !== undefined) {
+      result = walkShared(sheet, entry.shared, result);
+    } else if (entry !== undefined && stacks > 0) {
       result *= stackedMul(entry, entryValue(sheet, entry), stacks);
     }
   }
@@ -223,9 +306,12 @@ const foldMins = <Host>(sheet: Sheet<Host>, mins: readonly Entry<Host>[], value:
 
   for (let i = 0; i < mins.length; i++) {
     const entry = mins[i];
-    const cap = entry !== undefined && liveStacks(sheet, entry) > 0 ? entryValue(sheet, entry) : result;
+    const isLive = entry !== undefined && entry.shared === undefined && liveStacks(sheet, entry) > 0;
+    const cap = isLive ? entryValue(sheet, entry) : result;
 
-    if (cap < result) {
+    if (entry?.shared !== undefined) {
+      result = walkShared(sheet, entry.shared, result);
+    } else if (cap < result) {
       result = cap;
     }
   }
@@ -239,17 +325,21 @@ const foldMins = <Host>(sheet: Sheet<Host>, mins: readonly Entry<Host>[], value:
  */
 export const foldStat = <Host>(sheet: Sheet<Host>, stat: number): number => {
   const lists = sheet.compiled[stat];
+  const how = sheet.how;
   let value = sheet.tables.base[stat] ?? 0;
 
-  if (lists !== undefined) {
-    value = foldAdds(sheet, lists.adds, value);
-  }
-
+  sheet.how = ADD;
+  value = lists === undefined ? value : foldAdds(sheet, lists.adds, value);
   value = addDerived(sheet, stat, value);
 
   if (lists !== undefined) {
-    value = foldMins(sheet, lists.mins, foldMuls(sheet, lists.muls, value));
+    sheet.how = MUL;
+    value = foldMuls(sheet, lists.muls, value);
+    sheet.how = MIN;
+    value = foldMins(sheet, lists.mins, value);
   }
+
+  sheet.how = how;
 
   return clampStat(sheet, stat, value);
 };
@@ -259,17 +349,13 @@ export const foldStat = <Host>(sheet: Sheet<Host>, stat: number): number => {
  * `scopedMuls: 'skip'` leaves out, for a caller that applies it at its own place in its own formula (§II.6 M5).
  */
 export const scopedProduct = <Host>(sheet: Sheet<Host>, stat: number): number => {
-  const muls = sheet.compiled[stat]?.muls ?? NONE;
-  let value = 1;
+  const how = sheet.how;
 
-  for (let i = 0; i < muls.length; i++) {
-    const entry = muls[i];
-    const stacks = entry !== undefined && entry.scope >= 0 ? liveStacks(sheet, entry) : 0;
+  sheet.how = MUL | SCOPED_ONLY;
 
-    if (entry !== undefined && stacks > 0) {
-      value *= stackedMul(entry, entryValue(sheet, entry), stacks);
-    }
-  }
+  const value = walk(sheet, stat, 1);
+
+  sheet.how = how;
 
   return value;
 };

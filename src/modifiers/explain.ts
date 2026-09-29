@@ -1,8 +1,11 @@
 import { evaluateCurve } from './evaluate.ts';
-import { clampStat, derivedGain, entryValue, liveStacks, stackedAdd, stackedMul } from './fold.ts';
+import { derivedGain, entryValue } from './fold.ts';
+import { liveStacks } from './live.ts';
 import type { CompiledModifier, ModifierList } from './modifier.ts';
+import { entriesInOrder } from './shared.ts';
 import type { Entry, Sheet } from './sheet.ts';
 import type { SourceId } from './sources.ts';
+import { clampStat, stackedAdd, stackedMul } from './stacked.ts';
 import type { StatId } from './stat-id.ts';
 
 /**
@@ -152,8 +155,8 @@ const stacksOf = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number =>
     : liveStacks(sheet, entry);
 
 /** The contributions of a list of entries, in fold order. */
-const contributions = <Host>(sheet: Sheet<Host>, entries: readonly Entry<Host>[] | undefined): Contribution[] =>
-  (entries ?? []).map((entry) => contribution(sheet, entry, stacksOf(sheet, entry)));
+const contributions = <Host>(sheet: Sheet<Host>, entries: readonly Entry<Host>[]): Contribution[] =>
+  entries.map((entry) => contribution(sheet, entry, stacksOf(sheet, entry)));
 
 /** The fold's total from its explained parts, in the fold's own float order. */
 const totalOf = (parts: Omit<StatExplanation, 'kind' | 'stat' | 'clamp' | 'total'>): number => {
@@ -178,14 +181,12 @@ const totalOf = (parts: Omit<StatExplanation, 'kind' | 'stat' | 'clamp' | 'total
 
 /** Explains a built sheet's stat for its current read; the system wraps it as `explainStat`. */
 export const explainSheetStat = <Host>(sheet: Sheet<Host>, stat: StatId): StatExplanation => {
-  const lists = sheet.compiled[stat];
-
   const parts = {
     base: sheet.tables.base[stat] ?? 0,
-    adds: contributions(sheet, lists?.adds),
+    adds: contributions(sheet, entriesInOrder(sheet, stat, 'adds')),
     derived: derivedOf(sheet, stat),
-    muls: contributions(sheet, lists?.muls),
-    mins: contributions(sheet, lists?.mins),
+    muls: contributions(sheet, entriesInOrder(sheet, stat, 'muls')),
+    mins: contributions(sheet, entriesInOrder(sheet, stat, 'mins')),
   };
 
   const clamp = { min: sheet.tables.min[stat] ?? -Infinity, max: sheet.tables.max[stat] ?? Infinity };

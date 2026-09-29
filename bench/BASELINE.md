@@ -110,3 +110,15 @@ Added at F17 (`bench/units.ts`), same Apple Silicon Mac, range of three full run
 At F18 a unit spawn also gives the unit its summons list and, for an owned unit, joins its owner's: spawn plus despawn measures 1,023–1,092 ns, against 1,014–1,066 ns at F17, within the noise of these runs.
 
 Added at F19 (`bench/units.ts`), same Apple Silicon Mac, range of three full runs. `scripts.step` over 2,000 units whose template names no script measures 2.0–2.5 µs a tick (a slot check each); over 2,000 scripted units with nothing due and no `tick` handler, 4.2–4.6 µs; and `scripts.collect` plus the step over 2,000 units whose one behaviour picks from four spells on a timer every 1–3 s, 35.2–36.9 µs, against 27.0–29.6 µs for the same picks fired straight from `ai.step`: the difference is the step loop and each handler's reused context.
+
+At the review after F21 (P1), a stat read no longer walks every gated list the game defines. Before, every sheet held a copy of every aura's modifiers and a read asked the host's stacks for each one, so a read grew with the aura registry: over 2,000 bearers with 10% holding one aura, 31 ns per read with one speed aura defined, 121 ns with 10, 2.8 µs with 100 and 8.1 µs with 300 (and 16–38 KB of entries per sheet). Now the aura lists are compiled once for the system; a sheet points at a stat's shared entries where it has at most four gates at a fold position, and otherwise holds a marker where a read walks the host's held gates (`held: auraGates`): 30, 42, 38 and 44 ns for the same four registries. The new row reads a stat on a bearer holding 2 of 120 aura lists. Same Apple Silicon Mac, range of two full runs, against the F21 commit run the same day:
+
+| benchmark                                       | F21            | now            |
+| ----------------------------------------------- | -------------- | -------------- |
+| fold a stat, 120 aura lists in the game, 2 held | about 3,000 ns | 80.6–81.6 ns   |
+| units: a folded stat (an aura modifier)         | 43.1–44.1 ns   | 44.5–44.8 ns   |
+| modifier fold, two stats (6 sources, gates)     | 121.3–126.6 ns | 129.1–129.2 ns |
+| scaled value evaluation (live folded stats)     | 142.9–146.3 ns | 155.2–156.8 ns |
+| units: spawn + despawn a grunt (template stats) | 1,005–1,015 ns | 1,198–1,218 ns |
+
+The spawn row reads 961 ns in a run without the 120-aura system: that second modifier system, whose sheets hold markers, makes the sheet build polymorphic in the one bench process, which a game with one modifier system does not see. The F21 figure for the new row is the old read's cost at 100–120 lists from the numbers above.

@@ -116,6 +116,18 @@ describe('the per-bearer cache (§I.5.4)', () => {
     assert.equal(mob.compiles, 2);
   });
 
+  it('refuses shared lists that are ungated or out of gate order, which a held walk could not keep in order', () => {
+    const { system, sources } = game();
+    const at = (gate?: number) => system.compile([mul('moveSpeed', 2)], gate === undefined ? {} : { gate });
+
+    assert.throws(() => {
+      system.share(sources.id.auras, [at(1), at(0)]);
+    }, /ascending gate order/);
+    assert.throws(() => {
+      system.share(sources.id.auras, [at()]);
+    }, /are gated/);
+  });
+
   it('refuses a sheet made elsewhere and a source the game did not declare', () => {
     const { system, id } = game();
 

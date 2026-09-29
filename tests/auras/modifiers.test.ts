@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { auraStacks, createAuraSystem, defineAuras, explainAura } from '../../src/auras/index.ts';
+import fc from 'fast-check';
+
+import { auraGates, auraStacks, createAuraSystem, defineAuras, explainAura } from '../../src/auras/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
 import { aura, CLOCKS, TAGS, type Unit } from '../helpers/aura-game.ts';
 
-/** A game whose aura modifiers fold through the modifier system's gates. */
-const game = () => {
+/** A game whose aura modifiers fold through the modifier system's gates, walking held gates unless `everyGate`. */
+const game = (everyGate = false) => {
   const stats = defineStats({
     damage: { base: 1, kind: 'multiplier' },
     armor: { base: 0, kind: 'flat' },
@@ -14,7 +16,13 @@ const game = () => {
   });
 
   const sources = defineSources(['base', 'auras', 'late']);
-  const modifiers = createModifierSystem({ stats, sources, stacks: auraStacks });
+
+  const modifiers = createModifierSystem({
+    stats,
+    sources,
+    stacks: auraStacks,
+    ...(everyGate ? {} : { held: auraGates }),
+  });
 
   const registry = defineAuras({
     frenzy: aura({ duration: 10, fold: 'late', modifiers: [mul('damage', 0.9)] }),
@@ -100,6 +108,34 @@ describe('aura modifiers in the fold', () => {
     const u = unit();
 
     assert.equal(modifiers.resolve(sheet, stats.id.armor, { host: u, whatIf: { gate: id.might, stacks: 2 } }), 60);
+  });
+
+  it('fold the same floats walking the held gates as asking every gate, what-ifs included', () => {
+    const held = game();
+    const every = game(true);
+    const auraIds = Object.values(held.id);
+    const pick = fc.constantFrom(...auraIds);
+    const applied = fc.array(fc.tuple(pick, fc.integer({ min: 1, max: 3 })), { maxLength: 8 });
+
+    fc.assert(
+      fc.property(applied, pick, fc.integer({ min: 0, max: 3 }), (auras, gate, stacks) => {
+        const [a, b] = [held, every].map((one) => {
+          const u = one.unit();
+
+          for (const [aura, count] of auras) {
+            one.auras.apply(u, { aura, stacks: count });
+          }
+
+          return Object.values(one.stats.id).flatMap((stat) => [
+            one.modifiers.resolve(one.sheet, stat, { host: u }),
+            one.modifiers.resolve(one.sheet, stat, { host: u, whatIf: { gate, stacks } }),
+            one.modifiers.resolve(one.sheet, stat, { whatIf: { gate, stacks } }),
+          ]);
+        });
+
+        assert.deepEqual(a, b);
+      }),
+    );
   });
 
   it('explain the modifiers at a stack count, as data', () => {

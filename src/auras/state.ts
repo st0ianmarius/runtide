@@ -103,3 +103,10 @@ export const setOf = <G extends AuraTypes>(bearer: AuraBearer): AuraSet<G> => {
  */
 export const auraStacks = (bearer: AuraBearer, gate: number): number =>
   setOf<AuraTypes>(bearer).stacksFor(bearer, gate);
+
+/**
+ * The auras a bearer holds, in registry order: the held report a modifier system walks its aura gates through
+ * (`createModifierSystem({ …, stacks: auraStacks, held: auraGates })`), so a stat read costs what the bearer holds,
+ * not what the registry defines.
+ */
+export const auraGates = (bearer: AuraBearer): readonly ActiveAura[] => setOf<AuraTypes>(bearer).items;

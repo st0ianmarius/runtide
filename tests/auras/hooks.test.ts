@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import {
   type ActiveAura,
+  auraGates,
   auraStacks,
   type ClockRescale,
   createAuraSystem,
@@ -113,6 +114,7 @@ describe('clock rescales on aura edges (§II.6 A13)', () => {
       stats,
       sources: defineSources(['base', 'auras', 'late']),
       stacks: auraStacks,
+      held: auraGates,
     });
 
     const registry = defineAuras({

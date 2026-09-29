@@ -12,7 +12,8 @@ import type { StatView } from './compiled.ts';
 import { explainSheetStat, type StatExplanation } from './explain.ts';
 import { foldStat, scopedProduct } from './fold.ts';
 import type { Modifier, ModifierList } from './modifier.ts';
-import { type FoldRead, type FoldTables, Sheet, sheetOf, type StatSheet } from './sheet.ts';
+import { compileShared, SharedLists } from './shared.ts';
+import { type FoldRead, type FoldTables, type HeldGate, Sheet, sheetOf, type StatSheet } from './sheet.ts';
 import type { SourceId, SourceTable } from './sources.ts';
 import type { StatId } from './stat-id.ts';
 import type { StatTable } from './stats.ts';
@@ -33,6 +34,14 @@ export interface ModifierSystemOptions<Host, S extends string, C extends string,
 
   /** How many stacks of a gate (an aura id) the host has; gated lists count only while it reports more than 0. */
   readonly stacks?: (host: Host, gate: number) => number;
+
+  /**
+   * The gates the host holds, in ascending gate order, repeats allowed (`auraGates`: its aura instances). With it a
+   * read walks the shared lists of those gates only, so its cost follows what the host holds rather than every gated
+   * list the game defines; without it a read asks `stacks` for every shared gate. It must list every gate `stacks`
+   * reports above 0.
+   */
+  readonly held?: (host: Host) => readonly HeldGate[];
 }
 
 /**
@@ -67,7 +76,9 @@ export interface ModifierSystem<Host, S extends string, C extends string, V exte
 
   /**
    * Replaces the lists every sheet folds at one source after its own lists there: the aura registry's gated lists at
-   * their chosen fold position, compiled into every sheet once so that an aura coming or going recompiles nothing.
+   * their chosen fold position, in ascending gate order. They are compiled once for the system and never copied into
+   * a sheet (a sheet points at a stat's few shared entries, or holds one marker where there are many), so an aura
+   * coming or going recompiles nothing and neither a sheet's size nor a read's cost grows with the registry.
    */
   readonly share: (source: SourceId, lists: readonly ModifierList[]) => void;
 
@@ -126,6 +137,8 @@ const tablesOf = <Host, S extends string, C extends string, V extends string, Sr
     max: column('max'),
     derivations: stats.derivations,
     stacks: options.stacks,
+    held: options.held,
+    shared: new SharedLists<Host>(),
     testOf: boundTests({ conditions: options.conditions, values: options.values }),
     reads: options.values?.defs.map((def) => def?.read ?? (() => 0)) ?? [],
     sourceIds: options.sources.ids,
@@ -202,14 +215,13 @@ export const createModifierSystem = <
 ): ModifierSystem<Host, S, C, V, Src> => {
   const tables = tablesOf(options);
   const shared: (readonly ModifierList[])[] = options.sources.ids.map(() => []);
-  let revision = 0;
 
   const built = (sheet: StatSheet): Sheet<Host> => {
     const own = sheetOf<Host>(sheet);
 
-    if (own.isDirty || own.sharedRevision !== revision) {
-      buildSheet(own, shared);
-      own.sharedRevision = revision;
+    if (own.isDirty || own.sharedRevision !== tables.shared.revision) {
+      buildSheet(own);
+      own.sharedRevision = tables.shared.revision;
     }
 
     return own;
@@ -232,7 +244,7 @@ export const createModifierSystem = <
 
     share: (source, lists) => {
       shared[source] = checkedLists(options.sources, { source, hasStacks }, lists);
-      revision += 1;
+      compileShared(tables, shared, tables.shared);
     },
 
     resolve: (sheet, stat, read) => foldFor(built(sheet), stat, read),
