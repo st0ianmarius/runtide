@@ -3,6 +3,86 @@ import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaEngine } from './engine.ts';
 
 /**
+ * What one owner has live (§I.5.4): how many of each kind (for `perOwner` limits and owner auras), and its area
+ * triggers in each tick-order list, in that list's order, so `stepOwner` walks the owner's own and nothing else.
+ */
+export class OwnerAreas<G extends AreaTriggerTypes> {
+  /** How many of each kind, by kind id. */
+  readonly counts: Uint16Array;
+
+  /** How many in all. */
+  total = 0;
+
+  /** The first and last of the owner's in each tick-order list, by list kind. */
+  readonly heads: (AreaTrigger<G> | undefined)[];
+  readonly tails: (AreaTrigger<G> | undefined)[];
+
+  constructor(kinds: number) {
+    this.counts = new Uint16Array(kinds);
+    this.heads = Array.from({ length: kinds }, () => undefined);
+    this.tails = Array.from({ length: kinds }, () => undefined);
+  }
+}
+
+/** The owner's area trigger just before `area` in its tick-order list, walking back past other owners'. */
+const ownerBefore = <G extends AreaTriggerTypes>(area: AreaTrigger<G>): AreaTrigger<G> | undefined => {
+  let walk = area.tickPrev;
+
+  while (walk !== undefined && walk.owner !== area.owner) {
+    walk = walk.tickPrev;
+  }
+
+  return walk;
+};
+
+/** Links a freshly placed area trigger into its owner's list, keeping the tick order (`before` is the owner's before it). */
+const linkOwner = <G extends AreaTriggerTypes>(
+  owned: OwnerAreas<G>,
+  area: AreaTrigger<G>,
+  before: AreaTrigger<G> | undefined,
+): void => {
+  const kind = area.listKind;
+  const next = before === undefined ? owned.heads[kind] : before.ownerNext;
+
+  area.ownerPrev = before;
+  area.ownerNext = next;
+
+  if (before === undefined) {
+    owned.heads[kind] = area;
+  } else {
+    before.ownerNext = area;
+  }
+
+  if (next === undefined) {
+    owned.tails[kind] = area;
+  } else {
+    next.ownerPrev = area;
+  }
+};
+
+/** Takes an area trigger out of its owner's list. */
+const unlinkOwner = <G extends AreaTriggerTypes>(owned: OwnerAreas<G> | undefined, area: AreaTrigger<G>): void => {
+  const { ownerPrev: prev, ownerNext: next } = area;
+  const kind = area.listKind;
+
+  if (owned === undefined) {
+    return;
+  }
+
+  if (prev === undefined) {
+    owned.heads[kind] = next;
+  } else {
+    prev.ownerNext = next;
+  }
+
+  if (next === undefined) {
+    owned.tails[kind] = prev;
+  } else {
+    next.ownerPrev = prev;
+  }
+};
+
+/**
  * Links an area trigger into the tick order (§II.6.1 rule 1, §II.6 K2): last in its own kind's list, or, for a child
  * that ticks after its parent, right after the parent and the children (and their children) placed after it before,
  * in its parent's list and slot.
@@ -25,6 +105,10 @@ export const linkTick = <G extends AreaTriggerTypes>(
     }
 
     engine.tickTails[area.listKind] = area;
+
+    const owned = engine.ownerFor(area.owner);
+
+    linkOwner(owned, area, owned.tails[area.listKind]);
 
     return;
   }
@@ -50,6 +134,7 @@ export const linkTick = <G extends AreaTriggerTypes>(
   }
 
   parent.lastChild = area;
+  linkOwner(engine.ownerFor(area.owner), area, ownerBefore(area));
 };
 
 /** The child placed after `parent` just before `child`, or `undefined` when `child` was its first. */
@@ -74,6 +159,8 @@ export const unlinkTick = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ar
   if (parent?.lastChild === area) {
     parent.lastChild = siblingBefore(parent, area);
   }
+
+  unlinkOwner(engine.ownerOf(area.owner), area);
 
   if (prev === undefined) {
     engine.tickHeads[area.listKind] = next;

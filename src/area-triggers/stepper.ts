@@ -4,7 +4,8 @@ import type { AreaTriggerTypes } from './area-types.ts';
 import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
 import { frame } from './frame.ts';
-import { NO_AREA_TRIGGER } from './ids.ts';
+import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
+import type { OwnerAreas } from './order.ts';
 
 /** The expiry modes' codes, as the `expiry` column holds them. */
 const EXPIRY_BEFORE = 1;
@@ -132,11 +133,48 @@ export const stepArea = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area
   }
 };
 
+/** Writes the handles of every area trigger of some kinds' tick-order lists into `out`; returns how many. */
+const snapshotAll = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  kinds: readonly number[],
+  out: (AreaTriggerHandle | undefined)[],
+): number => {
+  let count = 0;
+
+  for (const kind of kinds) {
+    for (let walk = engine.tickHeads[kind]; walk !== undefined; walk = walk.tickNext) {
+      out[count] = walk.handle;
+      count += 1;
+    }
+  }
+
+  return count;
+};
+
+/** Writes the handles of one owner's area triggers in some kinds' tick-order lists into `out`; returns how many. */
+const snapshotOwned = <G extends AreaTriggerTypes>(
+  owned: OwnerAreas<G>,
+  kinds: readonly number[],
+  out: (AreaTriggerHandle | undefined)[],
+): number => {
+  let count = 0;
+
+  for (const kind of kinds) {
+    for (let walk = owned.heads[kind]; walk !== undefined; walk = walk.ownerNext) {
+      out[count] = walk.handle;
+      count += 1;
+    }
+  }
+
+  return count;
+};
+
 /**
  * Steps every area trigger of a tick slot once (§II.6.1 rule 1, §II.6 K2), or only one owner's: kind by kind in
  * registry order, each kind's list in creation order with after-parent children right after their parents. The walk
  * reads a snapshot of handles, so what ends during it is skipped and what spawns during it waits for the next tick.
- * Returns how many stepped.
+ * An owner's walk reads the owner's own lists, in the same order: one with none costs a lookup. Returns how many
+ * stepped.
  */
 export const stepSlot = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -144,18 +182,15 @@ export const stepSlot = <G extends AreaTriggerTypes>(
   owner: G['bearer'] | undefined,
 ): number => {
   const kinds = engine.slotKinds[slot] ?? [];
-  const handles = engine.handles.take();
-  let count = 0;
-  let stepped = 0;
+  const owned = owner === undefined ? undefined : engine.ownerOf(owner);
 
-  for (const kind of kinds) {
-    for (let walk = engine.tickHeads[kind]; walk !== undefined; walk = walk.tickNext) {
-      if (owner === undefined || walk.owner === owner) {
-        handles[count] = walk.handle;
-        count += 1;
-      }
-    }
+  if (owner !== undefined && owned === undefined) {
+    return 0;
   }
+
+  const handles = engine.handles.take();
+  const count = owned === undefined ? snapshotAll(engine, kinds, handles) : snapshotOwned(owned, kinds, handles);
+  let stepped = 0;
 
   try {
     for (let i = 0; i < count; i++) {

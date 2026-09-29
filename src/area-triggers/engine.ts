@@ -19,12 +19,13 @@ import type { AreaTriggerEvent, AreaTriggerEvents } from './events.ts';
 import { Catcher } from './hits.ts';
 import { type AreaTriggerHandle, toAreaTriggerHandle } from './ids.ts';
 import { LedgerBook, LedgerView } from './ledgers.ts';
+import { OwnerAreas } from './order.ts';
 import type { SharedClock } from './pulses.ts';
 import { AreaQueryApi } from './queries.ts';
 
 /**
  * The area trigger machinery's shared state (§I.5.4): the registry and its resolved tables, the pool, each kind's
- * tick-order list and creation-order list, the per-owner counts, the reusable proc lists and snapshots, and the area
+ * tick-order list and creation-order list, each owner's counts and tick-order lists, the reusable proc lists and snapshots, and the area
  * trigger whose procs are running. Spawning, stepping and ending (`spawner.ts`, `stepper.ts`, `ender.ts`) are
  * functions over it.
  */
@@ -91,7 +92,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   readonly #random: Random | undefined;
   readonly #streams: AreaEngineParts<G>['streams'];
   readonly #resetExt: AreaEngineParts<G>['resetExt'];
-  readonly #counts = new Map<G['bearer'], Uint16Array>();
+  readonly #owners = new Map<G['bearer'], OwnerAreas<G>>();
   readonly #ownerClocks = new Map<G['bearer'], (SharedClock | undefined)[]>();
   readonly #lists: ProcList<G>[] = [];
   readonly #place = new AreaPlace();
@@ -205,24 +206,37 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     return clocks;
   }
 
-  /** How many area triggers of a kind an owner has. */
-  countOf(owner: G['bearer'], kind: number): number {
-    return this.#counts.get(owner)?.[kind] ?? 0;
+  /** What an owner has live: its counts by kind and its tick-order lists; `undefined` for an owner with none. */
+  ownerOf(owner: G['bearer']): OwnerAreas<G> | undefined {
+    return this.#owners.get(owner);
   }
 
-  /** Counts one more (or one fewer) of a kind for an owner. */
-  count(owner: G['bearer'], [kind, by]: readonly [number, number]): void {
-    let counts = this.#counts.get(owner);
+  /** What an owner has live, made on its first area trigger. */
+  ownerFor(owner: G['bearer']): OwnerAreas<G> {
+    let owned = this.#owners.get(owner);
 
-    if (counts === undefined) {
-      counts = new Uint16Array(this.registry.size);
-      this.#counts.set(owner, counts);
+    if (owned === undefined) {
+      owned = new OwnerAreas<G>(this.registry.size);
+      this.#owners.set(owner, owned);
     }
 
-    counts[kind] = (counts[kind] ?? 0) + by;
+    return owned;
+  }
 
-    if (by < 0 && counts.every((n) => n === 0)) {
-      this.#counts.delete(owner);
+  /** How many area triggers of a kind an owner has. */
+  countOf(owner: G['bearer'], kind: number): number {
+    return this.#owners.get(owner)?.counts[kind] ?? 0;
+  }
+
+  /** Counts one more (or one fewer) of a kind for an owner, forgetting an owner left with none. */
+  count(owner: G['bearer'], [kind, by]: readonly [number, number]): void {
+    const owned = this.ownerFor(owner);
+
+    owned.counts[kind] = (owned.counts[kind] ?? 0) + by;
+    owned.total += by;
+
+    if (owned.total <= 0) {
+      this.#owners.delete(owner);
     }
   }
 
@@ -236,6 +250,8 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.tickPrev = undefined;
     area.kindNext = undefined;
     area.kindPrev = undefined;
+    area.ownerNext = undefined;
+    area.ownerPrev = undefined;
     area.lastChild = undefined;
     area.locked = undefined;
     area.placer.clear();

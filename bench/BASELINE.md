@@ -137,3 +137,10 @@ At the review after F21 (P3), an `auto` activation takes a `ready` hook: while i
 | -------------------------------------------------------- | ---------- |
 | spells: 2,000 mobs, swing out of reach, polling a cast   | 529–553 µs |
 | spells: 2,000 mobs, swing out of reach, waiting on ready | 48–49 µs   |
+
+At the review after F21 (P4), `areaTriggers.stepOwner` walks the owner's own area triggers: each owner keeps its own tick-order lists, in the order of the whole walk (a child placed after its parent lands after its owner's area trigger just before it), and an owner with none costs one lookup. Before, it walked every live area trigger of the slot and kept the owner's. The new row steps the area trigger tick owner by owner, as a game stepping each unit's area triggers in its own movement loop does (§II.6.1 rule 1): the 2,000 foes, which own none, then the ten owners. Same Apple Silicon Mac, range of two full runs; before, from a run at the P3 commit:
+
+| benchmark                                                   | before | now      |
+| ----------------------------------------------------------- | ------ | -------- |
+| areas: 150 pools + 50 missiles over 2,000 units (tick)      | 51 µs  | 53–55 µs |
+| areas: the same, stepped owner by owner, 2,010 units (tick) | 461 µs | 76 µs    |

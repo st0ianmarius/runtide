@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import fc from 'fast-check';
+
 import {
   type AnyAreaTriggerDef,
   type AreaTriggerHandle,
@@ -266,6 +268,69 @@ describe('the tick order (§II.6.1 rule 1, §II.6 K2)', () => {
     game.step();
     game.areaTriggers.step();
     assert.deepEqual(game.log, ['a2', 'child4', 'child10', 'a3', 'child11', 'b1', 'b5', 'b8']);
+  });
+
+  it('steps an owner’s area triggers in the order the whole walk steps them, whatever owners they sit among', () => {
+    const quiet = (name: string) =>
+      logged({
+        lifetime: 'spent',
+        ...(name === 'child' ? { insert: 'after-parent' as const } : {}),
+
+        frame: (c) => {
+          c.host.log.push(`${name}${c.id}@${c.owner.id}`);
+
+          return undefined;
+        },
+      });
+
+    const op = fc.record({
+      kind: fc.constantFrom('a', 'b', 'child' as const),
+      owner: fc.integer({ min: 1, max: 3 }),
+      parent: fc.nat(),
+      despawn: fc.option(fc.nat(), { nil: undefined }),
+    });
+
+    fc.assert(
+      fc.property(fc.array(op, { minLength: 1, maxLength: 24 }), (ops) => {
+        const game = makeSpellGame({}, { areaTriggers: { a: quiet('a'), b: quiet('b'), child: quiet('child') } });
+        const owners = [game.unit(1), game.unit(2), game.unit(3)];
+        const live: AreaTriggerHandle[] = [];
+
+        for (const { kind, owner, parent, despawn } of ops) {
+          const unit = owners[owner - 1] ?? game.unit(owner);
+          const parentHandle = kind === 'child' ? live[parent % Math.max(1, live.length)] : undefined;
+
+          live.push(
+            game.areaTriggers.spawn(game.areaId[kind], {
+              owner: unit,
+              at: vec2(0, 0),
+              ...(parentHandle === undefined ? {} : { parent: parentHandle }),
+            }),
+          );
+
+          if (despawn !== undefined && live.length > 1) {
+            game.areaTriggers.despawn(live.splice(despawn % live.length, 1)[0] ?? NO_AREA_TRIGGER);
+          }
+        }
+
+        game.step();
+        game.log.length = 0;
+        game.areaTriggers.step();
+
+        const whole = [...game.log];
+
+        game.step();
+        game.log.length = 0;
+
+        for (const unit of owners) {
+          game.areaTriggers.stepOwner(unit);
+        }
+
+        const byOwner = owners.flatMap((unit) => whole.filter((line) => line.endsWith(`@${unit.id}`)));
+
+        assert.deepEqual(game.log, byOwner);
+      }),
+    );
   });
 
   it('steps each slot and each owner on its own', () => {

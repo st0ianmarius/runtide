@@ -223,9 +223,9 @@ const unitAt = (id: number, [x, z, side]: readonly [number, number, number]): Un
 /** Ten owners, and 2,000 foes spread evenly at random. */
 const OWNERS: readonly Unit[] = Array.from({ length: 10 }, (_unused, i) => unitAt(i + 1, [i * 5 - 25, 0, 0]));
 
-for (let i = 0; i < 2000; i++) {
-  unitAt(100 + i, [(random() - 0.5) * 190, (random() - 0.5) * 190, 1]);
-}
+const FOES: readonly Unit[] = Array.from({ length: 2000 }, (_unused, i) =>
+  unitAt(100 + i, [(random() - 0.5) * 190, (random() - 0.5) * 190, 1]),
+);
 
 // 150 pools and 50 missiles, spread over the world.
 for (let i = 0; i < 200; i++) {
@@ -246,6 +246,23 @@ for (let i = 0; i < 100; i++) {
   areaTick();
 }
 
+/**
+ * One tick stepped owner by owner (§II.6.1 rule 1: a game stepping each unit's area triggers in its own movement
+ * loop): every foe, which owns none, then the ten owners.
+ */
+const ownerTick = (): void => {
+  CLOCK.step();
+  WORLD.tick();
+
+  for (const unit of FOES) {
+    AREAS.stepOwner(unit);
+  }
+
+  for (const unit of OWNERS) {
+    AREAS.stepOwner(unit);
+  }
+};
+
 /** How many area triggers are live and how many records were made: what the baseline reports beside the times. */
 export const areaStats = (): { readonly live: number; readonly created: number } => ({
   live: AREAS.pool.live,
@@ -255,4 +272,5 @@ export const areaStats = (): { readonly live: number; readonly created: number }
 /** The F8 area trigger benchmark tasks, and how many operations each call of its function is. */
 export const AREA_TASKS: readonly (readonly [string, () => void, number])[] = [
   ['areas: 150 pools + 50 missiles over 2,000 units (tick)', areaTick, 1000],
+  ['areas: the same, stepped owner by owner, 2,010 units (tick)', ownerTick, 1000],
 ];

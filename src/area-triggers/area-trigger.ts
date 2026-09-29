@@ -124,6 +124,10 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   kindNext: AreaTrigger<G> | undefined = undefined;
   kindPrev: AreaTrigger<G> | undefined = undefined;
 
+  /** The next and previous of its owner's in its tick-order list, in that list's order (`stepOwner` walks these). */
+  ownerNext: AreaTrigger<G> | undefined = undefined;
+  ownerPrev: AreaTrigger<G> | undefined = undefined;
+
   /** The last child that ticks right after it, which the next such child follows. */
   lastChild: AreaTrigger<G> | undefined = undefined;
 
