@@ -172,3 +172,15 @@ At the review after F21 (P5), a spawn stops rebuilding what every unit of its te
 | units: a folded stat (an aura modifier)         | 44.0 ns  | 41.0 ns |
 
 One full run read the thinkers' row at 15.9 ms, once: the next full run and a run of the unit rows alone read 34.6 µs and 35.0 µs, as before.
+
+At the review after F21, a pool handle stays a small integer: 20 bits of slot (1,048,576 items a pool, down from 4,194,304) and 11 of generation, which wraps after 2,047 reuses of a slot, read with bit operations. Before, the generation sat above 22 bits of slot, so a slot reused about 500 times made its handles heap numbers read through float division and modulo: every cast, aura, delayed list and area trigger lookup of a long-running game. Released slots are now reused oldest first, so a slot comes round only after every other free one and a kept handle needs 2,047 turns of the whole free list to read as live again. `isLive` measured 1.3 ns on a fresh slot and 6.5 ns on a slot reused 5,000 times before; 1.2 and 3.4 ns now. Same Apple Silicon Mac, one full run each, against the P5 commit the same day:
+
+| benchmark                                              | P5       | now      |
+| ------------------------------------------------------ | -------- | -------- |
+| spells: horde tick, 2,000 casters in flight (tick)     | 139.2 µs | 119.5 µs |
+| spells: 2,000 mobs, swing out of reach, polling a cast | 517.4 µs | 402.2 µs |
+| spells: instant cast, table stats + release            | 412.9 ns | 355.0 ns |
+| spells: after(0), scheduled + landed (per list)        | 296.5 ns | 242.4 ns |
+| spells: 1,000 after(0) landing on one tick (tick)      | 170.3 µs | 144.0 µs |
+| ai: 2,000 brains, a pick timer each every 1–3 s (tick) | 26.6 µs  | 22.1 µs  |
+| ai: a weighted pick of 4 spells (checked)              | 585.9 ns | 440.2 ns |

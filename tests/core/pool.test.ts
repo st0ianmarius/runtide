@@ -68,4 +68,36 @@ describe('pools with generational handles', () => {
     assert.equal(pool.get(pool.acquire()) === undefined, false);
     assert.equal(NO_HANDLE, 0);
   });
+
+  it('keeps handles small integers through generations, wrapping past 2,047 reuses and never to the empty handle', () => {
+    const pool = castPool();
+    const first = pool.acquire();
+    let handle = first;
+
+    for (let i = 0; i < 2046; i++) {
+      pool.release(handle);
+      handle = pool.acquire();
+      assert.ok(handle > 0 && handle < 2 ** 31 && Number.isInteger(handle));
+      assert.equal(pool.isLive(first), false);
+    }
+
+    pool.release(handle);
+    handle = pool.acquire();
+    assert.equal(handle, first, 'the 2,048th occupant of a slot has the first one’s handle again');
+    assert.equal(pool.slotOf(handle), 0);
+  });
+
+  it('reuses released slots oldest first', () => {
+    const pool = castPool();
+    const handles = Array.from({ length: 4 }, () => pool.acquire());
+
+    for (const handle of [handles[2], handles[0], handles[3]]) {
+      assert.equal(handle !== undefined && pool.release(handle), true);
+    }
+
+    assert.deepEqual(
+      [pool.acquire(), pool.acquire(), pool.acquire(), pool.acquire()].map((h) => pool.slotOf(h)),
+      [2, 0, 3, 4],
+    );
+  });
 });

@@ -1,8 +1,21 @@
 import type { Defined } from './defined.ts';
 import { type Handle, toHandle } from './ids.ts';
 
-/** How many slots a pool can address: a handle packs the slot below this and the generation above it. */
-const SLOT_SPAN = 2 ** 22;
+/** How many bits of a handle hold its slot: a pool addresses up to 2^20 (1,048,576) items. */
+const SLOT_BITS = 20;
+
+/** How many slots a pool can address. */
+const SLOT_SPAN = 2 ** SLOT_BITS;
+
+/** The slot bits of a handle. */
+const SLOT_MASK = SLOT_SPAN - 1;
+
+/**
+ * How many generations a slot counts before it wraps (to 1: generation 0 is never handed out, so `NO_HANDLE` never
+ * points at anything). Slot and generation fit 31 bits, so a handle stays a small integer, which V8 keeps unboxed and
+ * reads with bit operations; a larger handle would be a heap number read through float division (§I.5.4).
+ */
+const GENERATIONS = 2 ** (31 - SLOT_BITS) - 1;
 
 /** A handle that never points at anything: slot 0 at generation 0, which no acquire returns. */
 export const NO_HANDLE = 0;
@@ -18,7 +31,10 @@ export interface PoolOptions<Item> {
 
 /**
  * A pool of reusable items with generational handles (§I.5.4): a released slot is reused, and its generation rises,
- * so a handle kept past its release is detected as stale and never reaches the slot's next occupant.
+ * so a handle kept past its release is detected as stale and never reaches the slot's next occupant. Released slots
+ * are reused oldest first, so a slot comes round again only after every other free slot, and its generation wraps
+ * after 2,047 reuses: a handle kept that long after its release could read as live again, so keep a handle no longer
+ * than its item lives, as the systems do.
  */
 export interface Pool<Item extends Defined> {
   /** How many items the pool has ever made: a steady-state tick that allocates nothing leaves it unchanged. */
@@ -51,6 +67,7 @@ class ItemPool<Item extends Defined> implements Pool<Item> {
   readonly #generations: number[] = [];
   readonly #isAcquired: boolean[] = [];
   readonly #free: number[] = [];
+  #freeHead = 0;
   #live = 0;
 
   constructor(options: PoolOptions<Item>) {
@@ -66,34 +83,34 @@ class ItemPool<Item extends Defined> implements Pool<Item> {
     return this.#live;
   }
 
-  readonly slotOf = (handle: number): number => handle % SLOT_SPAN;
+  readonly slotOf = (handle: number): number => handle & SLOT_MASK;
 
   readonly isLive = (handle: number): boolean => {
-    const slot = handle % SLOT_SPAN;
+    const slot = handle & SLOT_MASK;
 
-    return this.#isAcquired[slot] === true && this.#generations[slot] === Math.floor(handle / SLOT_SPAN);
+    return this.#isAcquired[slot] === true && this.#generations[slot] === handle >>> SLOT_BITS;
   };
 
   readonly acquire = (): Handle<Item> => {
     const slot = this.#takeSlot();
-    const generation = (this.#generations[slot] ?? 0) + 1;
+    const generation = ((this.#generations[slot] ?? 0) % GENERATIONS) + 1;
 
     this.#generations[slot] = generation;
     this.#isAcquired[slot] = true;
     this.#live += 1;
 
-    return toHandle<Item>(generation * SLOT_SPAN + slot);
+    return toHandle<Item>((generation << SLOT_BITS) | slot);
   };
 
   readonly get = (handle: Handle<Item>): Item | undefined =>
-    this.isLive(handle) ? this.#items[handle % SLOT_SPAN] : undefined;
+    this.isLive(handle) ? this.#items[handle & SLOT_MASK] : undefined;
 
   readonly release = (handle: Handle<Item>): boolean => {
     if (!this.isLive(handle)) {
       return false;
     }
 
-    const slot = handle % SLOT_SPAN;
+    const slot = handle & SLOT_MASK;
     const item = this.#items[slot];
 
     this.#isAcquired[slot] = false;
@@ -107,11 +124,24 @@ class ItemPool<Item extends Defined> implements Pool<Item> {
     return true;
   };
 
-  /** A free slot, or a new one with a new item. */
+  /** The oldest free slot, or a new one with a new item. */
   #takeSlot(): number {
-    const slot = this.#free.pop();
+    const free = this.#free;
 
-    if (slot !== undefined) {
+    if (this.#freeHead < free.length) {
+      const slot = free[this.#freeHead] ?? 0;
+
+      this.#freeHead += 1;
+
+      if (this.#freeHead === free.length) {
+        free.length = 0;
+        this.#freeHead = 0;
+      } else if (this.#freeHead >= 1024 && this.#freeHead * 2 >= free.length) {
+        free.copyWithin(0, this.#freeHead);
+        free.length -= this.#freeHead;
+        this.#freeHead = 0;
+      }
+
       return slot;
     }
 
