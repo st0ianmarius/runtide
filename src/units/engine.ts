@@ -142,6 +142,12 @@ export interface SpawnUnit<G extends UnitTypes> {
 
   /** Whether it despawns (reason `owner`) as its owner dies or despawns (§I.7.1 F18); false when absent. */
   readonly isBound?: boolean;
+
+  /**
+   * The script it runs, in place of its template's (§I.7.1 F21): one bodiless template serves every world script,
+   * `units.spawn(WORLD, { side: 1, script: 'inferno' })`. Its template's when absent.
+   */
+  readonly script?: G['scriptName'];
 }
 
 /** A stat view of a unit's own snapshotted bases, for a game without a modifier system. */

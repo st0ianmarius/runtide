@@ -57,10 +57,13 @@ export const despawnBound = <G extends UnitTypes>(engine: UnitEngine<G>, bearer:
   }
 };
 
-/** A spawned unit whose template names a script is attached to it (§I.7.1 F19). */
-export const attachScript = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer']): void => {
+/** A spawned unit is attached to the script its spawn names, else its template's (§I.7.1 F19, F21). */
+export const attachScript = <G extends UnitTypes>(
+  engine: UnitEngine<G>,
+  [bearer, own]: readonly [G['bearer'], G['scriptName'] | undefined],
+): void => {
   const unit = unitOf<G>(bearer);
-  const script = engine.registry.defs[unit.template]?.script;
+  const script = own ?? engine.registry.defs[unit.template]?.script;
 
   if (script === undefined) {
     return;

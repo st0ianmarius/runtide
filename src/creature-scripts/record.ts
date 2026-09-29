@@ -26,6 +26,9 @@ export class ScriptRecord<G extends ScriptTypes> {
   /** Whether its script has any `tick` handler. */
   hasTick = false;
 
+  /** Its index in its script's list of instances. */
+  instance = -1;
+
   constructor(unit: G['bearer']) {
     this.unit = unit;
   }
@@ -47,6 +50,7 @@ export class ScriptOrigin<G extends ScriptTypes> implements ProcOrigin<G> {
 export class ScriptContext<G extends ScriptTypes> implements ScriptCtx<G> {
   unit: G['bearer'];
   state: unknown = undefined;
+  shared: unknown = undefined;
   readonly host: G['host'];
   readonly run: (procs: ScriptReturn<G>) => number;
 

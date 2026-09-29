@@ -2,7 +2,7 @@ import type { TimerId } from '../ai/index.ts';
 import type { ProcSystem } from '../procs/index.ts';
 import type { CompiledScript, ScriptRegistry } from './define-scripts.ts';
 import { ScriptContext, ScriptOrigin, type ScriptRecord } from './record.ts';
-import type { AnyEventHandler, ScriptEventName, ScriptReturn, ScriptTypes } from './script-types.ts';
+import type { AnyBehaviour, AnyEventHandler, ScriptEventName, ScriptReturn, ScriptTypes } from './script-types.ts';
 
 /** A moment every behaviour may handle with no argument. */
 export type Moment = 'spawn' | 'tick';
@@ -25,12 +25,36 @@ export interface RunnerParts<G extends ScriptTypes> {
  */
 export class ScriptRunner<G extends ScriptTypes> {
   readonly #parts: RunnerParts<G>;
+
+  /** Each script's behaviours' shared states, by script id and index: one per behaviour, made once. */
+  readonly #shared: readonly (readonly unknown[])[];
+
+  /** Each behaviour's shared state. */
+  readonly #sharedBy = new Map<AnyBehaviour<G>, unknown>();
+
   readonly #contexts: ScriptContext<G>[] = [];
   readonly #origins: ScriptOrigin<G>[] = [];
   #depth = 0;
 
   constructor(parts: RunnerParts<G>) {
     this.#parts = parts;
+
+    const made = this.#sharedBy;
+
+    this.#shared = parts.registry.scripts.map((script) =>
+      script.behaviours.map((behaviour) => {
+        if (!made.has(behaviour)) {
+          made.set(behaviour, behaviour.shared?.());
+        }
+
+        return made.get(behaviour);
+      }),
+    );
+  }
+
+  /** A behaviour's shared state; `undefined` for one no script lists, or with none. */
+  sharedOf(behaviour: AnyBehaviour<G>): unknown {
+    return this.#sharedBy.get(behaviour);
   }
 
   /** A record's compiled script. */
@@ -122,6 +146,7 @@ export class ScriptRunner<G extends ScriptTypes> {
 
     ctx.unit = record.unit;
     ctx.state = record.states[index];
+    ctx.shared = this.#shared[record.script]?.[index];
     this.#depth = depth + 1;
 
     return ctx;
@@ -135,6 +160,7 @@ export class ScriptRunner<G extends ScriptTypes> {
 
     if (ctx !== undefined) {
       ctx.state = undefined;
+      ctx.shared = undefined;
     }
   }
 

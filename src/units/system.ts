@@ -141,7 +141,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
     joinOwner(unit);
     raiseSpawned(engine, unit, spawn.at);
-    attachScript(engine, unit);
+    attachScript(engine, [unit, spawn.script]);
 
     return unit;
   };
