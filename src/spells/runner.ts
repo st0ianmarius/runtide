@@ -29,8 +29,8 @@ const initCast = <G extends SpellTypes>(
   const casterId = engine.host.idOf?.(cast.caster) ?? NO_SOURCE;
 
   cast.spell = parts.spell;
-  cast.rank = options.rank ?? 1;
-  cast.variant = options.variant ?? 0;
+  cast.rank = options.rank ?? engine.host.rankOf?.(cast.caster, parts.spell) ?? 1;
+  cast.variant = options.variant ?? engine.host.variantOf?.(cast.caster, parts.spell) ?? 0;
   cast.input = options.input;
   cast.casterId = casterId;
   cast.source = options.source ?? casterId;

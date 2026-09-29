@@ -24,7 +24,7 @@ export interface CastSpellProc<G extends SpellTypes> extends ProcShape {
   /** Reads the cast's input when the proc applies (the event unit, a point); `input` when absent. */
   readonly inputOf?: (ctx: ProcContext<G>) => G['input'] | undefined;
 
-  /** Its rank; the rank of the cast whose procs these are, else 1, when absent. */
+  /** Its rank; the rank of the cast whose procs these are, else the caster's own (`host.rankOf`), when absent. */
   readonly rank?: number;
 
   /**

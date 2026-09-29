@@ -37,10 +37,10 @@ export interface CastOptions<G extends SpellTypes> {
   /** What the activation hands it: an aim, a unit (`ctx.input`, the `target` hook's argument). */
   readonly input?: G['input'] | undefined;
 
-  /** Its rank, from 1; 1 when absent. */
+  /** Its rank, from 1; the caster's own (`host.rankOf`), else 1, when absent. */
   readonly rank?: number | undefined;
 
-  /** Its variant; 0 when absent. */
+  /** Its variant; the caster's own (`host.variantOf`), else 0, when absent. */
   readonly variant?: number | undefined;
 
   /** The entity id its hits are credited to; the caster's (`host.idOf`) when absent. */
