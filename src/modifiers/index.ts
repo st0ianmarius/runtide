@@ -19,14 +19,6 @@ export { compileModifiers } from './compile-modifiers.ts';
 export { compileCurve, type CompileOptions, compileScaled } from './compile-values.ts';
 
 export {
-  type ConditionDef,
-  type ConditionId,
-  type ConditionTable,
-  type ConditionTest,
-  defineConditions,
-} from './conditions.ts';
-
-export {
   avoidance,
   type AvoidanceCurve,
   byLevel,
@@ -72,7 +64,6 @@ export {
   cap,
   type CompiledModifier,
   type CompiledValue,
-  type Condition,
   type HostValue,
   hostValue,
   type Modifier,
@@ -117,5 +108,4 @@ export {
 } from './stats.ts';
 
 export { createModifierSystem, type ModifierSystem, type ModifierSystemOptions } from './system.ts';
-export { defineValues, type ValueDef, type ValueId, type ValueRead, type ValueTable } from './values.ts';
 export { type StatChange, type StatWatch, watchStats } from './watch.ts';

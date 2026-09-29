@@ -1,7 +1,14 @@
 import type { AuraId, AuraSystem } from '../auras/index.ts';
+import {
+  compileCondition,
+  type CompiledCondition,
+  type ConditionTable,
+  conditionTest,
+  type ConditionTest,
+  type ValueTable,
+} from '../conditions/index.ts';
 import { toId } from '../core/ids.ts';
 import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
-import type { ConditionId, ConditionTable, ConditionTest } from '../modifiers/index.ts';
 import type { Proc, ProcSystem } from '../procs/index.ts';
 import { cooldownName, triggerName } from './cooldowns.ts';
 import type { TriggerEvent, TriggerFilterSpec } from './events.ts';
@@ -12,6 +19,9 @@ import { isTriggerDef, type TriggerCondition, type TriggerDef, type TriggerTypes
 export interface TriggerConditions<G extends TriggerTypes, Host> {
   /** The game's condition table (`defineConditions`), shared with the modifiers. */
   readonly table: ConditionTable<G['condition'], Host>;
+
+  /** The game's value kinds (`defineValues`), which comparisons read; none when absent. */
+  readonly values?: ValueTable<G['valueKind'], Host>;
 
   /** The host a condition reads for a trigger's owner (its state, its world). */
   readonly host: (owner: G['bearer']) => Host;
@@ -25,10 +35,10 @@ export interface TriggerCheck<G extends TriggerTypes, Host> {
   /** The filter's spec on this event; `undefined` when the event does not carry it (the check fails). */
   readonly spec: TriggerFilterSpec<G> | undefined;
 
-  /** The condition's id, for a game condition. */
-  readonly condition: ConditionId | undefined;
+  /** The compiled condition, for a game condition. */
+  readonly condition: CompiledCondition | undefined;
 
-  /** The condition's test, for a game condition. */
+  /** The condition's test (a lone test as itself, a composition as its bound tree), for a game condition. */
   readonly test: ConditionTest<Host> | undefined;
 
   /** The resolved argument. */
@@ -147,11 +157,12 @@ const compileCheck = <G extends TriggerTypes, Host>(
     return { filter: at.filters.indexOf(entry.filter), spec, condition: undefined, test: undefined, arg };
   }
 
-  const table = input.conditions?.table ?? refuse(`tests condition ${entry.is}, but the system has no conditions.`);
-  const ids: Readonly<Record<string, ConditionId | undefined>> = table.id;
-  const condition = ids[entry.is] ?? refuse(`unknown condition ${entry.is}.`);
+  const conditions = input.conditions ?? refuse('tests a condition, but the system has no conditions.');
+  const tables = { conditions: conditions.table, values: conditions.values };
+  const condition = compileCondition(tables, entry, 'when');
+  const { test, arg } = conditionTest(tables, condition);
 
-  return { filter: -1, spec: undefined, condition, test: table.get(condition).test, arg: entry.arg ?? 0 };
+  return { filter: -1, spec: undefined, condition, test, arg };
 };
 
 /** Checks a trigger's numbers and shape. */

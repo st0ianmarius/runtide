@@ -1,7 +1,14 @@
+import {
+  type BoundTables,
+  type BoundTest,
+  type CompiledCondition,
+  type ConditionTable,
+  conditionTest,
+  type ValueTable,
+} from '../conditions/index.ts';
 import { buildSheet } from './build-sheet.ts';
 import { compileModifiers } from './compile-modifiers.ts';
 import type { StatView } from './compiled.ts';
-import type { ConditionTable } from './conditions.ts';
 import { explainSheetStat, type StatExplanation } from './explain.ts';
 import { foldStat, scopedProduct } from './fold.ts';
 import type { Modifier, ModifierList } from './modifier.ts';
@@ -9,7 +16,6 @@ import { type FoldRead, type FoldTables, Sheet, sheetOf, type StatSheet } from '
 import type { SourceId, SourceTable } from './sources.ts';
 import type { StatId } from './stat-id.ts';
 import type { StatTable } from './stats.ts';
-import type { ValueTable } from './values.ts';
 
 /** What a modifier system is built from: the game's tables and its host's stack report. */
 export interface ModifierSystemOptions<Host, S extends string, C extends string, V extends string, Src extends string> {
@@ -88,6 +94,25 @@ const checkSource = (sources: SourceTable, source: SourceId): void => {
   }
 };
 
+/** A condition binder that binds each compiled condition once and hands back the same test after. */
+const boundTests = <Host>(tables: BoundTables<Host>) => {
+  const bound = new WeakMap<CompiledCondition, BoundTest<Host>>();
+
+  return (condition: CompiledCondition): BoundTest<Host> => {
+    const known = bound.get(condition);
+
+    if (known !== undefined) {
+      return known;
+    }
+
+    const made = conditionTest(tables, condition);
+
+    bound.set(condition, made);
+
+    return made;
+  };
+};
+
 /** The fold tables of a system. */
 const tablesOf = <Host, S extends string, C extends string, V extends string, Src extends string>(
   options: ModifierSystemOptions<Host, S, C, V, Src>,
@@ -101,7 +126,7 @@ const tablesOf = <Host, S extends string, C extends string, V extends string, Sr
     max: column('max'),
     derivations: stats.derivations,
     stacks: options.stacks,
-    tests: options.conditions?.defs.map((def) => def?.test ?? (() => false)) ?? [],
+    testOf: boundTests({ conditions: options.conditions, values: options.values }),
     reads: options.values?.defs.map((def) => def?.read ?? (() => 0)) ?? [],
     sourceIds: options.sources.ids,
     nameOf: (stat) => stats.names[stat] ?? String(stat),

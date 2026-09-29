@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { auraStacks } from '../../src/auras/index.ts';
+import { defineConditions } from '../../src/conditions/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul } from '../../src/modifiers/index.ts';
 import { checkPredicted } from '../../src/prediction/index.ts';
 import { auraNamed, makeAbilityGame, spell } from '../helpers/ability-game.ts';
@@ -54,6 +55,7 @@ describe('the predicted rule (§II.6 P7, R3)', () => {
         { aura: id.halo, reason: 'tag' },
       ],
       unread: [id.ghost],
+      unsafe: [],
     });
   });
 
@@ -63,12 +65,59 @@ describe('the predicted rule (§II.6 P7, R3)', () => {
     assert.deepEqual(checkPredicted({ auras, motion: { auras: [id.cooldown, id.root, id.ghost] } }), {
       unpredicted: [],
       unread: [],
+      unsafe: [],
     });
 
     const motion = { tags: ['stun' as const] };
 
     Reflect.set(motion.tags, 0, 'frozen');
     assert.throws(() => checkPredicted({ auras, motion }), /no aura tag named frozen/);
+  });
+});
+
+describe('mirror-safe conditions on predicted auras (§II.6 M8)', () => {
+  it('reports a predicted aura whose modifier waits on a condition the mirror may not evaluate', () => {
+    const conditions = defineConditions({
+      grounded: { test: () => true, mirrorSafe: true },
+      lucky: () => true,
+    });
+
+    const stats = defineStats({
+      damage: { base: 1, kind: 'multiplier' },
+      armor: { base: 0, kind: 'flat' },
+      speed: { base: 6, kind: 'flat' },
+    });
+
+    const modifiers = createModifierSystem({
+      stats,
+      sources: defineSources(['base', 'auras', 'late']),
+      conditions,
+      stacks: auraStacks,
+    });
+
+    /** A speed modifier waiting on a game condition (the test game's types name none, so it is set by hand). */
+    const speedWhen = (is: string) => {
+      const modifier = mul('speed', 1.2);
+
+      Reflect.set(modifier, 'when', { is });
+
+      return modifier;
+    };
+
+    const { auras, id } = makeGame(
+      {
+        dash: aura({ duration: 1, predicted: true, modifiers: [speedWhen('grounded')] }),
+        gamble: aura({ duration: 1, predicted: true, modifiers: [speedWhen('lucky')] }),
+        fling: aura({ duration: 1, modifiers: [speedWhen('lucky')] }),
+      },
+      { modifiers, fold: 'auras' },
+    );
+
+    const report = checkPredicted({ auras, motion: { stats: ['speed'] }, conditions: { conditions } });
+
+    assert.deepEqual(report.unsafe, [id.gamble]);
+    assert.deepEqual(report.unpredicted, [{ aura: id.fling, reason: 'stat' }]);
+    assert.deepEqual(checkPredicted({ auras, motion: { stats: ['speed'] } }).unsafe, []);
   });
 });
 

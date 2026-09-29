@@ -9,6 +9,7 @@ export * from './abilities/index.ts';
 export * from './area-triggers/index.ts';
 export * from './auras/index.ts';
 export * from './combat-log/index.ts';
+export * from './conditions/index.ts';
 export * from './core/index.ts';
 export * from './cues/index.ts';
 export * from './damage/index.ts';

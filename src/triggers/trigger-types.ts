@@ -1,4 +1,4 @@
-import type { Condition } from '../modifiers/index.ts';
+import type { ConditionExpr } from '../conditions/index.ts';
 import type { Proc, ProcTypes } from '../procs/index.ts';
 
 /**
@@ -27,8 +27,11 @@ export interface TriggerFilter<G extends TriggerTypes> {
   readonly arg?: number | string;
 }
 
-/** One entry of a trigger's `when`: a game condition tested on the trigger's owner (§I.6), or an event filter. */
-export type TriggerCondition<G extends TriggerTypes> = Condition<G['condition']> | TriggerFilter<G>;
+/**
+ * One entry of a trigger's `when`: a condition tested on the trigger's owner (§I.6, §I.7.1 F12: a game test, a
+ * comparison, or their composition), or an event filter.
+ */
+export type TriggerCondition<G extends TriggerTypes> = ConditionExpr<G['condition'], G['valueKind']> | TriggerFilter<G>;
 
 /**
  * One trigger (§II.3.7), as data: on an event, when its conditions hold, with a chance and at most once per internal

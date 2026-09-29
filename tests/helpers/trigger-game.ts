@@ -12,8 +12,8 @@ import {
   defineAuras,
   defineAuraTags,
 } from '../../src/auras/index.ts';
+import { defineConditions } from '../../src/conditions/index.ts';
 import { createBus, defineCountdown, type Random } from '../../src/core/index.ts';
-import { defineConditions } from '../../src/modifiers/index.ts';
 import {
   CORE_PROCS,
   createProcRegistry,

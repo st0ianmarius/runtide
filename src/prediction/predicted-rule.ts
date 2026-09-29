@@ -1,4 +1,5 @@
 import type { AuraId, AuraSystem, AuraTagId, AuraTypes } from '../auras/index.ts';
+import { compileCondition, type ConditionTables, isMirrorSafe } from '../conditions/index.ts';
 
 /** What the shared motion step reads beyond the presses: auras, aura tags and stats, by the game's names. */
 export interface MotionReads<G extends AuraTypes> {
@@ -31,6 +32,12 @@ export interface PredictedRuleOptions<G extends AuraTypes> {
 
   /** What the game's own motion step reads. */
   readonly motion?: MotionReads<G>;
+
+  /**
+   * The game's condition and value tables, when aura modifiers wait on conditions: a predicted aura's conditions must
+   * then be mirror-safe (§II.6 M8), or the mirror would fold its modifiers by a guess.
+   */
+  readonly conditions?: ConditionTables;
 }
 
 /** Why the mirror reads an aura: by id, through one of its tags, or through a modifier on a stat it folds. */
@@ -52,6 +59,9 @@ export interface PredictedReport {
 
   /** `predicted` auras nothing the mirror runs reads: they cost the wire for nothing. */
   readonly unread: readonly AuraId[];
+
+  /** `predicted` auras with a modifier whose condition is not mirror-safe (checked when `conditions` is given). */
+  readonly unsafe: readonly AuraId[];
 }
 
 /** The names of the tags the mirror reads: the game's motion tags and the presses' tags. */
@@ -96,11 +106,30 @@ const reasonOf = <G extends AuraTypes>(
   return (def.modifiers ?? []).some((modifier) => reads.stats.has(modifier.stat)) ? 'stat' : undefined;
 };
 
+/** Whether a predicted aura's modifiers all wait on mirror-safe conditions, or on none. */
+const isSafeAura = <G extends AuraTypes>(tables: ConditionTables, def: ReturnType<AuraSystem<G>['registry']['get']>) =>
+  (def.modifiers ?? []).every(
+    (modifier) => modifier.when === undefined || isMirrorSafe(tables, compileCondition(tables, modifier.when)),
+  );
+
+/** The predicted auras whose modifiers wait on a condition the mirror may not evaluate. */
+const unsafeOf = <G extends AuraTypes>(options: PredictedRuleOptions<G>): AuraId[] => {
+  const { auras, conditions } = options;
+  const { registry } = auras;
+
+  return conditions === undefined
+    ? []
+    : registry.ids.filter(
+        (aura) => !registry.isRetired(aura) && auras.isPredicted(aura) && !isSafeAura(conditions, registry.get(aura)),
+      );
+};
+
 /**
  * Checks the predicted rule over a game's auras (§II.6 P7, R3), both ways: every aura the prediction mirror reads (the
  * presses' cooldowns, costs and applied auras, an aura granting a tag a press or the motion step reads, an aura with a
  * modifier on a stat the motion step folds, an aura the motion step names) must be `predicted`, and a `predicted` aura
- * nothing reads is reported as unread. A game runs it in its tests over its registries.
+ * nothing reads is reported as unread; with the condition tables, a predicted aura whose modifiers wait on a condition
+ * that is not mirror-safe is reported as unsafe. A game runs it in its tests over its registries.
  */
 export const checkPredicted = <G extends AuraTypes>(options: PredictedRuleOptions<G>): PredictedReport => {
   const { auras } = options;
@@ -119,5 +148,5 @@ export const checkPredicted = <G extends AuraTypes>(options: PredictedRuleOption
     }
   }
 
-  return { unpredicted, unread };
+  return { unpredicted, unread, unsafe: unsafeOf(options) };
 };

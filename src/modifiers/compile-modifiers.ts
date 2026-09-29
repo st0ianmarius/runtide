@@ -1,8 +1,8 @@
+import { compileCondition, type ConditionExpr } from '../conditions/index.ts';
 import type { Id } from '../core/index.ts';
 import type {
   CompiledModifier,
   CompiledValue,
-  Condition,
   Modifier,
   ModifierList,
   ModifierTables,
@@ -73,25 +73,18 @@ const compileValue = <S extends string, C extends string, V extends string>(
   return { kind: 'host', value: id, arg: value.arg };
 };
 
-/** Compiles a modifier's condition. */
+/** Compiles a modifier's condition against the condition and value tables. */
 const compileWhen = <S extends string, C extends string, V extends string>(
-  when: Condition<C> | undefined,
+  when: ConditionExpr<C, V> | undefined,
   place: Place<S, C, V>,
-): CompiledModifier['when'] => {
-  if (when === undefined) {
-    return undefined;
-  }
-
-  const condition = idNamed<'conditions'>(place.tables.conditions?.id, when.is);
-
-  if (condition === undefined) {
-    throw new RangeError(`${place.what}: there is no condition named ${when.is}.`);
-  }
-
-  checkNumber(when.arg ?? 0, place, 'when.arg');
-
-  return { condition, arg: when.arg ?? 0 };
-};
+): CompiledModifier['when'] =>
+  when === undefined
+    ? undefined
+    : compileCondition(
+        { conditions: place.tables.conditions, values: place.tables.values },
+        when,
+        `${place.what}, when`,
+      );
 
 /** Compiles and checks one modifier. */
 const compileModifier = <S extends string, C extends string, V extends string>(

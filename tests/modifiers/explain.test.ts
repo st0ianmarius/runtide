@@ -3,10 +3,10 @@ import { describe, it } from 'node:test';
 
 import fc from 'fast-check';
 
+import { defineConditions } from '../../src/conditions/index.ts';
 import {
   cap,
   createModifierSystem,
-  defineConditions,
   defineSources,
   defineStats,
   explainModifier,
@@ -47,7 +47,7 @@ describe('modifier explanations (§I.5.3)', () => {
         op: 'mul',
         value: 1.3,
         stacking: 'power',
-        when: { condition: 0, arg: 0.4 },
+        when: { kind: 'is', condition: 0, arg: 0.4 },
         scope: undefined,
         stacks: 1,
         landed: 1.3,

@@ -1,11 +1,10 @@
+import type { BoundTest, CompiledCondition, ConditionTest, ValueRead } from '../conditions/index.ts';
 import type { Bitset } from '../core/index.ts';
 import type { ScaledContext, StatView } from './compiled.ts';
-import type { ConditionTest } from './conditions.ts';
 import type { CompiledModifier, ModifierList } from './modifier.ts';
 import type { SourceId } from './sources.ts';
 import type { StatId } from './stat-id.ts';
 import type { Derivation } from './stats.ts';
-import type { ValueRead } from './values.ts';
 
 /**
  * How one read folds a stat (§II.6 M5, M6). Games keep one read object per purpose and reuse it, so a read allocates
@@ -134,8 +133,8 @@ export interface FoldTables<Host> {
   /** The host's stacks of a gate. */
   readonly stacks: ((host: Host, gate: number) => number) | undefined;
 
-  /** The condition tests, by condition id. */
-  readonly tests: readonly ConditionTest<Host>[];
+  /** A compiled condition as the test and argument a fold entry keeps, bound once per condition. */
+  readonly testOf: (condition: CompiledCondition) => BoundTest<Host>;
 
   /** The value reads, by value id. */
   readonly reads: readonly ValueRead<Host>[];

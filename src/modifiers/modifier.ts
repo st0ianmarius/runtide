@@ -1,7 +1,6 @@
-import type { ConditionId, ConditionTable } from './conditions.ts';
+import type { CompiledCondition, ConditionExpr, ConditionTable, ValueId, ValueTable } from '../conditions/index.ts';
 import type { StatId } from './stat-id.ts';
 import type { StatTable } from './stats.ts';
-import type { ValueId, ValueTable } from './values.ts';
 
 /**
  * A value that follows another stat (§II.6 M2): `per × (total(stat) − neutral)`, capped at `cap`, with the other
@@ -39,15 +38,6 @@ export interface HostValue<V extends string = string> {
 /** What a modifier lands with: a number, another stat's bonus, or a game value read. */
 export type ModifierValue<S extends string = string, V extends string = string> = number | StatValue<S> | HostValue<V>;
 
-/** When a modifier counts: a game condition and its numeric argument. Without one, a modifier always counts. */
-export interface Condition<C extends string = string> {
-  /** The game condition tested. */
-  readonly is: C;
-
-  /** The condition's numeric argument (a health share, a tag id); 0 when absent. */
-  readonly arg?: number;
-}
-
 /**
  * One change to one stat (§I.5): `add` sums onto the base, `mul` multiplies the sum, `min` caps the product. A stat
  * resolves as `clamp(min((base + Σ add + derived) × Π mul, …caps))`, multipliers in source order.
@@ -68,17 +58,17 @@ export interface Modifier<S extends string = string, C extends string = string, 
    */
   readonly stacking?: 'power' | 'linear';
 
-  /** When it counts; always when absent. */
-  readonly when?: Condition<C>;
+  /** When it counts (§I.7.1 F12: a game test, a comparison, or their composition); always when absent. */
+  readonly when?: ConditionExpr<C, V>;
 
   /** The scope it reaches (a game scope id: a tag, a spell); unscoped, reaching every read, when absent. */
   readonly scope?: number;
 }
 
 /** Options shared by the modifier helpers. */
-export interface ModifierOptions<C extends string = string> {
+export interface ModifierOptions<C extends string = string, V extends string = never> {
   /** When it counts. */
-  readonly when?: Condition<C>;
+  readonly when?: ConditionExpr<C, V>;
 
   /** The scope it reaches. */
   readonly scope?: number;
@@ -90,7 +80,7 @@ export interface ModifierOptions<C extends string = string> {
 /** Builds a modifier with only the options that are present. */
 const modifierOf = <S extends string, C extends string, V extends string>(
   head: Pick<Modifier<S, C, V>, 'stat' | 'op' | 'value'>,
-  options: ModifierOptions<C>,
+  options: ModifierOptions<C, V>,
 ): Modifier<S, C, V> => ({
   ...head,
   ...(options.when === undefined ? {} : { when: options.when }),
@@ -102,21 +92,21 @@ const modifierOf = <S extends string, C extends string, V extends string>(
 export const plus = <const S extends string, const V extends string = never, const C extends string = never>(
   stat: S,
   value: ModifierValue<S, V>,
-  options: ModifierOptions<C> = {},
+  options: ModifierOptions<C, V> = {},
 ): Modifier<S, C, V> => modifierOf({ stat, op: 'add', value }, options);
 
 /** A `mul` modifier: `mul('moveSpeed', 1.2)`. */
 export const mul = <const S extends string, const V extends string = never, const C extends string = never>(
   stat: S,
   value: ModifierValue<S, V>,
-  options: ModifierOptions<C> = {},
+  options: ModifierOptions<C, V> = {},
 ): Modifier<S, C, V> => modifierOf({ stat, op: 'mul', value }, options);
 
 /** A `min` modifier: the stat is capped at `value`, after every multiplier. */
 export const cap = <const S extends string, const V extends string = never, const C extends string = never>(
   stat: S,
   value: ModifierValue<S, V>,
-  options: ModifierOptions<C> = {},
+  options: ModifierOptions<C, V> = {},
 ): Modifier<S, C, V> => modifierOf({ stat, op: 'min', value }, options);
 
 /** A value that follows another stat's bonus: `per × (total(stat) − neutral)`, capped. */
@@ -185,16 +175,8 @@ export interface CompiledModifier {
   /** How it stacks when gated. */
   readonly stacking: 'power' | 'linear';
 
-  /** When it counts, or `undefined` for always. */
-  readonly when:
-    | {
-        /** The condition tested. */
-        readonly condition: ConditionId;
-
-        /** Its argument. */
-        readonly arg: number;
-      }
-    | undefined;
+  /** When it counts, compiled, or `undefined` for always. */
+  readonly when: CompiledCondition | undefined;
 
   /** The scope it reaches, or `undefined` for every read. */
   readonly scope: number | undefined;

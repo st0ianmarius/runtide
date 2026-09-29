@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { defineConditions, defineValues } from '../../src/conditions/index.ts';
 import {
   cap,
   createModifierSystem,
-  defineConditions,
   defineSources,
   defineStats,
-  defineValues,
   hostValue,
   mul,
   perStat,

@@ -1,6 +1,6 @@
 import type { AuraId } from '../auras/index.ts';
+import type { CompiledCondition } from '../conditions/index.ts';
 import type { EventKind } from '../core/index.ts';
-import type { ConditionId } from '../modifiers/index.ts';
 import { explainProc, type ProcExplanation, type ProcSystem } from '../procs/index.ts';
 import type { CompiledTrigger, TriggerCheck } from './compile.ts';
 import type { TriggerId } from './trigger-id.ts';
@@ -11,11 +11,8 @@ export interface TriggerConditionExplanation {
   /** The discriminant. */
   readonly kind: 'condition';
 
-  /** The condition's id in the game's table. */
-  readonly condition: ConditionId;
-
-  /** Its argument. */
-  readonly arg: number;
+  /** The condition, compiled: game tests and value kinds by id, with their arguments and composition. */
+  readonly condition: CompiledCondition;
 }
 
 /** An event filter a trigger tests, explained. */
@@ -78,7 +75,7 @@ const explainCheck = <G extends TriggerTypes, Host>(
   check: TriggerCheck<G, Host>,
 ): TriggerConditionExplanation | TriggerFilterExplanation => {
   if (check.condition !== undefined) {
-    return { kind: 'condition', condition: check.condition, arg: check.arg };
+    return { kind: 'condition', condition: check.condition };
   }
 
   return { kind: 'filter', filter: check.filter, arg: check.arg, isCarried: check.spec !== undefined };

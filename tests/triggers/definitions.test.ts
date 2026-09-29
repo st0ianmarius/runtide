@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { type AuraDef, createAuraSystem, defineAuras } from '../../src/auras/index.ts';
+import type { IsCondition } from '../../src/conditions/index.ts';
 import { checkOrder } from '../../src/core/index.ts';
-import type { Condition } from '../../src/modifiers/index.ts';
 import { createProcSystem } from '../../src/procs/index.ts';
 import {
   cooldownName,
@@ -74,7 +74,7 @@ describe('validation at load (§II.6 P7)', () => {
               },
               {
                 on: 'hit',
-                when: [invalid<Condition<'healthBelow'>>({ is: 'healthBelow' }, { is: 'enraged' })],
+                when: [invalid<IsCondition<'healthBelow'>>({ is: 'healthBelow' }, { is: 'enraged' })],
                 do: [noop],
               },
               { on: 'hit', do: [{ kind: 'applyAura', aura: 'nowhere' }] },
@@ -94,7 +94,7 @@ describe('validation at load (§II.6 P7)', () => {
           'Trigger aura.idle.0: does nothing (an empty do).',
           'Trigger aura.lost.0: answers dodge, which is not a trigger event.',
           'Trigger aura.lost.1: unknown filter parry.',
-          'Trigger aura.lost.2: unknown condition enraged.',
+          'Trigger aura.lost.2: when: there is no condition named enraged.',
           'Trigger aura.lost.3: unknown aura nowhere.',
           'Trigger aura.lost.4: filter minAmount takes a number.',
           'Trigger aura.lost.5: unknown aura change vanished.',
@@ -123,7 +123,7 @@ describe('validation at load (§II.6 P7)', () => {
     assert.throws(() => bare({ test, loud: aura({ duration: 1, triggers: [loud] }) }, false), {
       message: [
         'Invalid triggers:',
-        'Trigger aura.test.0: tests condition healthBelow, but the system has no conditions.',
+        'Trigger aura.test.0: tests a condition, but the system has no conditions.',
         'Trigger aura.loud.0: hears must be self or party; got world.',
       ].join('\n'),
     });
@@ -230,7 +230,7 @@ describe('explainTrigger (§I.5.3, §II.6 P7)', () => {
       icd: 1.5,
       cooldown: game.id['icd.aura.rush.1'],
       when: [
-        { kind: 'condition', condition: CONDITIONS.id.healthBelow, arg: 0.5 },
+        { kind: 'condition', condition: { kind: 'is', condition: CONDITIONS.id.healthBelow, arg: 0.5 } },
         { kind: 'filter', filter: 0, arg: 30, isCarried: true },
         { kind: 'filter', filter: 2, arg: game.id.calm, isCarried: false },
       ],

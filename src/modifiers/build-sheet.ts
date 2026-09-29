@@ -48,6 +48,7 @@ const entryOf = <Host>(
 ): Entry<Host> => {
   const fields = valueFields(modifier.value);
   const { when } = modifier;
+  const bound = when === undefined ? undefined : sheet.tables.testOf(when);
 
   return {
     value: fields.value,
@@ -58,8 +59,8 @@ const entryOf = <Host>(
     cap: fields.cap,
     read: fields.readId < 0 ? undefined : sheet.tables.reads[fields.readId],
     readArg: fields.readArg,
-    test: when === undefined ? undefined : sheet.tables.tests[when.condition],
-    testArg: when === undefined ? 0 : when.arg,
+    test: bound?.test,
+    testArg: bound?.arg ?? 0,
     scope: modifier.scope ?? -1,
     source: at.source,
     gate: at.gate,

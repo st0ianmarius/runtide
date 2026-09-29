@@ -1,6 +1,7 @@
 import { Bench } from 'tinybench';
 
 import { type AuraBearer, auraStacks, createAuraSystem, defineAuras, defineAuraTags } from '../src/auras/index.ts';
+import { defineConditions } from '../src/conditions/index.ts';
 import {
   createBitset,
   createClock,
@@ -16,7 +17,6 @@ import {
   amp,
   compileScaled,
   createModifierSystem,
-  defineConditions,
   defineSources,
   defineStats,
   evaluateScaled,
