@@ -136,12 +136,22 @@ const GRANT: readonly Proc<BenchGame>[] = Object.freeze([grant<BenchGame>('focus
 
 const spell = defineSpell<BenchGame>();
 
+/** Nineteen more `auto` spells, a game's arsenal (every 60 s, releasing one grant), which no horde caster arms. */
+const ARSENAL = Object.fromEntries(
+  Array.from({ length: 19 }, (_unused, i) => [
+    `weapon${i}`,
+    spell({ activation: { kind: 'auto', interval: 60 }, release: () => GRANT }),
+  ]),
+);
+
 /**
  * The bench spells: `strike`, an auto spell every 3 s that winds up 0.5 s, channels 2 s beating every 0.5 s and
- * recovers 0.25 s, so a caster almost always has it in flight; `bolt`, an instant cast with a stats table.
+ * recovers 0.25 s, so a caster almost always has it in flight; `bolt`, an instant cast with a stats table; and the
+ * arsenal, so 20 `auto` spells are defined and each caster arms one.
  */
-const SPELLS = defineSpells<BenchGame, 'strike' | 'bolt'>(
+const SPELLS = defineSpells<BenchGame, string>(
   {
+    ...ARSENAL,
     strike: spell({
       activation: { kind: 'auto', interval: 3 },
       stats: { power: scaled(10, add('power', 1)) },
@@ -206,8 +216,29 @@ function missing(): never {
 /** Makes a caster. */
 const casterOf = (id: number): Unit => ({ id, auras: AURAS.createState(), casts: SYSTEM.createCasterState() });
 
+/** The id of a bench spell. */
+const spellId = (name: string) => SPELLS.id[name] ?? missing();
+
+/** A horde caster: `strike` armed. */
+const striker = (id: number): Unit => {
+  const unit = casterOf(id);
+
+  SYSTEM.arm(unit, spellId('strike'));
+
+  return unit;
+};
+
+/** 2,000 casters, each with one arsenal clock armed and far from running out: the idle auto step. */
+const IDLERS: readonly Unit[] = Array.from({ length: 2000 }, (_unused, index) => {
+  const unit = casterOf(20_000 + index);
+
+  SYSTEM.arm(unit, spellId(`weapon${index % 19}`), 1e9);
+
+  return unit;
+});
+
 /** The horde: 2,000 casters, their auto clocks spread so their casts do not all start on the same tick. */
-const HORDE: readonly Unit[] = Array.from({ length: 2000 }, (_unused, index) => casterOf(index + 1));
+const HORDE: readonly Unit[] = Array.from({ length: 2000 }, (_unused, index) => striker(index + 1));
 
 /** One tick of the horde: the clock steps, then each caster's auto clock and casts. */
 const hordeTick = (): void => {
@@ -262,7 +293,7 @@ const delayThousand = (): void => {
 
 /** One instant cast: gates, a stats table snapshot, the release, the end. */
 const castBolt = (): void => {
-  SYSTEM.cast(SOLO, SPELLS.id.bolt);
+  SYSTEM.cast(SOLO, spellId('bolt'));
 };
 
 /** How many casts the horde has in flight, and how many records it made: what the baseline reports beside the times. */
@@ -271,9 +302,17 @@ export const spellHordeStats = (): { readonly inFlight: number; readonly created
   created: SYSTEM.pool.created,
 });
 
+/** One tick of the idle casters' auto step: one armed clock each, 20 defined. */
+const idleTick = (): void => {
+  for (const unit of IDLERS) {
+    SYSTEM.stepAuto(unit);
+  }
+};
+
 /** The F7 benchmark tasks, and how many operations each call of its function is. */
 export const SPELL_TASKS: readonly (readonly [string, () => void, number])[] = [
   ['spells: horde tick, 2,000 casters in flight (tick)', hordeTick, 1000],
+  ['spells: auto step, 2,000 casters, 1 of 20 auto spells armed (tick)', idleTick, 1000],
   ['spells: instant cast, table stats + release', castBolt, 1],
   ['spells: after(0), scheduled + landed (per list)', delayOne, 1],
   ['spells: 1,000 after(0) landing on one tick (tick)', delayThousand, 1000],

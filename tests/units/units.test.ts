@@ -45,7 +45,7 @@ describe('unit templates (§II.6 U1, U2)', () => {
 });
 
 describe('spawning (§II.6 U1)', () => {
-  it('makes a standing unit at full health with its own ids, stats snapshotted and an optional auto-attack', () => {
+  it('makes a standing unit at full health with its own ids, stats snapshotted and an optional auto-attack, armed', () => {
     const game = makeUnitGame(TEMPLATES);
     const { units } = game;
     const hero = units.spawn(game.id.hero, { side: 0 });
@@ -56,6 +56,10 @@ describe('spawning (§II.6 U1)', () => {
     assert.equal(units.statsOf(grunt).total(STATS.id.speed), 4);
     assert.equal(units.autoAttackOf(hero), undefined);
     assert.equal(units.autoAttackOf(grunt), game.spellId.swing);
+    assert.deepEqual(
+      [game.spells.arm(grunt, game.spellId.swing), game.spells.arm(hero, game.spellId.swing)],
+      [false, true],
+    );
     assert.equal(units.hasTag(grunt, 'horde'), true);
     assert.equal(units.byId(2), grunt);
     assert.equal(units.live(), 2);

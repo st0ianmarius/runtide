@@ -122,3 +122,11 @@ At the review after F21 (P1), a stat read no longer walks every gated list the g
 | units: spawn + despawn a grunt (template stats) | 1,005–1,015 ns | 1,198–1,218 ns |
 
 The spawn row reads 961 ns in a run without the 120-aura system: that second modifier system, whose sheets hold markers, makes the sheet build polymorphic in the one bench process, which a game with one modifier system does not see. The F21 figure for the new row is the old read's cost at 100–120 lists from the numbers above.
+
+At the review after F21 (P2), a caster steps only the `auto` clocks it has armed (`spells.arm`: a template's `autoAttack` at spawn, a card as the game grants it), in place of one clock per `auto` spell of the registry, each unowned one asking `host.owns` every step once it ran out (the host hook is gone). With 20 `auto` spells defined and 2,000 casters owning one each, far from casting, the auto step measured 155–162 µs a tick before (a scratch bench on the F21 code) and 17–20 µs now. The bench registry now defines the 20: the horde tick still arms only `strike` and measures 142.8 µs (142.8–145.2 µs at P1, with one `auto` spell defined), and the new row steps 2,000 idle casters with one of the 20 armed. Same Apple Silicon Mac, range of two full runs:
+
+| benchmark                                                      | per op         |
+| -------------------------------------------------------------- | -------------- |
+| spells: auto step, 2,000 casters, 1 of 20 auto spells armed    | 20.2–20.3 µs   |
+| spells: horde tick, 2,000 casters in flight (tick)             | 142.8 µs       |
+| units: spawn + despawn a grunt (template stats), now arming it | 1,133–1,163 ns |

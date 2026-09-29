@@ -66,21 +66,33 @@ describe('auto clocks (§II.3.2, §II.6 S2)', () => {
     assert.equal(game.spells.autoClock(game.a, game.id.volley), 0.5);
   });
 
-  it('counts while the spell is not owned, so a spell the caster gains fires at once', () => {
-    let isOwned = true;
-
-    const game = autoGame(
-      { swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('swing')] }) },
-      { owns: () => isOwned },
-    );
+  it('steps only armed clocks: a disarmed spell stops, and one armed again casts at once, or after its seconds', () => {
+    const game = autoGame({
+      swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('swing')] }),
+    });
 
     game.advance(1);
-    isOwned = false;
+    assert.equal(game.spells.disarm(game.a, game.id.swing), true);
+    assert.equal(game.spells.disarm(game.a, game.id.swing), false);
     game.advance(5);
     assert.equal(game.spells.autoClock(game.a, game.id.swing), 0);
-    isOwned = true;
+    assert.equal(game.spells.arm(game.a, game.id.swing), true);
+    assert.equal(game.spells.arm(game.a, game.id.swing, 5), false);
     game.advance(1);
-    assert.deepEqual(game.ticksOf('swing@1'), [1, 7]);
+    game.spells.disarm(game.a, game.id.swing);
+    game.spells.arm(game.a, game.id.swing, 0.6);
+    game.advance(4);
+    assert.deepEqual(game.ticksOf('swing@1'), [1, 7, 10]);
+  });
+
+  it('refuses to arm a spell that is not auto, or with seconds that are not a finite number from 0', () => {
+    const game = autoGame({
+      swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => undefined }),
+      bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined }),
+    });
+
+    assert.throws(() => game.spells.arm(game.a, game.id.bolt), /not an auto spell/);
+    assert.throws(() => game.spells.arm(game.unit(2), game.id.swing, -1), /finite seconds/);
   });
 
   it('spends the whole interval on a refusal by the gates or canCast, or retries when told to', () => {

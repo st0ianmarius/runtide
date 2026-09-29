@@ -27,12 +27,6 @@ export interface SpellHost<G extends SpellTypes> extends ProcHost<G> {
   readonly pointOf?: (target: unknown) => Vec2 | undefined;
 
   /**
-   * Whether a caster owns a spell (§I.7.1 F20: the game's own record of what a unit has, such as its cards): an `auto`
-   * spell's clock casts only while it is owned, and counts either way. Every spell is owned when absent.
-   */
-  readonly owns?: (caster: G['bearer'], spell: SpellId) => boolean;
-
-  /**
    * A caster's rank of a spell (§I.7.1 F20), from 1: what a cast is given when its options name no rank, so an `auto`
    * clock, a triggered cast or a `castSpell` outside a cast reads the caster's own rank (a card's rank). `undefined`
    * (and an absent hook) gives rank 1.

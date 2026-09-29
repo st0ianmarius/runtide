@@ -1,6 +1,6 @@
 import type { TickSlotId } from '../core/index.ts';
 import type { StatId } from '../modifiers/index.ts';
-import { autoClockOf, type ClockScale, rescaleClocks, stepAutoClocks } from './auto.ts';
+import { armAuto, autoClockOf, type ClockScale, rescaleClocks, stepAutoClocks } from './auto.ts';
 import { engineOf, gameActivationsOf } from './build-engine.ts';
 import { fireCastCue } from './cast-cue.ts';
 import {
@@ -26,11 +26,14 @@ import {
   cancelCast,
   cancelCaster,
   finishCast,
+  holdCast,
   interruptCaster,
+  interruptMaskOf,
   isCasting,
   MANUAL_PAUSE,
   setPause,
   stepCaster,
+  unholdCast,
 } from './stepper.ts';
 import type { SpellSystemOptions } from './system-options.ts';
 import { type CastView, viewCast } from './view.ts';
@@ -109,14 +112,22 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly step: (caster: G['bearer']) => void;
 
   /**
-   * Steps a caster's `auto` clocks by one step (§II.6 S2), in registry order: each counts down whether its spell is
-   * owned or not, and one that ran out casts its spell when the caster owns it (`host.owns`); the clock is then set to
-   * the interval read at the cast, or to the activation's retry, as the outcome's cost says (`onRefused`,
-   * `onNoTarget`, `onMiss`).
+   * Steps a caster's armed `auto` clocks by one step (§II.6 S2), in registry order: one that ran out casts its spell and
+   * is set to the interval read at the cast, or its retry, as the outcome's cost says (`onRefused`, `onNoTarget`,
+   * `onMiss`). A caster with none armed costs nothing.
    */
   readonly stepAuto: (caster: G['bearer']) => void;
 
-  /** The seconds left on a caster's `auto` clock for a spell; 0 for one that is not `auto`. */
+  /**
+   * Arms a caster's `auto` clock for a spell it has now (a template's swing, a card), with `seconds` left (0: it casts
+   * on the next step), so a unit steps its own attacks, never the game's; false when armed already.
+   */
+  readonly arm: (caster: G['bearer'], spell: SpellId, seconds?: number) => boolean;
+
+  /** Disarms a caster's `auto` clock for a spell (the caster lost it); false when it was not armed. */
+  readonly disarm: (caster: G['bearer'], spell: SpellId) => boolean;
+
+  /** The seconds left on a caster's `auto` clock for a spell; 0 for one it has not armed. */
   readonly autoClock: (caster: G['bearer'], spell: SpellId) => number;
 
   /**
@@ -257,7 +268,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     this.gameActivations = gameActivationsOf(engine.registry.activations);
   }
 
-  readonly createCasterState = (): CasterState => new CasterRecord(this.registry.autoIds.length);
+  readonly createCasterState = (): CasterState => new CasterRecord();
 
   readonly cast = (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>): CastReport =>
     startCast(this.#engine, this.#requestOf(caster, spell, options), this.#report);
@@ -294,7 +305,12 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     stepAutoClocks(this.#engine, caster, this.cast);
   };
 
-  readonly autoClock = (caster: G['bearer'], spell: SpellId): number => autoClockOf(this.#engine, caster, spell);
+  readonly arm = (caster: G['bearer'], spell: SpellId, seconds = 0): boolean =>
+    armAuto(this.#engine, caster, { spell, seconds });
+
+  readonly disarm = (caster: G['bearer'], spell: SpellId): boolean => recordOf(caster).disarm(spell);
+
+  readonly autoClock = (caster: G['bearer'], spell: SpellId): number => autoClockOf(caster, spell);
 
   readonly stepDelayed = (slot?: TickSlotId): number => this.#engine.delayed.land(slot ?? 0);
 
@@ -322,8 +338,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
   readonly cancelAll = (caster: G['bearer']): number => cancelCaster(this.#engine, caster);
 
-  readonly interruptMask = (reasons: readonly G['interrupt'][]): number =>
-    reasons.reduce((mask, reason) => mask | (this.#engine.interruptBits.get(reason) ?? unknownInterrupt(reason)), 0);
+  readonly interruptMask = (reasons: readonly G['interrupt'][]): number => interruptMaskOf(this.#engine, reasons);
 
   readonly heldInterrupts = (caster: G['bearer']): number => recordOf(caster).interrupts;
 
@@ -331,24 +346,10 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     return this.#engine.current?.cast ?? NO_CAST;
   }
 
-  readonly hold = (cast: CastHandle): boolean => {
-    const record = this.#engine.castOf(cast);
-
-    if (record === undefined) {
-      return false;
-    }
-
-    record.holds += 1;
-
-    return true;
-  };
+  readonly hold = (cast: CastHandle): boolean => holdCast(this.#engine, cast);
 
   readonly release = (cast: CastHandle): void => {
-    const record = this.#engine.castOf(cast);
-
-    if (record !== undefined) {
-      this.#engine.unhold(record);
-    }
+    unholdCast(this.#engine, cast);
   };
 
   readonly enter = (cast: CastHandle): CastHandle => {
@@ -381,11 +382,6 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     return share === undefined || Number.isNaN(share) ? undefined : share;
   };
 }
-
-/** An interrupt with no bit: neither declared by the game nor named by a timeline. */
-const unknownInterrupt = (reason: string): never => {
-  throw new RangeError(`Interrupt ${reason} is not one the spell system knows: declare it in its interrupts.`);
-};
 
 /**
  * Creates the spell system over a game's spells (§I.5): `createSpellSystem({ registry: SPELLS, auras, procs: () =>

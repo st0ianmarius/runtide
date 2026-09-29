@@ -331,3 +331,36 @@ export const isCasting = <G extends SpellTypes>(
 
   return false;
 };
+
+/** An interrupt with no bit: neither declared by the game nor named by a timeline. */
+const unknownInterrupt = (reason: string): never => {
+  throw new RangeError(`Interrupt ${reason} is not one the spell system knows: declare it in its interrupts.`);
+};
+
+/** The pause bits of interrupts, or'd together; throws for one the system does not know. */
+export const interruptMaskOf = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  reasons: readonly G['interrupt'][],
+): number => reasons.reduce((mask, reason) => mask | (engine.interruptBits.get(reason) ?? unknownInterrupt(reason)), 0);
+
+/** Holds a cast's record past its end (§I.7.1 F18: a summon kept its cast); false for a cast that is gone. */
+export const holdCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: CastHandle): boolean => {
+  const record = engine.castOf(cast);
+
+  if (record === undefined) {
+    return false;
+  }
+
+  record.holds += 1;
+
+  return true;
+};
+
+/** Lets go of one hold on a cast's record, which is freed once it has ended and nothing holds it. */
+export const unholdCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: CastHandle): void => {
+  const record = engine.castOf(cast);
+
+  if (record !== undefined) {
+    engine.unhold(record);
+  }
+};

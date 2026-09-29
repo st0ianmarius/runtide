@@ -115,14 +115,10 @@ const interruptBitsOf = <G extends SpellTypes>(
   return new Map([...names].map((name, index) => [name, 2 ** (index + 1)]));
 };
 
-/** The indexes among the auto spells of those whose clock resets after the caster's other casts (§II.6 S3). */
-const resetClocksOf = <G extends SpellTypes>(registry: SpellRegistry<G>): readonly number[] =>
-  Object.freeze(
-    registry.autoIds.flatMap((spell, index) => {
-      const { activation } = registry.get(spell);
-
-      return isAuto(activation) && activation.afterCast === 'reset' ? [index] : [];
-    }),
+/** 1 for each auto spell whose clock resets after the caster's other casts (§II.6 S3), by spell id. */
+const resetsAfterCastOf = <G extends SpellTypes>(registry: SpellRegistry<G>): Uint8Array =>
+  Uint8Array.from(registry.defs, (def) =>
+    def !== undefined && isAuto(def.activation) && def.activation.afterCast === 'reset' ? 1 : 0,
   );
 
 /** Builds the engine over the options, every table resolved. */
@@ -152,7 +148,7 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     boxes: new StatsBoxes(registry.compiled),
     baseView: baseView(registry.stats),
     interruptBits: interruptBitsOf(registry, options.interrupts ?? []),
-    resetClocks: resetClocksOf(registry),
+    resetsAfterCast: resetsAfterCastOf(registry),
     slots: options.slots?.size ?? 1,
     createExt: extFactory(options),
     resetExt: options.resetExt,

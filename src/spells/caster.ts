@@ -1,10 +1,10 @@
 import { type CastHandle, NO_CAST } from './ids.ts';
-import type { SpellCaster } from './spell-types.ts';
+import type { SpellCaster, SpellId } from './spell-types.ts';
 
 /**
  * What the spell system keeps on a caster (`SpellCaster.casts`): the handles of the casts it runs, in the order they
- * started, and one `auto` clock per auto spell of the registry. It is the system's; a game reads it through the
- * system (`castsOf`, `isCasting`) and never writes it.
+ * started, and a clock for each `auto` spell the caster has armed (`spells.arm`). It is the system's; a game reads it
+ * through the system (`castsOf`, `isCasting`, `autoClock`) and never writes it.
  */
 export interface CasterState {
   /** How many casts the caster runs now (in a stage: windup, channel or recover). */
@@ -16,11 +16,14 @@ export class CasterRecord implements CasterState {
   /** The handles of the running casts, valid up to `count`, in the order they started. */
   readonly handles: CastHandle[] = [];
 
-  /** The seconds left on each `auto` spell's clock, by the spell's index among the registry's auto spells. */
-  readonly clocks: Float64Array;
+  /** The armed `auto` spells, in registry order: a caster steps only these (§I.5.4: a mob's one swing, not the game's). */
+  readonly autos: SpellId[] = [];
 
-  /** The interval each `auto` spell last read at a cast, by the same index; 0 before its first. */
-  readonly intervals: Float64Array;
+  /** The seconds left on each armed spell's clock, by its index in `autos`. */
+  readonly clocks: number[] = [];
+
+  /** The interval each armed spell last read at a cast, by the same index; 0 before its first. */
+  readonly intervals: number[] = [];
 
   /** How many casts run. */
   count = 0;
@@ -28,9 +31,53 @@ export class CasterRecord implements CasterState {
   /** The bits of the interrupts the caster holds now (`spells.interrupt` until `endInterrupt`). */
   interrupts = 0;
 
-  constructor(autoCount: number) {
-    this.clocks = new Float64Array(autoCount);
-    this.intervals = new Float64Array(autoCount);
+  /** The index of an armed spell in `autos`, or -1. */
+  autoAt(spell: SpellId): number {
+    return this.autos.indexOf(spell);
+  }
+
+  /** Arms a spell's clock with `seconds` left, in registry order; false when it was armed already. */
+  arm(spell: SpellId, seconds: number): boolean {
+    if (this.autos.includes(spell)) {
+      return false;
+    }
+
+    const at = this.autos.findIndex((armed) => armed > spell);
+    const index = at < 0 ? this.autos.length : at;
+
+    this.autos.splice(index, 0, spell);
+    this.clocks.splice(index, 0, seconds);
+    this.intervals.splice(index, 0, 0);
+
+    return true;
+  }
+
+  /**
+   * Sets an armed clock after its cast: the interval the cast read (none when NaN) and the seconds it now has left.
+   * The cast may have disarmed clocks (a proc of the game's), so the clock is found again by its spell.
+   */
+  settle(spell: SpellId, interval: number, left: number): void {
+    const index = this.autos.indexOf(spell);
+
+    if (index >= 0) {
+      this.intervals[index] = Number.isNaN(interval) ? (this.intervals[index] ?? 0) : interval;
+      this.clocks[index] = left;
+    }
+  }
+
+  /** Disarms a spell's clock; false when it was not armed. */
+  disarm(spell: SpellId): boolean {
+    const index = this.autos.indexOf(spell);
+
+    if (index < 0) {
+      return false;
+    }
+
+    this.autos.splice(index, 1);
+    this.clocks.splice(index, 1);
+    this.intervals.splice(index, 1);
+
+    return true;
   }
 
   /** Adds a cast's handle, last. */

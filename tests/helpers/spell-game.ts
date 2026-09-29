@@ -594,6 +594,7 @@ export const makeSpellGame = <
   logEvents(bus, registry, log);
   logAreaEvents(bus, areaRegistry.names, log);
 
+  /** A caster, every `auto` spell of the registry armed. */
   const unit = (id: number): Unit => {
     const made: Unit = {
       id,
@@ -606,6 +607,10 @@ export const makeSpellGame = <
 
     views.set(made, viewOf(made));
     world.add(made, { id, at: made.at, radius: 0.5, side: id >= 100 ? 1 : 0 });
+
+    for (const auto of registry.autoIds) {
+      spells.arm(made, auto);
+    }
 
     return made;
   };

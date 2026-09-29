@@ -97,8 +97,8 @@ export interface EngineParts<G extends SpellTypes> {
   /** The pause bit of every interrupt, by name. */
   readonly interruptBits: ReadonlyMap<string, number>;
 
-  /** The indexes among the auto spells of those whose clock resets after the caster's other casts end. */
-  readonly resetClocks: readonly number[];
+  /** 1 for each `auto` spell whose clock resets after the caster's other casts end, by spell id. */
+  readonly resetsAfterCast: Uint8Array;
 
   /** How many tick slots delayed procs land in (the game's tick slots); 1 when it declares none. */
   readonly slots: number;
@@ -135,8 +135,11 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   /** The pause bit of every interrupt a spell's timeline names, from bit 1 up, by name. */
   readonly interruptBits: ReadonlyMap<string, number>;
 
-  /** The auto spells' clocks that reset after a cast (`afterCast: 'reset'`), by index among the auto spells. */
-  readonly resetClocks: readonly number[];
+  /** 1 for each `auto` spell whose clock resets after a cast (`afterCast: 'reset'`), by spell id. */
+  readonly resetsAfterCast: Uint8Array;
+
+  /** Whether any `auto` spell resets after casts. */
+  readonly hasResets: boolean;
 
   /** The delayed procs, on a timing wheel per tick slot. */
   readonly delayed: DelayedProcs<G>;
@@ -172,7 +175,8 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     this.boxes = parts.boxes;
     this.baseView = parts.baseView;
     this.interruptBits = parts.interruptBits;
-    this.resetClocks = parts.resetClocks;
+    this.resetsAfterCast = parts.resetsAfterCast;
+    this.hasResets = parts.resetsAfterCast.includes(1);
     this.#procs = parts.procs;
     this.#random = parts.random;
     this.#streams = parts.streams;

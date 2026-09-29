@@ -52,8 +52,9 @@ export interface UnitDef<G extends UnitTypes = UnitTypes> {
   readonly traits?: UnitTraits;
 
   /**
-   * Its auto-attack spell, by name (an `auto` spell the game's loop steps), for a creature's melee swing (§II.6 S3).
-   * Optional, and absent for most heroes: their attacks are the spells they own (the spellbook, F20), not a template's.
+   * Its auto-attack spell, by name (an `auto` spell), for a creature's melee swing (§II.6 S3): armed on every unit
+   * spawned (`spells.arm`), so `spells.stepAuto` steps it. Optional, and absent for most heroes: the game arms their
+   * attacks as they gain them (their cards), not a template.
    */
   readonly autoAttack?: G['spellName'];
 

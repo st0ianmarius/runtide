@@ -271,6 +271,12 @@ export class UnitEngine<G extends UnitTypes> {
 
     const made = unit;
 
+    const autoAttack = this.autoAttacks[template];
+
+    if (autoAttack !== undefined) {
+      options.spells.arm(made, autoAttack);
+    }
+
     this.foldBases(made, [unit, spawn.stats === undefined]);
     unit.maxHealth = this.statsOf(made).total(this.healthStat);
     unit.health = unit.maxHealth;
