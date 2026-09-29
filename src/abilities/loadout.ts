@@ -28,6 +28,9 @@ export class LoadoutRecord implements LoadoutState {
   }
 }
 
+/** The loadout of a unit with no buttons (a creature, a wall): no slots, shared, never written. */
+export const NO_LOADOUT: LoadoutState = Object.freeze(new LoadoutRecord(0));
+
 /** A unit's loadout record, or a clear error for a unit whose loadout the system did not make. */
 export const loadoutOf = (bearer: AbilityBearer): LoadoutRecord => {
   const { loadout } = bearer;

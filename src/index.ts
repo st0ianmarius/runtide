@@ -20,4 +20,5 @@ export * from './procs/index.ts';
 export * from './replication/index.ts';
 export * from './spells/index.ts';
 export * from './triggers/index.ts';
+export * from './units/index.ts';
 export * from './world/index.ts';
