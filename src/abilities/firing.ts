@@ -1,0 +1,274 @@
+// Hot path (§I.4.2, §I.5.4): a press is checked on every motion step, so the loops are indexed.
+/* oxlint-disable typescript/prefer-for-of */
+import type { AuraTagId } from '../auras/index.ts';
+import { toId } from '../core/ids.ts';
+import { evaluateScaled } from '../modifiers/index.ts';
+import type { SpellId } from '../spells/index.ts';
+import type { AbilityBearer, AbilityTypes, SlotId } from './ability-types.ts';
+import type { CompiledButton } from './buttons.ts';
+import type { AbilityEngine } from './engine.ts';
+import { loadoutOf, type LoadoutRecord } from './loadout.ts';
+
+/** The spell in a loadout's slot, or `undefined` for an empty one. */
+export const spellAt = (record: LoadoutRecord, slot: number): SpellId | undefined => {
+  const spell = record.spells[slot] ?? -1;
+
+  return spell < 0 ? undefined : toId<'spells'>(spell);
+};
+
+/**
+ * A button's cooldown in seconds for a caster at a rank (§II.3.13): its number, its function of the caster, or its
+ * scaled value over the caster's stats for the spell. With no caster (a preview) a scaled value reads the stat table's
+ * bases, and a function is NaN. 0 when it has none.
+ */
+const cooldownSeconds = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  caster: G['bearer'] | undefined,
+  [spell, rank]: readonly [SpellId, number],
+): number => {
+  const cooldown = engine.buttons[spell]?.cooldown;
+
+  if (cooldown === undefined || typeof cooldown === 'number') {
+    return cooldown ?? 0;
+  }
+
+  if (typeof cooldown === 'function') {
+    return caster === undefined ? Number.NaN : cooldown(caster, rank);
+  }
+
+  return evaluateScaled(cooldown, { caster: engine.viewOf(caster, spell), rank });
+};
+
+/** Whether a bearer holds every tag of a list (`every`) or any of them. */
+const holds = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  [tags, every]: readonly [readonly AuraTagId[], boolean],
+): boolean => {
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i];
+
+    if (tag !== undefined && engine.auras.hasTag(bearer, tag) !== every) {
+      return !every;
+    }
+  }
+
+  return every;
+};
+
+/** Whether a caster meets a button's own rules: every `requires` tag held, no `blockedBy` tag, its cost affordable. */
+const meetsRules = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  button: CompiledButton<G>,
+): boolean =>
+  (button.requires.length === 0 || holds(engine, bearer, [button.requires, true])) &&
+  (button.blockedBy.length === 0 || !holds(engine, bearer, [button.blockedBy, false])) &&
+  (button.costAura < 0 || engine.auras.stacks(bearer, toId<'auras'>(button.costAura)) >= button.costStacks);
+
+/** Whether a slot's cooldown aura is on its bearer. */
+const isCooling = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], slot: number): boolean => {
+  const aura = engine.cooldowns[slot] ?? -1;
+
+  return aura >= 0 && engine.auras.has(bearer, toId<'auras'>(aura));
+};
+
+/**
+ * Whether the ability in a slot may fire now (§II.6 S4): the slot holds one, its cooldown aura is not on the bearer,
+ * and the ability's own rules hold. Reads only the bearer, so a server and a prediction mirror agree.
+ */
+export const canFire = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  slot: number,
+): boolean => {
+  const spell = spellAt(loadoutOf(bearer), slot);
+  const button = spell === undefined ? undefined : engine.buttons[spell];
+
+  return button !== undefined && !isCooling(engine, bearer, slot) && meetsRules(engine, bearer, button);
+};
+
+/** Starts a slot's cooldown for the ability in it: its cooldown aura for the seconds read now; none for 0 or less. */
+const startCooldown = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  [slot, spell, rank]: readonly [number, SpellId, number],
+): void => {
+  const aura = engine.cooldowns[slot] ?? -1;
+  const seconds = aura < 0 ? 0 : cooldownSeconds(engine, bearer, [spell, rank]);
+
+  if (seconds > 0) {
+    engine.auras.apply(bearer, { aura: toId<'auras'>(aura), duration: seconds });
+  }
+};
+
+/**
+ * What a button lands on its caster as it fires, after its cost, motion and cooldown: its `applies` in order (each
+ * for its aura's own length, times its stat when it names one), then its `resets`.
+ */
+const land = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], spell: SpellId): void => {
+  const button = engine.buttons[spell];
+
+  if (button === undefined) {
+    return;
+  }
+
+  const { auras } = engine;
+
+  for (let i = 0; i < button.applies.length; i++) {
+    const apply = button.applies[i];
+
+    if (apply !== undefined) {
+      const { aura, stat } = apply;
+      const scale = stat === undefined ? 1 : engine.viewOf(bearer, spell).total(stat);
+
+      auras.apply(bearer, stat === undefined ? aura : { aura, duration: auras.lengthOf(aura, bearer) * scale });
+    }
+  }
+
+  for (const tag of button.resets) {
+    auras.removeByTag(bearer, tag);
+  }
+};
+
+/** Casts a button's spell with an input at a rank; whether the cast was refused. */
+const castButton = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  [spell, rank, input]: readonly [SpellId, number, G['input'] | undefined],
+): boolean => {
+  const { options } = engine;
+
+  options.input = input;
+  options.rank = rank;
+
+  const { status } = engine.spells.cast(bearer, spell, options);
+
+  options.input = undefined;
+
+  return status === 'refused';
+};
+
+/** Pays a button's cost; false when the bearer can no longer pay it. */
+const pay = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  button: CompiledButton<G>,
+): boolean =>
+  button.costAura < 0 || engine.auras.spendStacks(bearer, toId<'auras'>(button.costAura), button.costStacks);
+
+/**
+ * Fires the ability in a slot, already decided (§I.6 Abilities): pays its cost, runs `activate`, starts the slot's
+ * cooldown (on `activation`), lands `applies` and `resets`, then casts its spell with the press's input, and starts
+ * a `cast` cooldown once the cast was not refused. False when it could not fire (an empty slot, or a cost an earlier
+ * slot of the same press spent).
+ */
+const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], slot: number): boolean => {
+  const { input } = engine;
+  const record = loadoutOf(bearer);
+  const spell = spellAt(record, slot);
+  const button = spell === undefined ? undefined : engine.buttons[spell];
+
+  if (spell === undefined || button === undefined || !pay(engine, bearer, button)) {
+    return false;
+  }
+
+  const rank = record.ranks[slot] ?? 1;
+
+  button.def.activate?.(bearer, input);
+
+  if (!button.isCastCooldown) {
+    startCooldown(engine, bearer, [slot, spell, rank]);
+  }
+
+  land(engine, bearer, spell);
+
+  if (!castButton(engine, bearer, [spell, rank, input]) && button.isCastCooldown) {
+    startCooldown(engine, bearer, [slot, spell, rank]);
+  }
+
+  return true;
+};
+
+/**
+ * A press (§II.6 S4) with the input in `engine.input`: decides every pressed slot against the bearer as it stands
+ * before any fires, so a dodge and an ability that resets the dodge's cooldown on one press both fire, then fires them
+ * in slot order. Returns the mask of the slots that fired.
+ */
+export const press = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  pressed: number,
+): number => {
+  const { input } = engine;
+  const count = engine.slots.size;
+  let accepted = 0;
+
+  for (let slot = 0; slot < count && pressed !== 0; slot++) {
+    const bit = 1 << slot;
+
+    if ((pressed & bit) !== 0 && canFire(engine, bearer, slot)) {
+      accepted |= bit;
+    }
+  }
+
+  for (let slot = 0; slot < count && accepted !== 0; slot++) {
+    const bit = 1 << slot;
+
+    engine.input = input;
+
+    if ((accepted & bit) !== 0 && !fire(engine, bearer, slot)) {
+      accepted &= ~bit;
+    }
+  }
+
+  engine.input = undefined;
+
+  return accepted;
+};
+
+/** The first slot of a bearer's loadout holding a spell, or `undefined`. */
+export const slotHolding = (bearer: AbilityBearer, spell: SpellId): SlotId | undefined => {
+  const index = loadoutOf(bearer).spells.indexOf(spell);
+
+  return index < 0 ? undefined : toId<'slots'>(index);
+};
+
+/**
+ * The trigger path (§II.6 S4): a button spell fired by something other than its key (a `useAbility` proc, an aura's
+ * trigger). No slot cooldown gates it and none starts; its own rules gate it; it pays, lands `applies` and `resets`,
+ * and casts at the rank of the slot that holds it (1 when none does). Its `activate` does not run: the motion half is
+ * the key's. False when it did not fire.
+ */
+export const triggerButton = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  [spell, input]: readonly [SpellId, G['input'] | undefined],
+): boolean => {
+  const button = engine.buttons[spell];
+
+  if (button === undefined || !meetsRules(engine, bearer, button) || !pay(engine, bearer, button)) {
+    return false;
+  }
+
+  const slot = slotHolding(bearer, spell);
+  const rank = slot === undefined ? 1 : (loadoutOf(bearer).ranks[slot] ?? 1);
+
+  land(engine, bearer, spell);
+  castButton(engine, bearer, [spell, rank, input]);
+
+  return true;
+};
+
+/** Runs the `travel` hook of every equipped ability, in slot order: the motion half on a motion step. */
+export const travel = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], dt: number): void => {
+  const record = loadoutOf(bearer);
+
+  for (let slot = 0; slot < record.spells.length; slot++) {
+    const spell = spellAt(record, slot);
+
+    if (spell !== undefined) {
+      engine.buttons[spell]?.def.travel?.(bearer, dt);
+    }
+  }
+};

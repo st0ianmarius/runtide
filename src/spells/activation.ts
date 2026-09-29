@@ -1,4 +1,6 @@
+import type { AuraId } from '../auras/index.ts';
 import { createRegistry, type Registry } from '../core/index.ts';
+import type { Scaled } from '../modifiers/index.ts';
 import type { GateContext, SpellContext, StatsSource } from './spell-def.ts';
 import type { ActivationShape, SpellTypes } from './spell-types.ts';
 
@@ -38,10 +40,79 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
   readonly onMiss?: 'spend' | 'retry';
 }
 
-/** A `button` activation: a unit's key pulls it. The button's rules (cooldown, cost, loadout) land with abilities (F9). */
-export interface ButtonActivation {
+/**
+ * A button's cooldown in seconds, read from the caster as it fires (§I.5.6 hatch 2): for a rule no scaled value
+ * covers.
+ */
+export type ButtonSeconds<G extends SpellTypes> = {
+  /** Reads the seconds; declared as a method so a function over a narrower caster still fits. */
+  bivarianceHack(caster: G['bearer'], rank: number): number;
+}['bivarianceHack'];
+
+/** What a button costs as it fires: stacks of an aura on its caster (a charge, a rage bar); 1 stack when absent. */
+export interface ButtonCost {
+  /** The aura spent. */
+  readonly aura: AuraId;
+
+  /** The stacks spent, a whole number from 1; 1 when absent. */
+  readonly stacks?: number;
+}
+
+/**
+ * An aura a button lands on its caster as it fires, for the aura's own length, multiplied by a stat of the caster's
+ * when it names one (a Duration stat, §II.6 S4).
+ */
+export interface ButtonApply<G extends SpellTypes = SpellTypes> {
+  /** The aura. */
+  readonly aura: AuraId;
+
+  /** The stat whose total multiplies the aura's length; its own length when absent. */
+  readonly scaledBy?: G['stat'];
+}
+
+/**
+ * A `button` activation (§II.3.2, §I.6 Abilities): a unit's key pulls it, through its loadout (`abilities.tryActivate`).
+ * An ability **is** a spell with this activation: its cooldown is an aura on the slot it sits in, its cost is stacks of
+ * an aura, `requires` and `blockedBy` are aura tags, and as it fires it pays, moves (`activate`), starts its cooldown,
+ * lands `applies`, clears `resets`, then casts. The motion half (`activate`, `travel`) reads and writes only the
+ * bearer, so a prediction mirror runs it too.
+ */
+export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
   /** The discriminant. */
   readonly kind: 'button';
+
+  /**
+   * The seconds the slot cools down for: a number, a scaled value of the caster's stats at the ability's rank
+   * (`scaled(12, haste(0.5))`), or a function of the caster. None when absent.
+   */
+  readonly cooldown?: Scaled<G['stat']> | ButtonSeconds<G>;
+
+  /**
+   * When the cooldown starts: `activation` (as it fires, the default) or `cast`, only once its cast was not refused (a
+   * placement the cast checks).
+   */
+  readonly startsOn?: 'activation' | 'cast';
+
+  /** What it costs as it fires; nothing when absent. */
+  readonly cost?: ButtonCost;
+
+  /** Aura tags every one of which the caster must hold. */
+  readonly requires?: readonly G['tag'][];
+
+  /** Aura tags none of which the caster may hold (its slot's cooldown is always implied). */
+  readonly blockedBy?: readonly G['tag'][];
+
+  /** Aura tags whose auras it removes from the caster as it fires, after `applies` (another slot's cooldown). */
+  readonly resets?: readonly G['tag'][];
+
+  /** Auras it lands on the caster as it fires, in order (a sprint, a stance). */
+  readonly applies?: readonly ButtonApply<G>[];
+
+  /** The motion half as it fires, before its cooldown, auras and cast: a dodge's direction. Reads only the bearer. */
+  activate?(this: void, bearer: G['bearer'], input: G['input'] | undefined): void;
+
+  /** The motion half on every motion step while equipped (`abilities.travel`): a dodge carrying its bearer. */
+  travel?(this: void, bearer: G['bearer'], dt: number): void;
 }
 
 /** A `passive` activation: owning the spell is what casts it (an aura or area trigger held while owned, F20). */
@@ -100,7 +171,12 @@ export interface EventActivation {
 
 /** The framework's activation kinds, as a union. */
 export type CoreActivation<G extends SpellTypes = SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
-  AutoActivation<G, Source> | ButtonActivation | PassiveActivation | TriggerActivation | AiActivation | EventActivation;
+  | AutoActivation<G, Source>
+  | ButtonActivation<G>
+  | PassiveActivation
+  | TriggerActivation
+  | AiActivation
+  | EventActivation;
 
 /** One activation (§II.3.2): a core kind or one of the game's; `Source` types the stats an `auto` interval reads. */
 export type Activation<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
@@ -154,6 +230,31 @@ const AUTO: ActivationKindDef<AutoActivation, never> = {
   },
 };
 
+/** Whether an activation is the framework's `button` kind. */
+export const isButton = <G extends SpellTypes>(activation: Activation<G>): activation is ButtonActivation<G> =>
+  activation.kind === 'button';
+
+/** Whether a button's cost is sound: a whole number of stacks from 1. */
+const isCost = (cost: ButtonCost | undefined): boolean =>
+  cost?.stacks === undefined || (Number.isInteger(cost.stacks) && cost.stacks >= 1);
+
+/** The `button` kind: its cooldown seconds from 0 (a number's; a scaled value is checked by the ability system). */
+const BUTTON: ActivationKindDef<ButtonActivation, never> = {
+  check: (activation) => {
+    const { cooldown, startsOn } = activation;
+
+    if (typeof cooldown === 'number' && !isSeconds(cooldown)) {
+      return 'a button cooldown takes seconds from 0.';
+    }
+
+    if (startsOn !== undefined && startsOn !== 'activation' && startsOn !== 'cast') {
+      return "a button cooldown starts on 'activation' or 'cast'.";
+    }
+
+    return isCost(activation.cost) ? undefined : 'a button costs a whole number of stacks from 1.';
+  },
+};
+
 /** The `ai` kind: its windup, lock and recovery are the timeline's defaults. */
 const AI: ActivationKindDef<AiActivation, never> = {
   check: (activation) =>
@@ -173,8 +274,8 @@ const PLAIN: ActivationKindDef<ActivationShape, never> = {};
 
 /**
  * The framework's activation kinds (§II.3.2), typed over no game (`never`) since none has a gate, so they register
- * into any game's activation registry: `auto` (the attack clock, `spells.stepAuto`), `button` (F9's
- * abilities), `passive` (owning it, F20), `trigger` (cast by procs and triggers), `ai` (a creature's brain, F17) and
+ * into any game's activation registry: `auto` (the attack clock, `spells.stepAuto`), `button` (abilities,
+ * `abilities.tryActivate`), `passive` (owning it, F20), `trigger` (cast by procs and triggers), `ai` (a creature's brain, F17) and
  * `event` (the world's director). A game registers them with its own: `defineActivations({ ...CORE_ACTIVATIONS,
  * totem: TOTEM })`.
  */
@@ -185,7 +286,7 @@ export const CORE_ACTIVATIONS: {
   readonly trigger: ActivationKindDef<TriggerActivation, never>;
   readonly ai: ActivationKindDef<AiActivation, never>;
   readonly event: ActivationKindDef<EventActivation, never>;
-} = Object.freeze({ auto: AUTO, button: PLAIN, passive: PLAIN, trigger: PLAIN, ai: AI, event: PLAIN });
+} = Object.freeze({ auto: AUTO, button: BUTTON, passive: PLAIN, trigger: PLAIN, ai: AI, event: PLAIN });
 
 /** A registry of activation kinds: ids by key order, each kind's definition, typed by the game's spell types. */
 export type ActivationRegistry<G extends SpellTypes = SpellTypes> = Registry<

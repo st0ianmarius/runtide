@@ -79,28 +79,21 @@ const CORE: Readonly<Record<string, object | undefined>> = CORE_PROCS;
 const isOwn = (kinds: object | undefined, name: string, def: object): boolean =>
   Object.entries(kinds ?? {}).some(([own, kind]) => own === name && kind === def);
 
-/** The systems whose proc kinds are the framework's own. */
-interface OwnKinds {
-  /** The damage system. */
-  readonly damage: EscapeDamage | undefined;
-
-  /** The spell system. */
-  readonly spells: EscapeSpells | undefined;
-
-  /** The area trigger system. */
-  readonly areaTriggers: EscapeAreaTriggers | undefined;
+/**
+ * What the escape report reads from an ability system (an `AbilitySystem` is one): its proc kinds, which are the
+ * framework's own and not hatches.
+ */
+export interface EscapeAbilities {
+  /** The ability system's proc kinds, by name. */
+  readonly procKinds: object;
 }
 
 /**
- * Whether a kind's definition is the framework's own kind of that name: a core kind, or a damage, spell or area
- * trigger system's.
+ * Whether a kind's definition is the framework's own kind of that name: a core kind, or one of the proc kinds of a
+ * damage, spell, area trigger or ability system (`systems`, each system's kinds by name).
  */
-const isCore = (name: string, def: object | undefined, systems: OwnKinds): boolean =>
-  def !== undefined &&
-  (CORE[name] === def ||
-    isOwn(systems.damage?.procKinds, name, def) ||
-    isOwn(systems.spells?.procKinds, name, def) ||
-    isOwn(systems.areaTriggers?.procKinds, name, def));
+const isCore = (name: string, def: object | undefined, systems: readonly (object | undefined)[]): boolean =>
+  def !== undefined && (CORE[name] === def || systems.some((kinds) => isOwn(kinds, name, def)));
 
 /** The escape report of a game's registries (§I.5.6). */
 export const escapeReport = <G extends ProcTypes>(registries: {
@@ -116,14 +109,24 @@ export const escapeReport = <G extends ProcTypes>(registries: {
   /** The game's area trigger system, if it has one. */
   readonly areaTriggers?: EscapeAreaTriggers;
 
+  /** The game's ability system, if it has one. */
+  readonly abilities?: EscapeAbilities;
+
   /** The game's world, if it asks one. */
   readonly world?: EscapeWorld;
 }): EscapeReport => {
   const { kinds, runs } = registries.procs;
-  const { damage, spells, areaTriggers } = registries;
+  const { damage, spells } = registries;
+
+  const systems = [
+    damage?.procKinds,
+    spells?.procKinds,
+    registries.areaTriggers?.procKinds,
+    registries.abilities?.procKinds,
+  ];
 
   return {
-    procKinds: kinds.names.filter((name, index) => !isCore(name, kinds.defs[index], { damage, spells, areaTriggers })),
+    procKinds: kinds.names.filter((name, index) => !isCore(name, kinds.defs[index], systems)),
     runs: [...runs].map(([hatch, count]) => ({ hatch, count })),
     stages: damage?.gameStages ?? [],
     activationKinds: spells?.gameActivations ?? [],

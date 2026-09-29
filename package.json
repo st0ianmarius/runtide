@@ -15,6 +15,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./abilities": {
+      "types": "./dist/abilities/index.d.ts",
+      "default": "./dist/abilities/index.js"
+    },
     "./area-triggers": {
       "types": "./dist/area-triggers/index.d.ts",
       "default": "./dist/area-triggers/index.js"
