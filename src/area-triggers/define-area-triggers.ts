@@ -11,6 +11,7 @@ import { recordOf } from '../core/records.ts';
 import { checkAreaTrigger } from './area-checks.ts';
 import type { AnyAreaTriggerDef } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
+import { type CompiledReplication, compileReplication } from './replication.ts';
 import type { AreaTagTable } from './tags.ts';
 
 /** Flag bit: its shape is a function, read again at every frame. */
@@ -75,6 +76,9 @@ export interface AreaTriggerRegistry<
 
   /** Each kind's tags, as a bitset over tag ids. */
   readonly tagSets: readonly Bitset[];
+
+  /** Each kind's replication, resolved and checked at load (`events-only` for a tombstone). */
+  readonly replication: readonly CompiledReplication[];
 }
 
 /** What an area trigger registry is built with, beyond its definitions. */
@@ -241,5 +245,6 @@ export const defineAreaTriggers = <G extends AreaTriggerTypes, const Name extend
     has: buildHas(slots),
     tags,
     tagSets: Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => tagIds[tag] ?? 0)))),
+    replication: Object.freeze(slots.map((def, id) => compileReplication(base.names[id] ?? '?', def))),
   });
 };

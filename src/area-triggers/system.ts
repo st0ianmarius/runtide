@@ -9,6 +9,7 @@ import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import { createAreaTriggerProcKinds } from './proc-kinds.ts';
 import type { AreaTriggerProcKinds } from './procs.ts';
 import { type AreaQueries, type AreaQuery, despawnWhere } from './queries.ts';
+import { type AreaReplica, replicateAreas } from './replication.ts';
 import { spawnArea, type SpawnSpec } from './spawner.ts';
 import { stepSlot } from './stepper.ts';
 import type { AreaTriggerSystemOptions } from './system-options.ts';
@@ -67,6 +68,12 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
 
   /** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended (§II.6 W5). */
   readonly despawnWhere: (query: AreaQuery<G>, reason?: EndReason) => number;
+
+  /**
+   * Writes the replicated state of every live area trigger whose kind replicates its state into `out` from index 0
+   * (§I.6 Replication), in kind order then creation order, each value rounded as its kind declares; returns how many.
+   */
+  readonly replicate: (out: AreaReplica[]) => number;
 }
 
 /** An area trigger system: a class for fast properties, its functions arrow fields so they work detached. */
@@ -138,6 +145,8 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
 
   readonly despawnWhere = (query: AreaQuery<G>, reason: EndReason = 'self'): number =>
     despawnWhere(this.#engine, query, reason);
+
+  readonly replicate = (out: AreaReplica[]): number => replicateAreas(this.#engine, out);
 }
 
 /**

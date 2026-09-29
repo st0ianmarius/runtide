@@ -21,6 +21,7 @@ import type {
 } from './delivery-def.ts';
 import type { AreaTriggerHandle } from './ids.ts';
 import type { AreaQueries } from './queries.ts';
+import type { AreaReplication } from './replication.ts';
 
 /**
  * Why an area trigger ended (§II.6 W1): `expired` (its lifetime ran out), `spent` (its hit budget ran out), `self` (a
@@ -288,6 +289,12 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
    * charge), so no one reads its state directly.
    */
   view?(this: void, c: AreaTriggerContext<G, State>): Readonly<Record<string, number>>;
+
+  /**
+   * What of it crosses the wire (§II.3.9): fields and view entries with their rounding, `events-only` (the default) or
+   * `derived`; `areaTriggers.replicate` writes it.
+   */
+  readonly replicate?: AreaReplication;
 
   /** Makes an instance's own state, once per spawn; `undefined` when absent (or its parent's, when shared). */
   state?(this: void): State;
