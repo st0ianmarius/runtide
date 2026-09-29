@@ -85,3 +85,10 @@ Added at F9 (`bench/abilities.ts`), same Apple Silicon Mac (arm64, Node 25.8.1),
 | benchmark                                           | per op     |
 | --------------------------------------------------- | ---------- |
 | abilities: 1,000 heroes press three slots, per tick | 157–163 µs |
+
+Added at F11 (`bench/combat-log.ts`), same Apple Silicon Mac (arm64, Node 25.8.1), range of three full runs. One landed blow raised on a core bus with one damage kind and recorded by a combat log of the default 4,096 entries, then the same with a damage meter subscribed. Over a million entries each, recording causes 0–2 minor GCs.
+
+| benchmark                                     | per op   |
+| --------------------------------------------- | -------- |
+| combat log: a blow raised and recorded        | 45–46 ns |
+| combat log: a blow recorded, meter subscribed | 59–63 ns |

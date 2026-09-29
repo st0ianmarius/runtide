@@ -30,6 +30,7 @@ import {
 } from '../src/modifiers/index.ts';
 import { ABILITY_TASKS, abilityCounter } from './abilities.ts';
 import { AREA_TASKS, areaCounter, areaStats } from './area-triggers.ts';
+import { LOG_TASKS, logCounter } from './combat-log.ts';
 import { CUE_TASKS, CUE_TICK_BYTES, cueCounter } from './cues.ts';
 import { DAMAGE_TASKS, damageCounter } from './damage.ts';
 import { counter, PROC_TRIGGER_TASKS } from './procs-triggers.ts';
@@ -284,6 +285,7 @@ for (const [name, task, blows] of [
   ...WORLD_TASKS,
   ...AREA_TASKS,
   ...ABILITY_TASKS,
+  ...LOG_TASKS,
 ]) {
   const calls = Math.max(1, BATCH / blows);
 
@@ -306,7 +308,8 @@ sink +=
   spellCounter.granted +
   worldCounter.found +
   areaCounter.granted +
-  abilityCounter.granted;
+  abilityCounter.granted +
+  logCounter.seen;
 
 const horde = spellHordeStats();
 const areas = areaStats();
