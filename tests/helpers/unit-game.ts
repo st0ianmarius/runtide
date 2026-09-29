@@ -12,6 +12,13 @@ import {
 } from '../../src/auras/index.ts';
 import { createBus, createClock, type SimClock, stream } from '../../src/core/index.ts';
 import {
+  createScriptSystem,
+  defineScripts,
+  type ScriptRegistry,
+  type ScriptSystem,
+  type ScriptTypes,
+} from '../../src/creature-scripts/index.ts';
+import {
   type Blow,
   createDamageSystem,
   createDeathEvent,
@@ -45,12 +52,11 @@ import {
   type UnitId,
   type UnitProcs,
   type UnitSystem,
-  type UnitTypes,
 } from '../../src/units/index.ts';
 import type { WorldQuery } from '../../src/world/index.ts';
 
 /** The unit test game's types. */
-export interface UnitGame extends UnitTypes {
+export interface UnitGame extends ScriptTypes {
   /** A unit of the unit system. */
   readonly bearer: Unit<UnitGame>;
 
@@ -116,6 +122,18 @@ export interface UnitGame extends UnitTypes {
 
   /** The test timers. */
   readonly timerName: 'pick' | 'raise';
+
+  /** Open script names. */
+  readonly scriptName: string;
+
+  /** The events scripts may handle: a lifecycle change and a death. */
+  readonly scriptEvents: {
+    /** A unit moved between lifecycle states. */
+    readonly changed: UnitEvent<UnitGame>;
+
+    /** A unit died. */
+    readonly death: DeathEvent<UnitGame>;
+  };
 
   /** One damage kind. */
   readonly damageKind: 'physical';
@@ -232,6 +250,9 @@ export interface UnitGameOptions<Extra extends string = never> {
   /** More spells, beside the swing and the channel. */
   readonly spells?: Readonly<Record<Extra, AnySpellDef<UnitGame>>>;
 
+  /** The creature scripts templates name; none when absent. */
+  readonly scripts?: ScriptRegistry<UnitGame>;
+
   /** The world summons are placed in; none when absent. */
   readonly world?: Pick<WorldQuery<Unit<UnitGame>>, 'positionOf' | 'pickPoint'>;
 
@@ -264,6 +285,9 @@ export interface UnitTestGame<Name extends string, Extra extends string = never>
 
   /** The id of every spell, by name. */
   readonly spellId: Readonly<Record<'swing' | 'channel' | Extra, SpellId>>;
+
+  /** The script system, with `changed` delivered to the unit's owner and `death` to the unit. */
+  readonly scripts: ScriptSystem<UnitGame>;
 
   /** The AI system, over the pick and raise timers, held by a freeze. */
   readonly ai: AiSystem<UnitGame>;
@@ -335,7 +359,10 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
 
   const ai = createAiSystem<UnitGame>({ spells, clock, timers: TIMERS, heldBy: ['freeze'] });
 
+  const holdScripts: { system?: ScriptSystem<UnitGame> } = {};
+
   const units = createUnitSystem<UnitGame>({
+    scripts: () => holdScripts.system?.forUnits ?? missing(),
     registry,
     auras,
     ai,
@@ -381,6 +408,21 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
 
   holder.procs = procs;
   late.units = units;
+
+  const scripts = createScriptSystem<UnitGame>({
+    registry: options.scripts ?? defineScripts<UnitGame, never>({}),
+    units,
+    ai,
+    procs,
+    bus,
+    host: {},
+    events: {
+      changed: { kind: bus.kind.changed, unitOf: (event) => event.unit?.owner },
+      death: { kind: bus.kind.death, unitOf: (event) => event.death?.unit },
+    },
+  });
+
+  holdScripts.system = scripts;
   late.policy = units.auraPolicy(options.rules ?? []);
 
   const line = (what: string) => (event: UnitEvent<UnitGame>) => {
@@ -405,7 +447,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
   bus.on(bus.kind.death, (event) => log.push(`death ${event.death?.unit.id ?? '?'}`));
   bus.on(bus.kind.kill, (event) => log.push(`kill by ${event.death?.killer?.id ?? '?'}`));
 
-  return { clock, auras, spells, damage, units, procs, ai, id: registry.id, spellId: spellRegistry.id, log };
+  return { clock, auras, spells, damage, units, procs, ai, scripts, id: registry.id, spellId: spellRegistry.id, log };
 };
 
 /** Throws: the proc system is wired after the systems that name it. */

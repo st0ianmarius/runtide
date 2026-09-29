@@ -50,6 +50,12 @@ export interface UnitSystemBase<G extends UnitTypes> {
   /** The world a summon's point is picked in (`summon`'s `around`); none when absent. */
   readonly world?: Pick<WorldQuery<G['bearer']>, 'positionOf' | 'pickPoint'>;
 
+  /**
+   * The script system, given lazily since it is made after the unit system (§I.7.1 F19): a unit whose template names a
+   * script is attached to it once spawned and detached once despawned. Required when any template names a script.
+   */
+  readonly scripts?: () => UnitScripts<G>;
+
   /** The ability system, for units with buttons; every unit has an empty loadout when absent. */
   readonly abilities?: AbilitySystem<G>;
 
@@ -104,6 +110,18 @@ export type UnitSystemOptions<G extends UnitTypes> = UnitSystemBase<G> &
         /** Makes the game's fields of a unit. */
         readonly createExt: () => G['unitExt'];
       });
+
+/** What the unit system asks of the script system (`createScriptSystem` makes one). */
+export interface UnitScripts<G extends UnitTypes> {
+  /** Attaches a spawned unit to its template's script, making its record; returns the record's slot. */
+  readonly attach: (unit: G['bearer'], script: G['scriptName']) => number;
+
+  /** Runs an attached unit's `spawn` handlers, once its slot is set. */
+  readonly start: (unit: G['bearer']) => void;
+
+  /** Detaches a despawned unit: its record is freed. */
+  readonly detach: (unit: G['bearer']) => void;
+}
 
 /** How a unit is spawned. */
 export interface SpawnUnit<G extends UnitTypes> {

@@ -56,3 +56,23 @@ export const despawnBound = <G extends UnitTypes>(engine: UnitEngine<G>, bearer:
     }
   }
 };
+
+/** A spawned unit whose template names a script is attached to it (§I.7.1 F19). */
+export const attachScript = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer']): void => {
+  const unit = unitOf<G>(bearer);
+  const script = engine.registry.defs[unit.template]?.script;
+
+  if (script === undefined) {
+    return;
+  }
+
+  const scripts = (engine.options.scripts ?? noScripts)();
+
+  unit.scriptSlot = scripts.attach(bearer, script);
+  scripts.start(bearer);
+};
+
+/** A template names a script, but the unit system has no script system. */
+const noScripts = (): never => {
+  throw new TypeError('A unit template names a script, so the unit system needs scripts.');
+};

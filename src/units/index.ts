@@ -5,7 +5,14 @@
  * (`defineUnitStates`), keeps their health, is the damage system's unit host, and summons units owned by others (F18).
  */
 
-export { type HealthPolicy, type SpawnUnit, type UnitSystemBase, type UnitSystemOptions } from './engine.ts';
+export {
+  type HealthPolicy,
+  type SpawnUnit,
+  type UnitScripts,
+  type UnitSystemBase,
+  type UnitSystemOptions,
+} from './engine.ts';
+
 export { createUnitEvent, type UnitEvent, type UnitEvents } from './events.ts';
 
 export type { AuraRule } from './hosts.ts';

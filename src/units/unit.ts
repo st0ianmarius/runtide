@@ -89,6 +89,9 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   /** The bits of the interrupting states it is in (`UnitSystemBase.interrupts`, by their order), as last synced. */
   interrupts = 0;
 
+  /** Its record in the script system; −1 for none. */
+  scriptSlot = -1;
+
   /** Its stat view, made once (the sheet's view with the unit as the fold's host, or its bases). */
   view: StatView | undefined = undefined;
 

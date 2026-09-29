@@ -8,7 +8,7 @@ import { syncStates } from './interrupts.ts';
 import { moveTo, raiseSpawned } from './lifecycle.ts';
 import { createUnitProcKinds } from './proc-kinds.ts';
 import type { UnitProcKinds } from './procs.ts';
-import { creditOf, joinOwner } from './summons.ts';
+import { attachScript, creditOf, joinOwner } from './summons.ts';
 import { HEAVY, OBJECTIVE } from './unit-def.ts';
 import type { UnitRegistry } from './unit-def.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
@@ -141,6 +141,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
     joinOwner(unit);
     raiseSpawned(engine, unit, spawn.at);
+    attachScript(engine, unit);
 
     return unit;
   };

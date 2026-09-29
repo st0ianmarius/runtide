@@ -50,6 +50,9 @@ export interface UnitShape extends AbilityBearer, AiBearer {
 
   /** Its stat sheet, folded by the modifier system; `undefined` for a game without one. */
   readonly sheet: StatSheet | undefined;
+
+  /** Its record in the script system, which runs its creature script (§I.7.1 F19); −1 for a unit with none. */
+  readonly scriptSlot: number;
 }
 
 /**
@@ -71,4 +74,7 @@ export interface UnitTypes extends AbilityTypes, AiTypes, DamageTypes {
 
   /** The game's own fields on a unit (§I.5.6 hatch 4), made by the system's `createExt`. */
   readonly unitExt: unknown;
+
+  /** The names of the game's creature scripts (`warden`, `hordeCaster`), which templates name. */
+  readonly scriptName: string;
 }

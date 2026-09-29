@@ -73,6 +73,24 @@ const leaveFor = <G extends UnitTypes>(
   }
 };
 
+/** A unit despawned: its id forgotten, its brain freed, the `despawned` event raised, then its script detached. */
+const despawned = <G extends UnitTypes>(
+  engine: UnitEngine<G>,
+  bearer: G['bearer'],
+  [from, reason]: readonly [Lifecycle, string],
+): void => {
+  const unit = unitOf<G>(bearer);
+
+  engine.byId.delete(unit.id);
+  engine.options.ai?.release(bearer);
+  raise(engine, engine.options.events?.despawned, [bearer, from, 'despawned', undefined, reason]);
+
+  if (unit.scriptSlot >= 0) {
+    engine.options.scripts?.().detach(bearer);
+    unit.scriptSlot = -1;
+  }
+};
+
 /**
  * Moves a unit to a lifecycle state (§II.6 U3), when its state allows the move: a unit leaving `standing` has every
  * cast it runs cancelled (§I.7.1 F16: a death cancels them, as going down or leaving does) and enters the aura
@@ -104,9 +122,7 @@ export const moveTo = <G extends UnitTypes>(
   }
 
   if (to === 'despawned') {
-    engine.byId.delete(unit.id);
-    engine.options.ai?.release(bearer);
-    raise(engine, engine.options.events?.despawned, [bearer, from, to, undefined, reason ?? 'despawn']);
+    despawned(engine, bearer, [from, reason ?? 'despawn']);
   } else {
     raise(engine, engine.options.events?.changed, [bearer, from, to, undefined, '']);
   }

@@ -43,6 +43,10 @@
       "types": "./dist/core/index.d.ts",
       "default": "./dist/core/index.js"
     },
+    "./creature-scripts": {
+      "types": "./dist/creature-scripts/index.d.ts",
+      "default": "./dist/creature-scripts/index.js"
+    },
     "./cues": {
       "types": "./dist/cues/index.d.ts",
       "default": "./dist/cues/index.js"

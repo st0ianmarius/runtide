@@ -57,6 +57,9 @@ export interface UnitDef<G extends UnitTypes = UnitTypes> {
    */
   readonly autoAttack?: G['spellName'];
 
+  /** Its creature script, by name (§I.7.1 F19): the behaviours every unit of it runs; none when absent. */
+  readonly script?: G['scriptName'];
+
   /** Its reward and kill-accounting numbers (souls, experience), which the game's death steps read. */
   readonly rewards?: Readonly<Record<string, number>>;
 }
