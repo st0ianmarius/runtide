@@ -21,7 +21,7 @@ export const spellAt = (record: LoadoutRecord, slot: number): SpellId | undefine
  * scaled value over the caster's stats for the spell. With no caster (a preview) a scaled value reads the stat table's
  * bases, and a function is NaN. 0 when it has none.
  */
-const cooldownSeconds = <G extends AbilityTypes>(
+export const cooldownSeconds = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   caster: G['bearer'] | undefined,
   [spell, rank]: readonly [SpellId, number],

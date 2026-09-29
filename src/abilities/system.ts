@@ -2,7 +2,8 @@ import { toId } from '../core/ids.ts';
 import type { SpellId } from '../spells/index.ts';
 import type { AbilityTypes, SlotId } from './ability-types.ts';
 import { AbilityEngine, type AbilityParts } from './engine.ts';
-import { canFire, press, slotHolding, spellAt, travel, triggerButton } from './firing.ts';
+import { type ButtonExplanation, explainButton } from './explain.ts';
+import { canFire, cooldownSeconds, press, slotHolding, spellAt, travel, triggerButton } from './firing.ts';
 import { loadoutOf, LoadoutRecord, type LoadoutState } from './loadout.ts';
 import { createAbilityProcKinds } from './proc-kinds.ts';
 import type { AbilityProcKinds } from './procs.ts';
@@ -77,6 +78,19 @@ export interface AbilitySystem<G extends AbilityTypes> {
 
   /** Runs every equipped ability's `travel` hook, in slot order: the motion half, after `tryActivate`. */
   readonly travel: (bearer: G['bearer'], dt: number) => void;
+
+  /**
+   * A button spell's cooldown in seconds at a rank (1 when absent), as it would start now: for a caster, read from its
+   * stats; for none (`undefined`), a preview that needs no world (§II.6 M6), reading the stat table's bases, NaN for
+   * a cooldown that is a function of the caster. 0 for none, or for a spell that is not a button.
+   */
+  readonly cooldownOf: (caster: G['bearer'] | undefined, spell: SpellId, rank?: number) => number;
+
+  /**
+   * A button spell's rules as data at a rank (1 when absent), for the client's tooltip (§II.6 M6): with a caster, its
+   * cooldown's readings and total; with none, ratios only. `undefined` for a spell that is not a button.
+   */
+  readonly explain: (spell: SpellId, rank?: number, caster?: G['bearer']) => ButtonExplanation | undefined;
 }
 
 /** Throws unless a slot id is one of the table's. */
@@ -180,5 +194,8 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
     travel: (bearer, dt) => {
       travel(engine, bearer, dt);
     },
+
+    cooldownOf: (caster, spell, rank = 1) => cooldownSeconds(engine, caster, [spell, rank]),
+    explain: (spell, rank = 1, caster) => explainButton(engine, [spell, rank], caster),
   };
 };
