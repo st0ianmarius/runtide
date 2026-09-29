@@ -14,9 +14,11 @@ import {
 } from '../../src/area-triggers/index.ts';
 import {
   type AuraDef,
+  type AuraEvent,
   type AuraId,
   type AuraState,
   type AuraSystem,
+  createAuraEvent,
   createAuraSystem,
   defineAura,
   defineAuras,
@@ -33,12 +35,18 @@ import {
 import { createCueBuffer, type CueBuffer, defineCue, defineCues } from '../../src/cues/index.ts';
 import {
   type Blow,
+  createDamageEvent,
   createDamageSystem,
+  createDeathEvent,
+  createHealEvent,
+  type DamageEvent,
   type DamageProcs,
   type DamageSystem,
   type DamageTypes,
+  type DeathEvent,
   defineDamageKinds,
   type Force,
+  type HealEvent,
 } from '../../src/damage/index.ts';
 import type { Vec2 } from '../../src/math/index.ts';
 import { defineStats, type StatView } from '../../src/modifiers/index.ts';
@@ -271,7 +279,7 @@ const TAGS = defineAuraTags(['busy']);
 /** The test clock's step: a quarter second, so a second is four steps. */
 const STEP = 0.25;
 
-/** The test bus: the four spell events. */
+/** The test bus: the four spell events, the area trigger events, the damage, heal and death events, and auras'. */
 const makeBus = () =>
   createBus({
     spellStart: (): SpellEvent<Game> => createSpellEvent<Game>(),
@@ -280,6 +288,11 @@ const makeBus = () =>
     spellEnd: (): SpellEvent<Game> => createSpellEvent<Game>(),
     areaSpawned: (): AreaTriggerEvent<Game> => createAreaTriggerEvent<Game>(),
     areaEnded: (): AreaTriggerEvent<Game> => createAreaTriggerEvent<Game>(),
+    taken: (): DamageEvent<Game> => createDamageEvent<Game>(),
+    ignored: (): DamageEvent<Game> => createDamageEvent<Game>(),
+    healed: (): HealEvent<Game> => createHealEvent<Game>(),
+    death: (): DeathEvent<Game> => createDeathEvent<Game>(),
+    aura: (): AuraEvent<Game> => createAuraEvent<Game>(),
   });
 
 /** The test game's bus. */
@@ -470,6 +483,7 @@ export const makeSpellGame = <
     tags: TAGS,
     clocks: { world: clock },
     host: { run: (list, ctx) => late.procs?.runAura(list, ctx) },
+    events: { bus, kind: bus.kind.aura },
   });
 
   const statsOf = (unit: Unit): StatView => views.get(unit) ?? viewOf(unit);
@@ -479,6 +493,13 @@ export const makeSpellGame = <
     kinds: KINDS,
     stats: STATS,
     outgoing: ['damage'],
+    events: {
+      bus,
+      taken: bus.kind.taken,
+      ignored: bus.kind.ignored,
+      healed: bus.kind.healed,
+      death: bus.kind.death,
+    },
     host: {
       health: (unit) => unit.hp,
 

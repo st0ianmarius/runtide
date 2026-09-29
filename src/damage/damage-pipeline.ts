@@ -94,7 +94,9 @@ const afterStages = <G extends DamageTypes>(engine: DamageEngine<G>, walks: Blow
 
       cues?.blow?.(blow, cues.out);
 
-      if (blow.status !== 'ignored') {
+      if (blow.status === 'ignored') {
+        raiseBlow(engine, events?.ignored, blow);
+      } else {
         raiseBlow(engine, blow.attacker === undefined ? undefined : events?.dealt, blow);
         raiseBlow(engine, events?.taken, blow);
       }

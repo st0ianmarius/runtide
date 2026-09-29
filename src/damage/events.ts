@@ -48,6 +48,12 @@ export interface DamageEvents<G extends DamageTypes> {
   /** A blow that was not skipped or ignored, about its target (when-struck triggers). */
   readonly taken?: EventKind<DamageEvent<G>>;
 
+  /**
+   * A blow its target's ignore stage ignored (invulnerability, shelter, immunity), about its target: the combat log's
+   * immune entry. Raised at the outcome stage, in place of `dealt` and `taken`.
+   */
+  readonly ignored?: EventKind<DamageEvent<G>>;
+
   /** A heal that was not skipped, about its target. */
   readonly healed?: EventKind<HealEvent<G>>;
 
