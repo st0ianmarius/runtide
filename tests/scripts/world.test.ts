@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { setTimer } from '../../src/ai/index.ts';
-import { defineBehaviour, defineScripts } from '../../src/creature-scripts/index.ts';
+import { defineBehaviour, defineScripts } from '../../src/scripts/index.ts';
 import { despawn, summon, type UnitDef } from '../../src/units/index.ts';
 import { makeUnitGame, type UnitGame } from '../helpers/unit-game.ts';
 
@@ -89,14 +89,14 @@ const world = () => {
   return { ...game, tick, start };
 };
 
-describe('world scripts: creature scripts on bodiless units (§I.7.1 F21)', () => {
+describe('world scripts: scripts on bodiless units (§I.7.1 F21)', () => {
   it('start from one bodiless template, the spawn naming the script', () => {
     const game = world();
     const event = game.start('bloodHorde');
 
     assert.equal(game.scripts.has(event), true);
     assert.equal(game.scripts.has(game.units.spawn(game.id.world, { side: 1 })), false);
-    assert.throws(() => game.units.spawn(game.id.world, { side: 1, script: 'nope' }), /no creature script named nope/);
+    assert.throws(() => game.units.spawn(game.id.world, { side: 1, script: 'nope' }), /no script named nope/);
   });
 
   it('run until their spawns are gone, which outlive them when unbound', () => {

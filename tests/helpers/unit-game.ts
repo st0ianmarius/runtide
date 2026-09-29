@@ -12,13 +12,6 @@ import {
 } from '../../src/auras/index.ts';
 import { createBus, createClock, type SimClock, stream } from '../../src/core/index.ts';
 import {
-  createScriptSystem,
-  defineScripts,
-  type ScriptRegistry,
-  type ScriptSystem,
-  type ScriptTypes,
-} from '../../src/creature-scripts/index.ts';
-import {
   type Blow,
   createDamageSystem,
   createDeathEvent,
@@ -30,6 +23,13 @@ import {
 } from '../../src/damage/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
 import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc, type ProcSystem } from '../../src/procs/index.ts';
+import {
+  createScriptSystem,
+  defineScripts,
+  type ScriptRegistry,
+  type ScriptSystem,
+  type ScriptTypes,
+} from '../../src/scripts/index.ts';
 import {
   type AnySpellDef,
   createSpellSystem,
@@ -250,7 +250,7 @@ export interface UnitGameOptions<Extra extends string = never> {
   /** More spells, beside the swing and the channel. */
   readonly spells?: Readonly<Record<Extra, AnySpellDef<UnitGame>>>;
 
-  /** The creature scripts templates name; none when absent. */
+  /** The scripts templates and spawns name; none when absent. */
   readonly scripts?: ScriptRegistry<UnitGame>;
 
   /** The world summons are placed in; none when absent. */

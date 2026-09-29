@@ -33,7 +33,7 @@ export interface AiSystemOptions<G extends AiTypes> {
  * An AI system (§I.7.1 F17): the toolkit every brain is built from, and nothing more. Named timers on a timing wheel
  * (TrinityCore's `EventMap`), one weighted anti-repeat spell picker that reads each spell's own cast rules, a focus
  * the procs may set, and a movement intent per unit. What a brain decides with them (its reactions, its budget, its
- * target policy, its movement) is the game's, until creature scripts (F19) give it a shape.
+ * target policy, its movement) is the game's, until scripts (F19) give it a shape.
  */
 export interface AiSystem<G extends AiTypes> {
   /** The game's timers. */

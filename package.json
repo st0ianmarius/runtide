@@ -43,10 +43,6 @@
       "types": "./dist/core/index.d.ts",
       "default": "./dist/core/index.js"
     },
-    "./creature-scripts": {
-      "types": "./dist/creature-scripts/index.d.ts",
-      "default": "./dist/creature-scripts/index.js"
-    },
     "./cues": {
       "types": "./dist/cues/index.d.ts",
       "default": "./dist/cues/index.js"
@@ -74,6 +70,10 @@
     "./replication": {
       "types": "./dist/replication/index.d.ts",
       "default": "./dist/replication/index.js"
+    },
+    "./scripts": {
+      "types": "./dist/scripts/index.d.ts",
+      "default": "./dist/scripts/index.js"
     },
     "./spells": {
       "types": "./dist/spells/index.d.ts",

@@ -226,7 +226,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     const script = ids[name];
 
     if (script === undefined) {
-      throw new RangeError(`There is no creature script named ${name}.`);
+      throw new RangeError(`There is no script named ${name}.`);
     }
 
     const slot = this.#free.pop() ?? this.#records.length;

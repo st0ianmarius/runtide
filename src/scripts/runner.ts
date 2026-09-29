@@ -198,5 +198,5 @@ const isEventName = <G extends ScriptTypes>(event: string): event is ScriptEvent
 
 /** A script id the registry does not have: the attach check prevents it. */
 export const noScript = (script: number): never => {
-  throw new RangeError(`There is no creature script ${script}.`);
+  throw new RangeError(`There is no script ${script}.`);
 };

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { setTimer } from '../../src/ai/index.ts';
-import { createScriptSystem, defineBehaviour, defineScripts } from '../../src/creature-scripts/index.ts';
+import { createScriptSystem, defineBehaviour, defineScripts } from '../../src/scripts/index.ts';
 import { summon, type UnitDef } from '../../src/units/index.ts';
 import { makeUnitGame, TIMERS, type UnitGame } from '../helpers/unit-game.ts';
 
@@ -71,7 +71,7 @@ const tick = (game: ReturnType<typeof scripted>, units: readonly UnitGame['beare
   }
 };
 
-describe('creature scripts (§I.7.1 F19)', () => {
+describe('scripts (§I.7.1 F19)', () => {
   it('attach at spawn: each behaviour’s state, then its spawn handlers in order, their procs run for the unit', () => {
     const game = scripted();
     const caster = game.units.spawn(game.id.caster, { side: 1 });
@@ -212,7 +212,7 @@ describe('creature scripts (§I.7.1 F19)', () => {
         }),
       /Script dancer handles changed, which the script system does not bind/,
     );
-    assert.throws(() => game.units.spawn(game.id.caster, { side: 1 }), /no creature script named nope/);
+    assert.throws(() => game.units.spawn(game.id.caster, { side: 1 }), /no script named nope/);
 
     const forged = behaviour({});
 

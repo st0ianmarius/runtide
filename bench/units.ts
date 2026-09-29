@@ -1,15 +1,15 @@
 import { createAiSystem, defineTimers } from '../src/ai/index.ts';
 import { auraStacks, createAuraSystem, defineAura, defineAuras, defineAuraTags } from '../src/auras/index.ts';
 import { createClock, stream } from '../src/core/index.ts';
+import { createModifierSystem, defineSources, defineStats, mul } from '../src/modifiers/index.ts';
+import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc } from '../src/procs/index.ts';
 import {
   createScriptSystem,
   defineBehaviour,
   defineScripts,
   type ScriptSystem,
   type ScriptTypes,
-} from '../src/creature-scripts/index.ts';
-import { createModifierSystem, defineSources, defineStats, mul } from '../src/modifiers/index.ts';
-import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc } from '../src/procs/index.ts';
+} from '../src/scripts/index.ts';
 import { createSpellSystem, defineSpells, type SpellId, type SpellProcs } from '../src/spells/index.ts';
 import { createUnitSystem, defineUnits, defineUnitStates, defineUnitTags, type Unit } from '../src/units/index.ts';
 

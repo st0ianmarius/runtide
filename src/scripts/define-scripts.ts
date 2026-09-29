@@ -22,7 +22,7 @@ export interface CompiledScript<G extends ScriptTypes> {
   readonly on: ReadonlyMap<string, readonly number[]>;
 }
 
-/** The game's creature scripts (§I.7.1 F19): ids by key order, each compiled once. */
+/** The game's scripts (§I.7.1 F19, F21): ids by key order, each compiled once. */
 export interface ScriptRegistry<G extends ScriptTypes, Name extends string = string> {
   /** The names, in id order. */
   readonly names: readonly Name[];
@@ -79,7 +79,7 @@ const compile = <G extends ScriptTypes>(name: string, behaviours: readonly AnyBe
 };
 
 /**
- * Registers the game's creature scripts (§I.7.1 F19), each a list of behaviours, with ids by key order:
+ * Registers the game's scripts (§I.7.1 F19, F21), creatures' and the world's, each a list of behaviours, with ids by key order:
  * `defineScripts<Game, 'hordeCaster' | 'warden'>({ hordeCaster: [picking], warden: [picking, phases, raise] })`. Each
  * script's handler lists are built here, so a unit's step runs only the behaviours that declare a handler.
  */
