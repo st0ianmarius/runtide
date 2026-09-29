@@ -29,6 +29,7 @@ import {
   type SpellId,
   type SpellProcs,
   type SpellSystem,
+  type StaticWorld,
 } from '../../src/spells/index.ts';
 
 /** A test hero: an entity id, a place, a stat column per stat, its auras, casts and loadout. */
@@ -241,11 +242,12 @@ const viewOf = (hero: Hero): StatView => ({
 /**
  * A small ability test game over `defs`: a clock of 0.25 s steps, the test auras, a spell system, a proc system with
  * the core, spell and ability kinds, and an ability system over the three slots (the test slots when absent) whose
- * stats are each hero's.
+ * stats are each hero's, in a static world (an open one when absent).
  */
 export const makeAbilityGame = <const Spell extends string>(
   defs: Readonly<Record<Spell, AnySpellDef<AbilityGame>>>,
   slots: SlotTable<AbilityGame['slot']> = SLOTS,
+  world?: StaticWorld,
 ): AbilityTestGame<Spell> => {
   const log: string[] = [];
   const clock = createClock({ dt: STEP });
@@ -274,7 +276,7 @@ export const makeAbilityGame = <const Spell extends string>(
     host,
   });
 
-  const abilities = createAbilitySystem<AbilityGame>({ spells, auras, slots, statsOf: viewOf });
+  const abilities = createAbilitySystem<AbilityGame>({ spells, auras, slots, clock, world, statsOf: viewOf });
 
   const procs = createProcSystem<AbilityGame>({
     kinds: createProcRegistry<AbilityGame>({ ...CORE_PROCS, ...spells.procKinds, ...abilities.procKinds }),

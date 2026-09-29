@@ -175,7 +175,16 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
 
   const rank = record.ranks[slot] ?? 1;
 
-  button.def.activate?.(bearer, input);
+  const { activate } = button.def;
+
+  if (activate !== undefined) {
+    const mirror = engine.mirrorFor(bearer, spell);
+
+    mirror.input = input;
+    mirror.dt = engine.dt;
+    activate(mirror);
+    mirror.input = undefined;
+  }
 
   if (!button.isCastCooldown) {
     startCooldown(engine, bearer, [slot, spell, rank]);
@@ -267,8 +276,14 @@ export const travel = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer:
   for (let slot = 0; slot < record.spells.length; slot++) {
     const spell = spellAt(record, slot);
 
-    if (spell !== undefined) {
-      engine.buttons[spell]?.def.travel?.(bearer, dt);
+    const travelOf = spell === undefined ? undefined : engine.buttons[spell]?.def.travel;
+
+    if (spell !== undefined && travelOf !== undefined) {
+      const mirror = engine.mirrorFor(bearer, spell);
+
+      mirror.input = undefined;
+      mirror.dt = dt;
+      travelOf(mirror);
     }
   }
 };

@@ -161,9 +161,9 @@ const SPELLS = defineSpells<BenchGame, 'roll' | 'nova' | 'surge'>({
       cooldown: 1,
       applies: [{ aura: auraId('sprint') }],
 
-      travel: (hero, dt) => {
-        if (AURA_SYSTEM.hasTag(hero, AURA_TAGS.id.sprinting)) {
-          hero.travelled += 8 * dt;
+      travel: ({ bearer, dt }) => {
+        if (AURA_SYSTEM.hasTag(bearer, AURA_TAGS.id.sprinting)) {
+          bearer.travelled += 8 * dt;
         }
       },
     },
@@ -201,7 +201,12 @@ const SPELL_SYSTEM = createSpellSystem<BenchGame>({
   host: HOST,
 });
 
-const ABILITIES = createAbilitySystem<BenchGame>({ spells: SPELL_SYSTEM, auras: AURA_SYSTEM, slots: SLOTS });
+const ABILITIES = createAbilitySystem<BenchGame>({
+  spells: SPELL_SYSTEM,
+  auras: AURA_SYSTEM,
+  slots: SLOTS,
+  clock: CLOCK,
+});
 
 late.procs = createProcSystem<BenchGame>({
   kinds: createProcRegistry<BenchGame>({ ...CORE_PROCS, ...SPELL_SYSTEM.procKinds, ...ABILITIES.procKinds }),

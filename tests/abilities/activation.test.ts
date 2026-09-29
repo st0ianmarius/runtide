@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { AuraSystem } from '../../src/auras/index.ts';
 import { haste, ranks, scaled } from '../../src/modifiers/index.ts';
-import type { ButtonActivation, SpellContext } from '../../src/spells/index.ts';
+import type { ButtonActivation, SpellContext, StaticWorld } from '../../src/spells/index.ts';
 import { type AbilityGame, auraNamed, type Hero, makeAbilityGame, spell, STATS } from '../helpers/ability-game.ts';
 
 /** What the tests' hooks see: the game's aura system, once it is made, and the lines they log. */
@@ -43,51 +43,57 @@ const roll = button('roll', {
   cooldown: 2,
   applies: [{ aura: auraNamed('sprint'), scaledBy: 'duration' }],
 
-  activate: (hero, input) => {
-    seen.lines.push('activate roll');
-    hero.heading = input ?? hero.heading;
+  activate: ({ bearer, input, dt, stats }) => {
+    seen.lines.push(`activate roll dt ${dt} duration ${stats?.total(STATS.id.duration)}`);
+    bearer.heading = input ?? bearer.heading;
   },
 
-  travel: (hero, dt) => {
-    if (current().auras.has(hero, auraNamed('sprint'))) {
-      hero.at = { x: hero.at.x + hero.heading.x * 4 * dt, z: hero.at.z + hero.heading.z * 4 * dt };
+  travel: ({ bearer, dt, world }) => {
+    if (current().auras.has(bearer, auraNamed('sprint'))) {
+      const to = { x: bearer.at.x + bearer.heading.x * 4 * dt, z: bearer.at.z + bearer.heading.z * 4 * dt };
+
+      bearer.at = world.moveBody([bearer.at, to], 0.5).position;
     }
   },
 });
 
-/** A test game over every test ability. */
-const makeGame = () =>
-  makeAbilityGame({
-    roll,
-    hop: button('hop', { cooldown: 1 }),
-    nova: button(
-      'nova',
-      { cooldown: scaled(ranks(8, 6), haste(1)), cost: { aura: auraNamed('charge'), stacks: 2 } },
-      2,
-    ),
-    blast: button('blast', { cooldown: 3, cost: { aura: auraNamed('charge'), stacks: 2 } }),
-    timed: button('timed', { cooldown: (hero, rank) => hero.id + rank }),
-    surge: button('surge', { cooldown: 30, applies: [{ aura: auraNamed('stance') }], resets: ['cooldown.dodge'] }),
-    guard: button('guard', { requires: ['stance'] }),
-    anchor: button('anchor', { applies: [{ aura: auraNamed('root') }] }),
-    flee: button('flee', { blockedBy: ['rooted'] }),
+/** A test game over every test ability, in a static world (an open one when absent). */
+const makeGame = (world?: StaticWorld) =>
+  makeAbilityGame(
+    {
+      roll,
+      hop: button('hop', { cooldown: 1 }),
+      nova: button(
+        'nova',
+        { cooldown: scaled(ranks(8, 6), haste(1)), cost: { aura: auraNamed('charge'), stacks: 2 } },
+        2,
+      ),
+      blast: button('blast', { cooldown: 3, cost: { aura: auraNamed('charge'), stacks: 2 } }),
+      timed: button('timed', { cooldown: (hero, rank) => hero.id + rank }),
+      surge: button('surge', { cooldown: 30, applies: [{ aura: auraNamed('stance') }], resets: ['cooldown.dodge'] }),
+      guard: button('guard', { requires: ['stance'] }),
+      anchor: button('anchor', { applies: [{ aura: auraNamed('root') }] }),
+      flee: button('flee', { blockedBy: ['rooted'] }),
 
-    sentry: spell({
-      activation: { kind: 'button', cooldown: 5, startsOn: 'cast' },
-      canCast: (ctx) => (ctx.input?.x ?? -1) >= 0,
-      release: logRelease('sentry'),
-    }),
+      sentry: spell({
+        activation: { kind: 'button', cooldown: 5, startsOn: 'cast' },
+        canCast: (ctx) => (ctx.input?.x ?? -1) >= 0,
+        release: logRelease('sentry'),
+      }),
 
-    wall: spell({
-      activation: { kind: 'button', cooldown: 4 },
-      canCast: () => false,
-      release: logRelease('wall'),
-    }),
-  });
+      wall: spell({
+        activation: { kind: 'button', cooldown: 4 },
+        canCast: () => false,
+        release: logRelease('wall'),
+      }),
+    },
+    undefined,
+    world,
+  );
 
 /** A test game over every test ability, and a hero. */
-const setUp = (): { game: ReturnType<typeof makeGame>; hero: Hero } => {
-  const game = makeGame();
+const setUp = (world?: StaticWorld): { game: ReturnType<typeof makeGame>; hero: Hero } => {
+  const game = makeGame(world);
 
   seen.auras = game.auras;
   seen.lines = [];
@@ -160,9 +166,30 @@ describe('a press (§II.6 S4)', () => {
     abilities.equip(hero, dodge, game.id.roll);
     abilities.tryActivate(hero, abilities.bit(dodge), { x: 0, z: 1 });
     abilities.travel(hero, 0.25);
-    assert.deepEqual(seen.lines, ['activate roll', 'roll at 1,0 input 0,1 rank 1 cooling 2 sprint 3 charge 0']);
+    assert.deepEqual(seen.lines, [
+      'activate roll dt 0.25 duration 1.5',
+      'roll at 1,0 input 0,1 rank 1 cooling 2 sprint 3 charge 0',
+    ]);
     assert.deepEqual(hero.at, { x: 1, z: 1 });
     assert.equal(auras.remaining(hero, auraNamed('sprint')), 3);
+  });
+
+  it('hands the motion hooks the game’s static world', () => {
+    const wall: StaticWorld = {
+      bounds: { minX: -10, minZ: -10, maxX: 10, maxZ: 10 },
+      lineClear: () => false,
+      isPositionClear: () => false,
+      clamp: (p) => p,
+      moveBody: ([from]) => ({ position: from, hit: true, share: 0 }),
+    };
+
+    const { game, hero } = setUp(wall);
+    const { abilities } = game;
+
+    abilities.equip(hero, abilities.slots.id.dodge, game.id.roll);
+    abilities.tryActivate(hero, abilities.bit(abilities.slots.id.dodge), { x: 0, z: 1 });
+    abilities.travel(hero, 0.25);
+    assert.deepEqual(hero.at, { x: 1, z: 0 });
   });
 
   it('spends its cost, and drops a later slot whose cost an earlier one of the press spent', () => {

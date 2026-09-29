@@ -1,6 +1,7 @@
 import type { AuraId } from '../auras/index.ts';
 import { createRegistry, type Registry } from '../core/index.ts';
 import type { Scaled } from '../modifiers/index.ts';
+import type { MirrorCtx } from './mirror.ts';
 import type { GateContext, SpellContext, StatsSource } from './spell-def.ts';
 import type { ActivationShape, SpellTypes } from './spell-types.ts';
 
@@ -108,11 +109,17 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
   /** Auras it lands on the caster as it fires, in order (a sprint, a stance). */
   readonly applies?: readonly ButtonApply<G>[];
 
-  /** The motion half as it fires, before its cooldown, auras and cast: a dodge's direction. Reads only the bearer. */
-  activate?(this: void, bearer: G['bearer'], input: G['input'] | undefined): void;
+  /**
+   * The motion half as it fires, before its cooldown, auras and cast: a dodge's direction, from the press's input.
+   * Mirror-safe: it reads only its `MirrorCtx`.
+   */
+  activate?(this: void, ctx: MirrorCtx<G>): void;
 
-  /** The motion half on every motion step while equipped (`abilities.travel`): a dodge carrying its bearer. */
-  travel?(this: void, bearer: G['bearer'], dt: number): void;
+  /**
+   * The motion half on every motion step while equipped (`abilities.travel`): a dodge carrying its bearer by `ctx.dt`
+   * through the static world. Mirror-safe: it reads only its `MirrorCtx`.
+   */
+  travel?(this: void, ctx: MirrorCtx<G>): void;
 }
 
 /** A `passive` activation: owning the spell is what casts it (an aura or area trigger held while owned, F20). */
