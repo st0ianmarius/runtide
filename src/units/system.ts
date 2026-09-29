@@ -4,6 +4,7 @@ import type { StatView } from '../modifiers/index.ts';
 import type { SpellId } from '../spells/index.ts';
 import { type SpawnUnit, UnitEngine, unitOf, type UnitSystemOptions } from './engine.ts';
 import { type AuraRule, compileRules, damageHostOf, decideAura, forceStageOf, syncHealth } from './hosts.ts';
+import { syncStates } from './interrupts.ts';
 import { moveTo, raiseSpawned } from './lifecycle.ts';
 import { HEAVY, OBJECTIVE } from './unit-def.ts';
 import type { UnitRegistry } from './unit-def.ts';
@@ -68,6 +69,13 @@ export interface UnitSystem<G extends UnitTypes> {
 
   /** A unit's stats (§II.6 M9): its sheet folded with it as the host, or its own bases without a modifier system. */
   readonly statsOf: (unit: G['bearer']) => StatView;
+
+  /**
+   * Brings a unit's interrupts in line with its derived states (§I.7.1 F16, `interrupts`): a state entered raises its
+   * interrupt on the unit's casts, one left ends it. Wire it as the aura host's `onTagsChanged` (lazily, since the aura
+   * system is made first); returns how many states changed.
+   */
+  readonly syncStates: (unit: G['bearer']) => number;
 
   /** A unit's auto-attack spell (§II.6 S3); `undefined` for none, as most heroes have. */
   readonly autoAttackOf: (unit: G['bearer']) => SpellId | undefined;
@@ -151,6 +159,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
     isObjective: (unit) => (traitsOf(unit) & OBJECTIVE) !== 0,
     isHeavy: (unit) => (traitsOf(unit) & HEAVY) !== 0,
+    syncStates: (unit) => syncStates(engine, unit),
     statsOf: (unit) => engine.statsOf(unit),
     autoAttackOf: (unit) => engine.autoAttacks[unitOf<G>(unit).template],
     syncHealth: (unit) => syncHealth(engine, unit),

@@ -41,10 +41,28 @@ export const raiseSpawned = <G extends UnitTypes>(engine: UnitEngine<G>, unit: G
   raise(engine, engine.options.events?.spawned, [unit, 'standing', 'standing']);
 };
 
+/** A unit leaves for a state other than `standing`: its casts end if it stood, and it enters the bearer state. */
+const leaveFor = <G extends UnitTypes>(
+  engine: UnitEngine<G>,
+  bearer: G['bearer'],
+  [from, to]: readonly [Lifecycle, Exclude<Lifecycle, 'standing'>],
+): void => {
+  if (from === 'standing') {
+    engine.options.spells.cancelAll(bearer);
+  }
+
+  const state = engine.options.lifecycleStates?.[to];
+
+  if (state !== undefined) {
+    engine.options.auras.enterState(bearer, state);
+  }
+};
+
 /**
- * Moves a unit to a lifecycle state (§II.6 U3), when its state allows the move: enters the aura system's matching
- * bearer state (so auras `removedOn` it go), sets health (a revive's, the maximum by default), and raises `changed`,
- * or `despawned` for a despawn, which also forgets the unit's entity id. False when the move is not allowed.
+ * Moves a unit to a lifecycle state (§II.6 U3), when its state allows the move: a unit leaving `standing` has every
+ * cast it runs cancelled (§I.7.1 F16: a death cancels them, as going down or leaving does) and enters the aura
+ * system's matching bearer state (so auras `removedOn` it go); a revive sets health (the maximum by default). Raises
+ * `changed`, or `despawned` for a despawn, which also forgets the unit's entity id. False when the move is not allowed.
  */
 export const moveTo = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -60,14 +78,12 @@ export const moveTo = <G extends UnitTypes>(
 
   unit.lifecycle = to;
 
-  if (to === 'standing' && (from === 'downed' || from === 'dead')) {
-    unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
-  }
-
-  const state = to === 'standing' ? undefined : engine.options.lifecycleStates?.[to];
-
-  if (state !== undefined) {
-    engine.options.auras.enterState(bearer, state);
+  if (to === 'standing') {
+    if (from === 'downed' || from === 'dead') {
+      unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
+    }
+  } else {
+    leaveFor(engine, bearer, [from, to]);
   }
 
   if (to === 'despawned') {

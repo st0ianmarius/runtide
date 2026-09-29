@@ -44,8 +44,17 @@ export interface SpellSystemBase<G extends SpellTypes> {
   /** The buffer spell cues fire into; required when any spell has cues. */
   readonly cues?: CueBuffer;
 
-  /** The static world a spell's mirror-safe cast cue reads (`MirrorCtx.world`); an open one when absent. */
+  /**
+   * The static world a spell's mirror-safe cast cue (`MirrorCtx.world`) and its reach's sight and room read; an open
+   * one when absent, and required by a reach that tests sight or room.
+   */
   readonly world?: StaticWorld;
+
+  /**
+   * Every interrupt the game raises (§I.7.1 F16), so a caster holds one (`isInterrupted`) even when no spell's timeline
+   * names it: an area trigger pausing while its owner is frozen. The timelines' own are added after them.
+   */
+  readonly interrupts?: readonly G['interrupt'][];
 
   /** The game's tick slots (`defineTickSlots`), each with its own delayed procs; one slot when absent. */
   readonly slots?: {

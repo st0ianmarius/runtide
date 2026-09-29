@@ -68,6 +68,9 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   /** The maximum health the resource policy last saw (§II.6 M7). */
   maxHealth = 0;
 
+  /** The bits of the interrupting states it is in (`UnitSystemBase.interrupts`, by their order), as last synced. */
+  interrupts = 0;
+
   /** Its stat view, made once (the sheet's view with the unit as the fold's host, or its bases). */
   view: StatView | undefined = undefined;
 

@@ -77,3 +77,15 @@ export class Report implements CastReport {
   hasReleased = false;
   interval = Number.NaN;
 }
+
+/** The request a system reuses for every cast. */
+export class MutableRequest<G extends SpellTypes> implements CastRequest<G> {
+  caster: G['bearer'];
+  spell: SpellId;
+  options: CastOptions<G> = NO_OPTIONS;
+
+  constructor(caster: G['bearer'], spell: SpellId) {
+    this.caster = caster;
+    this.spell = spell;
+  }
+}

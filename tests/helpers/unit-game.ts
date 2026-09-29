@@ -129,8 +129,8 @@ export interface UnitGame extends UnitTypes {
   /** No input. */
   readonly input: undefined;
 
-  /** No interrupts. */
-  readonly interrupt: never;
+  /** A stun and a freeze. */
+  readonly interrupt: 'stun' | 'freeze';
 
   /** No game activation kinds. */
   readonly gameActivation: never;
@@ -151,7 +151,7 @@ export interface UnitGame extends UnitTypes {
   readonly unitTag: 'horde' | 'elite' | 'boss' | 'objective';
 
   /** The test derived states. */
-  readonly unitState: 'stunned' | 'rooted';
+  readonly unitState: 'stunned' | 'rooted' | 'frozen';
 
   /** A counter the tests write. */
   readonly unitExt: {
@@ -199,10 +199,14 @@ export const auraId = (name: string): AuraId => {
 /** The test unit classes. */
 export const UNIT_TAGS = defineUnitTags(['horde', 'elite', 'boss', 'objective']);
 
-/** The test derived states: a stun keeps a unit from acting and moving, a root or a freeze from moving. */
+/**
+ * The test derived states: a stun keeps a unit from acting and moving, a root or a freeze from moving; a freeze also
+ * makes it frozen, which pauses its casts.
+ */
 const UNIT_STATES = defineUnitStates(AURA_TAGS, {
   stunned: { tags: ['stun'], blocks: ['act', 'move'] },
   rooted: { tags: ['root', 'freeze'], blocks: ['move'] },
+  frozen: { tags: ['freeze'] },
 });
 
 /** A unit test game's options. */
@@ -215,6 +219,9 @@ export interface UnitGameOptions {
 
   /** Whether units fold their stats through the modifier system; true when absent. */
   readonly folds?: boolean;
+
+  /** The interrupting states; a stun's and a freeze's when absent. */
+  readonly interrupts?: Readonly<Record<string, 'stun' | 'freeze'>>;
 }
 
 /** A small unit test game. */
@@ -279,12 +286,19 @@ export const makeUnitGame = <const Name extends string>(
     states: ['down', 'dead', 'despawned'],
     modifiers,
     fold: 'auras',
-    host: { onIncomingAura: (unit, application) => late.policy?.(unit, application) },
+    host: {
+      onIncomingAura: (unit, application) => late.policy?.(unit, application),
+      onTagsChanged: (unit) => late.units?.syncStates(unit),
+    },
   });
 
   const spellRegistry = defineSpells<UnitGame, 'swing' | 'channel'>({
     swing: { activation: { kind: 'auto', interval: 1 }, release: () => undefined },
-    channel: { activation: { kind: 'trigger' }, timeline: { windup: { seconds: 1 } }, release: () => undefined },
+    channel: {
+      activation: { kind: 'trigger' },
+      timeline: { windup: { seconds: 1 }, interrupts: { stun: 'cancel', freeze: 'pause' } },
+      release: () => undefined,
+    },
   } satisfies Record<string, AnySpellDef<UnitGame>>);
 
   const holder: { procs?: ReturnType<typeof createProcSystem<UnitGame>> } = {};
@@ -304,6 +318,7 @@ export const makeUnitGame = <const Name extends string>(
     ...(options.folds === false ? {} : { modifiers: { system: modifiers, base: 'base' as const } }),
     health: { stat: 'maxHealth', ...(options.policy === undefined ? {} : { policy: options.policy }) },
     states: UNIT_STATES,
+    interrupts: options.interrupts ?? { stunned: 'stun', frozen: 'freeze' },
     lifecycleStates: { downed: 'down', dead: 'dead', despawned: 'despawned' },
     damage: () => damage,
     events: { bus, spawned: bus.kind.spawned, changed: bus.kind.changed, despawned: bus.kind.despawned },

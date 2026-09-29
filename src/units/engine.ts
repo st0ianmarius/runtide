@@ -1,6 +1,6 @@
 import { type AbilitySystem, NO_LOADOUT } from '../abilities/index.ts';
 import type { AuraSystem } from '../auras/index.ts';
-import type { EventKind } from '../core/index.ts';
+import type { Bitset, EventKind } from '../core/index.ts';
 import type { DamageSystem } from '../damage/index.ts';
 import {
   type Modifier,
@@ -99,6 +99,12 @@ export interface UnitSystemBase<G extends UnitTypes> {
   /** The game's derived unit states (`defineUnitStates`); none when absent. */
   readonly states?: UnitStateTable<G['unitState']>;
 
+  /**
+   * The interrupt each derived state raises on the unit's casts while it is in it (§I.7.1 F16: `{ stunned: 'stun',
+   * frozen: 'freeze' }`), through `syncStates`, which the aura host's `onTagsChanged` calls. None when absent.
+   */
+  readonly interrupts?: Readonly<Partial<Record<G['unitState'], G['interrupt']>>>;
+
   /** The aura system's bearer states the lifecycle enters (`removedOn`: going down, dying, leaving). */
   readonly lifecycleStates?: Readonly<Partial<Record<Exclude<Lifecycle, 'standing'>, G['state']>>>;
 
@@ -153,6 +159,37 @@ class BaseView implements StatView {
   }
 }
 
+/** A derived state that raises an interrupt: its aura tags and the interrupt. */
+export interface InterruptingState<G extends UnitTypes> {
+  /** Its aura tags. */
+  readonly tags: Bitset;
+
+  /** The interrupt it raises. */
+  readonly reason: G['interrupt'];
+}
+
+/** The most states that may raise interrupts: each is a bit of a unit's `interrupts`. */
+const MAX_INTERRUPTING = 31;
+
+/** The states that raise interrupts, resolved against the state table. Throws for a state it does not have. */
+const interruptingOf = <G extends UnitTypes>(options: UnitSystemOptions<G>): readonly InterruptingState<G>[] => {
+  const map: Readonly<Record<string, G['interrupt'] | undefined>> = options.interrupts ?? {};
+  const tags: Readonly<Record<string, Bitset | undefined>> = options.states?.tags ?? {};
+
+  const list = Object.keys(map).flatMap((state) => {
+    const reason = map[state];
+    const bits = tags[state] ?? missing(`the interrupting state ${state} is not a unit state`);
+
+    return reason === undefined ? [] : [{ tags: bits, reason }];
+  });
+
+  if (list.length > MAX_INTERRUPTING) {
+    throw new RangeError(`At most ${MAX_INTERRUPTING} unit states may raise interrupts; got ${list.length}.`);
+  }
+
+  return Object.freeze(list);
+};
+
 /** The unit system's state: its parts, the live units by entity id, the next id, and each template's auto-attack. */
 export class UnitEngine<G extends UnitTypes> {
   readonly options: UnitSystemOptions<G>;
@@ -166,6 +203,9 @@ export class UnitEngine<G extends UnitTypes> {
 
   /** Each template's auto-attack spell, or `undefined`. */
   readonly autoAttacks: readonly (SpellId | undefined)[];
+
+  /** The states that raise interrupts, in declared order: each one's aura tags and its interrupt. */
+  readonly interrupting: readonly InterruptingState<G>[];
 
   nextId = 1;
 
@@ -185,6 +225,7 @@ export class UnitEngine<G extends UnitTypes> {
       registry.stats.index.idOf(options.health.stat) ??
       missing(`the health stat ${options.health.stat} is not in the stat table`);
 
+    this.interrupting = interruptingOf(options);
     this.autoAttacks = registry.ids.map((id) => {
       const name = registry.defs[id]?.autoAttack;
 

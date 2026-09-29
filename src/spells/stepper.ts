@@ -256,17 +256,20 @@ const answer = <G extends SpellTypes>(
 };
 
 /**
- * Raises (or ends) an interrupt on a caster (§II.3.3, F16): each running cast answers it as its timeline says, `pause`
- * (its stage stops counting until the interrupt ends) or `cancel`; a cast whose timeline does not name it runs on.
- * Returns how many casts answered.
+ * Raises (or ends) an interrupt on a caster (§II.3.3, F16): the caster holds it until it ends (`isInterrupted`), and
+ * each running cast answers it as its timeline says, `pause` (its stage stops counting until the interrupt ends) or
+ * `cancel`; a cast whose timeline does not name it runs on. Returns how many casts answered.
  */
 export const interruptCaster = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
   change: { readonly reason: G['interrupt']; readonly isOn: boolean },
 ): number => {
-  const count = recordOf(caster).count;
+  const record = recordOf(caster);
+  const { count } = record;
   const bits = engine.interruptBits.get(change.reason) ?? 0;
+
+  record.interrupts = change.isOn ? record.interrupts | bits : record.interrupts & ~bits;
 
   if (count === 0 || bits === 0) {
     return 0;
@@ -284,4 +287,26 @@ export const interruptCaster = <G extends SpellTypes>(
   }
 
   return answered;
+};
+
+/** Cancels every cast a caster runs (§I.7.1 F16: its death), in the order they started; how many it cancelled. */
+export const cancelCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['bearer']): number => {
+  const { count } = recordOf(caster);
+
+  if (count === 0) {
+    return 0;
+  }
+
+  const handles = snapshot(engine, caster);
+  let cancelled = 0;
+
+  try {
+    for (let i = 0; i < count; i++) {
+      cancelled += cancelCast(engine, handles[i] ?? NO_CAST) ? 1 : 0;
+    }
+  } finally {
+    engine.giveHandles(handles, count);
+  }
+
+  return cancelled;
 };

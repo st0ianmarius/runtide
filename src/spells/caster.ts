@@ -22,6 +22,9 @@ export class CasterRecord implements CasterState {
   /** How many casts run. */
   count = 0;
 
+  /** The bits of the interrupts the caster holds now (`spells.interrupt` until `endInterrupt`). */
+  interrupts = 0;
+
   constructor(autoCount: number) {
     this.clocks = new Float64Array(autoCount);
   }

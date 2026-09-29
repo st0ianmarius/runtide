@@ -95,15 +95,21 @@ const checkReach = <G extends SpellTypes>(
   }
 };
 
-/** The most interrupts the spells may name: each pauses by a bit of its own, above the manual pause's. */
+/** The most interrupts a game may have: each pauses by a bit of its own, above the manual pause's. */
 const MAX_INTERRUPTS = 30;
 
-/** The pause bit of every interrupt a spell's timeline names, in the order the registry first names them. */
-const interruptBitsOf = <G extends SpellTypes>(registry: SpellRegistry<G>): ReadonlyMap<string, number> => {
-  const names = new Set(registry.defs.flatMap((def) => Object.keys(def?.timeline?.interrupts ?? {})));
+/**
+ * The bit of every interrupt: those the game declares first, then those a spell's timeline names, in the order the
+ * registry first names them.
+ */
+const interruptBitsOf = <G extends SpellTypes>(
+  registry: SpellRegistry<G>,
+  declared: readonly string[],
+): ReadonlyMap<string, number> => {
+  const names = new Set([...declared, ...registry.defs.flatMap((def) => Object.keys(def?.timeline?.interrupts ?? {}))]);
 
   if (names.size > MAX_INTERRUPTS) {
-    throw new RangeError(`The spells name ${names.size} interrupts; at most ${MAX_INTERRUPTS} can pause a cast.`);
+    throw new RangeError(`The game names ${names.size} interrupts; at most ${MAX_INTERRUPTS} can pause a cast.`);
   }
 
   return new Map([...names].map((name, index) => [name, 2 ** (index + 1)]));
@@ -135,7 +141,7 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     castAuras: registry.defs.map((def, id) => castAuraOf(options.auras, def, registry.names[id] ?? '')),
     boxes: new StatsBoxes(registry.compiled),
     baseView: baseView(registry.stats),
-    interruptBits: interruptBitsOf(registry),
+    interruptBits: interruptBitsOf(registry, options.interrupts ?? []),
     slots: options.slots?.size ?? 1,
     createExt: extFactory(options),
     resetExt: options.resetExt,

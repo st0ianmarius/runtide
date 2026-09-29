@@ -91,4 +91,11 @@ export interface AuraHost<G extends AuraTypes = AuraTypes> {
 
   /** Rescales the bearer's pending activation clocks. */
   readonly rescaleClocks?: (bearer: G['bearer'], rescale: ClockRescale) => void;
+
+  /**
+   * A tagged aura was applied to the bearer, or left it (§I.7.1 F16): its tags, and so its derived states, may have
+   * changed. Called as the change is dispatched, before the aura's own hook: a unit system raising or ending a stun's
+   * interrupt (`units.syncStates`).
+   */
+  readonly onTagsChanged?: (bearer: G['bearer']) => void;
 }

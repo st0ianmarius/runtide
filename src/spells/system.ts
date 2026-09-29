@@ -8,6 +8,7 @@ import {
   type CastRefusal,
   type CastReport,
   type CastRequest,
+  MutableRequest,
   NO_OPTIONS,
   Report,
 } from './cast-request.ts';
@@ -21,7 +22,15 @@ import type { SpellProcKinds } from './procs.ts';
 import { checkCast, startCast } from './runner.ts';
 import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
-import { cancelCast, finishCast, interruptCaster, MANUAL_PAUSE, setPause, stepCaster } from './stepper.ts';
+import {
+  cancelCast,
+  cancelCaster,
+  finishCast,
+  interruptCaster,
+  MANUAL_PAUSE,
+  setPause,
+  stepCaster,
+} from './stepper.ts';
 import type { SpellSystemOptions } from './system-options.ts';
 import { type CastView, viewCast } from './view.ts';
 
@@ -131,13 +140,23 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly finish: (cast: CastHandle, outcome: Exclude<CastOutcome, 'cancelled'>) => boolean;
 
   /**
-   * An interrupt hits a caster (F16: a stun, a freeze, a death): each running cast answers it as its timeline says,
-   * pausing until `endInterrupt` or cancelling; returns how many answered.
+   * An interrupt hits a caster (§I.7.1 F16: a stun, a freeze): the caster holds it until `endInterrupt`, and each
+   * running cast answers it as its timeline says, pausing until it ends or cancelling; returns how many answered. A
+   * unit system raises its states' interrupts itself (`units.syncStates`).
    */
   readonly interrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
 
   /** An interrupt on a caster ends: the casts it paused count down again (unless something else pauses them). */
   readonly endInterrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
+
+  /**
+   * Whether a caster holds an interrupt now (between `interrupt` and `endInterrupt`); false for one the game did not
+   * declare (`interrupts`) and no timeline names. A cast started while it holds does not answer it.
+   */
+  readonly isInterrupted: (caster: G['bearer'], reason: G['interrupt']) => boolean;
+
+  /** Cancels every cast a caster runs (§I.7.1 F16: its death), in the order they started; how many. */
+  readonly cancelAll: (caster: G['bearer']) => number;
 
   /** The cast whose procs are running now (a hook's, a delayed list's), which what they spawn belongs to; or none. */
   readonly current: CastHandle;
@@ -183,18 +202,6 @@ export interface SpellSystem<G extends SpellTypes> {
    * Returns whether a cue was fired.
    */
   readonly predictCast: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => boolean;
-}
-
-/** The request a system reuses for every cast. */
-class MutableRequest<G extends SpellTypes> implements CastRequest<G> {
-  caster: G['bearer'];
-  spell: SpellId;
-  options: CastOptions<G> = NO_OPTIONS;
-
-  constructor(caster: G['bearer'], spell: SpellId) {
-    this.caster = caster;
-    this.spell = spell;
-  }
 }
 
 /** A spell system: a class for fast properties, its functions arrow fields so they work detached. */
@@ -313,6 +320,11 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
   readonly endInterrupt = (caster: G['bearer'], reason: G['interrupt']): number =>
     interruptCaster(this.#engine, caster, { reason, isOn: false });
+
+  readonly isInterrupted = (caster: G['bearer'], reason: G['interrupt']): boolean =>
+    (recordOf(caster).interrupts & (this.#engine.interruptBits.get(reason) ?? 0)) !== 0;
+
+  readonly cancelAll = (caster: G['bearer']): number => cancelCaster(this.#engine, caster);
 
   get current(): CastHandle {
     return this.#engine.current?.cast ?? NO_CAST;

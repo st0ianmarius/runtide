@@ -230,6 +230,21 @@ describe('hooks for the cast rules (F16)', () => {
     assert.equal(game.log.at(-1), 'end aimed@1 cancelled');
   });
 
+  it('holds an interrupt on the caster until it ends, and cancels every cast at once', () => {
+    const game = timeline({ aimed });
+
+    assert.equal(game.spells.interrupt(game.a, 'stun'), 0);
+    assert.equal(game.spells.isInterrupted(game.a, 'stun'), true);
+    assert.equal(game.spells.isInterrupted(game.a, 'death'), false);
+    game.spells.endInterrupt(game.a, 'stun');
+    assert.equal(game.spells.isInterrupted(game.a, 'stun'), false);
+    game.spells.cast(game.a, game.id.aimed);
+    game.spells.cast(game.a, game.id.aimed);
+    assert.equal(game.spells.cancelAll(game.a), 2);
+    assert.equal(game.spells.cancelAll(game.a), 0);
+    assert.deepEqual(game.log.slice(-2), ['end aimed@1 cancelled', 'end aimed@1 cancelled']);
+  });
+
   it('cancels a cast from outside, and stops the rest of a course its own procs ended', () => {
     let self: CastHandle | undefined;
 

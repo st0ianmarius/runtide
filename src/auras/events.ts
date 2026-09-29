@@ -1,11 +1,11 @@
 import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
-import { explainModifier } from '../modifiers/index.ts';
 import { type ActiveAura, type AuraItem, MutableContext } from './active-aura.ts';
 import type { AuraHost } from './application.ts';
 import type { AuraCause, AuraChange, AuraHook } from './aura-def.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { type AuraTables, CHANGES } from './compile.ts';
 import type { AuraRegistry } from './define-auras.ts';
+import { isTagEdge, rescaleOn } from './edges.ts';
 import { setOf } from './state.ts';
 
 /** The code of a queued beat, after the lifecycle change codes. */
@@ -82,19 +82,6 @@ export interface EventParts<G extends AuraTypes> {
   readonly release: (item: AuraItem<G>) => void;
 }
 
-/** An aura's own multiplier on a stat: the product of its `mul` modifiers on it at its stacks. */
-const ownProduct = <G extends AuraTypes>(tables: AuraTables, item: AuraItem<G>, stat: number): number => {
-  let product = 1;
-
-  for (const modifier of tables.lists[item.id]?.modifiers ?? []) {
-    if (modifier.stat === stat && modifier.op === 'mul') {
-      product *= explainModifier(modifier, item.stacks).landed ?? 1;
-    }
-  }
-
-  return product;
-};
-
 /**
  * The events of an aura operation, queued in parallel columns (no object per event) and dispatched once the
  * operation has finished, in the order the changes happened (§II.6 A1): each one runs the aura's hook (its procs
@@ -131,7 +118,10 @@ export class AuraEvents<G extends AuraTypes> {
     this.#heard = HOOK_NAMES.map((name, code) =>
       createBitset(
         parts.registry.ids.filter(
-          (id) => parts.registry.has[name].has(id) || ((parts.tables.rescaleOn[id] ?? 0) & (1 << code)) !== 0,
+          (id) =>
+            parts.registry.has[name].has(id) ||
+            ((parts.tables.rescaleOn[id] ?? 0) & (1 << code)) !== 0 ||
+            isTagEdge(parts, code, id),
         ),
       ),
     );
@@ -294,7 +284,15 @@ export class AuraEvents<G extends AuraTypes> {
     const hookName = HOOK_NAMES[code];
     const hook: AuraHook<G> | undefined = hookName === undefined ? undefined : registry.hooks[hookName][item.id];
 
-    this.#rescale(code, bearer, item);
+    const rescale = rescaleOn(this.#parts, code, item);
+
+    if (rescale !== undefined) {
+      this.#parts.host.rescaleClocks?.(bearer, rescale);
+    }
+
+    if (isTagEdge(this.#parts, code, item.id)) {
+      this.#parts.host.onTagsChanged?.(bearer);
+    }
 
     if (hook !== undefined) {
       const context = this.take(bearer, item);
@@ -327,27 +325,6 @@ export class AuraEvents<G extends AuraTypes> {
     payload.bearer = bearer;
     payload.aura = item;
     events.bus.raise(events.kind, payload);
-  }
-
-  /** Hands the host a clock rescale when the aura declares one on this edge. */
-  #rescale(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
-    const { tables, host } = this.#parts;
-    const stat = tables.rescaleStat[item.id];
-    const rescale = this.#parts.registry.defs[item.id]?.rescale;
-
-    if (stat === undefined || rescale === undefined || ((tables.rescaleOn[item.id] ?? 0) & (1 << code)) === 0) {
-      return;
-    }
-
-    const product = ownProduct(tables, item, stat);
-
-    host.rescaleClocks?.(bearer, {
-      aura: item.id,
-      stat,
-      factor: code <= 1 ? 1 / product : product,
-      isPendingOnly: rescale.clocks !== 'all',
-      scope: rescale.scope ?? -1,
-    });
   }
 
   /** Dispatches the events queued since `from`, then drops them (even if a hook throws). */
