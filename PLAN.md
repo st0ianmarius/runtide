@@ -54,7 +54,7 @@ The framework has **no dependency on swarm** or any of its packages (not `@swarm
 | world query **interface** (what a spell may ask) + an in-memory reference implementation                                  | the real query implementation over `Game.enemies` / heroes                                                          |
 | damage pipeline: blow → mitigation → aura hooks (shelter, absorbs, lethal) → health                                       | the mitigation stats' meaning, hit windows, knockback physics                                                       |
 | abilities: button activation, loadouts, cooldowns as auras, costs, `requires` / `blockedBy` / `resets`                    | dodge travel, `stepPlayerInput`, class loadouts                                                                     |
-| creature scripts: phases, named timers, summon lists, script hooks, movement intents, composition factories               | every creature's and boss's script and its numbers; steering, pathfinding and the flow field                        |
+| creature scripts: behaviours with spawn, tick, timer and bound-event hooks, in the unit's own step                        | every creature's and boss's script and its numbers; steering, pathfinding and the flow field                        |
 | units: templates, traits, lifecycle (down, revive, despawn), spawning, the damage, heal, force and death pipelines        | every template and its numbers; the hit window's length                                                             |
 | spellbook: owned spells with rank and variant, learning and restacking                                                    | every card and its ranks; the draft, rerolls, levels, loot and pickups (game systems on the escape hatches, §I.5.6) |
 | world scripts (scripts with no body); swept path tests and shape algebra                                                  | every map event, the event director, formations, blockers and reserved sites, the arena's geometry                  |
@@ -97,7 +97,7 @@ framework/                # a sibling of the swarm checkout, its own git reposit
     abilities/            # button activation data compiled per spell, slots, loadouts, tryActivate / trigger, previews
     combat-log/           # entries recorded from the systems' events into a ring, subscribers, the damage meter
     ai/                   # the AI toolkit: named timers on a wheel, the weighted anti-repeat picker, focus, movement intents
-    creature-scripts/     # CreatureScriptDef, phases, timers, sensors, reactions, summon specs, movement intents, factories
+    creature-scripts/     # behaviours and scripts: spawn, tick, timer and bound-event hooks run in the unit's own step
     units/                # UnitDef templates, traits, lifecycle and derived states, spawn and despawn, health, unit hosts
     spellbook/            # owned spells with rank and variant
     world-scripts/        # scripts with no body, owned by the world
@@ -206,7 +206,7 @@ Hand-written on purpose, since the exact semantics matter more than saving code:
 
 ### I.5.2 Defining resources: plain objects and functions
 
-A **resource** is anything a consumer registers with the framework: stats, auras, triggers, conditions, procs, cues, spells, area triggers, abilities, creature scripts. Every kind has one interface (`AuraDef`, `SpellDef`, `AreaTriggerDef`, `CreatureScriptDef`, …) and one identity helper (`defineAura`, `defineSpell`, `defineCreatureScript`, …) that only fixes the types. **The rule:**
+A **resource** is anything a consumer registers with the framework: stats, auras, triggers, conditions, procs, cues, spells, area triggers, abilities, creature scripts. Every kind has one interface (`AuraDef`, `SpellDef`, `AreaTriggerDef`, `Behaviour`, …) and one identity helper (`defineAura`, `defineSpell`, `defineBehaviour`, …) that only fixes the types. **The rule:**
 
 > A resource is a plain object: data fields and standalone functions. Shared behaviour comes from functions that build or combine those objects, never from classes, `this` or inheritance.
 
@@ -350,7 +350,7 @@ Each is summarised by what it must offer; Part II has the full model.
 - **Abilities.** `button` activation data on the spell (`ButtonActivation`): a cooldown (seconds, a scaled value at the slot's rank, or a function of the caster) that starts on `activation` or `cast`, a cost in aura stacks, `requires` / `blockedBy` / `resets` as aura tags, `applies` (each aura for its own length, times a stat when it names one), checked at load and compiled per spell by `createAbilitySystem`; the game's slots (`defineSlots`, in press order, each cooling on its own aura, so a cooldown belongs to the slot); loadouts on the bearer (`slot → spell` at a rank, `equip`, `abilityOf`, `slotOf`); `canActivate`, `tryActivate` (a press mask decided before any slot fires, then each fires in slot order: pay, `activate`, cooldown, `applies`, `resets`, the cast), `trigger` and the `useAbility` proc (the trigger path: no slot cooldown), `travel`; `cooldownOf` and `explain` for previews and tooltips. The bearer's motion half remains a game hook (`activate`, `travel`), typed over `MirrorCtx` (the bearer, the press's input, its stats for the spell, the static world the system is given, the step), so the mirror runs it too.
 - **Combat log.** `createCombatLog` records every blow, immunity (a blow the ignore stage ignored, the damage system's `ignored` event), heal, death, aura change, cast moment and area trigger spawn and end from the systems' bus events, read through narrow views of their payloads, as ids and numbers (credit, actor, target, spell, aura, area kind, damage kind, amounts, overkill or overheal, flags, a status, outcome or reason code) into a ring of the latest entries in one `Float64Array`; subscribers get each entry as it is recorded; `checksum` digests the held entries for goldens; `createDamageMeter` sums damage and healing by credit and damage taken by target.
 - **AI toolkit.** Named timers per unit brain (`defineTimers`) on a timing wheel, fired in due order and held by the game or by held interrupts; one weighted anti-repeat picker over a pool whose candidates are checked by the spells' own cast rules, weighted and filtered by the game; the first of an ordered list that would start (a reaction); a focus the procs may set; a reused movement intent per unit; the `setTimer`, `cancelTimer` and `setFocus` procs. Reactions, budgets, target policies and movement generators are the game's.
-- **Creature scripts.** `CreatureScriptDef` (§II.3.12): the one place a creature's behaviour is written. Ordered phases entered on conditions (health thresholds, time, any F12 condition), each with a transition, phase auras, a spell pool and the timers it runs; named timers on the timing wheel with keyed-roll intervals; a summon list (keep, refill, despawn with the creature or the phase); hooks (`spawn`, `engage`, `damaged`, `castEnd`, `summonDied`, `targetLost`, `death`, game events) returning procs; `move` returning a movement intent; `view()` numbers for the wire; the `bossScript` / `withEnrage` / `withAdds` factories. Built on the AI toolkit (F17) and summons (F18).
+- **Creature scripts.** Behaviours (§II.3.12): a creature's script is a list of them, each with its own state per unit and optional handlers: `spawn`, `tick` in the unit's step, `timer` as its F17 timers come due (gathered once a tick and delivered in its step), and the game's own bus events bound by name to the unit they reach. Templates name their script; units with none cost nothing. Phases, picking, reactions, sensors, summon lists and factories are the game's behaviours, built on the AI toolkit (F17) and summons (F18).
 - **Units.** `UnitDef` templates (base stats, class tags, traits, script, an optional auto-attack, rewards), `spawnUnit` with per-instance stats snapshotted at spawn, `despawn(reason)` distinct from death, lifecycle states and their events, revive as a channel spell.
 - **Spellbook.** Owned spells with rank and variant, feeding `ctx.rank`; learning applies a passive spell's aura or area trigger, a rank-up restacks it, a revive re-arms it.
 - **World scripts.** Scripts with no body, owned by the world (several casts at once, "running until its spawns are gone"), for map events and world timers; the game's own director schedules them.
@@ -419,6 +419,8 @@ As built: **F16** puts the cast rules in the cast order and the timeline. A spel
 As built: **F17** is `spellweave/ai`, kept small and general: the parts every brain is built from, and none of the brains' own rules. Each unit the unit system spawns gets a brain (`ai.createBrain`, freed on despawn): named timers (`defineTimers`) on one timing wheel, fired in due order by `ai.step` (so a unit with nothing due costs nothing a tick), held by the game (`ai.hold`: an intro, a blink) or while the unit holds an interrupt the system is `heldBy` (a freeze, raised by the unit system's states); a focus (an entity id, set by the game or the `setFocus` proc); the last pick; and one reused movement intent (`chase`, `hold`, `moveTo`, `keepRange`, `flee`, with a speed factor, a facing and a turn rate) the game's movement reads. `ai.pick` is the one weighted anti-repeat picker: each spell of the pool is weighted by the game's `weight` or its activation's, filtered by the game's `allows` (a budget), and checked by `spells.check` (its range, sight and gates), and the last pick is left out while another fits; `ai.first` is the first of an ordered list that would start (a reaction). `setTimer` and `cancelTimer` are procs too, so `setPickDelay` and `resetTimer` are `setTimer` on the game's timers. What a brain does with these (its pick gap and retry as timers it restarts, its reactions' conditions, its budget's claims and releases, its target policy, its movement generators, leashes and leap arcs) is the game's, until creature scripts (F19) give brains a shape.
 
 As built: **F18** puts ownership on the unit system, kept general. A unit spawned with an owner joins its owner's summons (`units.summonsOf`, in spawn order) until it dies or despawns; a bound one despawns with its owner (the `despawned` event's reason is `owner`), and `units.creditOf` credits a summon's deeds up the owner chain, which a game uses as a blow's source. The `summon` proc spawns units of a template for the list's self: a count (or one read at the hit: a raise sized by missing health), at a point, a read point or one picked around the owner through the unit system's world, with stats over the template's and shares inherited from the owner's totals, bound unless told otherwise, and held by the cast whose procs ran, so a cast lives while its summons live. The `despawn` proc ends a unit with a reason, and `despawnSummons` an owner's summons (of a template). A spawn hands the point it asked for to the `spawned` event, for the game's world. Summons that are area triggers (the Sentry) were already owned, credited, limited and bound (F8). Following or assisting an owner is the game's (F17's intent and focus), and so are kept lists that refill (F19's summon lists, built on these procs) and the crowd-cap bypass.
+
+As built: **F19** is `spellweave/creature-scripts`, and it decides nothing about how a creature behaves (§II.3.12). A script is a list of behaviours, each with its own state per unit and optional handlers: `spawn`; `tick` in the unit's step; `timer`, for the unit's F17 timers, gathered once a tick (`scripts.collect`) and delivered in its own step so casts keep the game's per-unit order; and `on`, for the game's own bus events bound by name to the unit they reach (a blow's target, a dead add's owner). A template names its script; the unit system attaches a record at spawn and frees it at despawn. On the Apple Silicon Mac, stepping 2,000 unscripted units costs 2.0–2.5 µs a tick and 2,000 scripted units with nothing due 4.2–4.6 µs. Phases, picking, reactions, sensors, summon lists, intros, targeting, movement, the wire view and factories are the game's behaviours; the audit of swarm's horde, elite, Warden and Archmage brains maps each of their mechanics onto these hooks and F16–F18's parts.
 
 The coverage audit (§II.6) widens F1–F19 as well: each catalogue entry names the phase it lands in, and a phase is not done until its entries are. Each is proven by its own unit tests, like the phases before it (§I.7.0). F19's cover, with fake hosts: the phase jump across several thresholds in one blow, phase auras swapped and casts interrupted on entry, timer order on the wheel and keyed intervals independent of other creatures, `whileBusy` and pausing auras, summon refills and despawns, factory merging, and registration-time validation.
 
@@ -493,7 +495,7 @@ Area triggers (what a spell leaves in the world) and cues (how it looks) complet
 | **Auras**            | timed states on a unit (WoW auras: buffs and debuffs) | `effects/`, heroes only; creature statuses are bespoke fields; Cheat Death and the Sanctuary are special cases in `hurtPlayer`                                 | `effects/` on any unit, with hooks into the damage pipeline (§II.3.8)                                                     |
 | **Triggers**         | when something reacts to an event                     | data procs on 10 hero events, from three sources (classes: empty; pacts: Bloodbound; effects)                                                                  | owned by auras only (§II.3.11): the trigger layer becomes the machinery that runs an aura's procs on events               |
 | **Cues**             | that something should be seen or heard                | 28 cue ids plus ~60 raw `emit` sites                                                                                                                           | every spell moment names a numeric cue id with numeric params; the client's cue table is how it looks and sounds (§I.5.3) |
-| **Creature scripts** | when a creature casts what, and how a fight unfolds   | `stepWarden`, `stepArchmage` and the elite step: hand-written stage machines with named timer fields (`nextBlink`, `nextRaise`…), phase checks and add refills | one `CreatureScriptDef` per creature: phases, timers, summons and hooks returning procs (§II.3.12)                        |
+| **Creature scripts** | when a creature casts what, and how a fight unfolds   | `stepWarden`, `stepArchmage` and the elite step: hand-written stage machines with named timer fields (`nextBlink`, `nextRaise`…), phase checks and add refills | one script per creature: a list of behaviours whose hooks return procs, the logic the game's own (§II.3.12)               |
 
 ## II.2 Rules the API keeps
 
@@ -759,140 +761,83 @@ What a pact aura needs that ordinary buffs do not:
 
 ### II.3.12 Creature scripts: scripted creatures and bosses
 
-A **creature script** is what TrinityCore calls a `CreatureScript` with its `ScriptedAI` / `BossAI` (and what its SmartAI writes as data): the one place a creature's behaviour lives. A spell says what a cast does and an aura what sits on a unit; the script says **when** the creature casts what, how it moves between casts, and how the fight changes as it goes. Scripting a new elite or boss is one `defineCreatureScript` plus its spells and auras: no engine change, no bespoke `step<Boss>` function, no named timer fields on the unit.
+A **creature script** is where a creature's own logic runs: when it casts what, how it moves between casts, how its fight changes. It takes the place of TrinityCore's `CreatureScript` with its `ScriptedAI` / `BossAI` and of swarm's `step<Boss>` functions, without taking over their shape: the framework decides nothing about how a creature behaves. It gives a creature places to run the game's logic, and the game writes the logic (as built at F19; the fixed `CreatureScriptDef` first sketched here, with phases, reactions, a pick spec, sensors and summon lists as properties, was dropped as too narrow for other games).
 
 ```ts
-interface CreatureScriptDef<State = {}> {
-  // no id field: the registry assigns a numeric, branded CreatureScriptId by key order (§I.5)
-  state?(ctx): State; // per-unit scratch, made at spawn from a pool (a trail's last point, a pattern's index)
-  intro?: { seconds: number; auras?: AuraRef[]; face?: true }; // the grace stage: casts nothing, holds its timers
-  target?: TargetPolicy; // host-supplied: flow-field nearest, sticky nearest with a margin, first in reach (§II.6 C5)
-  phases?: readonly PhaseDef[]; // ordered, forward only; phase 0 is where it starts
-  timers?: Record<string, TimerDef<State>>; // named timed events (TrinityCore's EventMap)
-  sensors?: Record<string, SensorDef>; // dwell meters the weights and reactions read ("seconds hugged")
-  reactions?: readonly ReactionDef[]; // polled each tick before the picker: forced casts (§II.6 C2)
-  pick?: PickDef; // the shared picker: gap from the cast's start or end, retry, first delay, budget policy
-  summons?: SummonsDef; // keep n (or a function), placement rules, stat overrides, refill every s, despawn with 'death' | 'phase'
-  move?(ctx, out: MoveIntent): void; // written into a reusable intent: chase, holdRange, hold, flee, leash, face with a turn cap
-  on?: {
-    spawn?(ctx): Proc[];
-    engage?(ctx, target): Proc[]; // first target acquired: the fight starts, timers start
-    tick?(ctx, state: State, dt: number): Proc[]; // for what sensors and reactions cannot say
-    castStart?(ctx, spell: SpellId): Proc[];
-    damaged?(ctx, result: DamageResult): Proc[];
-    castEnd?(ctx, spell: SpellId, outcome: CastOutcome): Proc[];
-    summonDied?(ctx, add: UnitRef): Proc[];
-    targetLost?(ctx): Proc[];
-    death?(ctx): Proc[];
-    events?: ScriptEventHooks; // any bus event the game registers, filtered to this unit
-  };
-  view?(ctx): ScriptView; // numbers only: phase, stage id, end stamp, spell, direction, bound target, origin
+interface Behaviour<G, State> {
+  state?(unit): State; // its own state on each unit, made at spawn
+  spawn?(ctx): Proc[]; // once, after the unit's spawned event
+  tick?(ctx): Proc[]; // in the unit's step, only for behaviours that need per-tick work
+  timer?(ctx, timer: TimerId): Proc[]; // one of the unit's F17 timers came due, delivered in its step
+  on?: { [event in G['scriptEvents']]?: (ctx, payload) => Proc[] }; // the game's own bus events, bound by name
 }
 
-interface PhaseDef {
-  when: Condition; // healthAtMost(0.66) (≤ with an epsilon), healthBelow (strict), after(90), or any F12 condition
-  enter?(ctx): Proc[]; // the transition: castSpell(warCry), spawn(fireRing), a cue
-  auras?: readonly AuraRef[]; // held while the phase lasts: enraged (cooldowns ×0.7), evolved visuals, invulnerable
-  spells?: readonly SpellRef[]; // the picker's pool in this phase
-  params?: Readonly<Record<string, number | boolean>>; // read by the spells as ctx.caster.phaseParams (§II.6 C6)
-  pick?: Partial<PickDef>; // the phase's own gap
-  timers?: readonly string[]; // which named timers run in this phase (EventMap's phase mask)
-  summons?: Partial<SummonsDef>; // a phase may keep more adds
-}
+const SCRIPTS = defineScripts<Game>({ hordeCaster: [picking], warden: [picking, wardenPhases, raise, soulfire] });
 
-interface TimerDef<State> {
-  first: Seconds | Range; // after its anchor
-  anchor?: 'spawn' | 'introEnd' | 'phaseEnter' | 'transitionEnd'; // default 'phaseEnter'
-  every?: Seconds | Range; // repeats; absent fires once per anchor
-  when?: Condition; // checked when due; false reschedules it
-  whileBusy?: 'wait' | 'skip' | 'run'; // due during a cast: wait for it to end (default), skip this round, or run anyway
-  do(ctx, state: State): Proc[]; // usually castSpell(…)
-}
-
-interface ReactionDef {
-  when: Condition; // polled each tick: sensor('hug') >= 1.5, foesWithin(r) >= 2, cooldownLeft(blink) <= half…
-  cast: SpellRef;
-  gap: 'bypass' | 'consume'; // whether it waits for, and resets, the pick gap
-  budget: 'bypass' | 'claim';
-}
-```
-
-- **Hooks return procs**, as everywhere (§II.2). A script touches the world only through them and mutates only its own `State`. Casting is `castSpell`, adds are `summon`, yells are cues, and a phase's buffs are auras, so a script adds no world API of its own.
-- **Phases go forward only.** They are checked after damage lands and once per tick (also during the intro, never while the unit is paused); the script moves to the deepest phase whose condition holds and runs only that phase's `enter` (as the Warden and the Archmage jump today when one blow crosses two thresholds). Entering a phase interrupts the creature's cast through the timeline's `interrupts.phase` (its `onCancel` withdraws its own unfired telegraphs), removes the old phase's auras and applies the new ones, and restarts the phase's timers.
-- **Phase state is auras.** An enrage is an aura with modifiers on cooldowns and speed; an invulnerable transition is an aura with the `invulnerable` tag, removed when the transition spell ends. `e.enraged`, `wardenInvulnerable` and `archmageInvulnerable` become conditions on aura tags, and a cue's `evolved` param reads the phase index.
-- **Timers are scheduled, never polled.** Each running timer is one entry on the timing wheel (§I.5.4), so a creature with nothing due costs nothing per tick. A random interval comes from `ctx.random('script')`, which the host resolves (§II.6.1 rule 3): a keyed roll on `(seed, stream, unit id, timer index, occurrence)` for a new game, so one creature's timers never shift another's; swarm maps it to its main stream in its own table, so its draws stay where they are. Scripts are stepped in the host's per-unit slot (rule 1), and stages such as the intro, a blink or a channel hold the timers. Timers run on the creature's clock; an aura with the `pauses` tag (stun, freeze) holds them, the same rule the timeline applies to casts.
-- **Reactions and sensors come first.** Each tick the script updates its sensors (dwell meters such as "seconds hugged", rising with `dt` and decaying), then walks its reactions in order (forced casts such as the Juggernaut's and Warden's Whirlwind, the Archmage's repulse and early blink), each declaring whether it bypasses or consumes the pick gap and the budget, and only then lets the picker run.
-- **One cast at a time, for units.** A world script (§II.6 C11) may run several. The script starts casts only through the Spell System; a due pick or timer respects `whileBusy`, and `move` reads `ctx.cast.stage` to hold ground while winding up.
-- **Picking is shared.** `pick` runs the one weighted anti-repeat picker (F17) over the phase's pool, reading each spell's `ai.weight(ctx)` and its cast rules (F16); the budget policy (the horde's points pool, the elites' shared gaps with their exempt spells) is named in `pick.budget` and claimed at the start of every cast. The gap is rolled per cast, counted from the cast's start or end, scaled by the phase's auras, retried after `retry` seconds when nothing fits, and set by `setPickDelay` after a step or a roar. Spells read the phase's `params` (`ctx.caster.phaseParams`).
-- **Summon lists.** `summons` tracks its adds by generational handle (F18): it refills to `keep` (a number or a function of the party) every `every` seconds through the summon spell, places them by rule (annulus, clearance from foes, attempts), can spawn them with another wave's stats, reports deaths to `summonDied`, and despawns the adds with the creature or the phase. A one-shot raise (the Warden's, sized by missing health) is a plain `summon` proc, not a list.
-- **Movement is an intent.** `move` writes into a reusable intent (no allocation per unit per tick): chase with a stop distance and a run factor, hold, keep range, flee, a leash to an area, facing with a turn cap; the game's movement generators (F17's interface) steer, and pathfinding, the flow field and physics stay the game's.
-- **Composition, not inheritance.** TrinityCore's `BossAI : ScriptedAI` becomes factories (§I.5.2): `bossScript(spec)` adds the intro, health phases, a summon list and the phase view; `withEnrage(at, aura, roar)` appends a phase; `withAdds(spec)` adds summons. Combining merges `phases` in order and `timers` by name, and a test holds that a combined script calls every part's hooks.
-- **Data or code.** Every field is data or a function returning data, so a simple creature is pure data (SmartAI-style: timers with proc lists and conditions) and a boss uses functions where it decides something. Scripts are validated at registration: every timer a phase names exists, pools hold `ai` spells only, and health thresholds fall from one phase to the next.
-- **Cheap for hordes.** A horde kind needs no script of its own: one shared `hordeScript` (pick from the kind's kit, the points budget) serves every kind, with its picks scheduled rather than polled. Script definitions sit in the dense registry with per-hook dispatch tables (a hook no script defines is never called), and script state comes from pools.
-- **No presentation.** A boss's name, yells, emotes and phase banner are the client's, keyed by `CreatureScriptId`, `CueId` and the `view` numbers (§I.5.3).
-- **World scripts use the same definition** without a body: the map events and the supply and buff timers are scripts owned by the world, with phases, timers, summon lists and outcomes (§II.6 C11); the game's own director decides when they start, and formations steer their members from a world script's `on.tick` (escape hatches, §I.5.6).
-- **Out of scope:** threat tables and taunt (not planned: target policies choose targets, §I.7.1), evade (deferred, §I.7.1), and instance-level encounter state (doors, encounter done, wipe reset), which belongs to Tier 3.
-
-The Grave Warden, sketched from `warden.ts` (its numbers stay swarm's, in `WARDEN` and the wave config's `bossConfig`, never the framework's; a few field names are illustrative):
-
-```ts
-export const graveWarden = bossScript({
-  intro: { seconds: WARDEN.grace, face: true },
-  target: stickyNearest({ margin: BOSS_TARGET_MARGIN }),
-  sensors: { hug: dwell({ within: (ctx) => ctx.self.radius + WARDEN.hugReach, rise: 1, decay: 2 }) },
-  pick: { gapFrom: 'start', gap: (ctx) => WARDEN.phases[ctx.phase].cooldown, retry: 0.2 },
-  phases: [
-    { when: always, spells: WARDEN.phases[0].spells, params: WARDEN.phases[0] },
-    {
-      when: healthAtMost(bossConfig.phases[1].atHpFraction),
-      enter: () => [castSpell(warCry)], // War Cry holds `invulnerable` while it roars, then raises and resets the raise timer
-      spells: WARDEN.phases[1].spells, // Charge and Whirlwind unlock here
-      params: WARDEN.phases[1], // stabChain, charges, aftershock, soulfire, barrageShots, barrageVolleys
-    },
-    {
-      when: healthAtMost(bossConfig.phases[2].atHpFraction),
-      enter: () => [castSpell(warCry)],
-      auras: ['warden.evolved'], // `enraged` today: visuals only
-      spells: WARDEN.phases[2].spells,
-      params: WARDEN.phases[2],
-    },
-  ],
-  reactions: [
-    {
-      // forced Whirlwind: hugged for 1.5 s or crowded by two heroes, ahead of the raise and the pick
-      when: (ctx) => ctx.can(whirlwind) && (ctx.sensor('hug') >= 1.5 || ctx.foesWithin(WARDEN.hugReach) >= 2),
-      cast: whirlwind,
-      gap: 'bypass',
-      budget: 'bypass',
-    },
-  ],
-  timers: {
-    raise: { first: WARDEN.raise.opening, every: WARDEN.raise.interval, do: () => [castSpell(raiseDead)] }, // adds sized by missing health
+const scripts = createScriptSystem<Game>({
+  registry: SCRIPTS,
+  units,
+  ai,
+  procs,
+  bus,
+  host,
+  events: {
+    damaged: { kind: bus.kind.taken, unitOf: (e) => e.blow?.target },
+    castEnd: { kind: bus.kind.spellEnd, unitOf: (e) => e.cast?.caster },
+    summonDied: { kind: bus.kind.unitChanged, unitOf: (e) => (e.to === 'dead' ? e.unit?.owner : undefined) },
   },
-  move: (ctx, out) =>
-    ctx.cast || ctx.stage === 'stagger'
-      ? out.hold().face(ctx.target, WARDEN.turnRate)
-      : out.chase(ctx.target, { stopAt: ctx.self.radius + 1.2, runBeyond: 8, run: 1.35 }),
 });
 
-// A base aura every Warden carries: +50% speed at 0 HP, continuously (§II.6 M3).
-const wardenStride = defineAura({ modifiers: [mul('moveSpeed', byMissingHealth(0.5))], duration: 'infinite' });
-
-// War Cry's release clamps the chargers' cooldowns; its end raises at once and restarts the raise timer.
-const warCry = defineSpell({
-  activation: { kind: 'ai' },
-  begin: () => [
-    applyAura('self', 'invulnerable'),
-    telegraph(circle(WARDEN.warCry.knockRadius), { knock: WARDEN.warCry.knock }),
-  ],
-  release: () => [clampCooldown('self', charge, 2), clampCooldown('self', whirlwind, 3)],
-  onEnd: () => [removeAura('self', 'invulnerable'), castSpell(raiseDead), resetTimer('raise', 28)],
-});
-
-export const SCRIPTS = createRegistry({ hordeScript, juggernaut, hexblade, gravecaller, graveWarden, archmage });
+// each tick: scripts.collect(), then in the game's per-unit loop scripts.step(unit)
 ```
 
-Execute is a picked spell in every phase (cooldown 18, first cast 8 s after spawn, weight 3, +2 on a standing target), not a timer; eruption sits in the pools; soulfire is a phase parameter the trail area trigger reads, laying patches by distance walked (a jump over 3 m resets it) and never during the leap or the roar.
+- **A script is a list of behaviours**, each a few optional handlers with its own state per unit (`ctx.state`). Composing is concatenating lists: a boss is its own behaviours plus shared ones (`[...eliteBase, enrage]`), with no merge rules.
+- **Handlers return procs**, as everywhere (§II.2), run for the unit and credited to it; `ctx.run` runs some before the handler returns. A script touches the world through procs and the game's host (`ctx.host`), so it adds no world API of its own.
+- **Three moments, and the game's events.** The framework drives `spawn`, `tick` and `timer`. Anything else a creature reacts to is a game bus event bound once by name with the unit it reaches: a blow's target, a cast's caster, a dead add's owner. A new kind of creature never needs a framework change.
+- **Timers keep the per-unit order** (§II.6.1 rule 1). `scripts.collect()` gathers every due F17 timer once a tick onto its unit, and `scripts.step(unit)` delivers them in the unit's own slot of the game's loop, then runs its `tick` handlers, so a Warden's raise lands where swarm's loop has it today. A due timer of a unit with no script goes to the game's own `fire`.
+- **Cheap for hordes.** A unit whose template names no script has no record: its step is one field check, about 1 ns. A scripted unit with nothing due and no `tick` handler costs one more field check. Each script's handler lists are built at registration, so only behaviours that declare a handler are called.
+- **What stays the game's**, as behaviours written from the AI toolkit (F17), the spell system (F7, F15, F16) and summons (F18):
+  - **Phases**: forward-only jumps on a `damaged` event or in `tick`, phase auras through the aura system, a pool per phase.
+  - **Picking**: a pick timer, `ai.pick` with the game's `allows` for its budget, restarted on the cast's end event.
+  - **Reactions**: `ai.first` in `tick`.
+  - **Sensors**: dwell meters in the behaviour's state.
+  - **Summon lists**: the `summon` proc, `summonsOf` and `despawnSummons`.
+  - **Intros**: `ai.hold` until a timer.
+  - **Targeting**: F17's focus and the game's policies.
+  - **Movement**: F17's `MoveIntent` or the game's own.
+  - **The wire view**: the game's numbers from `scripts.stateOf`.
+  - **Factories** such as `bossScript` or `withEnrage`: plain functions returning behaviour lists.
+- **No presentation.** A boss's name, yells, emotes and phase banner are the client's (§I.5.3).
+- **Out of scope:** threat tables and taunt (not planned: target policies choose targets, §I.7.1), evade (deferred), and instance-level encounter state (doors, encounter done, wipe reset), which belongs to Tier 3. World scripts (§II.6 C11) are F21's, and may reuse behaviours.
+
+The Grave Warden, sketched as swarm would write it (its numbers stay swarm's, in `WARDEN` and the wave config):
+
+```ts
+const behaviour = defineBehaviour<Game>();
+
+const wardenPhases = behaviour({
+  state: () => ({ phase: 0 }),
+  on: {
+    damaged: (ctx) => {
+      const next = wardenPhase(ctx.unit); // the deepest phase whose threshold holds: one blow may cross two
+      if (next <= ctx.state.phase) return undefined;
+      ctx.state.phase = next;
+      return [despawnOwned({ tag: 'telegraph' }), castSpell('warCry')]; // War Cry holds `invulnerable` while it roars
+    },
+  },
+});
+
+const picking = behaviour({
+  spawn: () => [setTimer('pick', 0.5)],
+  timer: (ctx, timer) => (timer === TIMERS.id.pick ? ctx.host.wardenPick(ctx.unit) : undefined),
+  on: { castEnd: (ctx) => [setTimer('pick', ctx.host.wardenGap(ctx.unit))] },
+});
+
+const raise = behaviour({
+  spawn: () => [setTimer('raise', WARDEN.raise.opening)],
+  timer: (ctx, timer) => (timer === TIMERS.id.raise ? [castSpell('raiseDead'), setTimer('raise', 28)] : undefined),
+});
+```
 
 ### II.3.13 Stat scaling: flat stats, multiplier stats, and ratios on spells
 
@@ -1148,7 +1093,7 @@ Revive and going down are not abilities but unit lifecycle (§II.6 U3): revive i
 | Archmage          | comet and chaos (shots and a lobbed telegraph whose delay is the flight), explosion patterns (points with stagger, aimed `lockAtStart`), repulse, blink (channel: vanish, then `teleport` and cue), Arcane Circle (channel whose clock is the fire-ring area trigger; `invulnerable`; `teleport` heroes; `despawn` adds; `every` barrage)                             |
 | Map events        | `event` activation, caster `'world'`: Inferno (moving lethal wall area trigger, time-derived), Venom Flood (zone area trigger: harm outside, heal inside), Detonation (staggered telegraphs), Blood Horde (`summon` + a death trigger spawning pools), Prison (`summon` walls), Gravebloom (objective summons), Dread Totem (objective with an aura effect on heroes) |
 
-Every family's brain becomes a creature script (§II.3.12), and each row above is that script's spells:
+Every family's brain becomes a creature script (§II.3.12), and each row above is that script's spells. The script shapes below (`hordeScript`, `eliteScript`, `bossScript`) are swarm's own behaviour lists, not the framework's:
 
 - **Horde:** the shared `hordeScript`: the kind's kit as the pool (uniform weights, no repeat), the points budget (claimed with a time to live, released on release, death and despawn), a retry range after a refusal, a gap counted while idle, line of sight sampled every 0.25 s staggered by id, the first cast `1 + rand × 2` s after spawn, hold-ground movement, the melee swing as the unit's auto-attack, and the flow field's target policy.
 - **Elites:** one `eliteScript(variant)` factory: the intro grace, the variant's kit, the shared elite budget (0.9 s global gap, 2 s per spell, Cleave and Stab exempt, claimed at every cast start), a hug sensor, the Juggernaut's forced Whirlwind as a reaction, a 0.2 s retry, stagger after a charge into a wall (recover by outcome), the tether's own target and `cancelIf`, and `withEnrage(ELITES.enrageAt, 'elite.enraged', roar)`, whose aura scales every cooldown by `enragedCooldown` and unlocks Whirlwind, and whose roar withdraws every unfired telegraph the elite owns (`despawnOwned`, also from casts that already ended) and lands a leap in mid-air.
@@ -1274,7 +1219,7 @@ Entries marked **[H]** are listed so the game knows where its own code goes; the
 - **[F] S2. `auto` exactly.** The clock counts while the spell is unowned (a new card fires at once), resets to the interval read at the cast (no carry-over), rewinds positions for every auto cast while the hero aims; a refusal answers `spend` (the whole interval: Whirlwind suppressing Cleave, Hexfire at its cap) or `retry(delay)` (no target). _Lands:_ F7, F16. _As built:_ F7 built the clock and the costs; at F16 a refusal by a reach rule (range, sight, placement) costs what no target costs (`onNoTarget`, a retry). The aim rewind while a hero aims is the game's input (its `target` hook reads it). Complete.
 - **[F] S3. Unit auto-attack.** A melee swing: a reach gate polled every tick on its own timer, independent of the pick gap, reset after a cast's recovery, spent even when the target's invulnerability ignores it; strength and reach per template. _Needs:_ every melee horde kind, group bodies. _Lands:_ F16, F17. _As built (F16):_ the swing is the template's `autoAttack`, an `auto` spell whose `reach` is polled every step (a reach refusal retries), `afterCast: 'reset'` holds it through the unit's casts and restarts it after each one's recovery, and `onMiss: 'spend'` spends it when an invulnerable target ignores it; strength and reach are its stats. Its independence from the pick gap holds by construction: the swing is its own `auto` clock and the pick gap a brain timer (F17). Complete.
 - **[F] S4. `button` exactly.** Cooldowns per slot (`cooldown.<slot>`), `applies` durations scaled by a stat, all buttons decided before any fires, the trigger cast path (no slot cooldown, slot looked up from the loadout), casts stamped at the tick's start for lag compensation, the release inside the motion step between `activate` and travel (Blink's departure point). _Lands:_ F9.
-- **[F] S5. Timeline.** `recover` as a function of the outcome (a charge into a wall staggers 1.2 s instead of recovering 0.8 s); a stagger contract (no cast, move, turn, pick or swing; script timers held); windup `cancelIf` (the tether's target lost); a channel whose clock is an area trigger's life (the Circle of Fire); stages that hold the script's timers; a frozen caster pausing its own telegraphs even after the cast ended. _Lands:_ F7, F16. _As built:_ F7 built `recover` by outcome, `cancelIf`, and `pause` / `finish` / `interrupt`; at F16 the stagger contract's "no cast" is `canAct` over the stagger's state, interrupts come from unit states, and a frozen caster's telegraphs pause (`bound.pausedBy`). **Left:** stages that hold a script's timers and "no pick, move or turn" (F17, F19), and a channel whose clock is an area trigger's life, which a game builds today with `spells.finish` from the area trigger's `onEnd` (F19 names it).
+- **[F] S5. Timeline.** `recover` as a function of the outcome (a charge into a wall staggers 1.2 s instead of recovering 0.8 s); a stagger contract (no cast, move, turn, pick or swing; script timers held); windup `cancelIf` (the tether's target lost); a channel whose clock is an area trigger's life (the Circle of Fire); stages that hold the script's timers; a frozen caster pausing its own telegraphs even after the cast ended. _Lands:_ F7, F16. _As built:_ F7 built `recover` by outcome, `cancelIf`, and `pause` / `finish` / `interrupt`; at F16 the stagger contract's "no cast" is `canAct` over the stagger's state, interrupts come from unit states, and a frozen caster's telegraphs pause (`bound.pausedBy`). Stages that hold a script's timers are `ai.hold` from the game's behaviours (F17, F19); "no pick, move or turn" is the game's behaviour reading the cast's stage; a channel whose clock is an area trigger's life is `spells.finish` from the area trigger's `onEnd`. Complete.
 - **[F] S6. Liveness.** A cast is live while its area triggers or its summons live ("the event is still running"). _Lands:_ F7, F18. _As built:_ F7 held a cast while its delayed procs and area triggers live; at F18 a summon holds the cast whose procs summoned it until it dies or despawns. Complete.
 
 **Area triggers and the world (W)**
@@ -1294,16 +1239,16 @@ Entries marked **[H]** are listed so the game knows where its own code goes; the
 
 **Creature and world scripts (C)**
 
-- **[F] C1. Per-tick sensing.** `on.tick` and declared sensors (dwell accumulators such as "seconds a foe is within r", +dt / −2dt), and `on.castStart`. _Needs:_ the hug meters of the Juggernaut, Warden and Archmage. _Lands:_ F19.
-- **[F] C2. Reactions.** Ordered rules polled each tick before the picker (condition, spell, whether it bypasses or consumes the gap and the budget), able to read a cooldown's remaining time. _Needs:_ forced Whirlwinds, the Warden's raise, the Archmage's repulse and blink. _Lands:_ F17, F19. _As built (F17):_ `ai.first`, the first spell of an ordered list that would start, with the game's filter; `ai.remaining` reads a timer and the aura system a cooldown. **Left for F19:** the rules as script data (condition, spell, bypass or consume the gap and the budget).
-- **[F] C3. Pick spec.** The gap counted from the cast's start or end and only in chosen stages, a retry delay when nothing fits, a first delay, a per-phase override, `setPickDelay`. One picker serves the horde, the elites, the bosses and the event scheduler (four copies today). _Lands:_ F17. _As built:_ `ai.pick`, the one weighted anti-repeat picker; the gap, the retry delay, the first delay and `setPickDelay` are a pick timer the game (and F19's scripts) starts with `ai.start` or `setTimer`. Complete for the toolkit; the per-phase override is F19's.
+- **[F] C1. Per-tick sensing.** `on.tick` and declared sensors (dwell accumulators such as "seconds a foe is within r", +dt / −2dt), and `on.castStart`. _Needs:_ the hug meters of the Juggernaut, Warden and Archmage. _Lands:_ F19. _As built (F19):_ `tick` handlers in the unit's step and the game's own bus events (`on`), with each behaviour's own state for its meters; the dwell rules are the game's. Complete.
+- **[F] C2. Reactions.** Ordered rules polled each tick before the picker (condition, spell, whether it bypasses or consumes the gap and the budget), able to read a cooldown's remaining time. _Needs:_ forced Whirlwinds, the Warden's raise, the Archmage's repulse and blink. _Lands:_ F17, F19. _As built (F17):_ `ai.first`, the first spell of an ordered list that would start, with the game's filter; `ai.remaining` reads a timer and the aura system a cooldown. At F19 the rules are a game behaviour's `tick`, in the order it chooses; their data form is the game's. Complete.
+- **[F] C3. Pick spec.** The gap counted from the cast's start or end and only in chosen stages, a retry delay when nothing fits, a first delay, a per-phase override, `setPickDelay`. One picker serves the horde, the elites, the bosses and the event scheduler (four copies today). _Lands:_ F17. _As built:_ `ai.pick`, the one weighted anti-repeat picker; the gap, the retry delay, the first delay and `setPickDelay` are a pick timer the game (and F19's scripts) starts with `ai.start` or `setTimer`. A per-phase gap is the game's phase behaviour restarting the pick timer (F19). Complete.
 - **[F] C4. Budget policies.** An interface with world scope: `allows` with live capacity, `claim` at the start of every cast with a time to live, `release` on release, death and despawn, exempt spells; the horde's points pool and the elites' shared gaps are two policies. _Lands:_ F17. _As built:_ the picker's `allows` filter is where a policy plugs in; the policies themselves (claims with a time to live, releases on release, death and despawn, exempt spells) are the game's, which keeps the toolkit general.
-- **[F] C5. Target policies.** Host-supplied (flow-field nearest by path, sticky nearest with a margin, first in reach); a spell may set the focus (the tether). They drive `engage` and `targetLost`. _Lands:_ F17. _As built:_ the focus on each brain and the `setFocus` proc; policies are the game's functions over its world, and `engage` / `targetLost` are F19's hooks.
-- **[F] C6. Phase parameters.** Spells read the caster's phase and its `params` (`stabChain`, `charges`, `aftershock`, `barrageShots`). _Lands:_ F19.
-- **[F] C7. Timer anchors.** `spawn | introEnd | transitionEnd`, a per-phase first delay, `resetTimer`. _Lands:_ F19.
-- **[F] C8. Summon spec.** `count` or `keep` as functions, placement rules (annulus, clamp, clearance from foes, attempts, skip or stop), stat overrides (spawn at wave 6), a pausable refill; one-shot summons (the Warden's raise, sized by missing health) as well as kept lists. _Lands:_ F18. _As built:_ the `summon` proc: `count` or `countOf`, a point or a pick in an annulus with clearance and attempts, stat overrides and inherited shares; `summonsOf` and `despawnSummons` for a list's count and its despawn. **Left for F19:** kept lists (`keep`, a pausable refill every `every` seconds, `summonDied`), which a creature script builds on these.
+- **[F] C5. Target policies.** Host-supplied (flow-field nearest by path, sticky nearest with a margin, first in reach); a spell may set the focus (the tether). They drive `engage` and `targetLost`. _Lands:_ F17. _As built:_ the focus on each brain and the `setFocus` proc; policies are the game's functions over its world, and `engage` / `targetLost` are game events bound to a script's `on` (F19). Complete.
+- **[F] C6. Phase parameters.** Spells read the caster's phase and its `params` (`stabChain`, `charges`, `aftershock`, `barrageShots`). _Lands:_ F19. _As built (F19):_ a phase and its parameters are a behaviour's state, which spells read through the game's host or `scripts.stateOf`. Complete.
+- **[F] C7. Timer anchors.** `spawn | introEnd | transitionEnd`, a per-phase first delay, `resetTimer`. _Lands:_ F19. _As built (F19):_ timers are F17's, started from `spawn`, a phase's handler or a transition spell's end event, and `resetTimer` is `setTimer`. Complete.
+- **[F] C8. Summon spec.** `count` or `keep` as functions, placement rules (annulus, clamp, clearance from foes, attempts, skip or stop), stat overrides (spawn at wave 6), a pausable refill; one-shot summons (the Warden's raise, sized by missing health) as well as kept lists. _Lands:_ F18. _As built:_ the `summon` proc: `count` or `countOf`, a point or a pick in an annulus with clearance and attempts, stat overrides and inherited shares; `summonsOf` and `despawnSummons` for a list's count and its despawn. At F19 a kept list is a game behaviour: a refill timer counting `summonsOf`, and `summonDied` a bound unit event routed to the owner. Complete.
 - **[F] C9. Movement intents.** Written into a reusable output (no allocation); facing with a turn cap, separate from moving; speed factors; a leash to an area; eased leap arcs; holding still through recovery and stagger. Leashes and arcs leave the deferred list. _Lands:_ F17. _As built:_ `MoveIntent`, one reused record per brain (chase with a stop distance, hold, move to a point, keep range, flee a unit or a point; a speed factor, a facing, a turn rate), which the game's movement steers by. **Left to games:** leashes, eased leap arcs and holding still through a stagger are the game's movement (a stagger reads the cast's stage); charges, leaps and knockbacks stay motion a spell or a force drives.
-- **[F] C10. Script view.** Script stage ids, an end stamp, the spell, a direction, a bound-target entity and an origin, for the wire. _Lands:_ F10, F19. _As built:_ F10 gives a running spell cast its view (`spells.viewOf`: spell, rank, stage id, stage length, end stamp, start, caster and credit). **Left for F19:** the creature script's own view (its stage id, end stamp, direction, bound-target entity and origin), built on that one once creature scripts exist.
+- **[F] C10. Script view.** Script stage ids, an end stamp, the spell, a direction, a bound-target entity and an origin, for the wire. _Lands:_ F10, F19. _As built:_ F10 gives a running spell cast its view (`spells.viewOf`: spell, rank, stage id, stage length, end stamp, start, caster and credit). At F19 a script's view is the game's: its numbers come from its behaviours' state (`scripts.stateOf`) and the cast's view. Complete.
 - **[F] C11. World scripts.** A script with no body, owned by the world: phases, timers, summon lists, `summonDied`, outcomes, persistent state across occurrences, "running until its spawns are gone", and several casts at once (the one-cast rule is for units). _Needs:_ all seven map events, supply and buff timers, the per-wave magnet. _Lands:_ F21.
 - **[H] C12. Groups.** A world script that owns members, runs group phases and sets its members' movement intents (march, pincer, ring), with the slowest pace as a `min` modifier. _Escape hatch:_ a world script's `on.tick` writing its members' movement intents.
 - **[H] C13. Event scheduler.** It consumes `event` activations: calm gaps rolled per gap, lerped by run progress and divided by a pace stat; opening grace and wind-down; a pending pick retried until it places and re-rolled after a while; anti-repeat; per-run caps; concurrency classes (floor events exclusive, a pressure event joining one after a delay on a chance); `active()`; timings read from the event spells, never duplicated by hand (`EVENT_LIFETIME_ESTIMATES` is already stale). The director keeps its roster and curves as content. _Escape hatch:_ the game's director as a game-owned step, on the shared picker (C3) and world scripts.
