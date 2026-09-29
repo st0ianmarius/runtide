@@ -1,4 +1,5 @@
 import { type AbilitySystem, NO_LOADOUT } from '../abilities/index.ts';
+import { type AiSystem, NO_BRAIN } from '../ai/index.ts';
 import type { AuraSystem } from '../auras/index.ts';
 import type { Bitset, EventKind } from '../core/index.ts';
 import type { DamageSystem } from '../damage/index.ts';
@@ -71,6 +72,12 @@ export interface UnitSystemBase<G extends UnitTypes> {
 
   /** The spell system every unit casts through. */
   readonly spells: SpellSystem<G>;
+
+  /**
+   * The AI system, for units that think (§I.7.1 F17): each unit gets a brain, freed as it despawns, whose timers its
+   * states' interrupts hold (`interrupts`). Every unit has the shared empty brain when absent.
+   */
+  readonly ai?: AiSystem<G>;
 
   /** The ability system, for units with buttons; every unit has an empty loadout when absent. */
   readonly abilities?: AbilitySystem<G>;
@@ -251,6 +258,7 @@ export class UnitEngine<G extends UnitTypes> {
       auras: options.auras.createState(),
       casts: options.spells.createCasterState(),
       loadout: options.abilities?.createLoadout() ?? NO_LOADOUT,
+      brain: options.ai?.createBrain() ?? NO_BRAIN,
       sheet: options.modifiers?.system.createSheet(),
       ext: this.#createExt(),
     });

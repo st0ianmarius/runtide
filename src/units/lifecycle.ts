@@ -62,7 +62,7 @@ const leaveFor = <G extends UnitTypes>(
  * Moves a unit to a lifecycle state (§II.6 U3), when its state allows the move: a unit leaving `standing` has every
  * cast it runs cancelled (§I.7.1 F16: a death cancels them, as going down or leaving does) and enters the aura
  * system's matching bearer state (so auras `removedOn` it go); a revive sets health (the maximum by default). Raises
- * `changed`, or `despawned` for a despawn, which also forgets the unit's entity id. False when the move is not allowed.
+ * `changed`, or `despawned` for a despawn, which also forgets the unit's entity id and frees its brain. False when the move is not allowed.
  */
 export const moveTo = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -88,6 +88,7 @@ export const moveTo = <G extends UnitTypes>(
 
   if (to === 'despawned') {
     engine.byId.delete(unit.id);
+    engine.options.ai?.release(bearer);
     raise(engine, engine.options.events?.despawned, [bearer, from, to]);
   } else {
     raise(engine, engine.options.events?.changed, [bearer, from, to]);

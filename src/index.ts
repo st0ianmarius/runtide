@@ -6,6 +6,7 @@
 export const CONTRACT_VERSION = 0;
 
 export * from './abilities/index.ts';
+export * from './ai/index.ts';
 export * from './area-triggers/index.ts';
 export * from './auras/index.ts';
 export * from './combat-log/index.ts';

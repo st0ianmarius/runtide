@@ -1,3 +1,4 @@
+import { type AiProcs, type AiSystem, createAiSystem, defineTimers } from '../../src/ai/index.ts';
 import {
   type AuraApplication,
   type AuraDecision,
@@ -110,7 +111,10 @@ export interface UnitGame extends UnitTypes {
   readonly host: object;
 
   /** The damage and spell kinds. */
-  readonly gameProc: DamageProcs<UnitGame> | SpellProcs<UnitGame> | UnitProcs<UnitGame>;
+  readonly gameProc: AiProcs<UnitGame> | DamageProcs<UnitGame> | SpellProcs<UnitGame> | UnitProcs<UnitGame>;
+
+  /** The test timers. */
+  readonly timerName: 'pick' | 'raise';
 
   /** One damage kind. */
   readonly damageKind: 'physical';
@@ -160,6 +164,9 @@ export interface UnitGame extends UnitTypes {
     marks: number;
   };
 }
+
+/** The test timers: a pick gap and a raise. */
+export const TIMERS = defineTimers(['pick', 'raise']);
 
 /** The test stats. */
 export const STATS = defineStats({
@@ -211,7 +218,7 @@ const UNIT_STATES = defineUnitStates(AURA_TAGS, {
 });
 
 /** A unit test game's options. */
-export interface UnitGameOptions {
+export interface UnitGameOptions<Extra extends string = never> {
   /** The health policy. */
   readonly policy?: HealthPolicy<UnitGame>;
 
@@ -221,12 +228,15 @@ export interface UnitGameOptions {
   /** Whether units fold their stats through the modifier system; true when absent. */
   readonly folds?: boolean;
 
+  /** More spells, beside the swing and the channel. */
+  readonly spells?: Readonly<Record<Extra, AnySpellDef<UnitGame>>>;
+
   /** The interrupting states; a stun's and a freeze's when absent. */
   readonly interrupts?: Readonly<Record<string, 'stun' | 'freeze'>>;
 }
 
 /** A small unit test game. */
-export interface UnitTestGame<Name extends string> {
+export interface UnitTestGame<Name extends string, Extra extends string = never> {
   /** The clock. */
   readonly clock: SimClock;
 
@@ -249,7 +259,10 @@ export interface UnitTestGame<Name extends string> {
   readonly id: Readonly<Record<Name, UnitId>>;
 
   /** The id of every spell, by name. */
-  readonly spellId: Readonly<Record<'swing' | 'channel', SpellId>>;
+  readonly spellId: Readonly<Record<'swing' | 'channel' | Extra, SpellId>>;
+
+  /** The AI system, over the pick and raise timers, held by a freeze. */
+  readonly ai: AiSystem<UnitGame>;
 
   /** What happened: every unit event, death and kill, as lines. */
   readonly log: string[];
@@ -260,10 +273,10 @@ export interface UnitTestGame<Name extends string> {
  * `auras`), a spell system with a cast that lasts a second, a damage system whose unit host and force stage are the
  * unit system's, and the unit system over them, logging its events.
  */
-export const makeUnitGame = <const Name extends string>(
+export const makeUnitGame = <const Name extends string, const Extra extends string = never>(
   templates: Readonly<Record<Name, UnitDef<UnitGame>>>,
-  options: UnitGameOptions = {},
-): UnitTestGame<Name> => {
+  options: UnitGameOptions<Extra> = {},
+): UnitTestGame<Name, Extra> => {
   const log: string[] = [];
   const clock = createClock({ dt: 0.25 });
   const registry = defineUnits<UnitGame, Name>(templates, { stats: STATS, tags: UNIT_TAGS });
@@ -296,14 +309,15 @@ export const makeUnitGame = <const Name extends string>(
     },
   });
 
-  const spellRegistry = defineSpells<UnitGame, 'swing' | 'channel'>({
+  const spellRegistry = defineSpells<UnitGame, 'swing' | 'channel' | Extra>({
+    ...(options.spells ?? spellTable<Extra>({})),
     swing: { activation: { kind: 'auto', interval: 1 }, release: () => undefined },
     channel: {
       activation: { kind: 'trigger' },
       timeline: { windup: { seconds: 1 }, interrupts: { stun: 'cancel', freeze: 'pause' } },
       release: () => undefined,
     },
-  } satisfies Record<string, AnySpellDef<UnitGame>>);
+  });
 
   const holder: { procs?: ProcSystem<UnitGame> } = {};
 
@@ -315,9 +329,12 @@ export const makeUnitGame = <const Name extends string>(
     host: { canAct: (unit) => late.units?.canAct(unit) ?? true },
   });
 
+  const ai = createAiSystem<UnitGame>({ spells, clock, timers: TIMERS, heldBy: ['freeze'] });
+
   const units = createUnitSystem<UnitGame>({
     registry,
     auras,
+    ai,
     spells,
     ...(options.folds === false ? {} : { modifiers: { system: modifiers, base: 'base' as const } }),
     health: { stat: 'maxHealth', ...(options.policy === undefined ? {} : { policy: options.policy }) },
@@ -350,9 +367,10 @@ export const makeUnitGame = <const Name extends string>(
       ...damage.procKinds,
       ...spells.procKinds,
       ...units.procKinds,
+      ...ai.procKinds,
     }),
     auras,
-    host: {},
+    host: { idOf: (unit) => unit.id },
   });
 
   holder.procs = procs;
@@ -369,10 +387,23 @@ export const makeUnitGame = <const Name extends string>(
   bus.on(bus.kind.death, (event) => log.push(`death ${event.death?.unit.id ?? '?'}`));
   bus.on(bus.kind.kill, (event) => log.push(`kill by ${event.death?.killer?.id ?? '?'}`));
 
-  return { clock, auras, spells, damage, units, procs, id: registry.id, spellId: spellRegistry.id, log };
+  return { clock, auras, spells, damage, units, procs, ai, id: registry.id, spellId: spellRegistry.id, log };
 };
 
 /** Throws: the proc system is wired after the systems that name it. */
 const missing = (): never => {
   throw new Error('The test proc system is not wired.');
 };
+
+/** A table typed as a table of spells by the names its type says: the empty one when a game adds none. */
+const spellTable = <Name extends string>(table: object): Readonly<Record<Name, AnySpellDef<UnitGame>>> => {
+  if (!isSpellTable<Name>(table)) {
+    throw new TypeError('A spell table was lost.');
+  }
+
+  return table;
+};
+
+/** Whether a table is a table of spells by the names its type says: always, since it is typed. */
+const isSpellTable = <Name extends string>(table: object): table is Readonly<Record<Name, AnySpellDef<UnitGame>>> =>
+  typeof table === 'object';

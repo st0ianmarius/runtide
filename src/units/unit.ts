@@ -1,4 +1,5 @@
 import type { LoadoutState } from '../abilities/index.ts';
+import type { BrainState } from '../ai/index.ts';
 import type { AuraState } from '../auras/index.ts';
 import type { Bitset } from '../core/index.ts';
 import type { StatSheet, StatView } from '../modifiers/index.ts';
@@ -34,6 +35,9 @@ export interface UnitParts<G extends UnitTypes> {
   /** Its loadout. */
   readonly loadout: LoadoutState;
 
+  /** Its brain. */
+  readonly brain: BrainState;
+
   /** Its stat sheet, when the game folds stats. */
   readonly sheet: StatSheet | undefined;
 
@@ -53,6 +57,7 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   readonly auras: AuraState;
   readonly casts: CasterState;
   readonly loadout: LoadoutState;
+  readonly brain: BrainState;
   readonly sheet: StatSheet | undefined;
   readonly ext: G['unitExt'];
 
@@ -84,6 +89,7 @@ export class Unit<G extends UnitTypes> implements UnitShape {
     this.auras = parts.auras;
     this.casts = parts.casts;
     this.loadout = parts.loadout;
+    this.brain = parts.brain;
     this.sheet = parts.sheet;
     this.ext = parts.ext;
   }

@@ -3,7 +3,8 @@ import type { UnitTypes } from './unit-types.ts';
 
 /**
  * Brings a unit's interrupts in line with its derived states (§I.7.1 F16): each interrupting state it entered raises
- * its interrupt on the unit's casts (`spells.interrupt`: a stun pausing or cancelling them), and each it left ends it.
+ * its interrupt on the unit's casts (`spells.interrupt`: a stun pausing or cancelling them) and on its brain (`ai.interrupt`:
+ * its timers held), and each it left ends it.
  * The aura host's `onTagsChanged` calls it on every tagged aura's edge. Returns how many states it found changed.
  */
 export const syncStates = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer']): number => {
@@ -23,11 +24,15 @@ export const syncStates = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
     unit.interrupts ^= bit;
     changed += 1;
 
-    if ((unit.interrupts & bit) === 0) {
-      spells.endInterrupt(bearer, state.reason);
-    } else {
+    const isOn = (unit.interrupts & bit) !== 0;
+
+    if (isOn) {
       spells.interrupt(bearer, state.reason);
+    } else {
+      spells.endInterrupt(bearer, state.reason);
     }
+
+    engine.options.ai?.interrupt(bearer, state.reason, isOn);
   }
 
   return changed;

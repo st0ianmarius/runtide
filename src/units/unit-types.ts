@@ -1,4 +1,5 @@
 import type { AbilityBearer, AbilityTypes } from '../abilities/index.ts';
+import type { AiBearer, AiTypes } from '../ai/index.ts';
 import type { Id } from '../core/index.ts';
 import type { DamageTypes } from '../damage/index.ts';
 import type { StatSheet } from '../modifiers/index.ts';
@@ -28,7 +29,7 @@ export const LIFECYCLES: readonly Lifecycle[] = Object.freeze([
  * What every unit is (§I.7.1 F13): one shape for heroes, creatures and summons. It bears auras, casts, has a loadout
  * (an empty one for a unit with no buttons) and its own stat sheet; a game's `bearer` is the system's `Unit`.
  */
-export interface UnitShape extends AbilityBearer {
+export interface UnitShape extends AbilityBearer, AiBearer {
   /** Its entity id, unique among live units. */
   readonly id: number;
 
@@ -55,7 +56,7 @@ export interface UnitShape extends AbilityBearer {
  * The types one game's units are written against: abilities (and through them spells, procs and auras), damage, and
  * what units name: their templates, class tags and derived states, and the game's own fields on a unit.
  */
-export interface UnitTypes extends AbilityTypes, DamageTypes {
+export interface UnitTypes extends AbilityTypes, AiTypes, DamageTypes {
   /** A unit: the unit system's `Unit` over the game's types. */
   readonly bearer: UnitShape;
 
