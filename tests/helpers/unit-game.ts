@@ -21,7 +21,7 @@ import {
   type Force,
 } from '../../src/damage/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
-import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc } from '../../src/procs/index.ts';
+import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc, type ProcSystem } from '../../src/procs/index.ts';
 import {
   type AnySpellDef,
   createSpellSystem,
@@ -42,6 +42,7 @@ import {
   type UnitDef,
   type UnitEvent,
   type UnitId,
+  type UnitProcs,
   type UnitSystem,
   type UnitTypes,
 } from '../../src/units/index.ts';
@@ -109,7 +110,7 @@ export interface UnitGame extends UnitTypes {
   readonly host: object;
 
   /** The damage and spell kinds. */
-  readonly gameProc: DamageProcs<UnitGame> | SpellProcs<UnitGame>;
+  readonly gameProc: DamageProcs<UnitGame> | SpellProcs<UnitGame> | UnitProcs<UnitGame>;
 
   /** One damage kind. */
   readonly damageKind: 'physical';
@@ -241,6 +242,9 @@ export interface UnitTestGame<Name extends string> {
   /** The unit system. */
   readonly units: UnitSystem<UnitGame>;
 
+  /** The proc system, with the unit system's kinds. */
+  readonly procs: ProcSystem<UnitGame>;
+
   /** The id of every template, by name. */
   readonly id: Readonly<Record<Name, UnitId>>;
 
@@ -301,7 +305,7 @@ export const makeUnitGame = <const Name extends string>(
     },
   } satisfies Record<string, AnySpellDef<UnitGame>>);
 
-  const holder: { procs?: ReturnType<typeof createProcSystem<UnitGame>> } = {};
+  const holder: { procs?: ProcSystem<UnitGame> } = {};
 
   const spells = createSpellSystem<UnitGame>({
     registry: spellRegistry,
@@ -340,12 +344,18 @@ export const makeUnitGame = <const Name extends string>(
     events: { bus, death: bus.kind.death, kill: bus.kind.kill },
   });
 
-  holder.procs = createProcSystem<UnitGame>({
-    kinds: createProcRegistry<UnitGame>({ ...CORE_PROCS, ...damage.procKinds, ...spells.procKinds }),
+  const procs = createProcSystem<UnitGame>({
+    kinds: createProcRegistry<UnitGame>({
+      ...CORE_PROCS,
+      ...damage.procKinds,
+      ...spells.procKinds,
+      ...units.procKinds,
+    }),
     auras,
     host: {},
   });
 
+  holder.procs = procs;
   late.units = units;
   late.policy = units.auraPolicy(options.rules ?? []);
 
@@ -359,7 +369,7 @@ export const makeUnitGame = <const Name extends string>(
   bus.on(bus.kind.death, (event) => log.push(`death ${event.death?.unit.id ?? '?'}`));
   bus.on(bus.kind.kill, (event) => log.push(`kill by ${event.death?.killer?.id ?? '?'}`));
 
-  return { clock, auras, spells, damage, units, id: registry.id, spellId: spellRegistry.id, log };
+  return { clock, auras, spells, damage, units, procs, id: registry.id, spellId: spellRegistry.id, log };
 };
 
 /** Throws: the proc system is wired after the systems that name it. */

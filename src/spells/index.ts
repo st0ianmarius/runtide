@@ -60,6 +60,7 @@ export type { ProcOut } from './proc-out.ts';
 export {
   after,
   type AfterProc,
+  type CastCooldown,
   castSpell,
   type CastSpellProc,
   rescaleClocks,

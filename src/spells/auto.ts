@@ -46,7 +46,8 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
 /**
  * Steps a caster's `auto` clocks by one step (§II.3.2, §II.6 S2), in registry order: every clock counts down, whether
  * its spell is owned or not (so a spell the caster gains fires at once), and one that ran out casts its spell when the
- * caster owns it (`host.owns`). After the cast the clock is set, with no carry-over, to the interval read at the cast
+ * caster owns it (`host.owns`), unless it resets after casts (`afterCast: 'reset'`) and the caster is casting: it waits
+ * for the cast to end, which resets it. After the cast the clock is set, with no carry-over, to the interval read at the cast
  * (spend) or to the activation's `retry` seconds (the next step when it has none), as the outcome's cost says.
  */
 export const stepAutoClocks = <G extends SpellTypes>(
@@ -55,7 +56,8 @@ export const stepAutoClocks = <G extends SpellTypes>(
   cast: (caster: G['bearer'], spell: SpellId) => CastReport,
 ): void => {
   const { autoIds } = engine.registry;
-  const { clocks } = recordOf(caster);
+  const record = recordOf(caster);
+  const { clocks, intervals } = record;
   const { dt, countdown } = engine.clock;
 
   for (let i = 0; i < autoIds.length; i++) {
@@ -68,8 +70,16 @@ export const stepAutoClocks = <G extends SpellTypes>(
       continue;
     }
 
+    if (record.count > 0 && engine.resetClocks.includes(i)) {
+      continue;
+    }
+
     const report = cast(caster, spell);
     const activation = autoOf(engine, spell);
+
+    if (!Number.isNaN(report.interval)) {
+      intervals[i] = report.interval;
+    }
 
     clocks[i] = costOf(activation, report) === 'spend' ? report.interval : (activation.retry ?? 0);
   }
@@ -172,4 +182,37 @@ export const rescaleClocks = <G extends SpellTypes>(
   const auto = rescaleAuto(engine, caster, parts);
 
   return rescale.isPendingOnly === false ? auto + rescaleCasts(engine, caster, parts) : auto;
+};
+
+/**
+ * Resets a caster's `auto` clocks that reset after its other casts (§II.6 S3: `afterCast: 'reset'`) as one of its
+ * casts ends: each is set to its constant interval, else to the interval it last read. An auto spell's own cast
+ * resets none. Returns how many it reset.
+ */
+export const resetAfterCast = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  caster: G['bearer'],
+  spell: SpellId,
+): number => {
+  const { resetClocks } = engine;
+
+  if (resetClocks.length === 0 || isAuto(engine.registry.get(spell).activation)) {
+    return 0;
+  }
+
+  const { clocks, intervals } = recordOf(caster);
+  const { autoIds } = engine.registry;
+
+  for (const index of resetClocks) {
+    const interval = autoOf(engine, autoIds[index] ?? missingAuto()).interval;
+
+    clocks[index] = typeof interval === 'number' ? interval : (intervals[index] ?? 0);
+  }
+
+  return resetClocks.length;
+};
+
+/** An index among the auto spells that has no spell: the load tables prevent it. */
+const missingAuto = (): never => {
+  throw new RangeError('An auto clock index has no spell.');
 };

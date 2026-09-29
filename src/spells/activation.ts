@@ -40,6 +40,13 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
 
   /** What an instant cast whose release set nothing off costs (a swing that never went out): `retry` by default. */
   readonly onMiss?: 'spend' | 'retry';
+
+  /**
+   * What the caster's other casts do to the clock (§II.6 S3: a creature's swing reset after its cast's recovery):
+   * `reset` holds it while the caster casts and sets it to its interval (the constant, else the one last read) as each
+   * cast ends; `keep` (the default) leaves it counting.
+   */
+  readonly afterCast?: 'reset' | 'keep';
 }
 
 /**
@@ -236,6 +243,10 @@ const AUTO: ActivationKindDef<AutoActivation, never> = {
   check: (activation) => {
     const { interval, retry } = activation;
     const isSound = typeof interval === 'function' || (Number.isFinite(interval) && interval > 0);
+
+    if (activation.afterCast !== undefined && activation.afterCast !== 'reset' && activation.afterCast !== 'keep') {
+      return "an auto clock's afterCast is 'reset' or 'keep'.";
+    }
 
     return isSound && isSeconds(retry) ? undefined : 'an auto interval must be above 0 and its retry from 0 seconds.';
   },

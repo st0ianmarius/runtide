@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { UnitDef } from '../../src/units/index.ts';
+import { revive, type UnitDef } from '../../src/units/index.ts';
 import { auraId, makeUnitGame, type UnitGame } from '../helpers/unit-game.ts';
 
 /** A creature. */
@@ -73,5 +73,25 @@ describe('leaving standing (§I.7.1 F16)', () => {
       assert.equal(spells.isRunning(handle), false, leave);
       assert.equal(spells.isCasting(grunt), false, leave);
     }
+  });
+});
+
+describe('the revive proc (§II.6 P3, U3)', () => {
+  it('stands a downed or dead unit again, at a health or its maximum, and skips one standing', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const [hero, ally] = [game.units.spawn(game.id.grunt, { side: 0 }), game.units.spawn(game.id.grunt, { side: 0 })];
+
+    game.units.down(ally);
+    assert.equal(game.procs.apply(revive<UnitGame>({ health: 30 }), { self: hero, target: ally }).status, 'landed');
+    assert.equal(ally.lifecycle, 'standing');
+    assert.equal(ally.health, 30);
+    game.units.kill(ally);
+    assert.equal(game.procs.apply(revive<UnitGame>({ to: 'self' }), { self: ally }).status, 'landed');
+    assert.equal(ally.health, 100);
+    assert.equal(game.procs.apply(revive<UnitGame>(), { self: hero, target: ally }).status, 'skipped');
+    assert.throws(
+      () => game.procs.prepare([revive<UnitGame>({ health: 0 })], 'Test'),
+      /health is a finite number above 0/,
+    );
   });
 });

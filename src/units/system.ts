@@ -6,6 +6,7 @@ import { type SpawnUnit, UnitEngine, unitOf, type UnitSystemOptions } from './en
 import { type AuraRule, compileRules, damageHostOf, decideAura, forceStageOf, syncHealth } from './hosts.ts';
 import { syncStates } from './interrupts.ts';
 import { moveTo, raiseSpawned } from './lifecycle.ts';
+import { createUnitProcKinds, type UnitProcKinds } from './procs.ts';
 import { HEAVY, OBJECTIVE } from './unit-def.ts';
 import type { UnitRegistry } from './unit-def.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
@@ -70,6 +71,9 @@ export interface UnitSystem<G extends UnitTypes> {
   /** A unit's stats (§II.6 M9): its sheet folded with it as the host, or its own bases without a modifier system. */
   readonly statsOf: (unit: G['bearer']) => StatView;
 
+  /** The unit system's proc kinds (`revive`): `createProcRegistry({ ...CORE_PROCS, ...units.procKinds })`. */
+  readonly procKinds: UnitProcKinds<G>;
+
   /**
    * Brings a unit's interrupts in line with its derived states (§I.7.1 F16, `interrupts`): a state entered raises its
    * interrupt on the unit's casts, one left ends it. Wire it as the aura host's `onTagsChanged` (lazily, since the aura
@@ -113,8 +117,12 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
   const isStanding = (unit: G['bearer']): boolean => unitOf<G>(unit).lifecycle === 'standing';
 
+  const reviveUnit = (unit: G['bearer'], health?: number): boolean =>
+    unitOf<G>(unit).lifecycle !== 'disconnected' && moveTo(engine, unit, ['standing', health]);
+
   const system: UnitSystem<G> = {
     registry,
+    procKinds: createUnitProcKinds<G>(reviveUnit),
 
     live: () => engine.byId.size,
 
@@ -132,8 +140,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     despawn: (unit) => moveTo(engine, unit, ['despawned', undefined]),
     down: (unit) => moveTo(engine, unit, ['downed', undefined]),
 
-    revive: (unit, health) =>
-      unitOf<G>(unit).lifecycle !== 'disconnected' && moveTo(engine, unit, ['standing', health]),
+    revive: reviveUnit,
 
     kill: (unit) => moveTo(engine, unit, ['dead', undefined]),
 

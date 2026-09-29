@@ -149,3 +149,37 @@ describe('auto clocks (§II.3.2, §II.6 S2)', () => {
     assert.equal(game.spells.autoClock(game.a, game.id.bolt), 0);
   });
 });
+
+describe('an auto clock after the caster’s other casts (§II.6 S3)', () => {
+  it('waits out the caster’s casts and resets to its interval as each ends, when it says so', () => {
+    const game = autoGame({
+      swing: spell({ activation: { kind: 'auto', interval: 1, afterCast: 'reset' }, release: () => [mark('swing')] }),
+      bolt: spell({ activation: { kind: 'auto', interval: 2 }, release: () => [mark('bolt')] }),
+      roar: spell({
+        activation: { kind: 'trigger' },
+        timeline: { windup: { seconds: 0.5 }, recover: { seconds: 0.5 } },
+        release: () => undefined,
+      }),
+    });
+
+    game.advance(2);
+    assert.equal(game.spells.autoClock(game.a, game.id.swing), 0.75);
+    game.spells.cast(game.a, game.id.roar);
+    game.advance(3);
+    assert.deepEqual(
+      game.log.filter((line) => line === 'swing@1'),
+      ['swing@1'],
+    );
+    assert.equal(game.spells.autoClock(game.a, game.id.swing), 0);
+    game.advance(1);
+    assert.equal(game.spells.autoClock(game.a, game.id.swing), 1);
+    assert.equal(game.spells.autoClock(game.a, game.id.bolt), 0.75);
+  });
+
+  it('refuses an afterCast that is neither reset nor keep', () => {
+    const forged = { kind: 'auto', interval: 1 } as const;
+
+    Reflect.set(forged, 'afterCast', 'hold');
+    assert.throws(() => autoGame({ x: spell({ activation: forged, release: () => undefined }) }), /afterCast/);
+  });
+});

@@ -19,6 +19,9 @@ export class CasterRecord implements CasterState {
   /** The seconds left on each `auto` spell's clock, by the spell's index among the registry's auto spells. */
   readonly clocks: Float64Array;
 
+  /** The interval each `auto` spell last read at a cast, by the same index; 0 before its first. */
+  readonly intervals: Float64Array;
+
   /** How many casts run. */
   count = 0;
 
@@ -27,6 +30,7 @@ export class CasterRecord implements CasterState {
 
   constructor(autoCount: number) {
     this.clocks = new Float64Array(autoCount);
+    this.intervals = new Float64Array(autoCount);
   }
 
   /** Adds a cast's handle, last. */

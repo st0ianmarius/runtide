@@ -5,7 +5,7 @@ import { defineTickSlots } from '../../src/core/index.ts';
 import { damage } from '../../src/damage/index.ts';
 import { escapeReport, explainProc, run } from '../../src/procs/index.ts';
 import { after, castSpell, CORE_ACTIVATIONS, defineActivationKind, defineActivations } from '../../src/spells/index.ts';
-import { type Charged, type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
+import { aura, type Charged, type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
 
 /** The test tick slots: delayed procs land in either. */
 const SLOTS = defineTickSlots(['early', 'late']);
@@ -30,6 +30,52 @@ describe('the castSpell proc (§II.3.6, §II.6 P3)', () => {
       'release swing@1',
       'end swing@1 released',
     ]);
+  });
+
+  it('keeps its own cooldown as an aura on the caster: refused while held, landed once a cast started', () => {
+    const game = makeSpellGame(
+      {
+        proc: spell({
+          activation: { kind: 'trigger' },
+          release: () => [castSpell<Game>('nova', { cooldown: { aura: 'icd', seconds: 1 } })],
+        }),
+        nova: spell({ activation: { kind: 'trigger' }, release: () => [mark('nova')] }),
+        refused: spell({
+          activation: { kind: 'trigger' },
+          canCast: () => false,
+          release: () => undefined,
+        }),
+      },
+      { auras: { icd: aura({ duration: 5 }) } },
+    );
+
+    const hero = game.unit(1);
+    const icd = game.auraId.icd;
+
+    game.spells.cast(hero, game.id.proc);
+    game.spells.cast(hero, game.id.proc);
+    assert.deepEqual(
+      game.log.filter((line) => line === 'nova@1'),
+      ['nova@1'],
+    );
+    assert.equal(game.auras.remaining(hero, icd), 1);
+    for (let i = 0; i < 4; i++) {
+      game.step();
+      game.auras.tick(hero, 'world');
+    }
+
+    game.spells.cast(hero, game.id.proc);
+    assert.equal(game.log.filter((line) => line === 'nova@1').length, 2);
+
+    const other = game.unit(2);
+    const refused = game.procs.apply(castSpell<Game>('refused', { cooldown: { aura: icd } }), { self: other });
+
+    assert.equal(refused.status, 'refused');
+    assert.equal(game.auras.has(other, icd), false);
+    assert.throws(
+      () => game.procs.prepare([castSpell<Game>('nova', { cooldown: { aura: 'icd', seconds: -1 } })], 'Test'),
+      /a castSpell cooldown lasts a finite number of seconds from 0/,
+    );
   });
 
   it('is refused when the cast is, and hands the cast its input', () => {

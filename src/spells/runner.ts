@@ -1,6 +1,7 @@
 import { NO_SOURCE } from '../auras/index.ts';
 import { isRunOut } from '../core/index.ts';
 import type { ActivationKindDef, CastSeconds } from './activation.ts';
+import { resetAfterCast } from './auto.ts';
 import { fireCastCue } from './cast-cue.ts';
 import type { CastOptions, CastRefusal, CastReport, CastRequest, Report } from './cast-request.ts';
 import type { Cast } from './cast.ts';
@@ -171,7 +172,7 @@ const runEnd = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def
 
 /**
  * Ends a cast (§II.3.3), once: it leaves its caster's casts, then `onCancel` for a cancel, its end cue, `onEnd`, its
- * cast aura comes off, and the `end` event. Its record goes back to the pool once nothing holds it.
+ * cast aura comes off, the caster's clocks that reset after a cast reset (§II.6 S3), and the `end` event. Its record goes back to the pool once nothing holds it.
  */
 export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, outcome: CastOutcome): void => {
   if (cast.stage === 'ended') {
@@ -189,6 +190,7 @@ export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast
   engine.fire(cast, def.cues?.end?.(cast, outcome));
   runEnd(engine, cast, def);
   engine.holdCastAura(cast, false);
+  resetAfterCast(engine, cast.caster, cast.spell);
   engine.raise('end', cast);
   engine.unhold(cast);
 };

@@ -16,6 +16,9 @@ export {
 } from './engine.ts';
 
 export type { AuraRule } from './hosts.ts';
+
+export { revive, type ReviveProc, type UnitProcKinds, type UnitProcs } from './procs.ts';
+
 export { defineUnitStates, type UnitBlock, type UnitStateDef, type UnitStateTable } from './states.ts';
 export { createUnitSystem, type UnitSystem } from './system.ts';
 export { defineUnitTags, type UnitTagDef, type UnitTagTable } from './tags.ts';
