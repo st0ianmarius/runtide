@@ -28,6 +28,7 @@ import {
   scaled,
   snapshotScaled,
 } from '../src/modifiers/index.ts';
+import { ABILITY_TASKS, abilityCounter } from './abilities.ts';
 import { AREA_TASKS, areaCounter, areaStats } from './area-triggers.ts';
 import { CUE_TASKS, CUE_TICK_BYTES, cueCounter } from './cues.ts';
 import { DAMAGE_TASKS, damageCounter } from './damage.ts';
@@ -276,7 +277,14 @@ for (const [name, task] of PROC_TRIGGER_TASKS) {
 }
 
 /** The damage and cue tasks run fewer calls per batch when one call is a burst of many blows or a tick of cues. */
-for (const [name, task, blows] of [...DAMAGE_TASKS, ...CUE_TASKS, ...SPELL_TASKS, ...WORLD_TASKS, ...AREA_TASKS]) {
+for (const [name, task, blows] of [
+  ...DAMAGE_TASKS,
+  ...CUE_TASKS,
+  ...SPELL_TASKS,
+  ...WORLD_TASKS,
+  ...AREA_TASKS,
+  ...ABILITY_TASKS,
+]) {
   const calls = Math.max(1, BATCH / blows);
 
   BATCHES.set(name, calls);
@@ -297,7 +305,8 @@ sink +=
   cueCounter.decoded +
   spellCounter.granted +
   worldCounter.found +
-  areaCounter.granted;
+  areaCounter.granted +
+  abilityCounter.granted;
 
 const horde = spellHordeStats();
 const areas = areaStats();

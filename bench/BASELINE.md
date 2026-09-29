@@ -79,3 +79,9 @@ Added at F8 (`bench/world.ts`, `bench/area-triggers.ts`), same Apple Silicon Mac
 | world: 2,000 units move, k-d tree rebuilt + a query     | 171–179 µs   |
 | `secondsInside` a circle over one tick                  | 84–85 ns     |
 | area triggers: 150 pools + 50 missiles over 2,000 units | 55.7–56.1 µs |
+
+Added at F9 (`bench/abilities.ts`), same Apple Silicon Mac (arm64, Node 25.8.1), range of three full runs. 1,000 heroes each hold all three buttons down on every motion step: a dodge (1 s cooldown, a 0.5 s sprint aura, and a `travel` hook that moves the hero while it sprints), a skill blocked while sprinting (2 s) and an ultimate that resets the dodge's cooldown (4 s); every cast releases one prepared `grant`, about 58 of them a tick. A tick steps the clock, then each hero's auras, its press and its travel, so most of it is the aura tick (the aura system's own rows above); the press checks, the loadout reads and the travel hooks are about a fifth of the profile. Run alone, outside tinybench, the tick measures 134–135 µs. Over 3,000 ticks it causes about 18 minor GCs: the fires allocate their aura applications and argument tuples, which a press path that fires a few dozen times a tick can afford. In the same full runs the F7 horde tick reads 154–156 µs (140–141 µs in F8's), as the suite loads another module; the area trigger tick is unchanged.
+
+| benchmark                                           | per op     |
+| --------------------------------------------------- | ---------- |
+| abilities: 1,000 heroes press three slots, per tick | 157–163 µs |
