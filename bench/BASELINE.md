@@ -92,3 +92,11 @@ Added at F11 (`bench/combat-log.ts`), same Apple Silicon Mac (arm64, Node 25.8.1
 | --------------------------------------------- | -------- |
 | combat log: a blow raised and recorded        | 45–46 ns |
 | combat log: a blow recorded, meter subscribed | 59–63 ns |
+
+Added at F13 (`bench/units.ts`), same Apple Silicon Mac (arm64, Node 25.8.1), range of three full runs. A unit system over an aura system whose modifiers fold through a modifier system, with each unit's own bases at its `base` source. A spawn makes the unit's aura state, caster state, stat sheet and view, and shares its template's compiled base list (a spawn with its own stats compiles one); units are not pooled yet, so a spawn allocates. The derived-state reads intersect the unit's aura tags with the states' bitsets; the folded stat reads a sheet with one aura modifier.
+
+| benchmark                               | per op     |
+| --------------------------------------- | ---------- |
+| units: spawn + despawn a grunt          | 899–910 ns |
+| units: canAct + canMove                 | 13 ns      |
+| units: a folded stat (an aura modifier) | 41–42 ns   |

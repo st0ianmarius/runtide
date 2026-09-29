@@ -2,7 +2,15 @@ import { type AbilitySystem, NO_LOADOUT } from '../abilities/index.ts';
 import type { AuraSystem } from '../auras/index.ts';
 import type { EventKind } from '../core/index.ts';
 import type { DamageSystem } from '../damage/index.ts';
-import { type ModifierSystem, plus, type SourceId, type StatId, type StatView } from '../modifiers/index.ts';
+import {
+  type Modifier,
+  type ModifierList,
+  type ModifierSystem,
+  plus,
+  type SourceId,
+  type StatId,
+  type StatView,
+} from '../modifiers/index.ts';
 import type { ProcBus } from '../procs/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
 import type { UnitStateTable } from './states.ts';
@@ -163,6 +171,9 @@ export class UnitEngine<G extends UnitTypes> {
 
   readonly #createExt: () => G['unitExt'];
 
+  /** Each template's compiled base list, shared by every unit spawned with its template's stats alone. */
+  readonly #templateLists: (ModifierList | undefined)[] = [];
+
   constructor(options: UnitSystemOptions<G>) {
     const { registry } = options;
     const spellIds: Readonly<Record<string, SpellId | undefined>> = options.spells.registry.id;
@@ -209,7 +220,7 @@ export class UnitEngine<G extends UnitTypes> {
 
     const made = unit;
 
-    this.foldBases(made, unit);
+    this.foldBases(made, [unit, spawn.stats === undefined]);
     unit.maxHealth = this.statsOf(made).total(this.healthStat);
     unit.health = unit.maxHealth;
     this.byId.set(id, made);
@@ -245,7 +256,7 @@ export class UnitEngine<G extends UnitTypes> {
   }
 
   /** Puts a unit's own bases, over the stat table's, at the base source of its sheet. */
-  foldBases(bearer: G['bearer'], unit: Unit<G>): void {
+  foldBases(bearer: G['bearer'], [unit, isTemplate]: readonly [Unit<G>, boolean]): void {
     const modifiers = this.options.modifiers;
     const { sheet } = unit;
 
@@ -256,21 +267,30 @@ export class UnitEngine<G extends UnitTypes> {
     }
 
     const { system } = modifiers;
-    const tableBase = this.registry.stats.columns.base;
-    const names = this.registry.stats.names;
+    const sources: Readonly<Record<string, SourceId | undefined>> = system.sources.id;
+    const source = sources[modifiers.base] ?? missing(`there is no modifier source named ${modifiers.base}`);
+    const shared = isTemplate ? this.#templateLists[unit.template] : undefined;
+    const list = shared ?? system.compile(this.#baseModifiers(unit.base));
 
-    const list = [...unit.base].flatMap((value, stat) => {
+    if (isTemplate) {
+      this.#templateLists[unit.template] = list;
+    }
+
+    system.setSource(sheet, source, [list]);
+    unit.view = system.view(sheet, { host: bearer });
+  }
+
+  /** The adds that move the stat table's bases to a unit's own. */
+  #baseModifiers(base: Float64Array): Modifier<G['stat'], G['condition'], G['valueKind']>[] {
+    const tableBase = this.registry.stats.columns.base;
+    const names: readonly G['stat'][] = this.registry.stats.names.filter((name): name is G['stat'] => name.length >= 0);
+
+    return [...base].flatMap((value, stat) => {
       const delta = value - (tableBase[stat] ?? 0);
       const name = names[stat];
 
       return delta === 0 || name === undefined ? [] : [plus(name, delta)];
     });
-
-    const sources: Readonly<Record<string, SourceId | undefined>> = system.sources.id;
-    const source = sources[modifiers.base] ?? missing(`there is no modifier source named ${modifiers.base}`);
-
-    system.setSource(sheet, source, [system.compile(list)]);
-    unit.view = system.view(sheet, { host: bearer });
   }
 
   /** A unit's stats. */

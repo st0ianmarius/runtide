@@ -35,6 +35,7 @@ import { CUE_TASKS, CUE_TICK_BYTES, cueCounter } from './cues.ts';
 import { DAMAGE_TASKS, damageCounter } from './damage.ts';
 import { counter, PROC_TRIGGER_TASKS } from './procs-triggers.ts';
 import { SPELL_TASKS, spellCounter, spellHordeStats } from './spells.ts';
+import { UNIT_TASKS, unitCounter } from './units.ts';
 import { WORLD_TASKS, worldCounter } from './world.ts';
 
 /** Operations per task call: single operations are far below the timer's resolution, so each call runs a batch. */
@@ -286,6 +287,7 @@ for (const [name, task, blows] of [
   ...AREA_TASKS,
   ...ABILITY_TASKS,
   ...LOG_TASKS,
+  ...UNIT_TASKS,
 ]) {
   const calls = Math.max(1, BATCH / blows);
 
@@ -309,7 +311,8 @@ sink +=
   worldCounter.found +
   areaCounter.granted +
   abilityCounter.granted +
-  logCounter.seen;
+  logCounter.seen +
+  unitCounter.seen;
 
 const horde = spellHordeStats();
 const areas = areaStats();
