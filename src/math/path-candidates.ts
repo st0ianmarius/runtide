@@ -32,7 +32,11 @@ export class PathCandidates {
     }
   }
 
-  /** The shares where the moving point is exactly `r` from `(cx, cz)`. */
+  /**
+   * The shares where the moving point is exactly `r` from `(cx, cz)`. The discriminant is taken from the line's
+   * distance to the centre (`a·r² − (o × d)²`, equal to `b² − a(o·o − r²)`), which keeps a circle far smaller than
+   * its distance from the start (a ring's inner rim less the body's reach) from cancelling away.
+   */
   #circle(cx: number, cz: number, r: number): void {
     if (!(r > 0)) {
       return;
@@ -45,7 +49,8 @@ export class PathCandidates {
     const oz = from.z - cz;
     const a = dx * dx + dz * dz;
     const b = ox * dx + oz * dz;
-    const discriminant = b * b - a * (ox * ox + oz * oz - r * r);
+    const cross = ox * dz - oz * dx;
+    const discriminant = a * r * r - cross * cross;
 
     if (a <= 0 || discriminant < 0) {
       return;
@@ -77,12 +82,13 @@ export class PathCandidates {
     }
   }
 
-  /** A cone's candidates: its rim, its apex circles, and each straight edge with its offsets. */
+  /** A cone's candidates: its rim, its apex circles (bare and grown by the reach), and each edge with its offsets. */
   #cone(shape: Extract<Shape, { kind: 'cone' }>, margin: number): void {
     const { at } = shape;
 
     this.#circle(at.x, at.z, shape.r + margin);
     this.#circle(at.x, at.z, shape.apex);
+    this.#circle(at.x, at.z, shape.apex + margin);
     this.#circle(at.x, at.z, Math.abs(margin));
 
     for (const heading of [shape.dir - shape.half, shape.dir + shape.half]) {

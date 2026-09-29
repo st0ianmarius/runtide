@@ -3,14 +3,21 @@ import { inPolygon, polygonEdgeDistanceSq } from './polygon.ts';
 import type { Cone, Lane, Polygon, Ring, Shape } from './shapes.ts';
 import type { Vec2 } from './vec2.ts';
 
-/** Whether a body reaching `margin` past `p` overlaps a ring. */
+/**
+ * Whether a body reaching `margin` past `p` overlaps a ring. Both rims are tested as distances against the radii the
+ * path tests solve for (`outer + margin`, `inner - margin`), so the two round alike: `d + margin >= inner` could round
+ * up to the rim for a body just short of it.
+ */
 const coversRing = (shape: Ring, p: Vec2, margin: number): boolean => {
   const d = Math.hypot(p.x - shape.at.x, p.z - shape.at.z);
 
-  return d < shape.outer + margin && d + margin >= shape.inner;
+  return d < shape.outer + margin && d >= shape.inner - margin;
 };
 
-/** Whether a body reaching `margin` past `p` overlaps a cone; near the apex it counts at any angle. */
+/**
+ * Whether a body reaching `margin` past `p` overlaps a cone; near the apex it counts at any angle, the apex's radius
+ * grown by the reach like any round rim (a body behind the tip still touches it).
+ */
 const coversCone = (shape: Cone, p: Vec2, margin: number): boolean => {
   const dx = p.x - shape.at.x;
   const dz = p.z - shape.at.z;
@@ -20,7 +27,7 @@ const coversCone = (shape: Cone, p: Vec2, margin: number): boolean => {
     return false;
   }
 
-  if (d < shape.apex || d === 0) {
+  if (d < shape.apex + margin || d === 0) {
     return true;
   }
 

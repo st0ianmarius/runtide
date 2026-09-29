@@ -121,6 +121,48 @@ describe('pathIntervals and secondsInside: a body crossing a shape over one tick
     close(secondsInside(growing, { from: vec2(5, 0), to: vec2(5, 0), t0: 0, t1: 1, steps: 4 }), 0.75);
   });
 
+  it('agrees with covers for a body a rounding short of a ring inner rim (fast-check seed -148015370)', () => {
+    const shape = ring(1, 3);
+    const radius = 0.9999999999999989;
+    const from = vec2(0, -1.0547118733938987e-15);
+    const out: number[] = [];
+
+    // 1.05e-15 + radius is just under 1 but rounds to it, so the rim test must not add the reach to the distance.
+    assert.equal(covers(shape, from, radius), false);
+    assert.equal(pathIntervals(shape, { from, to: vec2(0, 0), t0: 0, t1: 1, radius }, out), 0);
+    assert.equal(covers(shape, vec2(0, -1.2e-15), radius), true);
+  });
+
+  it('finds a ring inner rim shrunk by the reach to a hair, across a long segment (fast-check seed 675909895)', () => {
+    const out: number[] = [];
+
+    const path = {
+      from: vec2(0, 4.675661512726095),
+      to: vec2(0, -5.943511983007753),
+      t0: 0,
+      t1: 1,
+      radius: 0.9999999578531515,
+    };
+
+    // Solving the inner rim as b² − a(o·o − r²) lost r² ≈ 2e-15 against o·o ≈ 22, dropping both crossings.
+    assert.equal(pathIntervals(ring(1, 3), path, out), 2);
+    close(out[0], 0.06362656709059182);
+    close(out[3], 0.8169808576971277);
+  });
+
+  it('grows a cone apex by the body radius, behind the tip too (fast-check seed 459037742)', () => {
+    const sector = cone({ r: 5, half: 0.6, dir: 0.3, apex: 0.5 });
+    const out: number[] = [];
+
+    // Facing away from the cone, 0.56 from its apex, a body reaching 1 overlaps the apex disc.
+    assert.equal(covers(sector, vec2(-0.56, 0), 1), true);
+    assert.equal(covers(sector, vec2(-1.49, 0), 1), true);
+    assert.equal(covers(sector, vec2(-1.51, 0), 1), false);
+    assert.equal(pathIntervals(sector, { from: vec2(-3, 0), to: vec2(-0.56, 0), t0: 0, t1: 1, radius: 1 }, out), 1);
+    close(out[0], 1.5 / 2.44);
+    close(out[1], 1);
+  });
+
   it('agrees with covers at every sampled point of any segment, for any shape', () => {
     const shapes: Shape[] = [
       circle(3, vec2(1, 2)),
@@ -149,12 +191,17 @@ describe('pathIntervals and secondsInside: a body crossing a shape over one tick
             );
 
           const isNearEdge = (t: number) => out.slice(0, count * 2).some((edge) => Math.abs(edge - t) < 1e-6);
+          const coversAt = (t: number) => covers(shape, vec2(ax + (bx - ax) * t, az + (bz - az) * t), radius);
+
+          // A sample a rim passes within a hair of is skipped too: pathIntervals joins gaps under 1e-12 of the path
+          // (a body of radius a rounding short of a ring's inner radius, crossing its centre), which covers still sees.
+          const isOnSliver = (t: number) => coversAt(t - 1e-9) !== coversAt(t) || coversAt(t + 1e-9) !== coversAt(t);
 
           for (let k = 0; k <= 64; k++) {
             const t = k / 64;
 
-            if (!isNearEdge(t)) {
-              assert.equal(isInside(t), covers(shape, vec2(ax + (bx - ax) * t, az + (bz - az) * t), radius));
+            if (!isNearEdge(t) && !isOnSliver(t)) {
+              assert.equal(isInside(t), coversAt(t));
             }
           }
         },
