@@ -8,6 +8,7 @@ import type { Activation } from './activation.ts';
 import type { CastHandle } from './ids.ts';
 import type { MirrorCtx } from './mirror.ts';
 import type { ProcOut } from './proc-out.ts';
+import type { Reach } from './reach.ts';
 import type { SpellHost } from './spell-host.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import type { Timeline } from './timeline.ts';
@@ -265,6 +266,12 @@ export interface SpellDef<
 
   /** The cues it fires at its moments. */
   readonly cues?: SpellCues<G, Source, Target, State>;
+
+  /**
+   * Its reach rules (§I.7.1 F16), asked after `target`: a range, a clear line, room at the point. Its activation
+   * kind's (an `ai` activation's `range` and `sight`) when absent.
+   */
+  readonly reach?: Reach<G, Source, Target>;
 
   /** Makes a cast's own state, once per cast (`ctx.state`); `undefined` when absent. */
   state?(this: void): State;

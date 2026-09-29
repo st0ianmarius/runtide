@@ -133,10 +133,10 @@ const columnOf = <G extends SpellTypes, C extends Column>(
 /** The typed hot-field columns. */
 const buildColumns = <G extends SpellTypes>(
   slots: readonly (AnySpellDef<G> | undefined)[],
-  activations: ActivationRegistry<G>,
+  [activations, names]: readonly [ActivationRegistry<G>, readonly string[]],
 ): Record<SpellColumn, Column> => {
   const kindIds: Readonly<Record<string, number | undefined>> = activations.id;
-  const plans = slots.map((def) => (def === undefined ? undefined : planOf(def, activations)));
+  const plans = slots.map((def, id) => (def === undefined ? undefined : planOf(def, activations, names[id] ?? '')));
   const size = slots.length;
 
   return {
@@ -224,7 +224,7 @@ export const defineSpells = <G extends SpellTypes, const Name extends string>(
   const slots = Object.freeze(base.names.map((name) => liveDef(byName.get(name))));
   const kindIds: Readonly<Record<string, number | undefined>> = activations.id;
   const autoKind = kindIds['auto'];
-  const columns = buildColumns(slots, activations);
+  const columns = buildColumns(slots, [activations, base.names]);
 
   return Object.freeze({
     ...base,

@@ -1,9 +1,9 @@
 import { PROC_LANDED, PROC_REFUSED, PROC_SKIPPED, type ProcKindDef } from '../procs/index.ts';
 import { rescaleClocks } from './auto.ts';
+import type { CastOptions, CastReport } from './cast-request.ts';
 import type { SpellEngine } from './engine.ts';
 import { missing } from './missing.ts';
 import type { AfterProc, CastSpellProc, RescaleClocksProc, SpellProcKinds } from './procs.ts';
-import type { CastOptions, CastReport } from './runner.ts';
 import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 
 /** The options a `castSpell` proc casts with, reused: the cast order reads them before any hook runs. */

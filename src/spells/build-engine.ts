@@ -1,9 +1,10 @@
 import type { AuraId, AuraSystem } from '../auras/index.ts';
 import { type ActivationRegistry, CORE_ACTIVATIONS } from './activation.ts';
-import { planOf } from './cast-plan.ts';
+import { type CastPlan, planOf } from './cast-plan.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import { SpellEngine } from './engine.ts';
 import { OPEN_WORLD } from './mirror.ts';
+import type { ReachPlan } from './reach.ts';
 import type { AnySpellDef } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
 import { baseView, StatsBoxes } from './stats-box.ts';
@@ -67,6 +68,33 @@ const checkCues = <G extends SpellTypes>(options: SpellSystemOptions<G>): void =
   }
 };
 
+/** What a spell's reach needs of the system that it lacks, as a sentence; `undefined` when it lacks nothing. */
+const reachLack = <G extends SpellTypes>(options: SpellSystemOptions<G>, reach: ReachPlan<G>): string | undefined => {
+  const isPlaced = options.host.positionOf !== undefined;
+
+  if ((reach.range !== undefined || reach.sight) && !isPlaced) {
+    return 'has a range or needs sight, so the system needs host.positionOf';
+  }
+
+  return (reach.sight || reach.clearance > 0) && options.world === undefined
+    ? 'tests sight or room, so the system needs a world'
+    : undefined;
+};
+
+/** Checks at load that spells with reach rules have a host that places casters, and a world when they test it. */
+const checkReach = <G extends SpellTypes>(
+  options: SpellSystemOptions<G>,
+  plans: readonly (CastPlan<G> | undefined)[],
+): void => {
+  for (const [id, plan] of plans.entries()) {
+    const lack = plan?.reach === undefined ? undefined : reachLack(options, plan.reach);
+
+    if (lack !== undefined) {
+      throw new RangeError(`Spell ${options.registry.names[id] ?? ''} ${lack}.`);
+    }
+  }
+};
+
 /** The most interrupts the spells may name: each pauses by a bit of its own, above the manual pause's. */
 const MAX_INTERRUPTS = 30;
 
@@ -85,7 +113,12 @@ const interruptBitsOf = <G extends SpellTypes>(registry: SpellRegistry<G>): Read
 export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): SpellEngine<G> => {
   const { registry } = options;
 
+  const plans = registry.defs.map((def, id) =>
+    def === undefined ? undefined : planOf(def, registry.activations, registry.names[id] ?? ''),
+  );
+
   checkCues(options);
+  checkReach(options, plans);
 
   return new SpellEngine<G>({
     registry,
@@ -98,7 +131,7 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     events: options.events,
     cues: options.cues,
     world: options.world ?? OPEN_WORLD,
-    plans: registry.defs.map((def) => (def === undefined ? undefined : planOf(def, registry.activations))),
+    plans,
     castAuras: registry.defs.map((def, id) => castAuraOf(options.auras, def, registry.names[id] ?? '')),
     boxes: new StatsBoxes(registry.compiled),
     baseView: baseView(registry.stats),

@@ -2,6 +2,7 @@ import type { AuraId } from '../auras/index.ts';
 import { createRegistry, type Registry } from '../core/index.ts';
 import type { Scaled } from '../modifiers/index.ts';
 import type { MirrorCtx } from './mirror.ts';
+import type { ReachDefaults } from './reach.ts';
 import type { GateContext, SpellContext, StatsSource } from './spell-def.ts';
 import type { ActivationShape, SpellTypes } from './spell-types.ts';
 
@@ -34,7 +35,7 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
   /** What a refusal by the gates or `canCast` costs: `spend` (the default) or `retry`. */
   readonly onRefused?: 'spend' | 'retry';
 
-  /** What a cast whose `target` found nothing costs: `retry` (the default) or `spend`. */
+  /** What a cast whose `target` found nothing, or found it out of reach, costs: `retry` (the default) or `spend`. */
   readonly onNoTarget?: 'spend' | 'retry';
 
   /** What an instant cast whose release set nothing off costs (a swing that never went out): `retry` by default. */
@@ -154,10 +155,10 @@ export interface AiActivation {
   /** Seconds before the same caster may pick it again (the picker's, F17). */
   readonly cooldown?: number;
 
-  /** The farthest a cast may start from (the gates', F16). */
+  /** The farthest its target may be as the cast starts (its reach's range, §I.7.1 F16). */
   readonly range?: number;
 
-  /** Whether a clear line to the target is needed to start (the gates', F16). */
+  /** Whether a clear line to its target is needed as the cast starts (its reach's sight). */
   readonly sight?: boolean;
 
   /** What the cast holds of a shared budget while it winds up (the budget policies', F17). */
@@ -213,6 +214,9 @@ export interface ActivationKindDef<A extends ActivationShape = ActivationShape, 
   /** The timeline defaults the kind supplies. */
   timeline?(this: void, activation: A): TimelineDefaults | undefined;
 
+  /** The reach rules the kind supplies where the spell declares none (§I.7.1 F16). */
+  reach?(this: void, activation: A): ReachDefaults | undefined;
+
   /** The kind's own gate, asked after the host's `canAct` and before the stats; a false refuses the cast. */
   gate?(this: void, activation: A, ctx: GateContext<G>): boolean;
 
@@ -262,7 +266,7 @@ const BUTTON: ActivationKindDef<ButtonActivation, never> = {
   },
 };
 
-/** The `ai` kind: its windup, lock and recovery are the timeline's defaults. */
+/** The `ai` kind: its windup, lock and recovery are the timeline's defaults, its range and sight the reach's. */
 const AI: ActivationKindDef<AiActivation, never> = {
   check: (activation) =>
     [activation.windup, activation.lock, activation.recover, activation.cooldown].every(isSeconds)
@@ -274,6 +278,8 @@ const AI: ActivationKindDef<AiActivation, never> = {
     recover: activation.recover,
     lockBefore: activation.lock,
   }),
+
+  reach: (activation) => ({ range: activation.range, sight: activation.sight }),
 };
 
 /** A kind with nothing to check or supply. */

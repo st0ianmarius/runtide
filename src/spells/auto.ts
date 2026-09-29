@@ -1,21 +1,25 @@
 import { countDown, isRunOut } from '../core/index.ts';
 import { type AutoActivation, isAuto } from './activation.ts';
+import type { CastReport } from './cast-request.ts';
 import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
 import { NO_CAST } from './ids.ts';
-import type { CastReport } from './runner.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 
 /** What an `auto` clock costs after a cast: the whole interval, or a retry after a few seconds. */
 type Cost = 'spend' | 'retry';
 
+/** Whether a refusal is a reach rule's (§I.7.1 F16). */
+const isReachRefusal = (refusal: CastReport['refusal']): boolean =>
+  refusal === 'range' || refusal === 'sight' || refusal === 'placement';
+
 /**
  * What a cast costs its clock (§II.6 S2): a refusal by the gates or `canCast` answers `onRefused` (spend by default),
- * a refusal for no target `onNoTarget` (retry), an instant cast whose release set nothing off `onMiss` (retry), and
+ * a refusal for no target or out of reach `onNoTarget` (retry: a swing's reach polled every step), an instant cast whose release set nothing off `onMiss` (retry), and
  * any other cast spends.
  */
 const costOf = <G extends SpellTypes>(activation: AutoActivation<G>, report: CastReport): Cost => {
-  if (report.refusal === 'target') {
+  if (report.refusal === 'target' || isReachRefusal(report.refusal)) {
     return activation.onNoTarget ?? 'retry';
   }
 

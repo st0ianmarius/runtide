@@ -2,86 +2,15 @@ import { NO_SOURCE } from '../auras/index.ts';
 import { isRunOut } from '../core/index.ts';
 import type { ActivationKindDef, CastSeconds } from './activation.ts';
 import { fireCastCue } from './cast-cue.ts';
+import type { CastOptions, CastRefusal, CastReport, CastRequest, Report } from './cast-request.ts';
 import type { Cast } from './cast.ts';
 import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
-import { type CastHandle, NO_CAST } from './ids.ts';
+import { NO_CAST } from './ids.ts';
+import { checkReach } from './reach.ts';
 import type { AnySpellDef, CastOutcome, CastStage } from './spell-def.ts';
 import type { ActivationShape, SpellId, SpellTypes } from './spell-types.ts';
 import { autoIntervalOf, refreshLive, takeStats } from './take-stats.ts';
-
-/** Why a cast was refused: the gates (the host's `canAct`, the activation kind's), `canCast`, or no target. */
-export type CastRefusal = 'gate' | 'canCast' | 'target';
-
-/** What starting a cast did (`spells.cast`), reused between calls, so read it at once. */
-export interface CastReport {
-  /** The cast's handle; stale at once for a cast that ended within the call; `NO_CAST` for a refusal. */
-  readonly handle: CastHandle;
-
-  /** `refused`, `running` (in a stage), or `ended` (it ran its whole course within the call). */
-  readonly status: 'refused' | 'running' | 'ended';
-
-  /** Why it was refused; `undefined` when it started. */
-  readonly refusal: CastRefusal | undefined;
-
-  /** How many of its release procs went off; 0 when it has not released yet (or was refused). */
-  readonly went: number;
-
-  /** Whether its payload went out within the call (a spell with no windup), whatever its procs did. */
-  readonly hasReleased: boolean;
-
-  /**
-   * For an `auto` spell, its interval read at the cast (§II.6 S2), with the cast's stats (taken for a refusal at the
-   * gate too, when the interval reads them); NaN for any other spell.
-   */
-  readonly interval: number;
-}
-
-/** How a cast is started, beyond the caster and the spell. */
-export interface CastOptions<G extends SpellTypes> {
-  /** What the activation hands it: an aim, a unit (`ctx.input`, the `target` hook's argument). */
-  readonly input?: G['input'] | undefined;
-
-  /** Its rank, from 1; 1 when absent. */
-  readonly rank?: number | undefined;
-
-  /** Its variant; 0 when absent. */
-  readonly variant?: number | undefined;
-
-  /** The entity id its hits are credited to; the caster's (`host.idOf`) when absent. */
-  readonly source?: number | undefined;
-
-  /**
-   * The key its predicted cast cue carries (§II.6 R2): the game's press key (its input sequence), the same on the
-   * server and the predicting client; 0 (none) when absent.
-   */
-  readonly key?: number | undefined;
-}
-
-/** No options: every default. */
-export const NO_OPTIONS: CastOptions<never> = Object.freeze({});
-
-/** What a cast is asked for: who casts which spell, how; a system reuses one. */
-export interface CastRequest<G extends SpellTypes> {
-  /** Who casts. */
-  readonly caster: G['bearer'];
-
-  /** The spell. */
-  readonly spell: SpellId;
-
-  /** How. */
-  readonly options: CastOptions<G>;
-}
-
-/** The one report of a system, rewritten by every cast. */
-export class Report implements CastReport {
-  handle: CastHandle = NO_CAST;
-  status: CastReport['status'] = 'refused';
-  refusal: CastRefusal | undefined = undefined;
-  went = 0;
-  hasReleased = false;
-  interval = Number.NaN;
-}
 
 /**
  * Whether a cast has ended: asked again after every hook and event, since their procs may end it (a function, so the
@@ -136,7 +65,7 @@ const passesGates = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>
   return kind?.gate?.(def.activation, cast) !== false;
 };
 
-/** The cast order up to `begin` (§II.3.1): gates, stats, `canCast`, target. The refusal, or `undefined`. */
+/** The cast order up to `begin` (§II.3.1): gates, stats, `canCast`, target, reach. The refusal, or `undefined`. */
 const admit = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
@@ -162,7 +91,13 @@ const admit = <G extends SpellTypes>(
 
   cast.target = target(cast, cast.input);
 
-  return cast.target === undefined ? 'target' : undefined;
+  if (cast.target === undefined) {
+    return 'target';
+  }
+
+  const reach = engine.plans[cast.spell]?.reach;
+
+  return reach === undefined ? undefined : checkReach(engine, cast, reach);
 };
 
 /** Enters a stage: its seconds read now (a function reads the cast), its clock reset. Throws for bad seconds. */
@@ -390,4 +325,26 @@ export const startCast = <G extends SpellTypes>(
   report.interval = interval;
 
   return report;
+};
+
+/**
+ * Asks whether a cast would start (§I.7.1 F16: a picker reading each spell's cast rules), running the cast order up to
+ * `begin` (the gates, the stats, `canCast`, the target and its reach) and starting nothing. The refusal, or
+ * `undefined`. The hooks it runs must not change the world, as the cast order's never do.
+ */
+export const checkCast = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  request: CastRequest<G>,
+): CastRefusal | undefined => {
+  const def = engine.registry.get(request.spell);
+  const cast = engine.acquire(request.caster);
+
+  initCast(engine, cast, request);
+
+  try {
+    return admit(engine, cast, def);
+  } finally {
+    cast.stage = 'ended';
+    engine.unhold(cast);
+  }
 };

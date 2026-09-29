@@ -1,0 +1,79 @@
+import { type CastHandle, NO_CAST } from './ids.ts';
+import type { ReachRefusal } from './reach.ts';
+import type { SpellId, SpellTypes } from './spell-types.ts';
+
+/**
+ * Why a cast was refused: the gates (the host's `canAct`, the activation kind's), `canCast`, no target, or a reach
+ * rule (§I.7.1 F16: the target out of `range`, out of `sight`, or no room at its point for a `placement`).
+ */
+export type CastRefusal = 'gate' | 'canCast' | 'target' | ReachRefusal;
+
+/** What starting a cast did (`spells.cast`), reused between calls, so read it at once. */
+export interface CastReport {
+  /** The cast's handle; stale at once for a cast that ended within the call; `NO_CAST` for a refusal. */
+  readonly handle: CastHandle;
+
+  /** `refused`, `running` (in a stage), or `ended` (it ran its whole course within the call). */
+  readonly status: 'refused' | 'running' | 'ended';
+
+  /** Why it was refused; `undefined` when it started. */
+  readonly refusal: CastRefusal | undefined;
+
+  /** How many of its release procs went off; 0 when it has not released yet (or was refused). */
+  readonly went: number;
+
+  /** Whether its payload went out within the call (a spell with no windup), whatever its procs did. */
+  readonly hasReleased: boolean;
+
+  /**
+   * For an `auto` spell, its interval read at the cast (§II.6 S2), with the cast's stats (taken for a refusal at the
+   * gate too, when the interval reads them); NaN for any other spell.
+   */
+  readonly interval: number;
+}
+
+/** How a cast is started, beyond the caster and the spell. */
+export interface CastOptions<G extends SpellTypes> {
+  /** What the activation hands it: an aim, a unit (`ctx.input`, the `target` hook's argument). */
+  readonly input?: G['input'] | undefined;
+
+  /** Its rank, from 1; 1 when absent. */
+  readonly rank?: number | undefined;
+
+  /** Its variant; 0 when absent. */
+  readonly variant?: number | undefined;
+
+  /** The entity id its hits are credited to; the caster's (`host.idOf`) when absent. */
+  readonly source?: number | undefined;
+
+  /**
+   * The key its predicted cast cue carries (§II.6 R2): the game's press key (its input sequence), the same on the
+   * server and the predicting client; 0 (none) when absent.
+   */
+  readonly key?: number | undefined;
+}
+
+/** No options: every default. */
+export const NO_OPTIONS: CastOptions<never> = Object.freeze({});
+
+/** What a cast is asked for: who casts which spell, how; a system reuses one. */
+export interface CastRequest<G extends SpellTypes> {
+  /** Who casts. */
+  readonly caster: G['bearer'];
+
+  /** The spell. */
+  readonly spell: SpellId;
+
+  /** How. */
+  readonly options: CastOptions<G>;
+}
+
+/** The one report of a system, rewritten by every cast. */
+export class Report implements CastReport {
+  handle: CastHandle = NO_CAST;
+  status: CastReport['status'] = 'refused';
+  refusal: CastRefusal | undefined = undefined;
+  went = 0;
+  hasReleased = false;
+  interval = Number.NaN;
+}

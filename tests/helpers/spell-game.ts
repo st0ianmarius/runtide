@@ -82,7 +82,7 @@ import { createTriggerSystem, type TriggerDef, type TriggerTypes } from '../../s
 import { createMemoryWorld, type MemoryWorld } from '../../src/world/index.ts';
 
 /** A test unit: an entity id, a place, health, a stat column per stat, its auras and its casts. */
-interface Unit extends SpellCaster {
+export interface Unit extends SpellCaster {
   /** Its entity id. */
   readonly id: number;
 
@@ -313,7 +313,7 @@ export interface SpellGameOptions<Aura extends string, Area extends string = nev
   readonly activations?: ActivationRegistry<Game>;
 
   /** Spell system overrides. */
-  readonly spells?: Partial<Pick<SpellSystemBase<Game>, 'random' | 'streams' | 'slots'>>;
+  readonly spells?: Partial<Pick<SpellSystemBase<Game>, 'random' | 'streams' | 'slots' | 'world'>>;
 }
 
 /** A small spell test game. */

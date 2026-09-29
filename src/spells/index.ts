@@ -85,7 +85,8 @@ export {
   type StatsSource,
 } from './spell-def.ts';
 
-export type { CastOptions, CastRefusal, CastReport } from './runner.ts';
+export type { Reach, ReachDefaults, ReachRefusal } from './reach.ts';
+export type { CastOptions, CastRefusal, CastReport } from './cast-request.ts';
 export type { SpellHost } from './spell-host.ts';
 export type { ActivationKindId, ActivationShape, SpellCaster, SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 export { createSpellSystem, type SpellSystem } from './system.ts';

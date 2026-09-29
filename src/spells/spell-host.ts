@@ -1,3 +1,4 @@
+import type { Vec2 } from '../math/index.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { ProcHost } from '../procs/index.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
@@ -18,6 +19,12 @@ export interface SpellHost<G extends SpellTypes> extends ProcHost<G> {
    * before the activation kind's gate; a false refuses the cast. Every cast may start when absent.
    */
   readonly canAct?: (caster: G['bearer'], spell: SpellId) => boolean;
+
+  /**
+   * The point of a cast's target, for its reach rules (§I.7.1 F16): a unit's position, a placement's point. A spell's
+   * own `reach.pointOf` comes first, and a target that is a point is its own; `undefined` when it does not know one.
+   */
+  readonly pointOf?: (target: unknown) => Vec2 | undefined;
 
   /**
    * Whether a caster owns a spell (the spellbook's answer, F20): an `auto` spell's clock casts only while it is owned,
