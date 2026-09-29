@@ -64,9 +64,15 @@ export const snapshotScaled = (
 
   snapshot.rank = ctx.rank ?? 1;
 
-  for (const stat of value.casterStats) {
-    snapshot.caster.totals[stat] = ctx.caster.total(stat);
-    snapshot.caster.bases[stat] = ctx.caster.base(stat);
+  // An indexed loop: every cast start takes this, and an iterator over the frozen list allocates (§I.5.4).
+  // oxlint-disable-next-line typescript/prefer-for-of
+  for (let i = 0; i < value.casterStats.length; i++) {
+    const stat = value.casterStats[i];
+
+    if (stat !== undefined) {
+      snapshot.caster.totals[stat] = ctx.caster.total(stat);
+      snapshot.caster.bases[stat] = ctx.caster.base(stat);
+    }
   }
 
   return snapshot;

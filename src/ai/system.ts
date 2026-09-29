@@ -111,6 +111,8 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
   const scheduler = new Scheduler<G>(options.clock, timers.names.length);
   const picker = new Picker<G>(spells);
   const heldBy = spells.interruptMask(options.heldBy ?? []);
+  // Each holding interrupt's bit, looked up once: a stun edge reads one map, where a mask would build an array.
+  const holdBits = new Map((options.heldBy ?? []).map((reason) => [reason, spells.interruptMask([reason])]));
 
   const system: AiSystem<G> = {
     timers,
@@ -138,7 +140,8 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
     step: (fire) => scheduler.step(fire),
     hold: (unit, isOn) => scheduler.hold(unit, { bits: GAME_HOLD, isOn }),
 
-    interrupt: (unit, reason, isOn) => scheduler.hold(unit, { bits: spells.interruptMask([reason]) & heldBy, isOn }),
+    interrupt: (unit, reason, isOn) =>
+      scheduler.hold(unit, { bits: holdBits.get(reason) ?? spells.interruptMask([reason]) & heldBy, isOn }),
 
     pick: (caster, pool, pick) => picker.pick(caster, pool, pick),
     first: (caster, list, first) => picker.first(caster, list, first),

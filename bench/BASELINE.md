@@ -184,3 +184,5 @@ At the review after F21, a pool handle stays a small integer: 20 bits of slot (1
 | spells: 1,000 after(0) landing on one tick (tick)      | 170.3 µs | 144.0 µs |
 | ai: 2,000 brains, a pick timer each every 1–3 s (tick) | 26.6 µs  | 22.1 µs  |
 | ai: a weighted pick of 4 spells (checked)              | 585.9 ns | 440.2 ns |
+
+At the review after F21, the smaller hot-path items: indexed loops where an iterator over a frozen list allocated (a scaled value's caster stats at every cast start, a proc group, the weighted draw an AI pick makes, the polygon tests a catch runs per unit, a stat watch); `stepsUntil` remembers walks of 64 steps or more by rule, step and length (a 60 s aura applied at 30 Hz walked 1,800 steps each time); a `hottest` shared beat marks each unit's hottest catch in one pass instead of comparing every catch with every other (1.2 ms a beat with 40 patches in a crowd, per the review); and an AI interrupt edge reads its hold bit from a map. None of the suite's rows runs these paths hot, and a full run against the pool commit reads within its noise.

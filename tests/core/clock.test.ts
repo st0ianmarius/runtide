@@ -123,6 +123,28 @@ describe('countdowns', () => {
     assert.equal(stepsUntil(1, 0, DEFAULT_COUNTDOWN), 0);
   });
 
+  it('remember long walks exactly: a length walked again answers what walking it answers', () => {
+    const walked = (remaining: number, dt: number, rule: typeof EXACT): number => {
+      let left = remaining;
+      let steps = 0;
+
+      while (!isRunOut(left, rule)) {
+        left = countDown(left, dt, rule);
+        steps += 1;
+      }
+
+      return steps;
+    };
+
+    for (const rule of [EXACT, DEFAULT_COUNTDOWN]) {
+      for (const seconds of [0.3, 2.1, 3, 17.35, 60, 600.25]) {
+        for (let pass = 0; pass < 2; pass++) {
+          assert.equal(stepsUntil(seconds, 1 / 60, rule), walked(seconds, 1 / 60, rule), `${seconds} s, pass ${pass}`);
+        }
+      }
+    }
+  });
+
   it('end whole-step lengths on their whole step under the default rule', () => {
     for (const hertz of [10, 20, 30, 60, 64, 120]) {
       for (let steps = 1; steps <= 2000; steps++) {

@@ -44,7 +44,10 @@ export const weighted = (random: Random, weights: readonly number[]): number => 
   let total = 0;
   let last = -1;
 
-  for (const [index, weight] of weights.entries()) {
+  // An indexed loop: an AI pick draws here, and an entries iterator allocates (§I.5.4).
+  for (let index = 0; index < weights.length; index++) {
+    const weight = weights[index] ?? 0;
+
     if (weight > 0) {
       total += weight;
       last = index;
@@ -57,7 +60,9 @@ export const weighted = (random: Random, weights: readonly number[]): number => 
 
   let left = random() * total;
 
-  for (const [index, weight] of weights.entries()) {
+  for (let index = 0; index < weights.length; index++) {
+    const weight = weights[index] ?? 0;
+
     if (weight > 0) {
       left -= weight;
 

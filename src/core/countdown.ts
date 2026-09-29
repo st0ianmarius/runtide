@@ -30,6 +30,51 @@ export const DEFAULT_COUNTDOWN: CountdownRule = Object.freeze({ snap: true, epsi
 /** The longest countdown `stepsUntil` walks step by step before it divides instead. */
 const EXACT_STEPS = 120_000;
 
+/** Walks shorter than this many steps are cheaper than a lookup, so they are never remembered. */
+const REMEMBERED_FROM = 64;
+
+/** How many walks one rule and step remember before they forget them all (random lengths never repeat). */
+const REMEMBERED_AT_MOST = 4096;
+
+/** The walks remembered, by rule, then step, then length: a game uses a few lengths, and each walks the same. */
+const walks = new WeakMap<CountdownRule, Map<number, Map<number, number>>>();
+
+/** The walk of a long countdown, remembered by its rule, step and length (§I.5.4: a 60 s aura walked once). */
+const rememberedWalk = (remaining: number, dt: number, rule: CountdownRule): number => {
+  const byStep = walks.get(rule) ?? new Map<number, Map<number, number>>();
+  const byLength = byStep.get(dt) ?? new Map<number, number>();
+  const known = byLength.get(remaining);
+
+  if (known !== undefined) {
+    return known;
+  }
+
+  const steps = walk(remaining, dt, rule);
+
+  if (byLength.size >= REMEMBERED_AT_MOST) {
+    byLength.clear();
+  }
+
+  byLength.set(remaining, steps);
+  byStep.set(dt, byLength);
+  walks.set(rule, byStep);
+
+  return steps;
+};
+
+/** Counts the steps of `dt` a countdown from `remaining` takes to run out, one `countDown` at a time. */
+const walk = (remaining: number, dt: number, rule: CountdownRule): number => {
+  let left = remaining;
+  let steps = 0;
+
+  while (!isRunOut(left, rule)) {
+    left = countDown(left, dt, rule);
+    steps += 1;
+  }
+
+  return steps;
+};
+
 /**
  * Builds a countdown rule with its own snap and epsilon (`defineCountdown({ snap: false, epsilon: 0 })` steps as
  * `max(0, t − dt)` and is due only at zero). Throws unless the epsilon is a finite number from 0.
@@ -64,24 +109,19 @@ export const isRunOut = (remaining: number, rule: CountdownRule): boolean =>
 /**
  * How many steps of `dt` it takes a countdown from `remaining` to run out under `rule`, walked rather than divided,
  * so the answer is exactly the step on which `countDown` reaches zero. Beyond 120,000 steps it divides instead, which
- * can land one step off the walk. Zero for a countdown already run out, an infinite one or a non-positive `dt`.
+ * can land one step off the walk. A walk of 64 steps or more is remembered by its rule, step and length, so the same
+ * length walks once. Zero for a countdown already run out, an infinite one or a non-positive `dt`.
  */
 export const stepsUntil = (remaining: number, dt: number, rule: CountdownRule): number => {
   if (!(dt > 0) || !Number.isFinite(remaining) || isRunOut(remaining, rule)) {
     return 0;
   }
 
-  if (remaining / dt > EXACT_STEPS) {
+  const estimate = remaining / dt;
+
+  if (estimate > EXACT_STEPS) {
     return Math.ceil((remaining - rule.epsilon) / dt);
   }
 
-  let left = remaining;
-  let steps = 0;
-
-  while (!isRunOut(left, rule)) {
-    left = countDown(left, dt, rule);
-    steps += 1;
-  }
-
-  return steps;
+  return estimate < REMEMBERED_FROM ? walk(remaining, dt, rule) : rememberedWalk(remaining, dt, rule);
 };

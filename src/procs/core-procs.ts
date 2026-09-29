@@ -95,8 +95,16 @@ const numbersOf = (values: Readonly<Record<string, number | undefined>>): Readon
 
 /** Applies each proc of a list in the context's own list, in order. */
 const applyEach = <G extends ProcTypes>(ctx: ProcContext<G>, procs: readonly Proc<G>[] | undefined): void => {
-  for (const proc of procs ?? []) {
-    ctx.apply(proc);
+  const list = procs ?? [];
+
+  // An indexed loop: groups run here, and an iterator over a frozen list allocates (§I.5.4).
+  // oxlint-disable-next-line typescript/prefer-for-of
+  for (let i = 0; i < list.length; i++) {
+    const proc = list[i];
+
+    if (proc !== undefined) {
+      ctx.apply(proc);
+    }
   }
 };
 

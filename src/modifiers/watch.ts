@@ -56,7 +56,9 @@ export const watchStats = <Host>(
       const known = last.get(sheet);
       const values = known ?? new Float64Array(stats.length);
 
-      for (const [index, stat] of stats.entries()) {
+      // An indexed loop: a watch checks every sheet every tick, and an entries iterator allocates (§I.5.4).
+      for (let index = 0; index < stats.length; index++) {
+        const stat = stats[index] ?? missingStat();
         const after = system.resolve(sheet, stat, read);
         const before = values[index] ?? 0;
 
@@ -75,4 +77,9 @@ export const watchStats = <Host>(
       last.set(sheet, values);
     },
   };
+};
+
+/** A watched stat index out of range: the loop bounds prevent it. */
+const missingStat = (): never => {
+  throw new RangeError('A stat watch lost a stat.');
 };

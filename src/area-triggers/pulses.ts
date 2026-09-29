@@ -98,20 +98,27 @@ interface Caught<Unit> {
   readonly of: number[];
 }
 
-/** Whether the `i`-th caught entry is the hottest catch of its unit (the first of the hottest on ties). */
-const isHottest = <Unit>(caught: Caught<Unit>, i: number): boolean => {
-  const unit = caught.units[i];
-  const heat = caught.heats[i] ?? 0;
+/**
+ * Marks, for every caught entry, whether it is its unit's hottest catch (the first of the hottest on ties): one pass
+ * that keeps each unit's best entry, then one that marks it (§I.5.4: a pairwise check was quadratic in the catches).
+ */
+const markHottest = <Unit>(caught: Caught<Unit>, kept: boolean[]): void => {
+  const best = new Map<Unit, number>();
 
-  for (let j = 0; j < caught.units.length; j++) {
-    const other = caught.heats[j] ?? 0;
+  for (let i = 0; i < caught.units.length; i++) {
+    const unit = caught.units[i];
+    const known = unit === undefined ? undefined : best.get(unit);
 
-    if (j !== i && caught.units[j] === unit && (other > heat || (other === heat && j < i))) {
-      return false;
+    if (unit !== undefined && (known === undefined || (caught.heats[i] ?? 0) > (caught.heats[known] ?? 0))) {
+      best.set(unit, i);
     }
   }
 
-  return true;
+  for (let i = 0; i < caught.units.length; i++) {
+    const unit = caught.units[i];
+
+    kept[i] = unit !== undefined && best.get(unit) === i;
+  }
 };
 
 /** A shared beat's members and what they caught. */
@@ -124,6 +131,12 @@ interface Beat<G extends AreaTriggerTypes> {
 
   /** The pulse beating. */
   readonly index: number;
+
+  /** With `hottest`, whether each caught entry is its unit's hottest catch; empty otherwise. */
+  readonly hottest: boolean[];
+
+  /** The member being handed what it kept, by its index among the members. */
+  member: number;
 }
 
 /** Catches what one member of a shared beat catches, noting its heat and its place among the members. */
@@ -149,7 +162,7 @@ const catchMember = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, member: 
 /** Hands one member of a shared beat what it kept: all it caught, or with `hottest` the units it was hottest for. */
 const deliverMember = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, member: AreaTrigger<G>, beat: Beat<G>) => {
   const { caught, index } = beat;
-  const m = beat.members.indexOf(member);
+  const m = beat.member;
   const pulse = engine.registry.get(member.kind).every?.[index];
   const isHot = pulse?.pick === 'hottest';
   const hit = engine.catcher.take(member, pulse, pulse?.onPulse);
@@ -161,7 +174,7 @@ const deliverMember = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, member
     for (let i = 0; i < caught.units.length; i++) {
       const unit = caught.units[i];
 
-      if (unit !== undefined && caught.of[i] === m && (!isHot || isHottest(caught, i))) {
+      if (unit !== undefined && caught.of[i] === m && (!isHot || beat.hottest[i] === true)) {
         hit.units[count] = unit;
         count += 1;
       }
@@ -183,7 +196,7 @@ const deliverMember = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, member
 const sharedBeat = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, first: AreaTrigger<G>, index: number): void => {
   const pulse = engine.registry.get(first.kind).every?.[index];
   const owner = pulse?.clock === 'global' ? undefined : first.owner;
-  const beat: Beat<G> = { members: [], caught: { units: [], heats: [], of: [] }, index };
+  const beat: Beat<G> = { members: [], caught: { units: [], heats: [], of: [] }, index, hottest: [], member: 0 };
 
   for (let walk = engine.kindHeads[first.kind]; walk !== undefined; walk = walk.kindNext) {
     if (isMember(engine, walk, owner)) {
@@ -192,7 +205,13 @@ const sharedBeat = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, first: Ar
     }
   }
 
-  for (const member of beat.members) {
+  if (pulse?.pick === 'hottest') {
+    markHottest(beat.caught, beat.hottest);
+  }
+
+  for (const [m, member] of beat.members.entries()) {
+    beat.member = m;
+
     if (!member.isEnding) {
       deliverMember(engine, member, beat);
     }

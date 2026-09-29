@@ -1,3 +1,6 @@
+// Hot path (§I.4.2, §I.5.4): a catch tests every unit against a polygon, so its loops are indexed (an iterator
+// allocates).
+/* oxlint-disable typescript/prefer-for-of */
 import type { Vec2 } from './vec2.ts';
 
 /** Where two segments cross: the share along each, and the point. */
@@ -93,8 +96,15 @@ export const inPolygon = (p: Vec2, points: readonly Vec2[]): boolean => {
   let inside = false;
   let b = points.at(-1);
 
-  for (const a of points) {
-    if (b !== undefined && a.z > p.z !== b.z > p.z && p.x < ((b.x - a.x) * (p.z - a.z)) / (b.z - a.z) + a.x) {
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+
+    if (
+      a !== undefined &&
+      b !== undefined &&
+      a.z > p.z !== b.z > p.z &&
+      p.x < ((b.x - a.x) * (p.z - a.z)) / (b.z - a.z) + a.x
+    ) {
       inside = !inside;
     }
 
@@ -121,8 +131,10 @@ export const polygonEdgeDistanceSq = (p: Vec2, points: readonly Vec2[]): number 
   let best = Number.POSITIVE_INFINITY;
   let a = points.at(-1);
 
-  for (const b of points) {
-    if (a !== undefined) {
+  for (let i = 0; i < points.length; i++) {
+    const b = points[i];
+
+    if (a !== undefined && b !== undefined) {
       best = Math.min(best, segmentDistanceSq(p, a, b));
     }
 
