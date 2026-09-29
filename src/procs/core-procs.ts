@@ -13,6 +13,7 @@ import type {
   RemoveAuraProc,
   RemoveByTagProc,
   RunProc,
+  TimeLeftProc,
 } from './proc-data.ts';
 import type { ProcDetail, ProcResolver } from './proc-kind.ts';
 import {
@@ -57,6 +58,9 @@ interface CoreProcMap<G extends ProcTypes> {
 
   /** Fires a cue. */
   readonly cue: CueProc<G>;
+
+  /** Scales or caps the time left on the auras carrying a tag. */
+  readonly timeLeft: TimeLeftProc<G>;
 }
 
 /** The name of one of the framework's proc kinds. */
@@ -171,6 +175,45 @@ const removeByTagKind: CoreProcKind<'removeByTag'> = {
   explain: (proc, resolve) => ({ values: { tag: resolve.tag(proc.tag) } }),
 };
 
+/** Throws unless a time change's factor and cap are numbers from 0. */
+const checkTimeLeft = <G extends ProcTypes>(proc: TimeLeftProc<G>): void => {
+  if (!((proc.factor ?? 1) >= 0) || !((proc.max ?? 0) >= 0)) {
+    throw new RangeError(`A timeLeft proc takes a factor and a max from 0.`);
+  }
+};
+
+/** A time change on the auras carrying a tag; its amount is how many changed, `skipped` when none did. */
+const timeLeftKind: CoreProcKind<'timeLeft'> = {
+  targetOf: (proc) => proc.to,
+
+  apply: (proc, ctx, target) => {
+    if (target === undefined) {
+      return PROC_SKIPPED;
+    }
+
+    const tag = frameOf(ctx).resolve.tag(proc.tag);
+    const scaled = proc.factor === undefined ? 0 : ctx.auras.scaleTimeLeft(target, tag, proc.factor);
+    const clamped = proc.max === undefined ? 0 : ctx.auras.clampTimeLeft(target, tag, proc.max);
+    const changed = Math.max(scaled, clamped);
+
+    return changed === 0 ? PROC_SKIPPED : (CLEANSED[changed] ?? procOutcome('landed', { amount: changed }));
+  },
+
+  prepare: (proc, resolve) => {
+    checkTimeLeft(proc);
+
+    return { ...proc, tag: resolve.tag(proc.tag) };
+  },
+
+  explain: (proc, resolve) => ({
+    values: {
+      tag: resolve.tag(proc.tag),
+      ...(proc.factor === undefined ? {} : { factor: proc.factor }),
+      ...(proc.max === undefined ? {} : { max: proc.max }),
+    },
+  }),
+};
+
 /** Hands out a resource through `host.grant`. */
 const grantKind: CoreProcKind<'grant'> = {
   targetOf: (proc) => proc.to,
@@ -272,7 +315,7 @@ const runKind: CoreProcKind<'run'> = {
 /**
  * The framework's proc kinds (§I.6, §II.3.6), the ones that need no host beyond the aura system and the framework's own
  * services: `applyAura`, `removeAura`, `removeByTag`, `grant`, `event`, the control kinds `group`, `andThen`, `pickOne`
- * and `run`, and `cue` (appended last, so the kinds before it keep their ids). A game registers them with its own:
+ * and `run`, then `cue` and `timeLeft` (appended, so the kinds before them keep their ids). A game registers them with its own:
  * `createProcRegistry({ ...CORE_PROCS, ...GAME_PROCS })`.
  */
 export const CORE_PROCS: { readonly [Kind in CoreProcName]: CoreProcKind<Kind> } = Object.freeze({
@@ -286,4 +329,5 @@ export const CORE_PROCS: { readonly [Kind in CoreProcName]: CoreProcKind<Kind> }
   pickOne: pickOneKind,
   run: runKind,
   cue: CUE_KIND,
+  timeLeft: timeLeftKind,
 });

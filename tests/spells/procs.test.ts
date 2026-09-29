@@ -197,7 +197,7 @@ describe('the escape report (§I.5.6)', () => {
 
     assert.deepEqual(report.procKinds, []);
     assert.deepEqual(report.activationKinds, ['charged']);
-    assert.deepEqual(escapeReport({ procs, damage, areaTriggers }).procKinds, ['castSpell', 'after']);
+    assert.deepEqual(escapeReport({ procs, damage, areaTriggers }).procKinds, ['castSpell', 'after', 'rescaleClocks']);
     assert.deepEqual(escapeReport({ procs, damage, spells }).procKinds, ['spawn']);
   });
 });

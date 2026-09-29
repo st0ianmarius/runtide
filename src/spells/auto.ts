@@ -2,6 +2,7 @@ import { countDown, isRunOut } from '../core/index.ts';
 import { type AutoActivation, isAuto } from './activation.ts';
 import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
+import { NO_CAST } from './ids.ts';
 import type { CastReport } from './runner.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 
@@ -79,4 +80,92 @@ export const autoClockOf = <G extends SpellTypes>(
   const index = engine.registry.autoIds.indexOf(spell);
 
   return index < 0 ? 0 : (recordOf(caster).clocks[index] ?? 0);
+};
+
+/**
+ * A rescale of a caster's pending clocks (§II.6 A13, §I.7.1 F15): an aura system's host hands one on an aura's edges
+ * (`ClockRescale` is one), and the `rescaleClocks` proc makes one.
+ */
+export interface ClockScale {
+  /** What the clocks' time left is multiplied by, from 0. */
+  readonly factor: number;
+
+  /** The spell tag whose clocks rescale (a spell tag id); every clock when absent or −1. */
+  readonly scope?: number;
+
+  /**
+   * Whether only the `auto` clocks still counting rescale (true when absent), or also the stage time left of the
+   * caster's running casts (a windup, a channel, a recovery).
+   */
+  readonly isPendingOnly?: boolean;
+}
+
+/** Whether a spell is in a rescale's scope. */
+const inScope = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId, scope: number): boolean =>
+  scope < 0 || engine.registry.tagSets[spell]?.has(scope) === true;
+
+/** Rescales a caster's `auto` clocks still counting whose spells are in scope; how many. */
+const rescaleAuto = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  caster: G['bearer'],
+  [factor, scope]: readonly [number, number],
+): number => {
+  const { autoIds } = engine.registry;
+  const { clocks } = recordOf(caster);
+  let rescaled = 0;
+
+  for (let i = 0; i < autoIds.length; i++) {
+    const spell = autoIds[i];
+    const left = clocks[i] ?? 0;
+
+    if (spell !== undefined && left > 0 && inScope(engine, spell, scope)) {
+      clocks[i] = left * factor;
+      rescaled += 1;
+    }
+  }
+
+  return rescaled;
+};
+
+/** Rescales the stage time left of a caster's running casts in scope; how many. */
+const rescaleCasts = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  caster: G['bearer'],
+  [factor, scope]: readonly [number, number],
+): number => {
+  const record = recordOf(caster);
+  let rescaled = 0;
+
+  for (let i = 0; i < record.count; i++) {
+    const cast = engine.castOf(record.handles[i] ?? NO_CAST);
+
+    if (cast !== undefined && cast.stage !== 'ended' && cast.remaining > 0 && inScope(engine, cast.spell, scope)) {
+      cast.remaining *= factor;
+      rescaled += 1;
+    }
+  }
+
+  return rescaled;
+};
+
+/**
+ * Rescales a caster's clocks (§II.6 A13): every `auto` clock still counting whose spell is in scope, times the
+ * factor (haste's edges: an attack clock sped up as a haste aura lands and slowed as it goes), and with
+ * `isPendingOnly: false` the stage time left of its running casts in scope too. Returns how many it rescaled.
+ */
+export const rescaleClocks = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  caster: G['bearer'],
+  rescale: ClockScale,
+): number => {
+  const { factor } = rescale;
+
+  if (!(factor >= 0) || !Number.isFinite(factor)) {
+    throw new RangeError(`A clock rescale takes a finite factor from 0; got ${factor}.`);
+  }
+
+  const parts = [factor, rescale.scope ?? -1] as const;
+  const auto = rescaleAuto(engine, caster, parts);
+
+  return rescale.isPendingOnly === false ? auto + rescaleCasts(engine, caster, parts) : auto;
 };

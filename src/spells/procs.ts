@@ -1,6 +1,6 @@
 import type { TickSlotId } from '../core/index.ts';
 import type { ChanceOption, Proc, ProcContext, ProcKindDef, ProcShape, ProcTarget } from '../procs/index.ts';
-import type { SpellId, SpellTypes } from './spell-types.ts';
+import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 
 /**
  * Casts a spell (§II.3.6, §II.6 P3): through the whole cast order, gates included, for the unit it lands on (the
@@ -52,8 +52,29 @@ export interface AfterProc<G extends SpellTypes> extends ProcShape {
   readonly slot?: TickSlotId;
 }
 
+/**
+ * Rescales the clocks of the unit it lands on (§II.6 A13, P3, §I.7.1 F15): its `auto` clocks still counting in scope
+ * (a spell tag, or every one), times the factor; with `clocks: 'all'` its running casts' stage time left too.
+ */
+export interface RescaleClocksProc<G extends SpellTypes> extends ProcShape {
+  /** The discriminant. */
+  readonly kind: 'rescaleClocks';
+
+  /** What the time left is multiplied by, from 0. */
+  readonly factor: number;
+
+  /** The spell tag whose clocks rescale: its name in data, its id in code; every clock when absent. */
+  readonly tag?: G['spellTag'] | SpellTagId;
+
+  /** `pending` (the `auto` clocks, the default) or `all` (running casts' stages too). */
+  readonly clocks?: 'pending' | 'all';
+
+  /** Whose clocks; the list's self when absent. */
+  readonly to?: ProcTarget<G>;
+}
+
 /** The spell system's proc kinds, as a union: a game adds them to its proc union (`gameProc`). */
-export type SpellProcs<G extends SpellTypes> = CastSpellProc<G> | AfterProc<G>;
+export type SpellProcs<G extends SpellTypes> = CastSpellProc<G> | AfterProc<G> | RescaleClocksProc<G>;
 
 /** The spell system's proc kinds, by name: `createProcRegistry({ ...CORE_PROCS, ...spells.procKinds })`. */
 export interface SpellProcKinds<G extends SpellTypes> {
@@ -62,7 +83,16 @@ export interface SpellProcKinds<G extends SpellTypes> {
 
   /** Procs that land later. */
   readonly after: ProcKindDef<AfterProc<G>, G>;
+
+  /** Rescales a unit's clocks. */
+  readonly rescaleClocks: ProcKindDef<RescaleClocksProc<G>, G>;
 }
+
+/** A `rescaleClocks` proc: `rescaleClocks(0.5, { tag: 'attack' })` halves what is left of the attack clocks. */
+export const rescaleClocks = <G extends SpellTypes = SpellTypes>(
+  factor: number,
+  options: ChanceOption & Omit<RescaleClocksProc<G>, 'kind' | 'factor' | 'chance'> = {},
+): RescaleClocksProc<G> => ({ ...options, kind: 'rescaleClocks', factor });
 
 /** A `castSpell` proc: `castSpell('stab')`, `castSpell('nova', { by: 'eventUnit', rank: 2 })`. */
 export const castSpell = <G extends SpellTypes = SpellTypes>(

@@ -17,6 +17,7 @@ const CORE_ORDER = [
   'pickOne',
   'run',
   'cue',
+  'timeLeft',
 ];
 
 describe('the proc registry (§I.5.4, §I.5.6 hatch 1)', () => {
@@ -24,10 +25,10 @@ describe('the proc registry (§I.5.4, §I.5.6 hatch 1)', () => {
     const kinds = createProcRegistry<Game>({ ...CORE_PROCS, strike: STRIKE });
 
     checkOrder(kinds, [...CORE_ORDER, 'strike']);
-    assert.equal(kinds.id['strike'], 10);
+    assert.equal(kinds.id['strike'], 11);
     assert.equal(kinds.kindOf({ kind: 'andThen' }), 6);
-    assert.deepEqual(Array.from(kinds.isTargeted), [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1]);
-    assert.equal(kinds.defs[10], STRIKE);
+    assert.deepEqual(Array.from(kinds.isTargeted), [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1]);
+    assert.equal(kinds.defs[11], STRIKE);
   });
 
   it('refuses an unknown kind and a kind with no apply', () => {
@@ -104,7 +105,7 @@ describe('explainProc (§I.5.3)', () => {
         values: {},
         procs: [
           { kind: 'proc', proc: 0, chance: 1, to: 'eventUnit', values: { aura: id.mark, duration: 3 }, procs: [] },
-          { kind: 'proc', proc: 10, chance: 1, to: 'target', values: { amount: 40 }, procs: [] },
+          { kind: 'proc', proc: 11, chance: 1, to: 'target', values: { amount: 40 }, procs: [] },
           { kind: 'proc', proc: 3, chance: 1, to: 'party', values: { resource: 1, amount: 2 }, procs: [] },
         ],
       },

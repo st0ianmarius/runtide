@@ -55,6 +55,28 @@ export interface RemoveByTagProc<G extends ProcTypes> extends ProcShape {
   readonly to?: ProcTarget<G>;
 }
 
+/**
+ * Changes the time left on every finite aura carrying a tag (§II.6 P3, §I.7.1 F15: a cooldown's `scale` and `clamp`),
+ * keeping each one's duration: `left × factor`, capped at `max` seconds. A cooldown reduction is `factor < 1`, a
+ * refund `factor: 0`, a "no more than 2 s left" `max: 2`.
+ */
+export interface TimeLeftProc<G extends ProcTypes> extends ProcShape {
+  /** The discriminant. */
+  readonly kind: 'timeLeft';
+
+  /** The tag (a cooldown's): its name in data, its id in code. */
+  readonly tag: G['tag'] | AuraTagId;
+
+  /** What the time left is multiplied by, from 0; 1 when absent. */
+  readonly factor?: number;
+
+  /** The most seconds left; no cap when absent. */
+  readonly max?: number;
+
+  /** Where it acts; the list's target when absent. */
+  readonly to?: ProcTarget<G>;
+}
+
 /** Hands out a resource through the host (`host.grant`). */
 export interface GrantProc<G extends ProcTypes> extends ProcShape {
   /** The discriminant. */
@@ -162,6 +184,7 @@ export type CoreProc<G extends ProcTypes> =
   | ApplyAuraProc<G>
   | RemoveAuraProc<G>
   | RemoveByTagProc<G>
+  | TimeLeftProc<G>
   | GrantProc<G>
   | EventProc<G>
   | CueProc<G>

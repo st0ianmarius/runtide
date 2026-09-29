@@ -40,6 +40,7 @@ export {
   type SpellRegistryOptions,
 } from './define-spells.ts';
 
+export type { ClockScale } from './auto.ts';
 export type { SpellClock } from './engine.ts';
 
 export { CAST_OUTCOMES, createSpellEvent, type SpellEvent, type SpellEvents, spellTriggerEvent } from './events.ts';
@@ -56,7 +57,16 @@ export { type CastHandle, NO_CAST } from './ids.ts';
 export { type MirrorCtx, type MirrorHook, OPEN_WORLD, type StaticWorld } from './mirror.ts';
 export type { ProcOut } from './proc-out.ts';
 
-export { after, type AfterProc, castSpell, type CastSpellProc, type SpellProcKinds, type SpellProcs } from './procs.ts';
+export {
+  after,
+  type AfterProc,
+  castSpell,
+  type CastSpellProc,
+  rescaleClocks,
+  type RescaleClocksProc,
+  type SpellProcKinds,
+  type SpellProcs,
+} from './procs.ts';
 
 export {
   type AnySpellDef,

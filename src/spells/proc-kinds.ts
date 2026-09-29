@@ -1,8 +1,10 @@
 import { PROC_LANDED, PROC_REFUSED, PROC_SKIPPED, type ProcKindDef } from '../procs/index.ts';
+import { rescaleClocks } from './auto.ts';
 import type { SpellEngine } from './engine.ts';
-import type { AfterProc, CastSpellProc, SpellProcKinds } from './procs.ts';
+import { missing } from './missing.ts';
+import type { AfterProc, CastSpellProc, RescaleClocksProc, SpellProcKinds } from './procs.ts';
 import type { CastOptions, CastReport } from './runner.ts';
-import type { SpellId, SpellTypes } from './spell-types.ts';
+import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 
 /** The options a `castSpell` proc casts with, reused: the cast order reads them before any hook runs. */
 class ProcCastOptions<G extends SpellTypes> implements CastOptions<G> {
@@ -114,6 +116,59 @@ const afterKind = <G extends SpellTypes>(engine: SpellEngine<G>): ProcKindDef<Af
   explain: (proc) => ({ values: { seconds: proc.seconds }, procs: proc.procs }),
 });
 
+/** A spell tag's id from its name or id; `undefined` for none. Throws for an unknown name. */
+const tagIdOf = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  tag: G['spellTag'] | SpellTagId | undefined,
+): SpellTagId | undefined => {
+  if (tag === undefined || typeof tag !== 'string') {
+    return tag;
+  }
+
+  const ids: Readonly<Record<string, SpellTagId | undefined>> = engine.registry.tags.id;
+
+  return ids[tag] ?? missing(`spell tag ${tag}`);
+};
+
+/** Throws unless a rescale's factor is a finite number from 0. */
+const checkRescale = <G extends SpellTypes>(proc: RescaleClocksProc<G>): void => {
+  if (!(proc.factor >= 0) || !Number.isFinite(proc.factor)) {
+    throw new RangeError(`a rescaleClocks proc takes a finite factor from 0; got ${proc.factor}.`);
+  }
+};
+
+/** The `rescaleClocks` kind: rescales the clocks of the unit it lands on; `skipped` when none were running. */
+const rescaleKind = <G extends SpellTypes>(engine: SpellEngine<G>): ProcKindDef<RescaleClocksProc<G>, G> => ({
+  targetOf: (proc) => proc.to ?? 'self',
+
+  apply: (proc, _ctx, unit) => {
+    if (unit === undefined) {
+      return PROC_SKIPPED;
+    }
+
+    const scope = tagIdOf(engine, proc.tag) ?? -1;
+    const rescaled = rescaleClocks(engine, unit, { factor: proc.factor, scope, isPendingOnly: proc.clocks !== 'all' });
+
+    return rescaled === 0 ? PROC_SKIPPED : PROC_LANDED;
+  },
+
+  prepare: (proc) => {
+    checkRescale(proc);
+
+    const tag = tagIdOf(engine, proc.tag);
+
+    return tag === undefined ? proc : { ...proc, tag };
+  },
+
+  explain: (proc) => ({
+    values: { factor: proc.factor, ...(proc.tag === undefined ? {} : { tag: tagIdOf(engine, proc.tag) ?? -1 }) },
+  }),
+});
+
 /** Builds the spell system's proc kinds over its engine. */
 export const createSpellProcKinds = <G extends SpellTypes>(parts: KindParts<G>): SpellProcKinds<G> =>
-  Object.freeze({ castSpell: castSpellKind(parts), after: afterKind(parts.engine) });
+  Object.freeze({
+    castSpell: castSpellKind(parts),
+    after: afterKind(parts.engine),
+    rescaleClocks: rescaleKind(parts.engine),
+  });

@@ -1,33 +1,20 @@
-// Hot path (§I.4.2, §I.5.4): the queries walk the bearer's list, so the loops are indexed.
-/* oxlint-disable typescript/prefer-for-of */
 import type { CountdownRule, EventKind } from '../core/index.ts';
 import { recordOf } from '../core/records.ts';
 import type { ActiveAura, AuraContext } from './active-aura.ts';
-import { MutableContext } from './active-aura.ts';
 import type { ApplyResult, AuraApplication, AuraHost } from './application.ts';
-import { applyAura } from './apply.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
-import { type AuraPipelineHook, collectIn } from './collect.ts';
+import type { AuraPipelineHook } from './collect.ts';
 import { type AuraClock, type AuraModifiers, compileAuras } from './compile.ts';
-import { type AuraRegistry, PREDICTED } from './define-auras.ts';
+import type { AuraRegistry } from './define-auras.ts';
 import { AuraEngine } from './engine.ts';
 import type { AuraEvent, AuraEventBus } from './events.ts';
 import { type AuraExplanation, explainIn } from './explain.ts';
-import {
-  bearerDied,
-  enterState,
-  refreshAura,
-  removeAura,
-  removeByTag,
-  sourceGone,
-  spendStacks,
-  spendValue,
-} from './remove.ts';
-import { type AuraSeed, seedAuras } from './seed.ts';
-import { AuraSet, type AuraState, setOf } from './state.ts';
+import { operationsOf, queriesOf } from './operations.ts';
+import type { AuraSeed } from './seed.ts';
+import { AuraSet, type AuraState } from './state.ts';
 import type { AuraTagTable } from './tags.ts';
 import { tickAuras } from './tick.ts';
-import { type AuraView, viewAuras, type ViewOptions } from './view.ts';
+import type { AuraView, ViewOptions } from './view.ts';
 
 /** What an aura system is built from (§I.5): the game's registries and its host. */
 export interface AuraSystemBase<G extends AuraTypes> {
@@ -197,6 +184,15 @@ export interface AuraSystem<G extends AuraTypes> {
   /** The bearer's auras as views for the wire. */
   readonly view: (bearer: G['bearer'], options?: ViewOptions) => AuraView[];
 
+  /**
+   * Multiplies the time left on every finite aura granting a tag by a factor (§II.6 P3: a cooldown scaled down),
+   * keeping each one's duration; one left at 0 runs out on the next tick. Raises nothing; returns how many changed.
+   */
+  readonly scaleTimeLeft: (bearer: G['bearer'], tag: AuraTagId, factor: number) => number;
+
+  /** Caps the time left on every finite aura granting a tag at some seconds (§II.6 P3); returns how many changed. */
+  readonly clampTimeLeft: (bearer: G['bearer'], tag: AuraTagId, seconds: number) => number;
+
   /** Whether an aura is `predicted`: rebuilt on a prediction mirror from the wire. */
   readonly isPredicted: (aura: AuraId) => boolean;
 
@@ -229,89 +225,6 @@ const extFactory = <G extends AuraTypes>(options: AuraSystemOptions<G>): (() => 
     })
   );
 };
-
-/** The operations that change a bearer's auras. */
-const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>) => ({
-  apply: (bearer: G['bearer'], aura: AuraId | AuraApplication<G>) => applyAura(engine, bearer, aura),
-  remove: (bearer: G['bearer'], aura: AuraId) => removeAura(engine, bearer, aura),
-  removeByTag: (bearer: G['bearer'], tag: AuraTagId) => removeByTag(engine, bearer, tag),
-  refresh: (bearer: G['bearer'], id: AuraId, seconds?: number) => refreshAura(engine, bearer, { id, seconds }),
-  spendStacks: (bearer: G['bearer'], id: AuraId, count: number) => spendStacks(engine, bearer, { id, count }),
-  spendValue: (bearer: G['bearer'], id: AuraId, amount: number) => spendValue(engine, bearer, { id, amount }),
-  enterState: (bearer: G['bearer'], state: G['state']) => enterState(engine, bearer, state),
-  sourceGone: (bearer: G['bearer'], source: number) => sourceGone(engine, bearer, source),
-
-  bearerDied: (bearer: G['bearer']) => {
-    bearerDied(engine, bearer);
-  },
-});
-
-/** The first instance of an aura on a bearer. */
-const findIn = <G extends AuraTypes>(bearer: G['bearer'], id: AuraId): ActiveAura<G> | undefined => {
-  const { items } = setOf<G>(bearer);
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-
-    if (item?.id === id) {
-      return item;
-    }
-  }
-
-  return undefined;
-};
-
-/** The longest time left on an aura's instances. */
-const remainingIn = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], id: AuraId): number => {
-  const set = setOf<G>(bearer);
-  let left = 0;
-
-  for (let i = 0; i < set.items.length; i++) {
-    const item = set.items[i];
-
-    if (item?.id === id) {
-      left = Math.max(left, engine.remainingOf(set, item));
-    }
-  }
-
-  return left;
-};
-
-/** The read-only queries over a bearer's auras. */
-const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>) => ({
-  has: (bearer: G['bearer'], id: AuraId) => findIn(bearer, id) !== undefined,
-  list: (bearer: G['bearer']): readonly ActiveAura<G>[] => setOf<G>(bearer).items,
-  find: (bearer: G['bearer'], id: AuraId) => findIn(bearer, id),
-
-  stacks: (bearer: G['bearer'], id: AuraId) =>
-    setOf<G>(bearer).items.reduce((sum, item) => (item.id === id ? sum + item.stacks : sum), 0),
-
-  remaining: (bearer: G['bearer'], id: AuraId) => remainingIn(engine, bearer, id),
-  remainingOf: (bearer: G['bearer'], aura: ActiveAura) => engine.remainingOf(setOf<G>(bearer), aura),
-  hasTag: (bearer: G['bearer'], tag: AuraTagId) => setOf<G>(bearer).tags.has(tag),
-  lengthOf: (id: AuraId, bearer: G['bearer']) => engine.lengthOf(id, bearer),
-
-  collect: (bearer: G['bearer'], hook: AuraPipelineHook, out: (ActiveAura<G> | undefined)[]) =>
-    collectIn(engine, bearer, { hook, out }),
-
-  context: (bearer: G['bearer'], aura: ActiveAura<G>): AuraContext<G> => {
-    const context = new MutableContext<G>(bearer, aura);
-
-    context.stats = engine.host.statsOf?.(bearer);
-
-    return context;
-  },
-
-  takeContext: (bearer: G['bearer'], aura: ActiveAura<G>): AuraContext<G> => engine.events.take(bearer, aura),
-
-  giveContext: () => {
-    engine.events.give();
-  },
-
-  view: (bearer: G['bearer'], options?: ViewOptions) => viewAuras(engine, bearer, options),
-  isPredicted: (aura: AuraId) => ((engine.flags[aura] ?? 0) & PREDICTED) !== 0,
-  seed: (bearer: G['bearer'], seed: AuraSeed) => seedAuras(engine, bearer, seed),
-});
 
 /** Each system's explainer, for `explainAura`. */
 const EXPLAINERS = new WeakMap<object, (aura: AuraId, stacks: number) => AuraExplanation>();

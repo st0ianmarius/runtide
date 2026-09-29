@@ -18,6 +18,7 @@ export {
   removeByTag,
   run,
   type TargetOptions,
+  timeLeft,
 } from './builders.ts';
 
 export { CORE_PROCS, type CoreProcKind, type CoreProcName } from './core-procs.ts';
@@ -48,6 +49,7 @@ export type {
   RemoveAuraProc,
   RemoveByTagProc,
   RunProc,
+  TimeLeftProc,
 } from './proc-data.ts';
 
 export { defineProcKind, type ProcDetail, type ProcKindDef, type ProcKinds, type ProcResolver } from './proc-kind.ts';

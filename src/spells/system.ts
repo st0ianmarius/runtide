@@ -1,6 +1,6 @@
 import type { TickSlotId } from '../core/index.ts';
 import type { StatId } from '../modifiers/index.ts';
-import { autoClockOf, stepAutoClocks } from './auto.ts';
+import { autoClockOf, type ClockScale, rescaleClocks, stepAutoClocks } from './auto.ts';
 import { engineOf, gameActivationsOf } from './build-engine.ts';
 import { fireCastCue } from './cast-cue.ts';
 import { CasterRecord, type CasterState, recordOf } from './caster.ts';
@@ -151,6 +151,13 @@ export interface SpellSystem<G extends SpellTypes> {
    * what the damage host's `shareOf` answers with (`shareOf: spells.shareOf`).
    */
   readonly shareOf: (spell: SpellId, stat: StatId) => number | undefined;
+
+  /**
+   * Rescales a caster's clocks (§II.6 A13, §I.7.1 F15): its `auto` clocks still counting in scope (a spell tag, or
+   * every one), and with `isPendingOnly: false` its running casts' stage time left. An aura system's host passes its
+   * rescales here: `rescaleClocks: (unit, rescale) => spells.rescaleClocks(unit, rescale)`. Returns how many rescaled.
+   */
+  readonly rescaleClocks: (caster: G['bearer'], rescale: ClockScale) => number;
 
   /** A running cast as the wire carries it (§II.6 C10): its spell, stage, stage end stamp and credit. */
   readonly viewOf: (cast: CastHandle) => CastView | undefined;
@@ -325,6 +332,9 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   };
 
   readonly viewOf = (cast: CastHandle): CastView | undefined => viewCast(this.#engine, cast);
+
+  readonly rescaleClocks = (caster: G['bearer'], rescale: ClockScale): number =>
+    rescaleClocks(this.#engine, caster, rescale);
 
   readonly predictCast = (caster: G['bearer'], spell: SpellId, options: CastOptions<G> = NO_OPTIONS): boolean => {
     this.registry.get(spell);
