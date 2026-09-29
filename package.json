@@ -55,6 +55,10 @@
       "types": "./dist/procs/index.d.ts",
       "default": "./dist/procs/index.js"
     },
+    "./replication": {
+      "types": "./dist/replication/index.d.ts",
+      "default": "./dist/replication/index.js"
+    },
     "./spells": {
       "types": "./dist/spells/index.d.ts",
       "default": "./dist/spells/index.js"
