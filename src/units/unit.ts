@@ -23,8 +23,8 @@ export interface UnitParts<G extends UnitTypes> {
   /** Whether it despawns with its owner. */
   readonly isBound: boolean;
 
-  /** Its base stats, snapshotted at spawn. */
-  readonly base: Float64Array;
+  /** Its base stats, snapshotted at spawn; read-only (units of a template without stats of their own share them). */
+  readonly base: ArrayLike<number>;
 
   /** Its class tags. */
   readonly tags: Bitset;
@@ -65,8 +65,11 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   readonly sheet: StatSheet | undefined;
   readonly ext: G['unitExt'];
 
-  /** Its base stats by stat id, snapshotted from its template and spawn: a later template change does not reach it. */
-  readonly base: Float64Array;
+  /**
+   * Its base stats by stat id, snapshotted from its template and spawn: a later template change does not reach it.
+   * Read-only: units of a template spawned without stats of their own share one array.
+   */
+  readonly base: ArrayLike<number>;
 
   /** Its class tags. */
   readonly tags: Bitset;

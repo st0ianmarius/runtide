@@ -1,4 +1,4 @@
-import type { CompiledModifier, CompiledValue } from './modifier.ts';
+import type { CompiledModifier, CompiledValue, ModifierList } from './modifier.ts';
 import { INLINE_GATES, type SharedAt } from './shared.ts';
 import { type CompiledStat, type Entry, type FoldTables, FROM_HOST, FROM_STAT, PLAIN, type Sheet } from './sheet.ts';
 import type { SourceId } from './sources.ts';
@@ -152,7 +152,7 @@ const addShared = <Host>(into: Gathering<Host>, shared: SharedAt<Host>): void =>
  * their marker (`addShared`). Shared entries are compiled once for the system (`SharedLists`), never per sheet; the
  * check for stats following themselves reads both.
  */
-export const buildSheet = <Host>(sheet: Sheet<Host>): void => {
+const buildSheet = <Host>(sheet: Sheet<Host>): void => {
   const lists = Array.from(sheet.tables.base, () => gathering<Host>());
 
   for (const source of sheet.tables.sourceIds) {
@@ -178,3 +178,68 @@ export const buildSheet = <Host>(sheet: Sheet<Host>): void => {
   sheet.isDirty = false;
   sheet.compiles += 1;
 };
+
+/** A compiled cache and what it was built from: the lists at every source, and the shared lists' revision. */
+interface CacheEntry<Host> {
+  readonly lists: readonly (readonly ModifierList[])[];
+  readonly revision: number;
+  readonly compiled: readonly (CompiledStat<Host> | undefined)[];
+}
+
+/** How many caches one first list keeps before it forgets the oldest. */
+const CACHE_WAYS = 8;
+
+/** Whether two sheets hold the same lists at every source (the same compiled lists, by identity). */
+const isSameLists = (a: readonly (readonly ModifierList[])[], b: readonly (readonly ModifierList[])[]): boolean =>
+  a.length === b.length &&
+  a.every((lists, source) => {
+    const other = b[source] ?? [];
+
+    return lists.length === other.length && lists.every((list, index) => list === other[index]);
+  });
+
+/**
+ * The compiled caches of a system's sheets by the lists they hold (§I.5.4): sheets holding the same compiled lists (a
+ * template's units, each given its template's base list) share one cache, built by the first. Keyed weakly by the
+ * first list a sheet holds, so a list no sheet holds any more takes its caches with it.
+ */
+export class SheetCaches<Host> {
+  readonly #byFirst = new WeakMap<ModifierList, CacheEntry<Host>[]>();
+  readonly #listless: CacheEntry<Host>[] = [];
+
+  /** The caches of sheets whose first list is this sheet's. */
+  #entriesOf(sheet: Sheet<Host>): CacheEntry<Host>[] {
+    const first = sheet.lists.find((lists) => lists.length > 0)?.[0];
+
+    if (first === undefined) {
+      return this.#listless;
+    }
+
+    const entries = this.#byFirst.get(first) ?? [];
+
+    this.#byFirst.set(first, entries);
+
+    return entries;
+  }
+
+  /** Gives a sheet a compiled cache for its lists: one another sheet built, else a new one it keeps for the next. */
+  build(sheet: Sheet<Host>, revision: number): void {
+    const entries = this.#entriesOf(sheet);
+    const known = entries.find((entry) => entry.revision === revision && isSameLists(entry.lists, sheet.lists));
+
+    if (known !== undefined) {
+      sheet.compiled = known.compiled;
+      sheet.isDirty = false;
+      sheet.compiles += 1;
+
+      return;
+    }
+
+    buildSheet(sheet);
+    entries.push({ lists: sheet.lists.slice(), revision, compiled: sheet.compiled });
+
+    if (entries.length > CACHE_WAYS) {
+      entries.shift();
+    }
+  }
+}

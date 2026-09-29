@@ -15,6 +15,7 @@ import {
 } from '../modifiers/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
 import type { WorldQuery } from '../world/index.ts';
+import { BaseView } from './base-view.ts';
 import type { UnitEvents } from './events.ts';
 import type { UnitStateTable } from './states.ts';
 import type { UnitRegistry } from './unit-def.ts';
@@ -150,23 +151,6 @@ export interface SpawnUnit<G extends UnitTypes> {
   readonly script?: G['scriptName'];
 }
 
-/** A stat view of a unit's own snapshotted bases, for a game without a modifier system. */
-class BaseView implements StatView {
-  readonly #base: Float64Array;
-
-  constructor(base: Float64Array) {
-    this.#base = base;
-  }
-
-  total(stat: StatId): number {
-    return this.#base[stat] ?? 0;
-  }
-
-  base(stat: StatId): number {
-    return this.#base[stat] ?? 0;
-  }
-}
-
 /** A derived state that raises an interrupt: its aura tags and the interrupt. */
 export interface InterruptingState<G extends UnitTypes> {
   /** Its aura tags. */
@@ -285,10 +269,19 @@ export class UnitEngine<G extends UnitTypes> {
     return made;
   }
 
-  /** A spawn's base stats: its template's, with the spawn's own on top. */
-  #baseFor(template: UnitId, spawn: SpawnUnit<G>): Float64Array {
+  /**
+   * A spawn's base stats: its template's, with the spawn's own on top in a copy; a spawn with none of its own shares its
+   * template's (a unit's bases are read-only, so a horde of one template holds one array).
+   */
+  #baseFor(template: UnitId, spawn: SpawnUnit<G>): ArrayLike<number> {
     const { stats } = this.registry;
-    const base = Float64Array.from(this.registry.bases[template] ?? stats.columns.base);
+    const shared = this.registry.bases[template] ?? stats.columns.base;
+
+    if (spawn.stats === undefined) {
+      return shared;
+    }
+
+    const base = Float64Array.from(shared);
 
     for (const [stat, value] of Object.entries<number | undefined>(spawn.stats ?? {})) {
       const id = stats.index.idOf(stat) ?? missing(`there is no stat named ${stat}`);
@@ -338,11 +331,11 @@ export class UnitEngine<G extends UnitTypes> {
   }
 
   /** The adds that move the stat table's bases to a unit's own. */
-  #baseModifiers(base: Float64Array): Modifier<G['stat'], G['condition'], G['valueKind']>[] {
+  #baseModifiers(base: ArrayLike<number>): Modifier<G['stat'], G['condition'], G['valueKind']>[] {
     const tableBase = this.registry.stats.columns.base;
     const names: readonly G['stat'][] = this.registry.stats.names.filter((name): name is G['stat'] => name.length >= 0);
 
-    return [...base].flatMap((value, stat) => {
+    return Array.from(base).flatMap((value, stat) => {
       const delta = value - (tableBase[stat] ?? 0);
       const name = names[stat];
 

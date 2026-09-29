@@ -163,3 +163,12 @@ At the review after F21 (P7), a step of a bearer's clock first scans its auras f
 | aura tick, 2,000 bearers x 2 auras, nothing due (per tick) | 90.7 µs  | 53.8 µs  |
 | aura tick, 2,000 bearers x 3 auras (per tick)              | 133.3 µs | 122.8 µs |
 | abilities: 1,000 heroes press 3 slots (tick)               | 174.6 µs | 161.1 µs |
+
+At the review after F21 (P5), a spawn stops rebuilding what every unit of its template shares: sheets holding the same compiled lists (a template's units, each given its template's base list) share one compiled cache, built by the first and kept weakly by its first list; a unit spawned without stats of its own shares its template's base array (a unit's bases are now read-only, `ArrayLike<number>`); an aura state with no countdown overrides shares the system's clock rules; and a source's lists are checked with no closure. Same Apple Silicon Mac, one full run each, against the P7 commit the same day (a second full run after the change read 394 ns):
+
+| benchmark                                       | P7       | now     |
+| ----------------------------------------------- | -------- | ------- |
+| units: spawn + despawn a grunt (template stats) | 1,175 ns | 379 ns  |
+| units: a folded stat (an aura modifier)         | 44.0 ns  | 41.0 ns |
+
+One full run read the thinkers' row at 15.9 ms, once: the next full run and a run of the unit rows alone read 34.6 µs and 35.0 µs, as before.

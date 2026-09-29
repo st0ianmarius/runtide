@@ -6,7 +6,7 @@ import {
   conditionTest,
   type ValueTable,
 } from '../conditions/index.ts';
-import { buildSheet } from './build-sheet.ts';
+import { SheetCaches } from './build-sheet.ts';
 import { compileModifiers } from './compile-modifiers.ts';
 import type { StatView } from './compiled.ts';
 import { explainSheetStat, type StatExplanation } from './explain.ts';
@@ -196,11 +196,13 @@ const checkedLists = (
 ): readonly ModifierList[] => {
   checkSource(sources, at.source);
 
-  if (!at.hasStacks && lists.some((list) => list.gate !== undefined)) {
-    throw new RangeError('A gated modifier list needs the system to have a stacks report.');
+  for (const list of lists) {
+    if (!at.hasStacks && list.gate !== undefined) {
+      throw new RangeError('A gated modifier list needs the system to have a stacks report.');
+    }
   }
 
-  return Object.freeze([...lists]);
+  return Object.freeze(lists.slice());
 };
 
 /** Creates the modifier system over a game's tables (§I.5: `defineStats`, `defineSources`, `defineConditions`). */
@@ -215,12 +217,13 @@ export const createModifierSystem = <
 ): ModifierSystem<Host, S, C, V, Src> => {
   const tables = tablesOf(options);
   const shared: (readonly ModifierList[])[] = options.sources.ids.map(() => []);
+  const caches = new SheetCaches<Host>();
 
   const built = (sheet: StatSheet): Sheet<Host> => {
     const own = sheetOf<Host>(sheet);
 
     if (own.isDirty || own.sharedRevision !== tables.shared.revision) {
-      buildSheet(own);
+      caches.build(own, tables.shared.revision);
       own.sharedRevision = tables.shared.revision;
     }
 

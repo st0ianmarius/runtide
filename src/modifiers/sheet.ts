@@ -44,7 +44,7 @@ export interface StatSheet {
   /** Whether the compiled cache waits for a rebuild (a source changed since the last read). */
   readonly isDirty: boolean;
 
-  /** How many times the cache was rebuilt, for tests and diagnostics. */
+  /** How many times it took a compiled cache (built, or shared by a sheet holding the same lists), for diagnostics. */
   readonly compiles: number;
 }
 

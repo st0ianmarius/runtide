@@ -116,6 +116,26 @@ describe('the per-bearer cache (§I.5.4)', () => {
     assert.equal(mob.compiles, 2);
   });
 
+  it('shares a compiled cache between sheets holding the same lists, and one sheet changing leaves the others', () => {
+    const { system, sources, id } = game();
+    const base = system.compile([plus('moveSpeed', 1.5)]);
+    const [one, two, three] = [system.createSheet(), system.createSheet(), system.createSheet()];
+
+    system.setSource(one, sources.id.base, [base]);
+    system.setSource(two, sources.id.base, [base]);
+    system.setSource(three, sources.id.base, [system.compile([plus('moveSpeed', 1.5)])]);
+    assert.deepEqual(
+      [one, two, three].map((sheet) => system.resolve(sheet, id.moveSpeed)),
+      [5.5, 5.5, 5.5],
+    );
+    system.setSource(one, sources.id.talents, [system.compile([mul('moveSpeed', 2)])]);
+    assert.deepEqual(
+      [one, two, three].map((sheet) => system.resolve(sheet, id.moveSpeed)),
+      [11, 5.5, 5.5],
+    );
+    assert.deepEqual([one.compiles, two.compiles, three.compiles], [2, 1, 1]);
+  });
+
   it('refuses shared lists that are ungated or out of gate order, which a held walk could not keep in order', () => {
     const { system, sources } = game();
     const at = (gate?: number) => system.compile([mul('moveSpeed', 2)], gate === undefined ? {} : { gate });
