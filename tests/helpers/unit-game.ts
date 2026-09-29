@@ -10,7 +10,7 @@ import {
   defineAuras,
   defineAuraTags,
 } from '../../src/auras/index.ts';
-import { createBus, createClock, type SimClock } from '../../src/core/index.ts';
+import { createBus, createClock, type SimClock, stream } from '../../src/core/index.ts';
 import {
   type Blow,
   createDamageSystem,
@@ -47,6 +47,7 @@ import {
   type UnitSystem,
   type UnitTypes,
 } from '../../src/units/index.ts';
+import type { WorldQuery } from '../../src/world/index.ts';
 
 /** The unit test game's types. */
 export interface UnitGame extends UnitTypes {
@@ -231,6 +232,9 @@ export interface UnitGameOptions<Extra extends string = never> {
   /** More spells, beside the swing and the channel. */
   readonly spells?: Readonly<Record<Extra, AnySpellDef<UnitGame>>>;
 
+  /** The world summons are placed in; none when absent. */
+  readonly world?: Pick<WorldQuery<Unit<UnitGame>>, 'positionOf' | 'pickPoint'>;
+
   /** The interrupting states; a stun's and a freeze's when absent. */
   readonly interrupts?: Readonly<Record<string, 'stun' | 'freeze'>>;
 }
@@ -336,6 +340,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     auras,
     ai,
     spells,
+    ...(options.world === undefined ? {} : { world: options.world }),
     ...(options.folds === false ? {} : { modifiers: { system: modifiers, base: 'base' as const } }),
     health: { stat: 'maxHealth', ...(options.policy === undefined ? {} : { policy: options.policy }) },
     states: UNIT_STATES,
@@ -371,6 +376,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     }),
     auras,
     host: { idOf: (unit) => unit.id },
+    random: stream(3),
   });
 
   holder.procs = procs;
@@ -383,7 +389,19 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
 
   bus.on(bus.kind.spawned, line('spawned'));
   bus.on(bus.kind.changed, line('changed'));
-  bus.on(bus.kind.despawned, line('despawned'));
+  bus.on(bus.kind.despawned, (event) => {
+    line('despawned')(event);
+
+    if (event.reason !== 'despawn') {
+      log.push(`reason ${event.reason}`);
+    }
+  });
+
+  bus.on(bus.kind.spawned, (event) => {
+    if (event.at !== undefined) {
+      log.push(`at ${event.at.x},${event.at.z}`);
+    }
+  });
   bus.on(bus.kind.death, (event) => log.push(`death ${event.death?.unit.id ?? '?'}`));
   bus.on(bus.kind.kill, (event) => log.push(`kill by ${event.death?.killer?.id ?? '?'}`));
 

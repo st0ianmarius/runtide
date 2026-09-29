@@ -1,8 +1,9 @@
 import { type AbilitySystem, NO_LOADOUT } from '../abilities/index.ts';
 import { type AiSystem, NO_BRAIN } from '../ai/index.ts';
 import type { AuraSystem } from '../auras/index.ts';
-import type { Bitset, EventKind } from '../core/index.ts';
+import type { Bitset } from '../core/index.ts';
 import type { DamageSystem } from '../damage/index.ts';
+import type { Vec2 } from '../math/index.ts';
 import {
   type Modifier,
   type ModifierList,
@@ -12,8 +13,9 @@ import {
   type StatId,
   type StatView,
 } from '../modifiers/index.ts';
-import type { ProcBus } from '../procs/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
+import type { WorldQuery } from '../world/index.ts';
+import type { UnitEvents } from './events.ts';
 import type { UnitStateTable } from './states.ts';
 import type { UnitRegistry } from './unit-def.ts';
 import type { Lifecycle, UnitId, UnitTypes } from './unit-types.ts';
@@ -27,40 +29,6 @@ import { Unit } from './unit.ts';
  */
 export type HealthPolicy<G extends UnitTypes> =
   'heal-gain-scale-loss' | 'scale' | 'keep' | ((unit: G['bearer'], before: number, after: number) => number);
-
-/** A unit lifecycle event: a unit spawned, despawned, or moved from one lifecycle state to another. Reused. */
-export interface UnitEvent<G extends UnitTypes> {
-  /** The unit. */
-  unit: G['bearer'] | undefined;
-
-  /** The state it left (`standing` for a spawn). */
-  from: Lifecycle;
-
-  /** The state it entered. */
-  to: Lifecycle;
-}
-
-/** Makes an empty unit event payload: the factory a game registers the unit event kinds on its bus with. */
-export const createUnitEvent = <G extends UnitTypes>(): UnitEvent<G> => ({
-  unit: undefined,
-  from: 'standing',
-  to: 'standing',
-});
-
-/** The bus and event kinds the unit system raises, each optional and raised only when something hears it. */
-export interface UnitEvents<G extends UnitTypes> {
-  /** The bus. */
-  readonly bus: ProcBus;
-
-  /** A unit spawned. */
-  readonly spawned?: EventKind<UnitEvent<G>>;
-
-  /** A unit moved between lifecycle states (downed, revived, died, disconnected, reconnected). */
-  readonly changed?: EventKind<UnitEvent<G>>;
-
-  /** A unit despawned: removed without dying. */
-  readonly despawned?: EventKind<UnitEvent<G>>;
-}
 
 /** What a unit system is built from (§I.5). */
 export interface UnitSystemBase<G extends UnitTypes> {
@@ -78,6 +46,9 @@ export interface UnitSystemBase<G extends UnitTypes> {
    * states' interrupts hold (`interrupts`). Every unit has the shared empty brain when absent.
    */
   readonly ai?: AiSystem<G>;
+
+  /** The world a summon's point is picked in (`summon`'s `around`); none when absent. */
+  readonly world?: Pick<WorldQuery<G['bearer']>, 'positionOf' | 'pickPoint'>;
 
   /** The ability system, for units with buttons; every unit has an empty loadout when absent. */
   readonly abilities?: AbilitySystem<G>;
@@ -147,6 +118,12 @@ export interface SpawnUnit<G extends UnitTypes> {
 
   /** Its own base stats, over its template's (a mob keeping its spawn wave's numbers). */
   readonly stats?: Readonly<Partial<Record<G['stat'], number>>>;
+
+  /** Where it stands, handed to the `spawned` event for the game's world; none when absent. */
+  readonly at?: Vec2;
+
+  /** Whether it despawns (reason `owner`) as its owner dies or despawns (§I.7.1 F18); false when absent. */
+  readonly isBound?: boolean;
 }
 
 /** A stat view of a unit's own snapshotted bases, for a game without a modifier system. */
@@ -253,6 +230,7 @@ export class UnitEngine<G extends UnitTypes> {
       template,
       side: spawn.side,
       owner: spawn.owner,
+      isBound: spawn.isBound === true && spawn.owner !== undefined,
       base,
       tags: registry.tagSets[template]?.clone() ?? missing('a template lost its tags'),
       auras: options.auras.createState(),

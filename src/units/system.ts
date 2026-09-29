@@ -6,7 +6,9 @@ import { type SpawnUnit, UnitEngine, unitOf, type UnitSystemOptions } from './en
 import { type AuraRule, compileRules, damageHostOf, decideAura, forceStageOf, syncHealth } from './hosts.ts';
 import { syncStates } from './interrupts.ts';
 import { moveTo, raiseSpawned } from './lifecycle.ts';
-import { createUnitProcKinds, type UnitProcKinds } from './procs.ts';
+import { createUnitProcKinds } from './proc-kinds.ts';
+import type { UnitProcKinds } from './procs.ts';
+import { creditOf, joinOwner } from './summons.ts';
 import { HEAVY, OBJECTIVE } from './unit-def.ts';
 import type { UnitRegistry } from './unit-def.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
@@ -30,10 +32,22 @@ export interface UnitSystem<G extends UnitTypes> {
   readonly byId: (id: number) => G['bearer'] | undefined;
 
   /**
-   * Despawns a unit (§II.6 U1, D5): removed without dying, so no rewards, no kill and no death event; its id is freed.
-   * False for a unit already despawned.
+   * Despawns a unit (§II.6 U1, D5): removed without dying, so no rewards, no kill and no death event; its id is freed,
+   * and the `despawned` event carries the reason (`despawn` when absent). False for a unit already despawned.
    */
-  readonly despawn: (unit: G['bearer']) => boolean;
+  readonly despawn: (unit: G['bearer'], reason?: string) => boolean;
+
+  /**
+   * A unit's summons (§I.7.1 F18): the units it owns that are neither dead nor despawned, in the order they spawned.
+   * The system's own list: read it, never keep or change it.
+   */
+  readonly summonsOf: (unit: G['bearer']) => readonly G['bearer'][];
+
+  /**
+   * The entity id a unit's deeds are credited to (§I.7.1 F18): its owner's, up the chain, or its own when it has
+   * none. A game credits a summon's blows with it (`source`).
+   */
+  readonly creditOf: (unit: G['bearer']) => number;
 
   /** A standing or disconnected unit goes down (revivable); false when its state does not allow it. */
   readonly down: (unit: G['bearer']) => boolean;
@@ -120,24 +134,35 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
   const reviveUnit = (unit: G['bearer'], health?: number): boolean =>
     unitOf<G>(unit).lifecycle !== 'disconnected' && moveTo(engine, unit, ['standing', health]);
 
+  const spawnUnit = (template: UnitId, spawn: SpawnUnit<G>): G['bearer'] => {
+    registry.get(template);
+
+    const unit = engine.create(template, spawn);
+
+    joinOwner(unit);
+    raiseSpawned(engine, unit, spawn.at);
+
+    return unit;
+  };
+
+  const despawnUnit = (unit: G['bearer'], reason = 'despawn'): boolean =>
+    moveTo(engine, unit, ['despawned', undefined, reason]);
+
   const system: UnitSystem<G> = {
     registry,
-    procKinds: createUnitProcKinds<G>(reviveUnit),
+    procKinds: createUnitProcKinds<G>({ engine, spawn: spawnUnit, revive: reviveUnit, despawn: despawnUnit }),
 
     live: () => engine.byId.size,
 
-    spawn: (template, spawn) => {
-      registry.get(template);
-
-      const unit = engine.create(template, spawn);
-
-      raiseSpawned(engine, unit);
-
-      return unit;
-    },
+    spawn: spawnUnit,
 
     byId: (id) => engine.byId.get(id),
-    despawn: (unit) => moveTo(engine, unit, ['despawned', undefined]),
+    despawn: despawnUnit,
+
+    summonsOf: (unit) => unitOf<G>(unit).summons,
+
+    creditOf,
+
     down: (unit) => moveTo(engine, unit, ['downed', undefined]),
 
     revive: reviveUnit,

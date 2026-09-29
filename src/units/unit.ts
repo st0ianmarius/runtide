@@ -3,7 +3,7 @@ import type { BrainState } from '../ai/index.ts';
 import type { AuraState } from '../auras/index.ts';
 import type { Bitset } from '../core/index.ts';
 import type { StatSheet, StatView } from '../modifiers/index.ts';
-import type { CasterState } from '../spells/index.ts';
+import { type CasterState, type CastHandle, NO_CAST } from '../spells/index.ts';
 import type { Lifecycle, UnitId, UnitShape, UnitTypes } from './unit-types.ts';
 
 /** What a unit is made with: everything its template and spawn decided, and the states the other systems made. */
@@ -19,6 +19,9 @@ export interface UnitParts<G extends UnitTypes> {
 
   /** Its owner. */
   readonly owner: G['bearer'] | undefined;
+
+  /** Whether it despawns with its owner. */
+  readonly isBound: boolean;
 
   /** Its base stats, snapshotted at spawn. */
   readonly base: Float64Array;
@@ -54,6 +57,7 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   readonly template: UnitId;
   readonly side: number;
   readonly owner: G['bearer'] | undefined;
+  readonly isBound: boolean;
   readonly auras: AuraState;
   readonly casts: CasterState;
   readonly loadout: LoadoutState;
@@ -73,6 +77,15 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   /** The maximum health the resource policy last saw (§II.6 M7). */
   maxHealth = 0;
 
+  /**
+   * The units it owns that are neither dead nor despawned, in the order they spawned (§I.7.1 F18): its summons, which
+   * `units.summonsOf` reads.
+   */
+  readonly summons: G['bearer'][] = [];
+
+  /** The cast it was summoned by, held alive while it lives (§II.6 S6); `NO_CAST` for none. */
+  cast: CastHandle = NO_CAST;
+
   /** The bits of the interrupting states it is in (`UnitSystemBase.interrupts`, by their order), as last synced. */
   interrupts = 0;
 
@@ -84,6 +97,7 @@ export class Unit<G extends UnitTypes> implements UnitShape {
     this.template = parts.template;
     this.side = parts.side;
     this.owner = parts.owner;
+    this.isBound = parts.isBound;
     this.base = parts.base;
     this.tags = parts.tags;
     this.auras = parts.auras;

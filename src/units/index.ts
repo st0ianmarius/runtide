@@ -2,22 +2,27 @@
  * Units (§I.6 Units, §I.7.1 F13, §II.6 U1–U3): one unit shape for heroes, creatures and summons. Templates
  * (`defineUnits`) carry base stats, class tags, traits and an optional auto-attack; a unit system spawns units with
  * their stats snapshotted, moves them through their lifecycle, derives their states from their aura tags
- * (`defineUnitStates`), keeps their health, and is the damage system's unit host.
+ * (`defineUnitStates`), keeps their health, is the damage system's unit host, and summons units owned by others (F18).
  */
 
-export {
-  createUnitEvent,
-  type HealthPolicy,
-  type SpawnUnit,
-  type UnitEvent,
-  type UnitEvents,
-  type UnitSystemBase,
-  type UnitSystemOptions,
-} from './engine.ts';
+export { type HealthPolicy, type SpawnUnit, type UnitSystemBase, type UnitSystemOptions } from './engine.ts';
+export { createUnitEvent, type UnitEvent, type UnitEvents } from './events.ts';
 
 export type { AuraRule } from './hosts.ts';
 
-export { revive, type ReviveProc, type UnitProcKinds, type UnitProcs } from './procs.ts';
+export {
+  despawn,
+  type DespawnProc,
+  despawnSummons,
+  type DespawnSummonsProc,
+  revive,
+  type ReviveProc,
+  summon,
+  type SummonPlacement,
+  type SummonProc,
+  type UnitProcKinds,
+  type UnitProcs,
+} from './procs.ts';
 
 export { defineUnitStates, type UnitBlock, type UnitStateDef, type UnitStateTable } from './states.ts';
 export { createUnitSystem, type UnitSystem } from './system.ts';
