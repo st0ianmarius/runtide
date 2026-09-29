@@ -9,4 +9,11 @@ export type { ButtonApplyExplanation, ButtonExplanation } from './explain.ts';
 export type { LoadoutState } from './loadout.ts';
 export { type AbilityProcKinds, type AbilityProcs, useAbility, type UseAbilityProc } from './procs.ts';
 export { defineSlots, MAX_SLOTS, type SlotDef, type SlotTable } from './slots.ts';
-export { type AbilitySystem, type AbilitySystemOptions, createAbilitySystem, type Equipped } from './system.ts';
+
+export {
+  type AbilitySystem,
+  type AbilitySystemOptions,
+  createAbilitySystem,
+  type Equipped,
+  type MirrorReads,
+} from './system.ts';

@@ -47,6 +47,10 @@
       "types": "./dist/modifiers/index.d.ts",
       "default": "./dist/modifiers/index.js"
     },
+    "./prediction": {
+      "types": "./dist/prediction/index.d.ts",
+      "default": "./dist/prediction/index.js"
+    },
     "./procs": {
       "types": "./dist/procs/index.d.ts",
       "default": "./dist/procs/index.js"

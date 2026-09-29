@@ -1,3 +1,4 @@
+import type { AuraId, AuraTagId } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
 import type { SpellId } from '../spells/index.ts';
 import type { AbilityTypes, SlotId } from './ability-types.ts';
@@ -18,6 +19,15 @@ export interface Equipped {
   readonly rank?: number;
 }
 
+/** What a press reads and writes on its bearer (§II.6 R3): the auras and tags a prediction mirror must rebuild. */
+export interface MirrorReads {
+  /** The slots' cooldown auras, and every button's cost aura and applied auras, in id order. */
+  readonly auras: readonly AuraId[];
+
+  /** Every tag a button's `requires`, `blockedBy` or `resets` names, in id order. */
+  readonly tags: readonly AuraTagId[];
+}
+
 /** What an ability system is built from (§I.5): the spell and aura systems, the game's slots, the caster's stats. */
 export type AbilitySystemOptions<G extends AbilityTypes> = AbilityParts<G>;
 
@@ -32,6 +42,12 @@ export interface AbilitySystem<G extends AbilityTypes> {
 
   /** The proc kind `useAbility`: `createProcRegistry({ ...CORE_PROCS, ...abilities.procKinds })`. */
   readonly procKinds: AbilityProcKinds<G>;
+
+  /**
+   * The auras and tags a press reads and writes on its bearer: what a prediction mirror must rebuild, so each such aura
+   * is `predicted` (`checkPredicted`).
+   */
+  readonly mirrorReads: MirrorReads;
 
   /** A new, empty loadout, for a unit with buttons (`AbilityBearer.loadout`). */
   readonly createLoadout: () => LoadoutState;
@@ -136,6 +152,33 @@ const equipIn = <G extends AbilityTypes>(
   record.ranks[slot] = rank;
 };
 
+/** The auras and tags an engine's presses read and write, sorted and without repeats. */
+const mirrorReadsOf = <G extends AbilityTypes>(engine: AbilityEngine<G>): MirrorReads => {
+  const auras = new Set<number>([...engine.cooldowns].filter((aura) => aura >= 0));
+  const tags = new Set<AuraTagId>();
+
+  for (const button of engine.buttons) {
+    if (button !== undefined) {
+      if (button.costAura >= 0) {
+        auras.add(button.costAura);
+      }
+
+      for (const apply of button.applies) {
+        auras.add(apply.aura);
+      }
+
+      for (const tag of [...button.requires, ...button.blockedBy, ...button.resets]) {
+        tags.add(tag);
+      }
+    }
+  }
+
+  return Object.freeze({
+    auras: [...auras].toSorted((a, b) => a - b).map((aura) => toId<'auras'>(aura)),
+    tags: [...tags].toSorted((a, b) => a - b),
+  });
+};
+
 /**
  * Builds an ability system (§I.6 Abilities) over a spell system, an aura system and the game's slots, compiling every
  * `button` spell's activation against the aura and stat tables (checked at load).
@@ -147,6 +190,7 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
   return {
     slots,
     procKinds: createAbilityProcKinds(engine),
+    mirrorReads: mirrorReadsOf(engine),
     createLoadout: () => new LoadoutRecord(slots.size),
 
     equip: (bearer, slot, ability) => {
