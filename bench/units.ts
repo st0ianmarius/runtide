@@ -1,20 +1,20 @@
 import { createAiSystem, defineTimers } from '../src/ai/index.ts';
 import { auraStacks, createAuraSystem, defineAura, defineAuras, defineAuraTags } from '../src/auras/index.ts';
 import { createClock, stream } from '../src/core/index.ts';
+import {
+  createScriptSystem,
+  defineBehaviour,
+  defineScripts,
+  type ScriptSystem,
+  type ScriptTypes,
+} from '../src/creature-scripts/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul } from '../src/modifiers/index.ts';
 import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc } from '../src/procs/index.ts';
 import { createSpellSystem, defineSpells, type SpellId, type SpellProcs } from '../src/spells/index.ts';
-import {
-  createUnitSystem,
-  defineUnits,
-  defineUnitStates,
-  defineUnitTags,
-  type Unit,
-  type UnitTypes,
-} from '../src/units/index.ts';
+import { createUnitSystem, defineUnits, defineUnitStates, defineUnitTags, type Unit } from '../src/units/index.ts';
 
 /** The bench game's types. */
-interface BenchGame extends UnitTypes {
+interface BenchGame extends ScriptTypes {
   /** A unit. */
   readonly bearer: Unit<BenchGame>;
 
@@ -125,6 +125,12 @@ interface BenchGame extends UnitTypes {
 
   /** One timer. */
   readonly timerName: 'pick';
+
+  /** Open script names. */
+  readonly scriptName: string;
+
+  /** No script events. */
+  readonly scriptEvents: object;
 }
 
 /** How many results the bench read, so no call is optimised away. */
@@ -184,16 +190,23 @@ late.procs = createProcSystem<BenchGame>({
   host: {},
 });
 
-const TEMPLATES = defineUnits<BenchGame, 'grunt'>(
-  { grunt: { stats: { speed: 4, maxHealth: 60 }, tags: ['horde'] } },
+const TEMPLATES = defineUnits<BenchGame, 'grunt' | 'idler' | 'thinker'>(
+  {
+    grunt: { stats: { speed: 4, maxHealth: 60 }, tags: ['horde'] },
+    idler: { tags: ['horde'], script: 'idle' },
+    thinker: { tags: ['horde'], script: 'picker' },
+  },
   { stats: STATS, tags: defineUnitTags(['horde']) },
 );
 
 const TIMERS = defineTimers(['pick']);
 const AI = createAiSystem<BenchGame>({ spells: SPELLS, clock: CLOCK, timers: TIMERS });
 
+const hold: { scripts?: ScriptSystem<BenchGame> } = {};
+
 const UNITS = createUnitSystem<BenchGame>({
   registry: TEMPLATES,
+  scripts: () => hold.scripts?.forUnits ?? missing(),
   ai: AI,
   auras: AURA_SYSTEM,
   spells: SPELLS,
@@ -204,6 +217,38 @@ const UNITS = createUnitSystem<BenchGame>({
     rooted: { tags: ['root'], blocks: ['move'] },
   }),
 });
+
+const behaviour = defineBehaviour<BenchGame>();
+
+/** A behaviour that only answers timers, none of which run: a scripted unit with nothing due. */
+const idle = behaviour({ timer: () => undefined });
+
+/** A pick every 1–3 s: the timer picks from the pool and starts again. */
+const picker = behaviour({
+  spawn: (ctx) => {
+    AI.start(ctx.unit, TIMERS.id.pick, 1 + 2 * DRAW());
+
+    return undefined;
+  },
+
+  timer: (ctx) => {
+    unitCounter.seen += AI.pick(ctx.unit, POOL, PICK) ?? 0;
+    AI.start(ctx.unit, TIMERS.id.pick, 1 + 2 * DRAW());
+
+    return undefined;
+  },
+});
+
+const SCRIPTS = createScriptSystem<BenchGame>({
+  registry: defineScripts<BenchGame, 'idle' | 'picker'>({ idle: [idle], picker: [picker] }),
+  units: UNITS,
+  ai: AI,
+  procs: () => late.procs ?? missing(),
+  bus: { on: () => () => undefined },
+  host: {},
+});
+
+hold.scripts = SCRIPTS;
 
 const GRUNT = UNITS.spawn(TEMPLATES.id.grunt, { side: 1 });
 
@@ -217,6 +262,25 @@ const DRAW = stream(5, 17);
 
 /** How every bench pick is made. */
 const PICK = { random: DRAW };
+
+/** The script benches' crowds, each of 2,000 units, spawned on first use. */
+const CROWDS = new Map<'plain' | 'idle' | 'thinker', Unit<BenchGame>[]>();
+
+/** A crowd of 2,000 units of one kind, spawned once. */
+const crowd = (kind: 'plain' | 'idle' | 'thinker'): readonly Unit<BenchGame>[] => {
+  const made = CROWDS.get(kind);
+
+  if (made !== undefined) {
+    return made;
+  }
+
+  const template = { plain: TEMPLATES.id.grunt, idle: TEMPLATES.id.idler, thinker: TEMPLATES.id.thinker }[kind];
+  const units = Array.from({ length: 2000 }, () => UNITS.spawn(template, { side: 1 }));
+
+  CROWDS.set(kind, units);
+
+  return units;
+};
 
 /** Whether the horde of thinking grunts was spawned (on the tick task's first run, so the spawn row runs without it). */
 const horde = { isSpawned: false };
@@ -240,7 +304,7 @@ const firePick = (unit: Unit<BenchGame>): void => {
   AI.start(unit, TIMERS.id.pick, 1 + 2 * DRAW());
 };
 
-/** The F13 unit and F17 AI benchmark tasks, and how many operations each call of its function is. */
+/** The F13 unit, F17 AI and F19 script benchmark tasks, and how many operations each call of its function is. */
 export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
   [
     'units: spawn + despawn a grunt (template stats)',
@@ -249,6 +313,42 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
 
       unitCounter.seen += unit.health > 0 ? 1 : 0;
       UNITS.despawn(unit);
+    },
+    1,
+  ],
+  [
+    'scripts: step 2,000 unscripted grunts (tick)',
+    () => {
+      const units = crowd('plain');
+
+      for (const unit of units) {
+        SCRIPTS.step(unit);
+      }
+    },
+    1,
+  ],
+  [
+    'scripts: step 2,000 scripted units, nothing due (tick)',
+    () => {
+      const units = crowd('idle');
+
+      for (const unit of units) {
+        SCRIPTS.step(unit);
+      }
+    },
+    1,
+  ],
+  [
+    'scripts: collect + step 2,000 thinkers, a pick every 1–3 s (tick)',
+    () => {
+      const units = crowd('thinker');
+
+      CLOCK.step();
+      unitCounter.seen += SCRIPTS.collect();
+
+      for (const unit of units) {
+        SCRIPTS.step(unit);
+      }
     },
     1,
   ],

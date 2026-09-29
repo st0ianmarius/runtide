@@ -23,6 +23,9 @@ export class ScriptRecord<G extends ScriptTypes> {
   /** Whether the record is attached to a unit. */
   isLive = false;
 
+  /** Whether its script has any `tick` handler. */
+  hasTick = false;
+
   constructor(unit: G['bearer']) {
     this.unit = unit;
   }

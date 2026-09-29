@@ -138,9 +138,15 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
   };
 
   readonly step = (unit: G['bearer']): void => {
-    const record = this.#records[unit.scriptSlot];
+    const slot = unit.scriptSlot;
 
-    if (unit.scriptSlot < 0 || record === undefined) {
+    if (slot < 0) {
+      return;
+    }
+
+    const record = this.#records[slot];
+
+    if (record === undefined) {
       return;
     }
 
@@ -148,7 +154,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
       this.#runner.deliver(record);
     }
 
-    if (this.#runner.scriptOf(record).tick.length > 0) {
+    if (record.hasTick) {
       this.#runner.moment(record, 'tick');
     }
   };
@@ -188,11 +194,13 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
 
     const slot = this.#free.pop() ?? this.#records.length;
     const record = (this.#records[slot] ??= new ScriptRecord<G>(unit));
-    const { behaviours } = this.registry.scripts[script] ?? noScript(script);
+    const compiled = this.registry.scripts[script] ?? noScript(script);
+    const { behaviours } = compiled;
 
     record.unit = unit;
     record.script = script;
     record.isLive = true;
+    record.hasTick = compiled.tick.length > 0;
     record.dueCount = 0;
     record.states.length = behaviours.length;
 
