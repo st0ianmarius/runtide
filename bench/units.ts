@@ -1,5 +1,6 @@
+import { createAiSystem, defineTimers } from '../src/ai/index.ts';
 import { auraStacks, createAuraSystem, defineAura, defineAuras, defineAuraTags } from '../src/auras/index.ts';
-import { createClock } from '../src/core/index.ts';
+import { createClock, stream } from '../src/core/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul } from '../src/modifiers/index.ts';
 import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc } from '../src/procs/index.ts';
 import { createSpellSystem, defineSpells, type SpellId, type SpellProcs } from '../src/spells/index.ts';
@@ -121,6 +122,9 @@ interface BenchGame extends UnitTypes {
 
   /** No game fields on a unit. */
   readonly unitExt: undefined;
+
+  /** One timer. */
+  readonly timerName: 'pick';
 }
 
 /** How many results the bench read, so no call is optimised away. */
@@ -158,8 +162,16 @@ const missing = (): never => {
   throw new Error('The bench proc system is not wired.');
 };
 
+/** Four ai spells a brain picks from, weighted 1 to 4. */
+const POOL_DEFS = defineSpells<BenchGame, 'a' | 'b' | 'c' | 'd'>({
+  a: { activation: { kind: 'ai', windup: 0, weight: 1 }, release: () => undefined },
+  b: { activation: { kind: 'ai', windup: 0, weight: 2 }, release: () => undefined },
+  c: { activation: { kind: 'ai', windup: 0, weight: 3 }, release: () => undefined },
+  d: { activation: { kind: 'ai', windup: 0, weight: 4 }, release: () => undefined },
+});
+
 const SPELLS = createSpellSystem<BenchGame>({
-  registry: defineSpells<BenchGame, never>({}),
+  registry: POOL_DEFS,
   auras: AURA_SYSTEM,
   procs: () => late.procs ?? missing(),
   clock: CLOCK,
@@ -177,8 +189,12 @@ const TEMPLATES = defineUnits<BenchGame, 'grunt'>(
   { stats: STATS, tags: defineUnitTags(['horde']) },
 );
 
+const TIMERS = defineTimers(['pick']);
+const AI = createAiSystem<BenchGame>({ spells: SPELLS, clock: CLOCK, timers: TIMERS });
+
 const UNITS = createUnitSystem<BenchGame>({
   registry: TEMPLATES,
+  ai: AI,
   auras: AURA_SYSTEM,
   spells: SPELLS,
   modifiers: { system: MODIFIERS, base: 'base' },
@@ -193,7 +209,38 @@ const GRUNT = UNITS.spawn(TEMPLATES.id.grunt, { side: 1 });
 
 AURA_SYSTEM.apply(GRUNT, AURAS.id.haste);
 
-/** The F13 unit benchmark tasks, and how many operations each call of its function is. */
+/** The pool, in id order. */
+const POOL: readonly SpellId[] = [POOL_DEFS.id.a, POOL_DEFS.id.b, POOL_DEFS.id.c, POOL_DEFS.id.d];
+
+/** The draw the picks take. */
+const DRAW = stream(5, 17);
+
+/** How every bench pick is made. */
+const PICK = { random: DRAW };
+
+/** Whether the horde of thinking grunts was spawned (on the tick task's first run, so the spawn row runs without it). */
+const horde = { isSpawned: false };
+
+/** Spawns 2,000 grunts, each with a pick timer due within the next 3 s, once. */
+const spawnHorde = (): void => {
+  if (horde.isSpawned) {
+    return;
+  }
+
+  horde.isSpawned = true;
+
+  for (let i = 0; i < 2000; i++) {
+    AI.start(UNITS.spawn(TEMPLATES.id.grunt, { side: 1 }), TIMERS.id.pick, (i % 90) / 30);
+  }
+};
+
+/** A due pick: a spell picked, the timer started again 1 to 3 s away. */
+const firePick = (unit: Unit<BenchGame>): void => {
+  unitCounter.seen += AI.pick(unit, POOL, PICK) ?? 0;
+  AI.start(unit, TIMERS.id.pick, 1 + 2 * DRAW());
+};
+
+/** The F13 unit and F17 AI benchmark tasks, and how many operations each call of its function is. */
 export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
   [
     'units: spawn + despawn a grunt (template stats)',
@@ -202,6 +249,22 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
 
       unitCounter.seen += unit.health > 0 ? 1 : 0;
       UNITS.despawn(unit);
+    },
+    1,
+  ],
+  [
+    'ai: 2,000 brains, a pick timer each every 1–3 s (tick)',
+    () => {
+      spawnHorde();
+      CLOCK.step();
+      unitCounter.seen += AI.step(firePick);
+    },
+    1,
+  ],
+  [
+    'ai: a weighted pick of 4 spells (checked)',
+    () => {
+      unitCounter.seen += AI.pick(GRUNT, POOL, PICK) ?? 0;
     },
     1,
   ],
