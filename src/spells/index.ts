@@ -93,3 +93,5 @@ export {
   type TrackContext,
   type Windup,
 } from './timeline.ts';
+
+export { CAST_STAGES, type CastView } from './view.ts';

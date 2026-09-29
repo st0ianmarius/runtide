@@ -14,6 +14,7 @@ import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import { cancelCast, finishCast, interruptCaster, MANUAL_PAUSE, setPause, stepCaster } from './stepper.ts';
 import type { SpellSystemOptions } from './system-options.ts';
+import { type CastView, viewCast } from './view.ts';
 
 /**
  * A spell system (§I.6): the runner over one game's spells, for any caster. It starts casts in the cast order, runs
@@ -149,6 +150,9 @@ export interface SpellSystem<G extends SpellTypes> {
    * what the damage host's `shareOf` answers with (`shareOf: spells.shareOf`).
    */
   readonly shareOf: (spell: SpellId, stat: StatId) => number | undefined;
+
+  /** A running cast as the wire carries it (§II.6 C10): its spell, stage, stage end stamp and credit. */
+  readonly viewOf: (cast: CastHandle) => CastView | undefined;
 }
 
 /** The request a system reuses for every cast. */
@@ -310,6 +314,8 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly leave = (previous: CastHandle): void => {
     this.#engine.current = this.#engine.castOf(previous);
   };
+
+  readonly viewOf = (cast: CastHandle): CastView | undefined => viewCast(this.#engine, cast);
 
   readonly shareOf = (spell: SpellId, stat: StatId): number | undefined => {
     const share = this.registry.shares[spell]?.[stat];
