@@ -54,4 +54,5 @@ export {
 } from './system.ts';
 
 export { type AuraTagDef, type AuraTagTable, defineAuraTags } from './tags.ts';
+export type { AuraSeed } from './seed.ts';
 export type { AuraView, ViewOptions } from './view.ts';

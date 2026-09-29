@@ -191,6 +191,12 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   /** Whether only its bearer's own client sees it (a cooldown); everyone does when absent. */
   readonly ownerOnly?: boolean;
 
+  /**
+   * Whether a prediction mirror rebuilds it from the wire (§II.6 R3, `auras.seed`): an aura the shared motion step
+   * reads (a cooldown, a cost, a sprint, a state a button's rules name) must be; `checkPredicted` holds the rule.
+   */
+  readonly predicted?: boolean;
+
   /** Bearer states whose entry removes it (`enterState`): going down, dying, leaving. */
   readonly removedOn?: readonly G['state'][];
 

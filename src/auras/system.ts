@@ -9,7 +9,7 @@ import { applyAura } from './apply.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
 import { type AuraPipelineHook, collectIn } from './collect.ts';
 import { type AuraClock, type AuraModifiers, compileAuras } from './compile.ts';
-import type { AuraRegistry } from './define-auras.ts';
+import { type AuraRegistry, PREDICTED } from './define-auras.ts';
 import { AuraEngine } from './engine.ts';
 import type { AuraEvent, AuraEventBus } from './events.ts';
 import { type AuraExplanation, explainIn } from './explain.ts';
@@ -23,6 +23,7 @@ import {
   spendStacks,
   spendValue,
 } from './remove.ts';
+import { type AuraSeed, seedAuras } from './seed.ts';
 import { AuraSet, type AuraState, setOf } from './state.ts';
 import type { AuraTagTable } from './tags.ts';
 import { tickAuras } from './tick.ts';
@@ -195,6 +196,16 @@ export interface AuraSystem<G extends AuraTypes> {
 
   /** The bearer's auras as views for the wire. */
   readonly view: (bearer: G['bearer'], options?: ViewOptions) => AuraView[];
+
+  /** Whether an aura is `predicted`: rebuilt on a prediction mirror from the wire. */
+  readonly isPredicted: (aura: AuraId) => boolean;
+
+  /**
+   * Seeds a prediction mirror's `predicted` auras from the server's views of the bearer (§II.6 R3): they replace the
+   * mirror's, each clock set by the stamp contract (the server's stamp distance, or the seconds left walked again
+   * where the mirror counts the clock by another rule). Only a silent state may be seeded. Returns how many it seeded.
+   */
+  readonly seed: (bearer: G['bearer'], seed: AuraSeed) => number;
 }
 
 /** Whether `undefined` is the game's `ext`: true exactly when the options could leave `createExt` out. */
@@ -298,6 +309,8 @@ const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>) => ({
   },
 
   view: (bearer: G['bearer'], options?: ViewOptions) => viewAuras(engine, bearer, options),
+  isPredicted: (aura: AuraId) => ((engine.flags[aura] ?? 0) & PREDICTED) !== 0,
+  seed: (bearer: G['bearer'], seed: AuraSeed) => seedAuras(engine, bearer, seed),
 });
 
 /** Each system's explainer, for `explainAura`. */

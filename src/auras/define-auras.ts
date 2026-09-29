@@ -38,6 +38,9 @@ export const OWNER_ONLY = 8;
 /** Flag bit: it is removed when its source is gone. */
 export const BOUND_TO_SOURCE = 16;
 
+/** Flag bit: a prediction mirror rebuilds it from the wire. */
+export const PREDICTED = 32;
+
 /** The most stacks an aura can declare. */
 const MAX_STACKS = 65_535;
 
@@ -101,7 +104,8 @@ const flagsOf = <G extends AuraTypes>(def: AuraDef<G>): number =>
   (def.credit === 'first' ? CREDIT_FIRST : 0) |
   (def.keepWhenDepleted === true ? KEEP_DEPLETED : 0) |
   (def.ownerOnly === true ? OWNER_ONLY : 0) |
-  (def.boundToSource === true ? BOUND_TO_SOURCE : 0);
+  (def.boundToSource === true ? BOUND_TO_SOURCE : 0) |
+  (def.predicted === true ? PREDICTED : 0);
 
 /** Whether a duration is sound: absent, infinite, a function, or a finite number of seconds from 0. */
 const isSoundDuration = (duration: unknown): boolean =>
