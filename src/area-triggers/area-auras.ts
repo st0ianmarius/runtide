@@ -34,6 +34,10 @@ export class AuraInside<G extends AreaTriggerTypes> {
   /** Whether a frame's walk is comparing it now: an end during the walk leaves the dropping to the walk. */
   isComparing = false;
 
+  /** The walk's place in the units inside, and in the catch (fields, so a walk step allocates nothing). */
+  cursor = 0;
+  at = 0;
+
   constructor(area: AreaTrigger<G>, index: number) {
     this.area = area;
     this.index = index;
@@ -178,34 +182,33 @@ const compare = <G extends AreaTriggerTypes>(
   targets: readonly G['bearer'][]
 ): void => {
   const { units, nextUnits, area } = inside;
-  let i = 0;
   let written = 0;
 
+  inside.cursor = 0;
   inside.isComparing = true;
 
   try {
     for (let j = 0; j < targets.length && !area.isEnding; j++) {
       const unit = targets[j];
 
-      const next = unit === undefined ? i : visit(engine, inside, [i, j, unit]);
+      inside.at = j;
 
-      if (next < 0) {
+      if (unit !== undefined && !visit(engine, inside, unit)) {
         break;
       }
 
-      i = next;
       written = j + 1;
     }
 
-    for (; i < inside.count && !area.isEnding; i++) {
-      leave(engine, inside, units[i]);
+    for (; inside.cursor < inside.count && !area.isEnding; inside.cursor++) {
+      leave(engine, inside, units[inside.cursor]);
     }
   } finally {
     inside.isComparing = false;
   }
 
   if (area.isEnding) {
-    for (; i < inside.count; i++) {
+    for (let i = inside.cursor; i < inside.count; i++) {
       leave(engine, inside, units[i]);
     }
 
@@ -222,47 +225,40 @@ const compare = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Visits catch entry `j`: the units inside before it leave, it enters unless it was inside, and it is written to the
- * spare lists. The next index into the units inside, or -1 when a hook ended the area trigger.
+ * Visits the catch's entry `inside.at`: the units inside before it leave, it enters unless it was inside, and it is
+ * written to the spare lists. False when a hook ended the area trigger.
  */
 const visit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   inside: AuraInside<G>,
-  [from, j, unit]: readonly [number, number, G['bearer']]
-): number => {
+  unit: G['bearer']
+): boolean => {
   const id = engine.world.idOf(unit);
-  let i = walkTo(engine, inside, [from, id]);
+
+  walkTo(engine, inside, id);
 
   if (inside.area.isEnding) {
-    return -1;
+    return false;
   }
 
-  if (i < inside.count && inside.ids[i] === id) {
-    i += 1;
+  if (inside.cursor < inside.count && inside.ids[inside.cursor] === id) {
+    inside.cursor += 1;
   } else {
     enter(engine, inside, unit);
   }
 
-  inside.nextUnits[j] = unit;
-  inside.nextIds[j] = id;
+  inside.nextUnits[inside.at] = unit;
+  inside.nextIds[inside.at] = id;
 
-  return i;
+  return true;
 };
 
-/** Leaves every unit inside from `i` whose id is below `id`, stopping if the area trigger ends; the new `i`. */
-const walkTo = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  inside: AuraInside<G>,
-  [from, id]: readonly [number, number]
-): number => {
-  let i = from;
-
-  while (i < inside.count && (inside.ids[i] ?? 0) < id && !inside.area.isEnding) {
-    leave(engine, inside, inside.units[i]);
-    i += 1;
+/** Leaves every unit inside from the cursor whose id is below `id`, stopping if the area trigger ends. */
+const walkTo = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraInside<G>, id: number): void => {
+  while (inside.cursor < inside.count && (inside.ids[inside.cursor] ?? 0) < id && !inside.area.isEnding) {
+    leave(engine, inside, inside.units[inside.cursor]);
+    inside.cursor += 1;
   }
-
-  return i;
 };
 
 /** Runs one area aura for a frame: the units caught now enter, the ones gone leave. */

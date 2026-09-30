@@ -50,6 +50,9 @@ export class GridIndex<Unit> implements PointIndex {
   #prev = new Int32Array(64).fill(-1);
   #cellOf = new Int32Array(64).fill(-1);
 
+  /** One past the highest slot ever inserted: a walk over the slots stops there. */
+  #span = 0;
+
   constructor(table: UnitTable<Unit>, parts: { readonly bounds: Box; readonly cell: number }) {
     this.#table = table;
     this.#bounds = parts.bounds;
@@ -64,6 +67,7 @@ export class GridIndex<Unit> implements PointIndex {
     this.#prev = grownInts(this.#prev, slot + 1);
     this.#cellOf = grownInts(this.#cellOf, slot + 1);
     this.#link(slot, this.#cellAt(slot));
+    this.#span = Math.max(this.#span, slot + 1);
   };
 
   readonly move = (slot: number): void => {
@@ -87,6 +91,11 @@ export class GridIndex<Unit> implements PointIndex {
     const r1 = this.#row(box.maxZ);
     let count = 0;
 
+    // A box over more cells than there are units (a whole-world query) walks the units, not the empty cells.
+    if ((c1 - c0 + 1) * (r1 - r0 + 1) > this.#span) {
+      return this.#searchSlots([c0, c1, r0, r1], out);
+    }
+
     for (let row = r0; row <= r1; row++) {
       for (let col = c0; col <= c1; col++) {
         for (let slot = this.#head[row * this.#cols + col] ?? -1; slot >= 0; slot = this.#next[slot] ?? -1) {
@@ -98,6 +107,24 @@ export class GridIndex<Unit> implements PointIndex {
 
     return count;
   };
+
+  /** The slots whose cell lies in a range of columns and rows, walked by slot. */
+  #searchSlots([c0, c1, r0, r1]: readonly [number, number, number, number], out: number[]): number {
+    let count = 0;
+
+    for (let slot = 0; slot < this.#span; slot++) {
+      const cell = this.#cellOf[slot] ?? -1;
+      const col = cell % this.#cols;
+      const row = (cell - col) / this.#cols;
+
+      if (cell >= 0 && col >= c0 && col <= c1 && row >= r0 && row <= r1) {
+        out[count] = slot;
+        count += 1;
+      }
+    }
+
+    return count;
+  }
 
   /** The column of an x, clamped to the grid. */
   #column(x: number): number {
