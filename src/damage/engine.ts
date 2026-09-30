@@ -41,6 +41,13 @@ import type { DamageSystem } from './system.ts';
 /** The default death rule: at or below 0 health. */
 const isAtOrBelowZero = (health: number): boolean => health <= 0;
 
+/** Throws unless a nesting limit is a whole number from 1. */
+const checkWhole = (name: string, value: number): void => {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new RangeError(`Damage system: ${name} must be a whole number from 1; got ${value}.`);
+  }
+};
+
 /** Throws: something a stage needs is missing from the host. */
 export const missing = (what: string): never => {
   throw new TypeError(`The damage system needs ${what}, which its host does not have.`);
@@ -104,12 +111,22 @@ export class DamageEngine<G extends DamageTypes> {
   readonly rollViews = new RollViews<G>(this);
   readonly isDead: (health: number) => boolean;
   readonly maxDepth: number;
+  readonly maxKillChain: number;
   readonly lists: Scratch<ActiveAura<G>> = createScratch<ActiveAura<G>>();
   readonly blows: BlowRecord<G>[] = [];
   readonly heals: HealRecord<G>[] = [];
   readonly forces: ForceRecord<G>[] = [];
   readonly deaths: DeathRecord<G>[] = [];
   depth = 0;
+
+  /** The depth the innermost death started from: what it sets off counts its nesting from there. */
+  base = 0;
+
+  /** How many deaths are running, each inside the one before. */
+  chain = 0;
+
+  /** How many blows, heals and forces were skipped for nesting too deep. */
+  dropped = 0;
   #system: DamageSystem<G> | undefined = undefined;
 
   constructor(options: DamageSystemOptions<G>) {
@@ -137,9 +154,10 @@ export class DamageEngine<G extends DamageTypes> {
     this.isDead = options.isDead ?? isAtOrBelowZero;
     this.maxDepth = options.maxDepth ?? 8;
 
-    if (!Number.isInteger(this.maxDepth) || this.maxDepth < 1) {
-      throw new RangeError(`Damage system: maxDepth must be a whole number from 1; got ${this.maxDepth}.`);
-    }
+    this.maxKillChain = options.maxKillChain ?? 64;
+
+    checkWhole('maxDepth', this.maxDepth);
+    checkWhole('maxKillChain', this.maxKillChain);
   }
 
   /** The public system, which game stages receive. */
@@ -263,9 +281,14 @@ export class DamageEngine<G extends DamageTypes> {
     }
   }
 
-  /** Takes the next nesting level, or refuses when the pipelines are nested too deep. */
+  /**
+   * Takes the next nesting level, or refuses (and counts it dropped) when the pipelines are nested too deep since the
+   * innermost death, or the deaths too deep.
+   */
   enter(): boolean {
-    if (this.depth >= this.maxDepth) {
+    if (this.depth - this.base >= this.maxDepth || this.chain > this.maxKillChain) {
+      this.dropped += 1;
+
       return false;
     }
 

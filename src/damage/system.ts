@@ -56,6 +56,9 @@ export interface DamageSystem<G extends DamageTypes> {
   /** The game's own stages (`damage.name`, `heal.name`, `force.name`), in declaration order, for the escape report. */
   readonly gameStages: readonly string[];
 
+  /** How many blows, heals and forces were skipped so far for nesting too deep (`maxDepth`, `maxKillChain`). */
+  readonly dropped: number;
+
   /** The proc kinds `damage`, `heal` and `setHealth`: `createProcRegistry({ ...CORE_PROCS, ...damage.procKinds })`. */
   readonly procKinds: DamageProcKinds<G>;
 
@@ -177,6 +180,10 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
   readonly force: (spec: ForceSpec<G>) => Force<G>;
   readonly setHealth: (unit: G['bearer'], health: number, credit?: HealthCredit<G>) => ProcOutcome;
   readonly #engine: DamageEngine<G>;
+
+  get dropped(): number {
+    return this.#engine.dropped;
+  }
 
   constructor(options: DamageSystemOptions<G>, engine: DamageEngine<G>) {
     const force = createForcePipeline(engine);

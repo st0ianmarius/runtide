@@ -45,15 +45,20 @@ const runSteps = <G extends DamageTypes>(
  * The death pipeline: the rewards before the death event (souls), the `death` event about the unit and the
  * `kill` event about its killer, the rewards after them (a loot roll), and last the host takes the unit out: a unit
  * system kills it, whose auras hear the `dead` state then (a death burst is an aura's `onState`). Every unit dies
- * the same way: a game whose objective or wall gives no reward reads its class in its reward steps. A despawn is not a death and never comes here.
+ * the same way: a game whose objective or wall gives no reward reads its class in its reward steps. A despawn is not a
+ * death and never comes here. What a death sets off nests from it afresh (`maxDepth`), up to `maxKillChain` deaths.
  */
 export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: DeathSpec<G>): void => {
   const death = engine.deathRecord(spec.unit);
   const slots = engine.options.death;
   const events = engine.options.events;
 
+  const { base } = engine;
+
   death.reset(spec);
   engine.depth += 1;
+  engine.chain += 1;
+  engine.base = engine.depth;
 
   try {
     const cues = engine.options.cues;
@@ -71,6 +76,8 @@ export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: D
 
     engine.host.remove?.(spec.unit, death);
   } finally {
+    engine.base = base;
+    engine.chain -= 1;
     engine.depth -= 1;
   }
 };

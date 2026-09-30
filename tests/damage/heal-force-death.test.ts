@@ -337,4 +337,38 @@ describe('the death pipeline', () => {
     damage.hit({ target, amount: 10 });
     assert.deepEqual(deaths, [1]);
   });
+
+  it('lets a chain of kills run past maxDepth, each death nesting afresh, up to maxKillChain', () => {
+    const chain = (maxKillChain?: number) => {
+      const game = makeDamageGame(
+        {},
+        {
+          ...(maxKillChain === undefined ? {} : { maxKillChain }),
+
+          death: {
+            after: [
+              (death, system) => {
+                const next = game.units.get(death.unit.id + 1);
+
+                if (next !== undefined) {
+                  system.hit({ target: next, amount: 1000 });
+                }
+              }
+            ]
+          }
+        }
+      );
+
+      for (let id = 1; id <= 12; id++) {
+        game.unit(id);
+      }
+
+      game.damage.hit({ target: game.units.get(1) ?? game.unit(1), amount: 1000 });
+
+      return { dead: [...game.units.values()].filter((unit) => unit.hp <= 0).length, dropped: game.damage.dropped };
+    };
+
+    assert.deepEqual(chain(), { dead: 12, dropped: 0 });
+    assert.deepEqual(chain(3), { dead: 4, dropped: 1 });
+  });
 });

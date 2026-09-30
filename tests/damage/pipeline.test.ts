@@ -259,6 +259,7 @@ describe('a blow', () => {
 
     damage.hit({ target: unit(1), amount: 1 });
     assert.deepEqual(statuses, ['2 skipped', '1 landed']);
+    assert.equal(damage.dropped, 1);
   });
 });
 
@@ -289,5 +290,6 @@ describe('the load-time checks', () => {
       /no stat nothing/
     );
     assert.throws(() => makeDamageGame({}, { maxDepth: 0 }), /maxDepth/);
+    assert.throws(() => makeDamageGame({}, { maxKillChain: 1.5 }), /maxKillChain/);
   });
 });
