@@ -4,7 +4,7 @@ import type { ActivationKindDef } from './activation.ts';
 import { fireCastCue } from './cast-cue.ts';
 import type { CastOptions, CastRefusal, CastRequest, GateAnswer, Report } from './cast-request.ts';
 import type { Cast } from './cast.ts';
-import { recordOf } from './caster.ts';
+import { recordOf, stopThrown } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
 import { NO_CAST } from './ids.ts';
 import { checkReach } from './reach.ts';
@@ -344,12 +344,7 @@ export const startCast = <G extends SpellTypes>(
 
     return runStart(engine, [cast, def], report);
   } catch (error) {
-    // A hook threw: the cast stops where it is, with no more hooks, and goes back to the pool.
-    if (cast.stage !== 'ended') {
-      cast.stage = 'ended';
-      recordOf(cast.caster).remove(cast.cast);
-    }
-
+    stopThrown(cast);
     engine.unhold(cast);
 
     throw error;
@@ -378,6 +373,7 @@ const runStart = <G extends SpellTypes>(
     return report;
   }
 
+  recordOf(cast.caster).countStart();
   beginCast(engine, cast, def);
 
   const { went, hasReleased } = cast;
@@ -406,9 +402,9 @@ export const checkCast = <G extends SpellTypes>(
   const def = engine.registry.get(request.spell);
   const cast = engine.acquire(request.caster);
 
-  initCast(engine, cast, request);
-
   try {
+    initCast(engine, cast, request);
+
     return admit(engine, cast, def);
   } finally {
     cast.stage = 'ended';
@@ -436,9 +432,8 @@ export const startCooldowns = <G extends SpellTypes>(
 
   const cast = engine.acquire(request.caster);
 
-  initCast(engine, cast, request);
-
   try {
+    initCast(engine, cast, request);
     takeStats(engine, cast, def);
     engine.cooldowns.start(cast, 'all', typeof windup === 'function' ? windup(cast) : (windup ?? 0));
   } finally {

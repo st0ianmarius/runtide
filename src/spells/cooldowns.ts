@@ -247,6 +247,11 @@ export class Cooldowns<G extends SpellTypes> {
     cooldown: CompiledCooldown<G>,
     [read, releaseAfter]: readonly [number | undefined, number]
   ): void {
+    // A cooldown read as nothing lands nothing, before its release as after it.
+    if (read !== undefined && read <= 0) {
+      return;
+    }
+
     const seconds =
       cooldown.onRelease && releaseAfter > 0
         ? (read ?? this.#auras.lengthOf(cooldown.aura, caster)) + releaseAfter

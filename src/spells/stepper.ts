@@ -1,6 +1,6 @@
 import { countDown, isRunOut } from '../core/index.ts';
 import type { Cast } from './cast.ts';
-import { recordOf } from './caster.ts';
+import { recordOf, stopThrown } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
 import { afterPayload, endCast, isEnded, releaseCast } from './runner.ts';
@@ -168,12 +168,16 @@ const snapshot = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['beare
   return handles;
 };
 
-/** Steps one cast, held so it outlives its own step's hooks. */
+/** Steps one cast, held so it outlives its own step's hooks; one whose hook throws stops where it is. */
 const stepHeld = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
   cast.holds += 1;
 
   try {
     stepCast(engine, cast);
+  } catch (error) {
+    stopThrown(cast);
+
+    throw error;
   } finally {
     engine.unhold(cast);
   }

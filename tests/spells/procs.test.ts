@@ -213,6 +213,66 @@ describe('delayed procs', () => {
     assert.equal(game.spells.delayed.pending, 0);
   });
 
+  it('drops unrun the lists due after one that throws, letting their casts go', () => {
+    const game = makeSpellGame({
+      boom: spell({
+        activation: { kind: 'trigger' },
+
+        release: () => [
+          after<Game>(0.5, [
+            run('boom', () => {
+              throw new Error('game bug');
+            })
+          ])
+        ]
+      }),
+      strike: spell({ activation: { kind: 'trigger' }, release: () => [after<Game>(0.5, [mark('struck')])] })
+    });
+
+    const a = game.unit(1);
+
+    game.spells.cast(a, game.id.boom);
+    game.spells.cast(a, game.id.strike);
+    game.step(2);
+    assert.throws(() => game.spells.stepDelayed(), /game bug/);
+    assert.deepEqual([game.spells.delayed.pending, game.spells.pool.live], [0, 0]);
+    assert.equal(game.log.includes('struck@1'), false);
+  });
+
+  it('asks a bound with its list out of the live list, so a bound that withdraws its owner withdraws only the rest', () => {
+    const late: { game?: ReturnType<typeof makeSpellGame> } = {};
+
+    const game = makeSpellGame({
+      strike: spell({
+        activation: { kind: 'trigger' },
+
+        release: () => [
+          after<Game>(0.5, [mark('struck')], {
+            bound: (owner) => {
+              late.game?.spells.withdrawDelayed(owner);
+
+              return false;
+            }
+          })
+        ]
+      }),
+      later: spell({ activation: { kind: 'trigger' }, release: () => [after<Game>(5, [mark('later')])] })
+    });
+
+    late.game = game;
+
+    const [a, b] = [game.unit(1), game.unit(2)];
+
+    game.spells.cast(a, game.id.strike);
+    game.spells.cast(a, game.id.later);
+    game.spells.cast(b, game.id.later);
+    game.spells.cast(b, game.id.later);
+    game.step(2);
+    assert.equal(game.spells.stepDelayed(), 0);
+    assert.deepEqual([game.spells.delayed.pending, game.spells.withdrawDelayed(b)], [2, 2]);
+    assert.deepEqual([game.spells.delayed.pending, game.spells.pool.live], [0, 0]);
+  });
+
   it("counts a chained delay from its parent's due time with from: 'due', else from now", () => {
     const landed: string[] = [];
 

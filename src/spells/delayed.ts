@@ -150,30 +150,29 @@ export class DelayedProcs<G extends SpellTypes> {
 
   /**
    * Lands every list of a slot due by the clock's tick, in due order, dropping unrun each whose bound its owner fails;
-   * returns how many landed.
+   * returns how many landed. A list that throws stops the landing: the lists due after it are dropped unrun, so none is
+   * left off the wheel holding its cast.
    */
   land(slot: number): number {
     const wheel = this.#wheels[slot] ?? missing(`tick slot ${slot}`);
     const due = this.#due.take();
     const count = wheel.collect(this.#engine.clock.tick, due);
     let landed = 0;
+    let i = 0;
 
     try {
-      for (let i = 0; i < count; i++) {
+      for (; i < count; i++) {
         const handle = due[i];
         const record = handle === undefined ? undefined : this.#pool.get(handle);
 
-        if (record === undefined) {
-          continue;
-        }
-
-        if (record.bound?.(record.cast?.caster ?? record.self) === false) {
-          this.#free(record);
-        } else {
-          this.#landOne(record);
+        if (record !== undefined && this.#landDue(record)) {
           landed += 1;
         }
       }
+    } catch (error) {
+      this.#dropDue(due, i + 1, count);
+
+      throw error;
     } finally {
       this.#due.give(count);
     }
@@ -206,15 +205,29 @@ export class DelayedProcs<G extends SpellTypes> {
   }
 
   /**
-   * Runs one list for its origin, as its cast's procs, then lets go of the cast and the record. It leaves the live list
-   * first, so its own procs cannot withdraw it while it runs.
+   * Lands one due list, or drops it unrun when its bound fails; whether it landed. It leaves the live list first, so
+   * neither its bound nor its own procs can withdraw it while it is asked or runs.
    */
+  #landDue(record: Delayed<G>): boolean {
+    this.#unlist(record);
+
+    if (record.bound?.(record.owner) === false) {
+      this.#release(record);
+
+      return false;
+    }
+
+    this.#landOne(record);
+
+    return true;
+  }
+
+  /** Runs one list, out of the live list already, for its origin as its cast's procs, then lets go of it. */
   #landOne(record: Delayed<G>): void {
     const engine = this.#engine;
     const { current } = engine;
     const { landing } = this;
 
-    this.#unlist(record);
     engine.current = record.cast;
     this.landing = record;
 
@@ -224,6 +237,18 @@ export class DelayedProcs<G extends SpellTypes> {
       engine.current = current;
       this.landing = landing;
       this.#release(record);
+    }
+  }
+
+  /** Drops unrun the due lists from `from` on, still waiting after a list threw. */
+  #dropDue(due: readonly (Handle<Delayed<G>> | undefined)[], from: number, count: number): void {
+    for (let i = from; i < count; i++) {
+      const handle = due[i];
+      const record = handle === undefined ? undefined : this.#pool.get(handle);
+
+      if (record !== undefined) {
+        this.#free(record);
+      }
     }
   }
 

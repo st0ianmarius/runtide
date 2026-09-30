@@ -312,9 +312,73 @@ describe('pooled casts', () => {
 
     for (const rank of [0, 1.5, Number.NaN]) {
       assert.throws(() => game.spells.cast(hero, game.id.bolt, { rank }), /a rank is a whole number from 1/);
+      assert.throws(() => game.spells.check(hero, game.id.bolt, { rank }), /a rank is a whole number from 1/);
     }
 
     assert.equal(game.spells.pool.live, 0);
+  });
+
+  it('stops a channel whose tick throws, with no more beats, and gives its record back', () => {
+    let beats = 0;
+
+    const game = makeSpellGame({
+      beam: spell({
+        activation: { kind: 'trigger' },
+        timeline: {
+          channel: {
+            seconds: 1,
+            every: 0.25,
+
+            tick: () => {
+              beats += 1;
+
+              if (beats === 1) {
+                throw new Error('game bug');
+              }
+
+              return [mark('beat')];
+            }
+          }
+        },
+        release: () => undefined
+      })
+    });
+
+    const hero = game.unit(1);
+    const { handle } = game.spells.cast(hero, game.id.beam);
+
+    game.step();
+    assert.throws(() => {
+      game.spells.step(hero);
+    }, /game bug/);
+
+    for (let i = 0; i < 3; i++) {
+      game.step();
+      game.spells.step(hero);
+    }
+
+    assert.deepEqual([game.spells.isRunning(handle), game.spells.pool.live, beats], [false, 0, 1]);
+  });
+
+  it('gives a check the ordinal of the next cast, taking none: a check does not move later casts’ rolls', () => {
+    const ordinals: number[] = [];
+
+    const game = makeSpellGame({
+      bolt: spell({
+        activation: { kind: 'trigger' },
+        canCast: (ctx) => ordinals.push(ctx.key().at(-1) ?? -1) > 0,
+        release: () => undefined
+      })
+    });
+
+    const hero = game.unit(1);
+
+    game.spells.check(hero, game.id.bolt);
+    game.spells.check(hero, game.id.bolt);
+    game.spells.cast(hero, game.id.bolt);
+    game.spells.check(hero, game.id.bolt);
+    game.spells.cast(hero, game.id.bolt);
+    assert.deepEqual(ordinals, [0, 0, 0, 1, 1]);
   });
 });
 

@@ -1,6 +1,7 @@
 import { stepsUntil } from '../core/index.ts';
+import type { Cast } from './cast.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
-import type { SpellCaster, SpellId } from './spell-types.ts';
+import type { SpellCaster, SpellId, SpellTypes } from './spell-types.ts';
 
 /**
  * What the spell system keeps on a caster (`SpellCaster.casts`): the handles of the casts it runs, in the order they
@@ -48,16 +49,22 @@ export class CasterRecord implements CasterState {
   lastTick = Number.NaN;
   started = 0;
 
-  /** The ordinal of a cast starting on `tick`: 0 for the tick's first, then 1, 2 and on. */
+  /**
+   * The ordinal of a cast starting on `tick`: 0 for the tick's first, then 1, 2 and on. Asking takes nothing, so a
+   * check, a refusal or a cooldown read shares the ordinal of the next cast that starts (`countStart`).
+   */
   ordinalAt(tick: number): number {
     if (tick !== this.lastTick) {
       this.lastTick = tick;
       this.started = 0;
     }
 
-    this.started += 1;
+    return this.started;
+  }
 
-    return this.started - 1;
+  /** Counts a cast started on the tick `ordinalAt` last asked about, which moves the next one's ordinal on. */
+  countStart(): void {
+    this.started += 1;
   }
 
   /** The index of an armed spell in `autos`, or -1. */
@@ -216,4 +223,12 @@ export const recordOf = (caster: SpellCaster): CasterRecord => {
   }
 
   return casts;
+};
+
+/** A hook threw: the cast stops where it is, with no more hooks, and leaves its caster's list (the caller unholds it). */
+export const stopThrown = <G extends SpellTypes>(cast: Cast<G>): void => {
+  if (cast.stage !== 'ended') {
+    cast.stage = 'ended';
+    recordOf(cast.caster).remove(cast.cast);
+  }
 };

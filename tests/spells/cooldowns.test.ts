@@ -64,6 +64,25 @@ describe('a spell’s cooldowns', () => {
     assert.equal(game.spells.cooldownLeft(hero, game.id.bolt), 2);
   });
 
+  it('predict nothing for a release cooldown read as 0, as the release lands nothing', () => {
+    const game = makeSpellGame(
+      {
+        slam: spell({
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 1 } },
+          cooldown: { aura: 'slamCooldown', seconds: () => 0, startsOn: 'release' },
+          release: () => undefined
+        })
+      },
+      { auras: { slamCooldown: aura({ duration: 5 }) } }
+    );
+
+    const hero = game.unit(1);
+
+    game.spells.predictCooldowns(hero, game.id.slam);
+    assert.equal(game.spells.isCooling(hero, game.id.slam), false);
+  });
+
   it('hold a spell only once every charge is spent, each recharging on its own clock', () => {
     const game = makeSpellGame(
       {
