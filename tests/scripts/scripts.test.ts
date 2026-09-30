@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { setTimer } from '../../src/ai/index.ts';
+import { cancelTimer, setTimer } from '../../src/ai/index.ts';
 import { createScriptSystem, defineBehaviour, defineScripts } from '../../src/scripts/index.ts';
 import { summon, type UnitDef } from '../../src/units/index.ts';
 import { makeUnitGame, TIMERS, type UnitGame } from '../helpers/unit-game.ts';
@@ -154,6 +154,70 @@ describe('scripts', () => {
       id: second.id,
       ticks: 0
     });
+  });
+
+  it('stop a record’s handlers once its unit despawns in one, even when the next spawn takes the record', () => {
+    const log: string[] = [];
+
+    const ender = behaviour({
+      tick: (ctx) => {
+        log.push(`ender ${ctx.unit.id}`);
+        game.units.despawn(ctx.unit);
+        game.units.spawn(game.id.plain, { side: 1 });
+
+        return undefined;
+      }
+    });
+
+    const after = behaviour({
+      tick: (ctx) => {
+        log.push(`after ${ctx.unit.id}`);
+
+        return undefined;
+      }
+    });
+
+    const scripts = defineScripts<UnitGame, 'ending' | 'plain'>({ ending: [ender, after], plain: [behaviour({})] });
+
+    const game = makeUnitGame(
+      { ending: { script: 'ending' }, plain: { script: 'plain' } } satisfies Record<string, UnitDef<UnitGame>>,
+      { scripts }
+    );
+
+    const unit = game.units.spawn(game.id.ending, { side: 1 });
+
+    game.clock.step();
+    game.scripts.collect();
+    game.scripts.step(unit);
+    assert.deepEqual(log, [`ender ${unit.id}`]);
+  });
+
+  it('skip a collected timer a handler before it cancelled or started again', () => {
+    const log: string[] = [];
+
+    const both = behaviour({
+      spawn: () => [setTimer<UnitGame>('pick', 0.25), setTimer<UnitGame>('raise', 0.25)],
+
+      timer: (ctx, timer) => {
+        log.push(`${TIMERS.names[timer] ?? '?'} ${ctx.unit.id}`);
+
+        return timer === TIMERS.id.pick ? [cancelTimer<UnitGame>('raise')] : undefined;
+      }
+    });
+
+    const game = makeUnitGame({ both: { script: 'both' } } satisfies Record<string, UnitDef<UnitGame>>, {
+      scripts: defineScripts<UnitGame, 'both'>({ both: [both] })
+    });
+
+    const unit = game.units.spawn(game.id.both, { side: 1 });
+
+    for (let i = 0; i < 4; i++) {
+      game.clock.step();
+      game.scripts.collect();
+      game.scripts.step(unit);
+    }
+
+    assert.deepEqual(log, [`pick ${unit.id}`]);
   });
 
   it('let a handler run procs mid-way through ctx.run, nested handlers taking their own context', () => {

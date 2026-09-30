@@ -23,6 +23,9 @@ export class ScriptRecord<G extends ScriptTypes> {
   /** Whether the record is attached to a unit. */
   isLive = false;
 
+  /** Bumped as the record is attached and detached: a handler loop stops once it changes under it. */
+  serial = 0;
+
   /** Whether its script has any `tick` handler. */
   hasTick = false;
 

@@ -4,6 +4,12 @@ import type { CompiledScript, ScriptRegistry } from './define-scripts.ts';
 import { ScriptContext, ScriptOrigin, type ScriptRecord } from './record.ts';
 import type { AnyEventHandler, ScriptEventName, ScriptReturn, ScriptTypes } from './script-types.ts';
 
+/** Where delivered timers are checked: the AI system's `take`. */
+export interface DueTimers<G extends ScriptTypes> {
+  /** Whether a collected timer still stands, taking it. */
+  readonly take: (unit: G['bearer'], timer: TimerId) => boolean;
+}
+
 /** A moment every behaviour may handle with no argument. */
 export type Moment = 'spawn' | 'tick';
 
@@ -39,14 +45,15 @@ export class ScriptRunner<G extends ScriptTypes> {
     return this.#parts.registry.scripts[record.script] ?? noScript(record.script);
   }
 
-  /** Runs one moment's handlers of a record, in behaviour order, while it stays attached. */
+  /** Runs one moment's handlers of a record, in behaviour order, while it stays attached to the same unit. */
   moment(record: ScriptRecord<G>, moment: Moment): void {
     const script = this.scriptOf(record);
+    const { serial } = record;
 
     for (const index of script[moment]) {
       const handler = script.behaviours[index]?.[moment];
 
-      if (handler !== undefined && record.isLive) {
+      if (handler !== undefined && record.serial === serial) {
         const ctx = this.#enter(record, index);
 
         try {
@@ -58,16 +65,20 @@ export class ScriptRunner<G extends ScriptTypes> {
     }
   }
 
-  /** Delivers a record's due timers, in due order, to its `timer` handlers. */
-  deliver(record: ScriptRecord<G>): void {
+  /**
+   * Delivers a record's due timers, in due order, to its `timer` handlers: each one `timers` still holds (a handler
+   * before it may have cancelled or restarted it).
+   */
+  deliver(record: ScriptRecord<G>, timers: DueTimers<G>): void {
     const count = record.dueCount;
+    const { serial, unit } = record;
 
     record.dueCount = 0;
 
-    for (let i = 0; i < count && record.isLive; i++) {
+    for (let i = 0; i < count && record.serial === serial; i++) {
       const timer = record.due[i];
 
-      if (timer !== undefined) {
+      if (timer !== undefined && timers.take(unit, timer)) {
         this.#timer(record, timer);
       }
     }
@@ -76,11 +87,12 @@ export class ScriptRunner<G extends ScriptTypes> {
   /** Delivers a bound event to a record's handlers of it. */
   dispatch(record: ScriptRecord<G>, event: string, payload: unknown): void {
     const script = this.scriptOf(record);
+    const { serial } = record;
 
     for (const index of script.on.get(event) ?? NO_INDEXES) {
       const handler: AnyEventHandler<G> | undefined = script.behaviours[index]?.on?.[eventKey<G>(event)];
 
-      if (handler !== undefined && record.isLive) {
+      if (handler !== undefined && record.serial === serial) {
         const ctx = this.#enter(record, index);
 
         try {
@@ -95,11 +107,12 @@ export class ScriptRunner<G extends ScriptTypes> {
   /** Delivers one due timer to a record's `timer` handlers. */
   #timer(record: ScriptRecord<G>, timer: TimerId): void {
     const script = this.scriptOf(record);
+    const { serial } = record;
 
     for (const index of script.timer) {
       const handler = script.behaviours[index]?.timer;
 
-      if (handler !== undefined && record.isLive) {
+      if (handler !== undefined && record.serial === serial) {
         const ctx = this.#enter(record, index);
 
         try {

@@ -21,6 +21,9 @@ export class Brain implements BrainState {
   /** The bits of the reasons holding its timers (`ai.hold`); 0 when they count. */
   holds = 0;
 
+  /** A bit per timer collected and not yet taken (`ai.collect`, `ai.take`). */
+  collected = 0;
+
   focus = -1;
 
   constructor(slot: number, timers: number) {

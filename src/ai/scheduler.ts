@@ -78,6 +78,7 @@ export class Scheduler<G extends AiTypes> {
     }
 
     brain.holds = 0;
+    brain.collected = 0;
     brain.focus = -1;
     this.#owners[brain.slot] = undefined;
     this.#isLive[brain.slot] = false;
@@ -94,6 +95,11 @@ export class Scheduler<G extends AiTypes> {
 
     const brain = this.#own(unit, timer);
 
+    if (brain === undefined) {
+      return;
+    }
+
+    brain.collected &= ~(1 << timer);
     this.#stop(brain, timer);
 
     if (brain.holds === 0) {
@@ -107,8 +113,18 @@ export class Scheduler<G extends AiTypes> {
   cancel(unit: G['bearer'], timer: TimerId): boolean {
     const brain = this.#own(unit, timer);
 
-    const wasRunning = !Number.isNaN(brain.due[timer] ?? NONE) || !Number.isNaN(brain.left[timer] ?? NONE);
+    if (brain === undefined) {
+      return false;
+    }
 
+    const bit = 1 << timer;
+
+    const wasRunning =
+      (brain.collected & bit) !== 0 ||
+      !Number.isNaN(brain.due[timer] ?? NONE) ||
+      !Number.isNaN(brain.left[timer] ?? NONE);
+
+    brain.collected &= ~bit;
     this.#stop(brain, timer);
     brain.left[timer] = NONE;
 
@@ -118,6 +134,11 @@ export class Scheduler<G extends AiTypes> {
   /** The seconds left on a timer (held or not); `undefined` when it is not running. */
   remaining(unit: G['bearer'], timer: TimerId): number | undefined {
     const brain = this.#own(unit, timer);
+
+    if (brain === undefined) {
+      return undefined;
+    }
+
     const due = brain.due[timer] ?? NONE;
 
     if (!Number.isNaN(due)) {
@@ -135,6 +156,11 @@ export class Scheduler<G extends AiTypes> {
    */
   hold(unit: G['bearer'], change: { readonly bits: number; readonly isOn: boolean }): boolean {
     const brain = brainOf(unit.brain);
+
+    if (this.#isLive[brain.slot] !== true) {
+      return false;
+    }
+
     const was = brain.holds;
 
     brain.holds = change.isOn ? was | change.bits : was & ~change.bits;
@@ -148,8 +174,37 @@ export class Scheduler<G extends AiTypes> {
     return brain.holds !== 0;
   }
 
-  /** Fires every timer due by the clock's tick, in due order, each once: `fire(unit, timer)`. Returns how many. */
-  step(fire: (unit: G['bearer'], timer: TimerId) => void): number {
+  /** Sets the entity id a brain focuses; a freed brain keeps none. */
+  setFocus(unit: G['bearer'], focus: number): void {
+    const brain = brainOf(unit.brain);
+
+    if (this.#isLive[brain.slot] === true) {
+      brain.focus = focus;
+    }
+  }
+
+  /**
+   * Whether a timer `collect` handed out still stands, taking it: a start, a cancel or a hold since then drops it (a
+   * held one fires again once let go).
+   */
+  take(unit: G['bearer'], timer: TimerId): boolean {
+    const brain = brainOf(unit.brain);
+    const bit = 1 << timer;
+
+    if ((brain.collected & bit) === 0) {
+      return false;
+    }
+
+    brain.collected &= ~bit;
+
+    return true;
+  }
+
+  /**
+   * Fires every timer due by the clock's tick, in due order, each once: `fire(unit, timer)`. With `keep`, each stays
+   * collected until `take`. Returns how many.
+   */
+  step(fire: (unit: G['bearer'], timer: TimerId) => void, keep: boolean): number {
     const due = this.#due;
     const count = this.#wheel.collect(this.#clock.tick, due);
     let fired = 0;
@@ -159,7 +214,13 @@ export class Scheduler<G extends AiTypes> {
       const unit = entry === undefined ? undefined : this.#claim(entry);
 
       if (unit !== undefined && entry !== undefined) {
-        fire(unit, toId<'timers'>(entry % MAX_TIMERS));
+        const timer = entry % MAX_TIMERS;
+
+        if (keep) {
+          brainOf(unit.brain).collected |= 1 << timer;
+        }
+
+        fire(unit, toId<'timers'>(timer));
         fired += 1;
       }
     }
@@ -167,12 +228,20 @@ export class Scheduler<G extends AiTypes> {
     return fired;
   }
 
-  /** The brain whose timer is live now, its owner noted; throws for a timer the table does not have. */
-  #own(unit: G['bearer'], timer: TimerId): Brain {
+  /**
+   * The brain whose timer is live now, its owner noted; `undefined` for a freed
+   * brain (a late proc on a despawned unit), so the next unit given it inherits nothing. Throws for a timer the table
+   * does not have.
+   */
+  #own(unit: G['bearer'], timer: TimerId): Brain | undefined {
     const brain = brainOf(unit.brain);
 
     if (!(timer >= 0 && timer < this.#timers)) {
       throw new RangeError(`Timer ${timer} is not one of the system's ${this.#timers}.`);
+    }
+
+    if (this.#isLive[brain.slot] !== true) {
+      return undefined;
     }
 
     this.#owners[brain.slot] = unit;
@@ -212,18 +281,25 @@ export class Scheduler<G extends AiTypes> {
     brain.due[timer] = NONE;
   }
 
-  /** A brain is held: each running timer keeps what it has left, off the wheel. */
+  /**
+   * A brain is held: each running timer keeps what it has left, off the wheel, and a collected one not yet taken
+   * waits with nothing left.
+   */
   #freeze(brain: Brain): void {
     const { tick, dt } = this.#clock;
 
     for (let timer = 0; timer < this.#timers; timer++) {
       const due = brain.due[timer] ?? NONE;
 
-      if (!Number.isNaN(due)) {
+      if ((brain.collected & (1 << timer)) !== 0) {
+        brain.left[timer] = 0;
+      } else if (!Number.isNaN(due)) {
         brain.left[timer] = Math.max(0, due - tick) * dt;
         this.#stop(brain, timer);
       }
     }
+
+    brain.collected = 0;
   }
 
   /** A brain is released: each held timer goes back on the wheel with what it had left. */

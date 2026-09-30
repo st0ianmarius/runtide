@@ -135,7 +135,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     this.#fallback = fire;
 
     try {
-      return this.#options.ai.step(this.#mark);
+      return this.#options.ai.collect(this.#mark);
     } finally {
       this.#fallback = undefined;
     }
@@ -155,7 +155,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     }
 
     if (record.dueCount > 0) {
-      this.#runner.deliver(record);
+      this.#runner.deliver(record, this.#options.ai);
     }
 
     if (record.hasTick) {
@@ -208,6 +208,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     record.unit = unit;
     record.script = script;
     record.isLive = true;
+    record.serial += 1;
     record.hasTick = compiled.tick.length > 0;
     record.dueCount = 0;
     record.states.length = behaviours.length;
@@ -240,6 +241,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     }
 
     record.isLive = false;
+    record.serial += 1;
     record.dueCount = 0;
     record.states.fill(undefined);
     this.#counts[record.script] = (this.#counts[record.script] ?? 1) - 1;

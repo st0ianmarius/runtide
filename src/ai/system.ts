@@ -1,6 +1,6 @@
 import type { SpellClock, SpellId, SpellSystem } from '../spells/index.ts';
 import type { AiTypes, TimerId } from './ai-types.ts';
-import { brainOf, type BrainState } from './brain.ts';
+import type { BrainState } from './brain.ts';
 import { Picker, type PickOptions } from './picker.ts';
 import { createAiProcKinds } from './proc-kinds.ts';
 import type { AiProcKinds } from './procs.ts';
@@ -73,6 +73,16 @@ export interface AiSystem<G extends AiTypes> {
   readonly step: (fire: (unit: G['bearer'], timer: TimerId) => void) => number;
 
   /**
+   * Collects every timer due by the clock's tick as `step` does, for a system that delivers them later in each unit's
+   * own step (the script system): each stays collected until `take`, and a start, a cancel or a hold of it in between
+   * drops it (a held one fires again once let go). Returns how many.
+   */
+  readonly collect: (mark: (unit: G['bearer'], timer: TimerId) => void) => number;
+
+  /** Whether a timer `collect` handed out still stands, taking it. */
+  readonly take: (unit: G['bearer'], timer: TimerId) => boolean;
+
+  /**
    * Holds (or lets go of) a brain's timers for one reason: while any of the system's `holds` is on, they stop counting.
    * A reason the system was not given does nothing (a unit state's interrupt its creatures do not wait out). Returns
    * whether the brain is held now.
@@ -133,7 +143,9 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
 
     cancel: (unit, timer) => scheduler.cancel(unit, timer),
     remaining: (unit, timer) => scheduler.remaining(unit, timer),
-    step: (fire) => scheduler.step(fire),
+    step: (fire) => scheduler.step(fire, false),
+    collect: (mark) => scheduler.step(mark, true),
+    take: (unit, timer) => scheduler.take(unit, timer),
     hold: (unit, reason, isOn) => scheduler.hold(unit, { bits: holdBits.get(reason) ?? 0, isOn }),
 
     pick: (caster, pool, pick) => picker.pick(caster, pool, pick),
@@ -141,7 +153,7 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
     focusOf: (unit) => unit.brain.focus,
 
     setFocus: (unit, focus) => {
-      brainOf(unit.brain).focus = focus;
+      scheduler.setFocus(unit, focus);
     }
   };
 
