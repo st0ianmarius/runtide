@@ -96,7 +96,7 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
 
   /**
    * When the cooldown starts: `activation` (as it fires, the default) or `cast`, only once its cast was not refused (a
-   * placement the cast checks).
+   * placement the cast's gate checks).
    */
   readonly startsOn?: 'activation' | 'cast';
 

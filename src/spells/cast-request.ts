@@ -4,8 +4,8 @@ import type { SpellId, SpellTypes } from './spell-types.ts';
 
 /**
  * Why a cast was refused: a gate's own reason (the game's), a plain false from the gates (the host's `canAct`, the
- * activation kind's) or from `canCast`, no target, or a reach rule (the target out of `range`, out of
- * `sight`, or no room at its point for a `placement`).
+ * activation kind's) or from `canCast`, no target, or a reach rule (the target out of `range` or out of
+ * `sight`).
  */
 export type CastRefusal<G extends SpellTypes = SpellTypes> =
   | 'gate'

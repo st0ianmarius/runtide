@@ -51,7 +51,7 @@ describe('reach rules', () => {
     );
   });
 
-  it('refuse a target out of sight or a point with no room, through the system’s world', () => {
+  it('refuse a target out of sight, through the system’s world', () => {
     const game = makeSpellGame(
       {
         glare: spell({
@@ -59,12 +59,6 @@ describe('reach rules', () => {
           target: atInput,
           reach: { sight: true, pointOf: pointOfUnit },
           release: () => [mark('glare')],
-        }),
-        sentry: spell({
-          activation: { kind: 'trigger' },
-          target: (_ctx, input) => input?.at,
-          reach: { clearance: 0.5 },
-          release: () => [mark('sentry')],
         }),
       },
       { spells: { world: pillared() } },
@@ -74,12 +68,6 @@ describe('reach rules', () => {
 
     assert.equal(game.spells.cast(hero, game.id.glare, { input: game.unit(9) }).refusal, 'sight');
     assert.equal(game.spells.cast(hero, game.id.glare, { input: game.unit(3) }).status, 'ended');
-    const marker = game.unit(50);
-
-    game.place(marker, { x: 5.2, z: 0 });
-    assert.equal(game.spells.cast(hero, game.id.sentry, { input: marker }).refusal, 'placement');
-    game.place(marker, { x: 5, z: 3 });
-    assert.equal(game.spells.cast(hero, game.id.sentry, { input: marker }).status, 'ended');
   });
 
   it('take an ai activation’s range and sight, and the host’s point of a target', () => {
@@ -163,13 +151,6 @@ describe('reach rules', () => {
           x: spell({ activation: { kind: 'trigger' }, target: atInput, reach: { range: -1 }, release }),
         }),
       /its range takes a distance from 0/,
-    );
-    assert.throws(
-      () =>
-        makeSpellGame({
-          x: spell({ activation: { kind: 'trigger' }, target: atInput, reach: { clearance: Number.NaN }, release }),
-        }),
-      /clearance takes a finite radius/,
     );
     assert.throws(
       () =>

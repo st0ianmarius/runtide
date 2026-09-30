@@ -14,7 +14,7 @@ import type { SpellCaster, SpellId, SpellTypes } from './spell-types.ts';
 export const autoNext = (report: CastReport, interval: number): number => {
   const { refusal } = report;
 
-  if (refusal === 'target' || refusal === 'range' || refusal === 'sight' || refusal === 'placement') {
+  if (refusal === 'target' || refusal === 'range' || refusal === 'sight') {
     return 0;
   }
 

@@ -7,9 +7,8 @@ import type { SpellTypes } from './spell-types.ts';
 
 /**
  * A cast's reach rules, asked right after its target is picked: how far the target may be (`range`),
- * whether a clear line to it is needed (`sight`), and how much room its point needs (`clearance`: a placement, the
- * Sentry's). A refusal names the rule (`range`, `sight`, `placement`), which an `auto` clock answers as it answers no
- * target (its `auto` clock's `next`). The target's point is `pointOf`'s, else the host's (`pointOf`), else the target itself when it
+ * and whether a clear line to it is needed (`sight`). A refusal names the rule (`range`, `sight`), which an `auto`
+ * clock answers as it answers no target (its `auto` clock's `next`). Room at a placed point is the game's own gate. The target's point is `pointOf`'s, else the host's (`pointOf`), else the target itself when it
  * is a point.
  */
 export interface Reach<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>, Target = unknown> {
@@ -18,9 +17,6 @@ export interface Reach<G extends SpellTypes, Source extends StatsSource<G> = Sta
 
   /** Whether the static world must hold a clear line from the caster to the target's point (`lineClear`). */
   readonly sight?: boolean;
-
-  /** The radius of a body that must fit at the target's point (`isPositionClear`); none when absent or 0. */
-  readonly clearance?: number;
 
   /** The target's point, when neither the host nor the target itself gives one. */
   pointOf?(this: void, target: Target): Vec2;
@@ -43,26 +39,19 @@ export interface ReachPlan<G extends SpellTypes> {
   /** Whether a clear line is needed. */
   readonly sight: boolean;
 
-  /** The radius that must fit at the point; 0 for none. */
-  readonly clearance: number;
-
   /** The spell's own point of a target, or `undefined`. */
   readonly pointOf: ((target: unknown) => Vec2) | undefined;
 }
 
 /** Why a cast's reach refused it. */
-export type ReachRefusal = 'range' | 'sight' | 'placement';
+export type ReachRefusal = 'range' | 'sight';
 
-/** Throws for a range or clearance that is not sound. */
+/** Throws for a range that is not sound. */
 const checkRule = <G extends SpellTypes>(rule: ReachPlan<G>, name: string): void => {
-  const { range, clearance } = rule;
+  const { range } = rule;
 
   if (typeof range === 'number' && !(range >= 0)) {
     throw new RangeError(`Spell ${name}: its range takes a distance from 0.`);
-  }
-
-  if (!(clearance >= 0) || !Number.isFinite(clearance)) {
-    throw new RangeError(`Spell ${name}: its clearance takes a finite radius from 0.`);
   }
 };
 
@@ -73,13 +62,12 @@ const ruleOf = <G extends SpellTypes>(
 ): ReachPlan<G> => ({
   range: own?.range ?? defaults?.range,
   sight: own?.sight ?? defaults?.sight ?? false,
-  clearance: own?.clearance ?? 0,
   pointOf: own?.pointOf,
 });
 
 /**
  * Resolves a spell's reach, or `undefined` when it has no rule or no target hook (an activation's defaults apply only
- * to a spell that picks a target). Throws for a reach on a spell with no target, and a range or clearance not sound.
+ * to a spell that picks a target). Throws for a reach on a spell with no target, and a range not sound.
  */
 export const reachOf = <G extends SpellTypes>(
   def: AnySpellDef<G>,
@@ -98,7 +86,7 @@ export const reachOf = <G extends SpellTypes>(
 
   checkRule(rule, name);
 
-  return rule.range === undefined && !rule.sight && rule.clearance === 0 ? undefined : Object.freeze(rule);
+  return rule.range === undefined && !rule.sight ? undefined : Object.freeze(rule);
 };
 
 /** Whether a value is a point. */
@@ -139,27 +127,20 @@ const isInRange = <G extends SpellTypes>(
   return dx * dx + dz * dz <= reach * reach;
 };
 
-/** A cast's reach rules against its picked target, in order: range, sight, clearance. The refusal, or `undefined`. */
+/** A cast's reach rules against its picked target, in order: range, sight. The refusal, or `undefined`. */
 export const checkReach = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
   plan: ReachPlan<G>,
 ): ReachRefusal | undefined => {
   const to = targetPoint(engine, plan, cast);
+  const from = (engine.host.positionOf ?? noPosition)(cast.caster);
 
-  if (plan.range !== undefined || plan.sight) {
-    const from = (engine.host.positionOf ?? noPosition)(cast.caster);
-
-    if (plan.range !== undefined && !isInRange(plan.range, cast, [from, to])) {
-      return 'range';
-    }
-
-    if (plan.sight && !engine.world.lineClear(from, to)) {
-      return 'sight';
-    }
+  if (plan.range !== undefined && !isInRange(plan.range, cast, [from, to])) {
+    return 'range';
   }
 
-  return plan.clearance > 0 && !engine.world.isPositionClear(to, plan.clearance) ? 'placement' : undefined;
+  return plan.sight && !engine.world.lineClear(from, to) ? 'sight' : undefined;
 };
 
 /** The host has no `positionOf`: the load check prevents it. */

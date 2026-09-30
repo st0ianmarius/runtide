@@ -48,9 +48,7 @@ const reachLack = <G extends SpellTypes>(options: SpellSystemOptions<G>, reach: 
     return 'has a range or needs sight, so the system needs host.positionOf';
   }
 
-  return (reach.sight || reach.clearance > 0) && options.world === undefined
-    ? 'tests sight or room, so the system needs a world'
-    : undefined;
+  return reach.sight && options.world === undefined ? 'tests sight, so the system needs a world' : undefined;
 };
 
 /** Checks at load that spells with reach rules have a host that places casters, and a world when they test it. */
