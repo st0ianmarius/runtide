@@ -91,6 +91,15 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
   /** Aura tags whose auras it removes from the caster as it fires, after `applies` (another ability's cooldown). */
   readonly resets?: readonly G['tag'][];
 
+  /** Aura tags whose auras it removes from the caster as it fires, before `applies` (the stance it leaves). */
+  readonly clears?: readonly G['tag'][];
+
+  /**
+   * An aura the button toggles (an aura, a form): a press while the caster holds it takes it off and does nothing else
+   * (no cost, no cooldown, no cast); a press without it fires as usual, `applies` landing it.
+   */
+  readonly toggle?: G['auraName'] | AuraId;
+
   /**
    * Auras it lands on the caster as it fires, in order, each for its own length (a sprint, a stance); an aura whose
    * length a stat scales reads it in its own `duration`.

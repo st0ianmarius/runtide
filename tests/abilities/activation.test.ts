@@ -265,6 +265,39 @@ describe('a press', () => {
     assert.equal(refusals[skill], 'cooldown');
   });
 
+  it('toggles an aura off with a second press, cooling or not, and clears a stance before landing its own', () => {
+    const game = makeAbilityGame({
+      form: spell({
+        activation: { kind: 'button', toggle: 'stance', applies: ['stance'] },
+        cooldown: { aura: 'dodgeCooldown', seconds: 2 },
+
+        release: () => {
+          game.log.push('form');
+
+          return undefined;
+        }
+      }),
+      shift: spell({
+        activation: { kind: 'button', clears: ['stance'], applies: ['stance'] },
+        release: () => undefined
+      })
+    });
+
+    const hero = game.hero(1);
+    const { abilities, auras } = game;
+    const { dodge, skill } = abilities.slots.id;
+
+    abilities.equip(hero, dodge, game.id.form);
+    abilities.equip(hero, skill, game.id.shift);
+    abilities.tryActivate(hero, abilities.bit(dodge));
+    assert.deepEqual([auras.has(hero, auraNamed('stance')), game.log], [true, ['form']]);
+    assert.equal(abilities.tryActivate(hero, abilities.bit(dodge)), abilities.bit(dodge));
+    assert.deepEqual([auras.has(hero, auraNamed('stance')), game.log], [false, ['form']]);
+    abilities.tryActivate(hero, abilities.bit(skill));
+    abilities.tryActivate(hero, abilities.bit(skill));
+    assert.equal(auras.stacks(hero, auraNamed('stance')), 1);
+  });
+
   it('holds its requires and blockedBy tags', () => {
     const { game, hero } = setUp();
     const { abilities, auras } = game;

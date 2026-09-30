@@ -28,6 +28,12 @@ export interface CompiledButton<G extends AbilityTypes> {
   /** The tags whose auras it removes. */
   readonly resets: readonly AuraTagId[];
 
+  /** The tags whose auras it removes before it lands its own. */
+  readonly clears: readonly AuraTagId[];
+
+  /** The aura it toggles off when held, or −1 for none. */
+  readonly toggle: number;
+
   /** The auras it lands, in order. */
   readonly applies: readonly AuraId[];
 }
@@ -89,6 +95,8 @@ const compileButton = <G extends AbilityTypes>(state: Compiling<G>, def: ButtonA
     requires: tagsOf(state, def.requires),
     blockedBy: tagsOf(state, def.blockedBy),
     resets: tagsOf(state, def.resets),
+    clears: tagsOf(state, def.clears),
+    toggle: def.toggle === undefined ? -1 : checkAura(state, def.toggle),
     applies: (def.applies ?? []).map((aura) => checkAura(state, aura))
   });
 };

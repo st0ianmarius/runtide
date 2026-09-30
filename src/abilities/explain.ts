@@ -35,8 +35,14 @@ export interface ButtonExplanation {
   /** The tags whose auras it removes. */
   readonly resets: readonly AuraTagId[];
 
+  /** The tags whose auras it removes before it lands its own (the stance it leaves). */
+  readonly clears: readonly AuraTagId[];
+
   /** The auras it lands, in order. */
   readonly applies: readonly AuraId[];
+
+  /** The aura it toggles off when held, if any. */
+  readonly toggle: AuraId | undefined;
 }
 
 /** Explains a button spell; `undefined` for a spell that is not a button. */
@@ -57,6 +63,8 @@ export const explainButton = <G extends AbilityTypes>(
     requires: button.requires,
     blockedBy: button.blockedBy,
     resets: button.resets,
-    applies: button.applies
+    clears: button.clears,
+    applies: button.applies,
+    toggle: button.toggle < 0 ? undefined : toId<'auras'>(button.toggle)
   };
 };

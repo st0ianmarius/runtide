@@ -53,8 +53,8 @@ const failedRule = <G extends AbilityTypes>(
 
 /**
  * Why the ability in a slot may not fire now, or `undefined` when it may: the slot holds none (`empty`), one of its
- * spell's cooldowns is on the bearer (`cooldown`), or one of the button's own rules fails. Reads only the bearer, so a
- * server and a prediction mirror agree.
+ * spell's cooldowns is on the bearer (`cooldown`), or one of the button's own rules fails; a toggle held always may
+ * (to take it off). Reads only the bearer, so a server and a prediction mirror agree.
  */
 export const refusalAt = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
@@ -66,6 +66,10 @@ export const refusalAt = <G extends AbilityTypes>(
 
   if (spell === undefined || button === undefined) {
     return 'empty';
+  }
+
+  if (button.toggle >= 0 && engine.auras.has(bearer, toId<'auras'>(button.toggle))) {
+    return undefined;
   }
 
   return engine.spells.isCooling(bearer, spell) ? 'cooldown' : failedRule(engine, bearer, button);
@@ -120,6 +124,8 @@ const commit = <G extends AbilityTypes>(
 
   const { auras } = engine;
 
+  removeTags(engine, bearer, button.clears);
+
   for (let i = 0; i < button.applies.length; i++) {
     const aura = button.applies[i];
 
@@ -128,15 +134,24 @@ const commit = <G extends AbilityTypes>(
     }
   }
 
-  for (let i = 0; i < button.resets.length; i++) {
-    const tag = button.resets[i];
-
-    if (tag !== undefined) {
-      auras.removeByTag(bearer, tag);
-    }
-  }
+  removeTags(engine, bearer, button.resets);
 
   return undefined;
+};
+
+/** Removes the caster's auras carrying each of some tags, in order. */
+const removeTags = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  tags: readonly AuraTagId[]
+): void => {
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i];
+
+    if (tag !== undefined) {
+      engine.auras.removeByTag(bearer, tag);
+    }
+  }
 };
 
 /**
@@ -194,6 +209,13 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
 
   if (spell === undefined || button === undefined) {
     return engine.refuse('empty');
+  }
+
+  if (button.toggle >= 0 && engine.auras.has(bearer, toId<'auras'>(button.toggle))) {
+    engine.auras.remove(bearer, toId<'auras'>(button.toggle));
+    engine.refusal = undefined;
+
+    return true;
   }
 
   options.input = engine.input;

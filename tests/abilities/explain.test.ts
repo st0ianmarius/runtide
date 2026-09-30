@@ -38,7 +38,9 @@ describe('button explanations', () => {
       requires: [auras.tags.id.stance],
       blockedBy: [auras.tags.id.rooted],
       resets: [auras.tags.id['cooldown.dodge']],
-      applies: [auraNamed('sprint'), auraNamed('stance')]
+      clears: [],
+      applies: [auraNamed('sprint'), auraNamed('stance')],
+      toggle: undefined
     });
   });
 
