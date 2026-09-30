@@ -131,7 +131,7 @@ describe('inside: the units a shape covers', () => {
     ]);
   });
 
-  it('spaces the results by minSeparation, greedily in order, and caps them at the limit', () => {
+  it('caps the results at the limit, in order', () => {
     const { world } = worldOf([
       [1, 0, 0],
       [2, 1, 0],
@@ -142,8 +142,7 @@ describe('inside: the units a shape covers', () => {
 
     const out: (Mob | undefined)[] = [];
 
-    assert.deepEqual(names(out, world.inside(circle(9), { minSeparation: 2 }, out)), ['m1', 'm3', 'm5']);
-    assert.deepEqual(names(out, world.inside(circle(9), { minSeparation: 2, limit: 2 }, out)), ['m1', 'm3']);
+    assert.deepEqual(names(out, world.inside(circle(9), { limit: 2 }, out)), ['m1', 'm2']);
     assert.equal(world.count(circle(9), { limit: 4 }), 4);
   });
 
@@ -161,7 +160,7 @@ describe('inside: the units a shape covers', () => {
   });
 });
 
-describe('nearest, densest and chain', () => {
+describe('nearest and densest', () => {
   it('finds the nearest within a range, the rim counting only when inclusive', () => {
     const { world } = worldOf([
       [1, 3, 0],
@@ -211,21 +210,6 @@ describe('nearest, densest and chain', () => {
     world.densest(vec2(40, 40), { range: 1, radius: 1.5 }, cluster);
     assert.equal(cluster.unit, undefined);
   });
-
-  it('chains to the nearest unit in range of the last link, never twice, from a supplied first link', () => {
-    const { world, mob } = worldOf([
-      [1, 2, 0],
-      [2, 4, 0],
-      [3, 6, 0],
-      [4, 20, 0],
-    ]);
-
-    const out: (Mob | undefined)[] = [];
-
-    assert.deepEqual(names(out, world.chain(vec2(0, 0), { range: 3, jumps: 5 }, out)), ['m1', 'm2', 'm3']);
-    assert.deepEqual(names(out, world.chain(vec2(0, 0), { range: 3, jumps: 2, first: mob(3) }, out)), ['m3', 'm2']);
-    assert.equal(world.chain(vec2(0, 0), { range: 3, jumps: 0 }, out), 0);
-  });
 });
 
 describe('sweep: what a moving body touches', () => {
@@ -264,22 +248,8 @@ describe('motion and the point index', () => {
     world.place(mob, vec2(1, 2));
     assert.deepEqual(world.previousOf(mob), { x: 0, z: 0 });
     assert.deepEqual(world.velocityOf(mob), { x: 2, z: 4 });
-    assert.deepEqual(world.leadPoint(mob, vec2(1, 2), 1e9), world.positionOf(mob));
     world.tick();
     assert.deepEqual(world.velocityOf(mob), { x: 0, z: 0 });
-  });
-
-  it('leads a moving unit to where a shot meets it', () => {
-    const world = createMemoryWorld<Mob>({ bounds: BOUNDS });
-    const mob = { name: 'm1' };
-
-    world.add(mob, { id: 1, at: vec2(0, 10) });
-    world.tick();
-    world.place(mob, vec2(3, 10));
-
-    const aim = world.leadPoint(mob, vec2(0, 0), 5);
-
-    assert.ok(Math.abs(Math.hypot(aim.x, aim.z) / 5 - (aim.x - 3) / 3) < 1e-9);
   });
 
   it('finds units after they move between cells, and forgets removed ones', () => {

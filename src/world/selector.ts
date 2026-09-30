@@ -13,8 +13,8 @@ export const differentSides: FoeRule = (a, b) => a !== b;
 
 /**
  * Selects units for a memory world's queries: narrows by the point index, keeps the units that pass the
- * side, the exclusions, the filter and the exact test, orders them by their keys (lower id on ties), spaces them by
- * `minSeparation` and caps them at `limit`. Its scratch arrays are reused, so a query allocates nothing once warm; it
+ * side, the exclusions, the filter and the exact test, orders them by their keys (lower id on ties) and caps them at
+ * `limit`. Its scratch arrays are reused, so a query allocates nothing once warm; it
  * is not re-entrant, so a filter or an order function must not query the same world.
  */
 export class Selector<Unit> {
@@ -73,7 +73,7 @@ export class Selector<Unit> {
     const kept = this.gather(selection);
     const { options } = selection;
 
-    if (kept > 1 && options.limit === 1 && !((options.minSeparation ?? 0) > 0)) {
+    if (kept > 1 && options.limit === 1) {
       this.#first(selection, kept);
 
       return 1;
@@ -81,16 +81,12 @@ export class Selector<Unit> {
 
     this.#sort(selection, kept);
 
-    return this.#space(options, kept);
+    return Math.min(kept, options.limit ?? kept);
   }
 
-  /** How many units a selection keeps: its gather alone, unless a limit or a separation needs them ordered. */
+  /** How many units a selection keeps: its gather alone, unless a limit needs them ordered. */
   count(selection: Selection<Unit>): number {
-    const { options } = selection;
-
-    return options.limit === undefined && !((options.minSeparation ?? 0) > 0)
-      ? this.gather(selection)
-      : this.run(selection);
+    return selection.options.limit === undefined ? this.gather(selection) : this.run(selection);
   }
 
   /** Runs a selection and writes its units into `out` from index 0; returns how many. */
@@ -178,13 +174,12 @@ export class Selector<Unit> {
     return this.#table.side[this.#table.slotOf(options.of)] ?? 0;
   }
 
-  /** Whether one candidate passes the side, the skips and exclusions, the exact test and the filter. */
+  /** Whether one candidate passes the side, the exclusions, the exact test and the filter. */
   #passes(selection: Selection<Unit>, slot: number, unit: Unit): boolean {
     const { options } = selection;
 
     return (
       this.#isOnSide(options, slot) &&
-      !selection.skips(slot) &&
       options.exclude?.has(unit) !== true &&
       this.#isCaught(selection, slot) &&
       (options.filter?.(unit) ?? true)
@@ -338,46 +333,5 @@ export class Selector<Unit> {
     }
 
     return (this.#table.id[this.#kept[a] ?? 0] ?? 0) - (this.#table.id[this.#kept[b] ?? 0] ?? 0);
-  }
-
-  /** Drops entries closer than `minSeparation` to one kept before them, and caps at `limit`; returns how many stay. */
-  #space(options: QueryOptions<Unit>, kept: number): number {
-    const limit = Math.min(kept, options.limit ?? kept);
-    const separation = options.minSeparation ?? 0;
-
-    if (separation <= 0) {
-      return limit;
-    }
-
-    let count = 0;
-
-    for (let i = 0; i < kept && count < limit; i++) {
-      const slot = this.#order[i] ?? -1;
-
-      if (this.#isApart(slot, count, separation)) {
-        this.#order[count] = slot;
-        this.#contacts[count] = this.#contacts[i] ?? 0;
-        count += 1;
-      }
-    }
-
-    return count;
-  }
-
-  /** Whether a slot stands at least `separation` from each of the first `count` entries kept. */
-  #isApart(slot: number, count: number, separation: number): boolean {
-    const table = this.#table;
-    const x = table.x[slot] ?? 0;
-    const z = table.z[slot] ?? 0;
-
-    for (let j = 0; j < count; j++) {
-      const other = this.#order[j] ?? -1;
-
-      if (hypot(x - (table.x[other] ?? 0), z - (table.z[other] ?? 0)) < separation) {
-        return false;
-      }
-    }
-
-    return true;
   }
 }

@@ -33,7 +33,7 @@ export interface QueryOptions<Unit> {
   /** Whether a range's rim counts (`d ≤ range`); by default it does not (`d < range`), as a shape's round rim. */
   readonly inclusive?: boolean;
 
-  /** Units left out (the ones a chain already hit, a spell's own summons). */
+  /** Units left out (a spell's own summons, the units a hook already hit). */
   readonly exclude?: UnitSet<Unit>;
 
   /** A condition a unit must meet (unbranded, not an objective, in line of sight). */
@@ -44,9 +44,6 @@ export interface QueryOptions<Unit> {
 
   /** The order of the results, one key or several compared in turn; entity id when absent. */
   readonly order?: QueryOrder<Unit> | readonly QueryOrder<Unit>[];
-
-  /** Kept results are at least this far apart, centre to centre, taken greedily in order; none by default. */
-  readonly minSeparation?: number;
 
   /** The most results kept; all by default. */
   readonly limit?: number;
@@ -80,15 +77,6 @@ export interface Cluster<Unit> {
 
   /** The mean position's z. */
   z: number;
-}
-
-/** The options of `chain`: how many links, how far each jump reaches, and an optional first link. */
-export interface ChainOptions<Unit> extends RangeOptions<Unit> {
-  /** The most links. */
-  readonly jumps: number;
-
-  /** The first link, taken as it is when given (a spark's first target); the nearest to the point otherwise. */
-  readonly first?: Unit;
 }
 
 /** The options of `sweep`: the moving body's radius, and whether it sweeps against the units' own motion. */
@@ -212,9 +200,6 @@ export interface WorldQuery<Unit> {
   /** The candidate within `range` of `from` with the most units around it (first highest on ties), into `out`. */
   readonly densest: (from: Vec2, options: DensestOptions<Unit>, out: Cluster<Unit>) => Cluster<Unit>;
 
-  /** A chain of links from `from`: each the nearest unit within `range` of the last, no unit twice. */
-  readonly chain: (from: Vec2, options: ChainOptions<Unit>, out: (Unit | undefined)[]) => number;
-
   /** The units a body moving `from → to` touches, in the order it reaches them (lower id on ties). */
   readonly sweep: (segment: readonly [Vec2, Vec2], options: SweepOptions<Unit>, out: (Unit | undefined)[]) => number;
 
@@ -232,12 +217,6 @@ export interface WorldQuery<Unit> {
 
   /** Picks a point by sampling and scoring; `undefined` when no sample passed. */
   readonly pickPoint: (pick: PointPick) => Vec2 | undefined;
-
-  /**
-   * Where to aim at `unit` from `from` for a shot at `speed` to meet it, if it keeps its velocity: the intercept, or
-   * its position now when there is none.
-   */
-  readonly leadPoint: (unit: Unit, from: Vec2, speed: number) => Vec2;
 
   /** The names of the game's own query extensions, for the escape report. */
   readonly extensions: readonly string[];

@@ -14,7 +14,6 @@ export {
 
 export type {
   BodyMove,
-  ChainOptions,
   Cluster,
   DensestOptions,
   PointPick,

@@ -3,7 +3,6 @@ import { Placement } from './placement.ts';
 import { GridIndex, KdIndex, type PointIndex } from './point-index.ts';
 import type {
   BodyMove,
-  ChainOptions,
   Cluster,
   DensestOptions,
   PointPick,
@@ -12,7 +11,7 @@ import type {
   SweepOptions,
   WorldQuery,
 } from './query.ts';
-import { chain, densest, leadPoint, type SearchParts, sweep } from './searches.ts';
+import { densest, type SearchParts, sweep } from './searches.ts';
 import { Selection } from './selection.ts';
 import { differentSides, type FoeRule, Selector } from './selector.ts';
 import { StaticGeometry, type StaticShape } from './statics.ts';
@@ -185,14 +184,8 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly densest = (from: Vec2, options: DensestOptions<Unit>, out: Cluster<Unit>): Cluster<Unit> =>
     densest(this.#parts, [from, options], out);
 
-  readonly chain = (from: Vec2, options: ChainOptions<Unit>, out: (Unit | undefined)[]): number =>
-    chain(this.#parts, [from, options], out);
-
   readonly sweep = (segment: readonly [Vec2, Vec2], options: SweepOptions<Unit>, out: (Unit | undefined)[]): number =>
     sweep(this.#parts, [segment, options], out);
-
-  readonly leadPoint = (unit: Unit, from: Vec2, speed: number): Vec2 =>
-    leadPoint([this.positionOf(unit), this.velocityOf(unit)], from, speed);
 }
 
 /** The game's own query extensions: named functions over the world. */

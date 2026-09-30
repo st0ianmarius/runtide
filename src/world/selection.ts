@@ -7,7 +7,7 @@ export type SortKey<Unit> = QueryOrder<Unit> | 'contact';
 
 /**
  * What one selection tests its candidates against, reused: a shape, a range around a point, a swept segment,
- * or nothing (the whole world); plus slots it skips (a chain's links so far).
+ * or nothing (the whole world).
  */
 export class Selection<Unit> {
   /** The shape a unit must stand in; none when `undefined`. */
@@ -43,12 +43,6 @@ export class Selection<Unit> {
   /** The order when the options name none. */
   order: SortKey<Unit> = 'id';
 
-  /** Slots it skips, valid up to `skipCount`. */
-  readonly skip: number[] = [];
-
-  /** How many slots it skips. */
-  skipCount = 0;
-
   /** Sets up a query over a shape (or the whole world), ordered by id unless the options say otherwise. */
   over(shape: Shape | undefined, options: QueryOptions<Unit>): this {
     this.#reset(options, 'id');
@@ -82,17 +76,6 @@ export class Selection<Unit> {
     return this;
   }
 
-  /** Whether a slot is one it skips. */
-  skips(slot: number): boolean {
-    for (let i = 0; i < this.skipCount; i++) {
-      if (this.skip[i] === slot) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
   /** Forgets the last query's setup. */
   #reset(options: QueryOptions<Unit>, order: SortKey<Unit>): void {
     this.shape = undefined;
@@ -102,7 +85,6 @@ export class Selection<Unit> {
     this.isRelative = false;
     this.options = options;
     this.order = order;
-    this.skipCount = 0;
   }
 }
 

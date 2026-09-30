@@ -1,5 +1,5 @@
 import type { Circle } from './shapes.ts';
-import { hypot, type Vec2 } from './vec2.ts';
+import type { Vec2 } from './vec2.ts';
 
 /**
  * The earliest share `t` in `[0, 1]` along the segment `from → to` at which it touches a circle, or `undefined` when it
@@ -34,14 +34,4 @@ export const sweepCircle = (from: Vec2, to: Vec2, target: Pick<Circle, 'at' | 'r
   const t = (-b - Math.sqrt(discriminant)) / a;
 
   return t >= 0 && t <= 1 ? t : undefined;
-};
-
-/** Whether the segment `from → to` passes within the circle's radius of its centre (rim included). */
-export const segmentTouchesCircle = (from: Vec2, to: Vec2, target: Pick<Circle, 'at' | 'r'>): boolean => {
-  const dx = to.x - from.x;
-  const dz = to.z - from.z;
-  const length = dx * dx + dz * dz;
-  const t = length ? Math.max(0, Math.min(1, ((target.at.x - from.x) * dx + (target.at.z - from.z) * dz) / length)) : 0;
-
-  return hypot(from.x + dx * t - target.at.x, from.z + dz * t - target.at.z) <= target.r;
 };
