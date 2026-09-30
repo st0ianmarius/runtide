@@ -44,6 +44,22 @@ export class CasterRecord implements CasterState {
   /** The bits of the interrupts the caster holds now (`spells.interrupt` until `endInterrupt`). */
   interrupts = 0;
 
+  /** The tick its last cast started on, and how many started on it: each cast's ordinal among the tick's. */
+  lastTick = Number.NaN;
+  started = 0;
+
+  /** The ordinal of a cast starting on `tick`: 0 for the tick's first, then 1, 2 and on. */
+  ordinalAt(tick: number): number {
+    if (tick !== this.lastTick) {
+      this.lastTick = tick;
+      this.started = 0;
+    }
+
+    this.started += 1;
+
+    return this.started - 1;
+  }
+
   /** The index of an armed spell in `autos`, or -1. */
   autoAt(spell: SpellId): number {
     return this.autos.indexOf(spell);

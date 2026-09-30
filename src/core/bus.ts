@@ -74,10 +74,16 @@ const addTo = (channel: Channel, tier: 'handlers' | 'subscribers', listener: unk
   channel[tier] = [...channel[tier], listener];
   channel.count += 1;
 
+  let isAdded = true;
+
   return () => {
-    if (channel[tier].includes(listener)) {
-      channel[tier] = channel[tier].filter((other) => other !== listener);
+    const at = channel[tier].indexOf(listener);
+
+    if (isAdded && at >= 0) {
+      // One copy per remover: a listener added twice stays until both are removed.
+      channel[tier] = channel[tier].toSpliced(at, 1);
       channel.count -= 1;
+      isAdded = false;
     }
   };
 };

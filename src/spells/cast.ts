@@ -77,6 +77,9 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
   outcome: CastOutcome<G> | undefined = undefined;
   startTick = 0;
 
+  /** Its ordinal among the casts its caster started on `startTick`: two same-tick casts roll apart. */
+  ordinal = 0;
+
   /** The key its predicted cast cue carries; 0 for none. */
   cueKey = 0;
 
@@ -120,7 +123,7 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
   readonly origin: CastOrigin<G>;
 
   readonly #services: CastServices<G>;
-  readonly #key = [0, 0, 0, 0, 0];
+  readonly #key = [0, 0, 0, 0, 0, 0];
 
   constructor(services: CastServices<G>, caster: G['bearer'], ext: G['castExt']) {
     this.#services = services;
@@ -153,11 +156,12 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
   readonly key = (targetId = 0, index = 0): readonly number[] => {
     const key = this.#key;
 
-    key[0] = this.startTick;
+    key[0] = this.startTick >>> 0;
     key[1] = this.casterId;
     key[2] = this.spell;
     key[3] = targetId;
     key[4] = index;
+    key[5] = this.ordinal;
 
     return key;
   };

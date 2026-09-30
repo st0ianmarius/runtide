@@ -34,7 +34,7 @@ export interface SpellSystemBase<G extends SpellTypes> {
 
   /**
    * The host's named streams (a `StreamTable`'s `random`), which `ctx.random(name)` draws from: a keyed name draws
-   * keyed rolls over the cast's key (`(startTick, casterId, spellId, targetId, index)`).
+   * keyed rolls over the cast's key (`(startTick, casterId, spellId, targetId, index, ordinal)`, the ordinal counting the casts its caster started on that tick).
    */
   readonly streams?: (stream: G['stream'], key: readonly number[]) => Random;
 

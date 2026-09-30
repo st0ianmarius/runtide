@@ -35,6 +35,7 @@ const initCast = <G extends SpellTypes>(
   cast.source = options.source ?? casterId;
   cast.origin.source = cast.source;
   cast.startTick = engine.clock.tick;
+  cast.ordinal = recordOf(cast.caster).ordinalAt(cast.startTick);
   cast.cueKey = options.key ?? 0;
   cast.isCommitted = options.committed === true;
   cast.target = undefined;

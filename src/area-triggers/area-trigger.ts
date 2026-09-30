@@ -191,7 +191,7 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   readonly key = (targetId = 0, index = 0): readonly number[] => {
     const key = this.#key;
 
-    key[0] = this.spawnTick;
+    key[0] = this.spawnTick >>> 0;
     key[1] = this.id;
     key[2] = this.kind;
     key[3] = targetId;

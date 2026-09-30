@@ -92,6 +92,27 @@ describe('bus order and payloads', () => {
 
     assert.deepEqual(heard, ['a', 'b', 'b']);
   });
+
+  it('keeps a listener added twice until both of its removers ran', () => {
+    const bus = gameBus();
+    const heard: number[] = [];
+
+    const listener = (): void => {
+      heard.push(1);
+    };
+
+    const first = bus.on(bus.kind.kill, listener);
+    const second = bus.on(bus.kind.kill, listener);
+
+    bus.raise(bus.kind.kill, bus.payload(bus.kind.kill));
+    first();
+    first();
+    assert.equal(bus.hears(bus.kind.kill), true);
+    bus.raise(bus.kind.kill, bus.payload(bus.kind.kill));
+    second();
+    assert.equal(bus.hears(bus.kind.kill), false);
+    assert.deepEqual(heard, [1, 1, 1]);
+  });
 });
 
 describe('bus depth cap', () => {

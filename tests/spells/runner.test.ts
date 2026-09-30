@@ -332,7 +332,7 @@ describe('stats (decision 2)', () => {
 });
 
 describe('keys and random streams', () => {
-  it('keys each cast by (startTick, casterId, spellId, targetId, index)', () => {
+  it('keys each cast by (startTick, casterId, spellId, targetId, index, ordinal)', () => {
     const keys: (readonly number[])[] = [];
 
     const game = makeSpellGame({
@@ -348,14 +348,19 @@ describe('keys and random streams', () => {
     });
 
     game.step(3);
-    game.spells.cast(game.unit(4), game.id.bolt);
+    const caster = game.unit(4);
+
+    game.spells.cast(caster, game.id.bolt);
+    game.spells.cast(caster, game.id.bolt);
     assert.deepEqual(keys, [
-      [3, 4, 0, 0, 0],
-      [3, 4, 0, 9, 2]
+      [3, 4, 0, 0, 0, 0],
+      [3, 4, 0, 9, 2, 0],
+      [3, 4, 0, 0, 0, 1],
+      [3, 4, 0, 9, 2, 1]
     ]);
   });
 
-  it("draws a keyed stream from the cast's key, so a roll depends on nothing drawn before it", () => {
+  it("draws a keyed stream from the cast's key, so a roll depends on nothing drawn before it, and same-tick casts apart", () => {
     const draws: number[] = [];
 
     const game = makeSpellGame({
@@ -374,8 +379,9 @@ describe('keys and random streams', () => {
 
     game.spells.cast(a, game.id.bolt);
     game.spells.cast(a, game.id.bolt);
-    assert.equal(draws[0], rollKey(7, 2, [0, 1, 0, 0, 0, 0]));
-    assert.equal(draws[2], draws[0]);
+    assert.equal(draws[0], rollKey(7, 2, [0, 1, 0, 0, 0, 0, 0]));
+    assert.equal(draws[2], rollKey(7, 2, [0, 1, 0, 0, 0, 1, 0]));
+    assert.notEqual(draws[2], draws[0]);
     assert.notEqual(draws[3], draws[1]);
   });
 });

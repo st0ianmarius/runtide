@@ -176,7 +176,7 @@ export interface SpellContext<
   readonly random: (stream?: G['stream'], targetId?: number, index?: number) => Random;
 
   /**
-   * The cast's keyed-roll key: `(startTick, casterId, spellId, targetId, index)` in a reused array, read at
+   * The cast's keyed-roll key: `(startTick, casterId, spellId, targetId, index, ordinal)`, the ordinal counting the casts its caster started on that tick, in a reused array, read at
    * once; two rolls that must differ in one cast differ in `targetId` or `index`.
    */
   readonly key: (targetId?: number, index?: number) => readonly number[];

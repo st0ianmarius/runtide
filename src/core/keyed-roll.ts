@@ -70,17 +70,23 @@ export const roll = (seed: number, salt: number, ...key: readonly number[]): num
 /**
  * A keyed source for the integer helpers: its `i`-th draw is `roll(seed, salt, ...key, i)`, so `shuffle` or
  * `weighted` over a keyed key draws exactly as many values as over a sequential stream, and switching between the two
- * kinds is a one-line change. The key is copied, so the caller may reuse its array.
+ * kinds is a one-line change. The key is read at once, so the caller may reuse its array.
  */
 export const keyed = (seed: number, salt: number, key: readonly number[]): Random => {
-  const parts = [...key, 0];
-  const last = key.length;
+  // The chain is folded left to right, so the key's prefix is folded once and each draw folds only its index.
+  let prefix = fold(fold(START, seed), salt);
+
+  for (const part of key) {
+    prefix = fold(prefix, part);
+  }
+
   let index = 0;
 
   return () => {
-    parts[last] = index;
+    const h = fold(prefix, index);
+
     index += 1;
 
-    return rollKey(seed, salt, parts);
+    return (h >>> 0) / UINT32_RANGE;
   };
 };
