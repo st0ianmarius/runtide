@@ -32,17 +32,17 @@ describe('every unit folds', () => {
 });
 
 describe('the resource policy', () => {
-  it('heals a gain through the heal pipeline and scales a loss, by default', () => {
+  it('keeps the same share of a moving maximum, by default', () => {
     const game = makeUnitGame(TEMPLATES);
     const hero = game.units.spawn(game.id.hero, { side: 0 });
 
     game.damage.hit({ target: hero, amount: 100 });
     game.auras.apply(hero, auraId('vigour'));
-    assert.equal(game.units.syncHealth(hero), 150);
+    assert.equal(game.units.syncHealth(hero), 125);
     assert.equal(hero.maxHealth, 250);
     game.auras.remove(hero, auraId('vigour'));
-    assert.equal(game.units.syncHealth(hero), 120);
-    assert.equal(game.units.syncHealth(hero), 120);
+    assert.equal(game.units.syncHealth(hero), 100);
+    assert.equal(game.units.syncHealth(hero), 100);
   });
 
   it('keeps or scales health, or follows the game’s own rule', () => {

@@ -383,7 +383,6 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     ...(options.folds === false ? {} : { modifiers: { system: modifiers, base: 'base' as const } }),
     health: { stat: 'maxHealth', ...(options.policy === undefined ? {} : { policy: options.policy }) },
     states: UNIT_STATES,
-    damage: () => damage,
     events: { bus, spawned: bus.kind.spawned, changed: bus.kind.changed, despawned: bus.kind.despawned },
     createExt: (template, spawn) => ({ marks: 0, made: `${template}/${spawn.side}` }),
   });

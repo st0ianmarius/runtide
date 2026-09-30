@@ -1,7 +1,6 @@
 import { type AbilitySystem, NO_LOADOUT } from '../abilities/index.ts';
 import { type AiSystem, NO_BRAIN } from '../ai/index.ts';
 import type { AuraSystem } from '../auras/index.ts';
-import type { DamageSystem } from '../damage/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import {
   basesView,
@@ -21,13 +20,10 @@ import type { UnitId, UnitTypes } from './unit-types.ts';
 import { Unit } from './unit.ts';
 
 /**
- * What a unit's health does when its maximum health moves: `heal-gain-scale-loss` (a gain heals the
- * difference, through the heal pipeline when the system has a damage system; a loss keeps the same share), `scale`
- * (the same share either way), `keep` (health stays, clamped to the new maximum), or the game's own rule, returning
- * the new health.
+ * What a unit's health does when its maximum health moves: `scale` (the same share), `keep` (health stays, clamped to
+ * the new maximum), or the game's own rule, returning the new health (a gain healed through its heal pipeline).
  */
 export type HealthPolicy<G extends UnitTypes> =
-  | 'heal-gain-scale-loss'
   | 'scale'
   | 'keep'
   | ((unit: G['bearer'], before: number, after: number) => number);
@@ -71,20 +67,17 @@ export interface UnitSystemBase<G extends UnitTypes> {
     readonly base: G['source'];
   };
 
-  /** Health: the stat that is a unit's maximum, and what health does when it moves (`heal-gain-scale-loss`). */
+  /** Health: the stat that is a unit's maximum, and what health does when it moves (`scale`). */
   readonly health: {
     /** The maximum health stat. */
     readonly stat: G['stat'];
 
-    /** The policy; `heal-gain-scale-loss` when absent. */
+    /** The policy; `scale` when absent. */
     readonly policy?: HealthPolicy<G>;
   };
 
   /** The game's derived unit states (`defineUnitStates`), with the interrupts they raise; none when absent. */
   readonly states?: UnitStateTable<G['unitState'], G['interrupt']>;
-
-  /** The damage system a max health gain heals through, or a function giving it; set directly when absent. */
-  readonly damage?: DamageSystem<G> | (() => DamageSystem<G>);
 
   /** The bus and kinds the system raises its events on. */
   readonly events?: UnitEvents<G>;

@@ -13,7 +13,6 @@ import {
   createDamageSystem,
   damage,
   type DamageProcs,
-  type DamageSystem,
   defineDamageKinds,
   type Force,
 } from '../src/damage/index.ts';
@@ -203,7 +202,6 @@ const MODIFIERS = createModifierSystem({ stats: STATS, sources: SOURCES, stacks:
 
 const late: {
   procs?: ReturnType<typeof createProcSystem<HordeGame>>;
-  damage?: DamageSystem<HordeGame>;
   hero?: Unit<HordeGame>;
   swing?: readonly Proc<HordeGame>[];
   spells?: SpellSystem<HordeGame>;
@@ -298,7 +296,6 @@ const UNITS = createUnitSystem<HordeGame>({
   spells: SPELLS,
   modifiers: { system: MODIFIERS, base: 'base' },
   health: { stat: 'maxHealth' },
-  damage: () => late.damage ?? missing(),
   states: defineUnitStates(TAGS, {
     stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' },
     rooted: { tags: ['root'], blocks: ['move'] },
@@ -312,7 +309,6 @@ const DAMAGE = createDamageSystem<HordeGame>({
   host: { ...UNITS.damageHost, run: (procs, ctx) => late.procs?.runAura(procs, ctx) },
 });
 
-late.damage = DAMAGE;
 late.procs = createProcSystem<HordeGame>({
   kinds: createProcRegistry<HordeGame>({
     ...CORE_PROCS,

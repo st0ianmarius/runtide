@@ -1,5 +1,5 @@
 import type { DamageHost } from '../damage/index.ts';
-import { lateOf, type UnitEngine, unitOf } from './engine.ts';
+import { type UnitEngine, unitOf } from './engine.ts';
 import { moveTo } from './lifecycle.ts';
 import type { UnitTypes } from './unit-types.ts';
 
@@ -18,19 +18,14 @@ export const syncHealth = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
 
   unit.maxHealth = after;
 
-  const policy = engine.options.health.policy ?? 'heal-gain-scale-loss';
-  const share = before > 0 ? unit.health / before : 1;
+  const policy = engine.options.health.policy ?? 'scale';
 
   if (typeof policy === 'function') {
     unit.health = Math.min(policy(bearer, before, after), after);
   } else if (policy === 'keep') {
     unit.health = Math.min(unit.health, after);
-  } else if (policy === 'scale' || after < before) {
-    unit.health = share * after;
-  } else if (engine.options.damage === undefined) {
-    unit.health = Math.min(unit.health + (after - before), after);
   } else {
-    lateOf(engine.options.damage).heal({ target: bearer, amount: after - before });
+    unit.health = (before > 0 ? unit.health / before : 1) * after;
   }
 
   return unit.health;
