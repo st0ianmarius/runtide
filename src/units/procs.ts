@@ -72,6 +72,9 @@ export interface SummonProc<G extends UnitTypes> extends ProcShape {
 
   /** Whether they despawn with their owner; true when absent. */
   readonly isBound?: boolean;
+
+  /** Their side (a turned add fighting for the heroes, a boss's hazard that hurts everyone); the owner's when absent. */
+  readonly side?: number;
 }
 
 /** Despawns the unit it lands on (§II.6 P3 `despawn(reason)`): removed without dying; `skipped` when already gone. */

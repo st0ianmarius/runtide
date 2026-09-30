@@ -45,6 +45,16 @@ describe('summoning (§II.6 P3, C8, §I.7.1 F18)', () => {
     assert.equal(procs.apply(summon<UnitGame>('add', { countOf: () => 0 }), { self: caster }).status, 'skipped');
   });
 
+  it('spawns them on another side when the proc names one, still owned and bound', () => {
+    const { procs, units, caster } = summoning();
+
+    procs.apply(summon<UnitGame>('add', { side: 0 }), { self: caster });
+
+    const [turned] = units.summonsOf(caster);
+
+    assert.deepEqual([turned?.owner, turned?.side, turned?.isBound], [caster, 0, true]);
+  });
+
   it('snapshots stats over the template’s, and inherited shares of the owner’s totals', () => {
     const { procs, units, caster } = summoning();
 

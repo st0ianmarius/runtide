@@ -138,7 +138,7 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
 
     for (let i = 0; i < count; i++) {
       const at = summonPoint(engine, [proc, ctx, owner]);
-      const spec: SpawnUnit<G> = { side: unitOf<G>(owner).side, owner, isBound: proc.isBound !== false };
+      const spec: SpawnUnit<G> = { side: proc.side ?? unitOf<G>(owner).side, owner, isBound: proc.isBound !== false };
 
       const unit = parts.spawn(template, {
         ...spec,
