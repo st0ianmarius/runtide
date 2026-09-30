@@ -27,6 +27,7 @@ import {
   defineSpells,
   type SpellId,
   type SpellProcs,
+  type SpellSystem,
 } from '../src/spells/index.ts';
 import {
   createUnitSystem,
@@ -205,6 +206,7 @@ const late: {
   damage?: DamageSystem<HordeGame>;
   hero?: Unit<HordeGame>;
   swing?: readonly Proc<HordeGame>[];
+  spells?: SpellSystem<HordeGame>;
 } = {};
 
 /** Throws: a system is wired after the systems that name it. */
@@ -235,16 +237,29 @@ const OTHER_SPELLS = Object.fromEntries(
   ]),
 );
 
-/** A cast a mob picks: winds up, then enrages it. */
+/** The swing's interval, which a mob's swing is reset to as its other casts end. */
+const SWING_INTERVAL = 1.2;
+
+/** A cast a mob picks: winds up, then enrages it; its swing starts over as it ends. */
 const picked = (): AnySpellDef<HordeGame> => ({
   activation: { kind: 'trigger' },
   timeline: { windup: { seconds: 0.5 } },
   release: () => [applyAura<HordeGame>('rage', { to: 'self' })],
+
+  onEnd: (ctx) => {
+    late.spells?.setClock(ctx.caster, SPELL_DEFS.id['swing'] ?? missing(), SWING_INTERVAL);
+
+    return undefined;
+  },
 });
 
 const SPELL_DEFS = defineSpells<HordeGame, string>({
   swing: {
-    activation: { kind: 'auto', interval: 1.2, afterCast: 'reset', ready: (caster) => (GAP[caster.id] ?? 0) <= REACH },
+    activation: {
+      kind: 'auto',
+      interval: SWING_INTERVAL,
+      ready: (caster) => (GAP[caster.id] ?? 0) <= REACH && late.spells?.isCasting(caster) !== true,
+    },
     target: () => late.hero,
     release: () => late.swing,
   },
@@ -262,6 +277,8 @@ const SPELLS = createSpellSystem<HordeGame>({
   clock: CLOCK,
   host: {},
 });
+
+late.spells = SPELLS;
 
 const TIMERS = defineTimers(['pick']);
 const AI = createAiSystem<HordeGame>({ spells: SPELLS, clock: CLOCK, timers: TIMERS });

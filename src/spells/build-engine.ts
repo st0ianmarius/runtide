@@ -1,5 +1,5 @@
 import type { AuraId, AuraSystem } from '../auras/index.ts';
-import { type ActivationRegistry, CORE_ACTIVATIONS, isAuto } from './activation.ts';
+import { type ActivationRegistry, CORE_ACTIVATIONS } from './activation.ts';
 import { type CastPlan, planOf } from './cast-plan.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import { SpellEngine } from './engine.ts';
@@ -87,12 +87,6 @@ const interruptBitsOf = <G extends SpellTypes>(
   return new Map([...names].map((name, index) => [name, 2 ** (index + 1)]));
 };
 
-/** 1 for each auto spell whose clock resets after the caster's other casts, by spell id. */
-const resetsAfterCastOf = <G extends SpellTypes>(registry: SpellRegistry<G>): Uint8Array =>
-  Uint8Array.from(registry.defs, (def) =>
-    def !== undefined && isAuto(def.activation) && def.activation.afterCast === 'reset' ? 1 : 0,
-  );
-
 /** Resolves a spell's cooldown aura against the aura registry at load; `undefined` for none. */
 const cooldownOf = <G extends SpellTypes>(
   auras: AuraSystem<G>,
@@ -146,7 +140,6 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     boxes: new StatsBoxes(registry.compiled),
     baseView: baseView(registry.stats),
     interruptBits: interruptBitsOf(registry, options.interrupts ?? []),
-    resetsAfterCast: resetsAfterCastOf(registry),
     slots: options.slots?.size ?? 1,
     createExt: extFactory(options),
     resetExt: options.resetExt,

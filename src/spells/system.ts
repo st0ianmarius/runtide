@@ -1,6 +1,6 @@
 import type { TickSlotId } from '../core/index.ts';
 import type { StatId } from '../modifiers/index.ts';
-import { armAuto, autoClockOf, type ClockScale, rescaleClocks, stepAutoClocks } from './auto.ts';
+import { armAuto, autoClockOf, type ClockScale, rescaleClocks, setAutoClock, stepAutoClocks } from './auto.ts';
 import { engineOf, gameActivationsOf } from './build-engine.ts';
 import { fireCastCue } from './cast-cue.ts';
 import {
@@ -128,6 +128,9 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /** The seconds left on a caster's `auto` clock for a spell; 0 for one it has not armed. */
   readonly autoClock: (caster: G['bearer'], spell: SpellId) => number;
+
+  /** Sets the seconds left on a caster's armed `auto` clock (a swing reset as another cast ends); false if unarmed. */
+  readonly setClock: (caster: G['bearer'], spell: SpellId, seconds: number) => boolean;
 
   /**
    * Lands every delayed list of a tick slot (the first when absent) due by the clock's tick, in the order they were
@@ -313,6 +316,9 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly disarm = (caster: G['bearer'], spell: SpellId): boolean => recordOf(caster).disarm(spell);
 
   readonly autoClock = (caster: G['bearer'], spell: SpellId): number => autoClockOf(caster, spell);
+
+  readonly setClock = (caster: G['bearer'], spell: SpellId, seconds: number): boolean =>
+    setAutoClock(caster, [spell, seconds]);
 
   readonly stepDelayed = (slot?: TickSlotId): number => this.#engine.delayed.land(slot ?? 0);
 

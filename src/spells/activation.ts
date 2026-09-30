@@ -49,13 +49,6 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
     /** Reads the report; declared as a method so a function over a narrower caster still fits. */
     bivarianceHack(report: CastReport<G>, interval: number, caster: G['bearer']): number;
   }['bivarianceHack'];
-
-  /**
-   * What the caster's other casts do to the clock (a creature's swing reset after its cast's recovery):
-   * `reset` holds it while the caster casts and sets it to its interval (the constant, else the one last read) as each
-   * cast ends; `keep` (the default) leaves it counting.
-   */
-  readonly afterCast?: 'reset' | 'keep';
 }
 
 /**
@@ -182,10 +175,6 @@ const AUTO: ActivationKindDef<AutoActivation, never> = {
   check: (activation) => {
     const { interval } = activation;
     const isSound = typeof interval === 'function' || (Number.isFinite(interval) && interval > 0);
-
-    if (activation.afterCast !== undefined && activation.afterCast !== 'reset' && activation.afterCast !== 'keep') {
-      return "an auto clock's afterCast is 'reset' or 'keep'.";
-    }
 
     if (activation.ready !== undefined && typeof activation.ready !== 'function') {
       return "an auto clock's ready is a function of the caster.";

@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { haste, scaled } from '../../src/modifiers/index.ts';
 import { type AnySpellDef, autoNext, type SpellHost } from '../../src/spells/index.ts';
-import { type Game, makeSpellGame, mark, spell, STATS } from '../helpers/spell-game.ts';
+import { type Game, makeSpellGame, mark, spell, STATS, type Unit } from '../helpers/spell-game.ts';
 
 /**
  * A game over `defs` with one caster, and `advance(n)`: `n` steps, each logged as `t<tick>`, then the caster's auto
@@ -224,16 +224,30 @@ describe('auto clocks', () => {
 });
 
 describe('an auto clock after the caster’s other casts', () => {
-  it('waits out the caster’s casts and resets to its interval as each ends, when it says so', () => {
+  it('waits out the caster’s casts through its ready, and is reset to its interval by the game as each ends', () => {
+    const late: { isCasting?: (unit: Unit) => boolean; reset?: (unit: Unit) => void } = {};
+
     const game = autoGame({
-      swing: spell({ activation: { kind: 'auto', interval: 1, afterCast: 'reset' }, release: () => [mark('swing')] }),
+      swing: spell({
+        activation: { kind: 'auto', interval: 1, ready: (caster) => late.isCasting?.(caster) !== true },
+        release: () => [mark('swing')],
+      }),
       bolt: spell({ activation: { kind: 'auto', interval: 2 }, release: () => [mark('bolt')] }),
       roar: spell({
         activation: { kind: 'trigger' },
         timeline: { windup: { seconds: 0.5 }, recover: { seconds: 0.5 } },
         release: () => undefined,
+
+        onEnd: (ctx) => {
+          late.reset?.(ctx.caster);
+
+          return undefined;
+        },
       }),
     });
+
+    late.isCasting = (unit) => game.spells.isCasting(unit);
+    late.reset = (unit) => void game.spells.setClock(unit, game.id.swing, 1);
 
     game.advance(2);
     assert.equal(game.spells.autoClock(game.a, game.id.swing), 0.75);
@@ -249,13 +263,19 @@ describe('an auto clock after the caster’s other casts', () => {
     assert.equal(game.spells.autoClock(game.a, game.id.bolt), 0.75);
   });
 
-  it('refuses an afterCast that is neither reset nor keep, and a ready that is not a function', () => {
-    const forged = { kind: 'auto', interval: 1 } as const;
+  it('sets only an armed clock, to finite seconds from 0, and refuses a ready that is not a function', () => {
+    const game = autoGame({
+      swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => undefined }),
+      bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined }),
+    });
+
     const unready = { kind: 'auto', interval: 1 } as const;
 
-    Reflect.set(forged, 'afterCast', 'hold');
+    assert.equal(game.spells.setClock(game.a, game.id.swing, 0.5), true);
+    assert.equal(game.spells.autoClock(game.a, game.id.swing), 0.5);
+    assert.equal(game.spells.setClock(game.a, game.id.bolt, 0.5), false);
+    assert.throws(() => game.spells.setClock(game.a, game.id.swing, -1), /finite seconds from 0/);
     Reflect.set(unready, 'ready', true);
-    assert.throws(() => autoGame({ x: spell({ activation: forged, release: () => undefined }) }), /afterCast/);
     assert.throws(() => autoGame({ x: spell({ activation: unready, release: () => undefined }) }), /ready/);
   });
 });

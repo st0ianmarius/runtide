@@ -49,8 +49,7 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
 
 /**
  * Steps a caster's armed `auto` clocks by one step, in registry order: each counts down, and one
- * that ran out casts its spell, unless it resets after casts (`afterCast: 'reset'`) and the caster is casting: it
- * waits for the cast to end, which resets it. After the cast the clock is set, with no carry-over, to what its
+ * that ran out casts its spell. After the cast the clock is set, with no carry-over, to what its
  * activation's `next` answers (`autoNext` by default: the interval read at the cast, or the next step). A clock whose activation says the caster is not `ready` waits at zero, casting nothing. A caster with
  * nothing armed costs one length check.
  */
@@ -69,7 +68,7 @@ export const stepAutoClocks = <G extends SpellTypes>(
 
     clocks[i] = left;
 
-    if (spell === undefined || !isRunOut(left) || (record.count > 0 && engine.resetsAfterCast[spell] === 1)) {
+    if (spell === undefined || !isRunOut(left)) {
       continue;
     }
 
@@ -91,6 +90,27 @@ export const autoClockOf = (caster: SpellCaster, spell: SpellId): number => {
   const index = record.autoAt(spell);
 
   return index < 0 ? 0 : (record.clocks[index] ?? 0);
+};
+
+/**
+ * Sets the seconds left on a caster's armed `auto` clock for a spell (a creature's swing reset as its other cast
+ * ends); false for a spell it has not armed. Throws for seconds that are not finite from 0.
+ */
+export const setAutoClock = (caster: SpellCaster, [spell, seconds]: readonly [SpellId, number]): boolean => {
+  if (!(seconds >= 0) || !Number.isFinite(seconds)) {
+    throw new RangeError(`An auto clock is set to finite seconds from 0; got ${seconds}.`);
+  }
+
+  const record = recordOf(caster);
+  const index = record.autoAt(spell);
+
+  if (index < 0) {
+    return false;
+  }
+
+  record.clocks[index] = seconds;
+
+  return true;
 };
 
 /**
@@ -163,35 +183,4 @@ export const rescaleClocks = <G extends SpellTypes>(
   }
 
   return rescaleAuto(engine, caster, [factor, rescale.tag ?? -1]);
-};
-
-/**
- * Resets a caster's `auto` clocks that reset after its other casts (`afterCast: 'reset'`) as one of its
- * casts ends: each is set to its constant interval, else to the interval it last read. An auto spell's own cast
- * resets none. Returns how many it reset.
- */
-export const resetAfterCast = <G extends SpellTypes>(
-  engine: SpellEngine<G>,
-  caster: G['bearer'],
-  spell: SpellId,
-): number => {
-  if (!engine.hasResets || isAuto(engine.registry.get(spell).activation)) {
-    return 0;
-  }
-
-  const { autos, clocks, intervals } = recordOf(caster);
-  let reset = 0;
-
-  for (let i = 0; i < autos.length; i++) {
-    const armed = autos[i];
-
-    if (armed !== undefined && engine.resetsAfterCast[armed] === 1) {
-      const { interval } = autoOf(engine, armed);
-
-      clocks[i] = typeof interval === 'number' ? interval : (intervals[i] ?? 0);
-      reset += 1;
-    }
-  }
-
-  return reset;
 };
