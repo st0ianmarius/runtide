@@ -115,7 +115,7 @@ const isSoundSeconds = (seconds: unknown, zero = false): boolean =>
   typeof seconds === 'function' ||
   (typeof seconds === 'number' && Number.isFinite(seconds) && (zero ? seconds >= 0 : seconds > 0));
 
-/** Checks the frame's order, its arming and its contact. */
+/** Checks the frame's order and its contact. */
 const checkFrame = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTriggerDef<G>): void => {
   const { order, contact } = def;
 
@@ -123,19 +123,8 @@ const checkFrame = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
     fail(name, "its order lists 'move', 'contact', 'frame', 'pulses' and 'auras', each at most once.");
   }
 
-  if (def.arming !== undefined && !isSoundSeconds(def.arming, true)) {
-    fail(name, 'it arms for a finite number of seconds from 0.');
-  }
-
   if (contact !== undefined && !isSoundSeconds(contact.radius, true)) {
     fail(name, 'its contact radius is a finite number from 0, or a function.');
-  }
-
-  if (
-    def.caster !== undefined &&
-    (!isSoundSeconds(def.caster.seconds) || !isSoundSeconds(def.caster.first ?? 1, true))
-  ) {
-    fail(name, 'it casts every finite number of seconds above 0, the first after seconds from 0.');
   }
 };
 
@@ -255,8 +244,8 @@ const checkTagsAndHooks = <G extends AreaTriggerTypes>(
 
 /**
  * Checks one area trigger kind at load, throwing a `RangeError` naming it: its shape, lifetime, modes, bound, limit,
- * frame order, arming, contact, cast clock, pulses, tags and hooks. Its tick slot, owner aura and spell are checked
- * against the system's slots, auras and spells when it is built.
+ * frame order, contact, pulses, tags and hooks. Its tick slot and owner aura are checked against the system's slots
+ * and auras when it is built.
  */
 export const checkAreaTrigger = <G extends AreaTriggerTypes>(
   name: string,

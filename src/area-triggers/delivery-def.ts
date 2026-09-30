@@ -1,6 +1,6 @@
 import type { AuraId } from '../auras/index.ts';
 import type { Shape } from '../math/index.ts';
-import type { ProcOut, ProcReturn, SpellHit, SpellId } from '../spells/index.ts';
+import type { ProcOut, ProcReturn, SpellHit } from '../spells/index.ts';
 import type { QuerySide } from '../world/index.ts';
 import type { AreaFn, AreaTriggerContext } from './area-def.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
@@ -118,21 +118,6 @@ export interface AreaPulse<G extends AreaTriggerTypes, State = unknown> extends 
 
   /** The beat: what it does to the units caught (none, when it catches none). */
   onPulse(this: void, c: AreaTriggerContext<G, State>, hit: AreaHit<G>, out: ProcOut<G>): ProcReturn<G>;
-}
-
-/** An area trigger that casts its own spell on its own clock (the sentry), as its owner, credited to it. */
-export interface AreaCaster<G extends AreaTriggerTypes, State = unknown> {
-  /** The spell: its name in data, its id in code. */
-  readonly spell: G['spellName'] | SpellId;
-
-  /** The seconds between casts: a number, or read from its stats at every cast. */
-  readonly seconds: number | AreaFn<G, State, number>;
-
-  /** The seconds to its first cast; `seconds` by default. */
-  readonly first?: number;
-
-  /** What each cast is handed (its position, a target); nothing when absent. */
-  input?(this: void, c: AreaTriggerContext<G, State>): G['input'] | undefined;
 }
 
 /**

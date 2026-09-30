@@ -129,12 +129,10 @@ describe('the load-time checks', () => {
     refuse(forged(base, 'limit', { perOwner: 1, replace: 'newest' }), /its limit replaces/);
   });
 
-  it('refuse a frame order with a repeat or an unknown part, a negative arming, and a bad contact radius', () => {
+  it('refuse a frame order with a repeat or an unknown part, and a bad contact radius', () => {
     refuse({ ...base, order: ['move', 'move'] }, /its order lists/);
     refuse(forged(base, 'order', ['fly']), /its order lists/);
-    refuse({ ...base, arming: -1 }, /it arms for/);
     refuse({ ...base, contact: { radius: -1 } }, /its contact radius/);
-    refuse({ ...base, caster: { spell: 'bolt', seconds: 0 } }, /it casts every/);
   });
 
   it('refuse a pulse with bad seconds, an unknown reschedule, or no onPulse', () => {

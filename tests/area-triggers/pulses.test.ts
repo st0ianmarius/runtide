@@ -8,6 +8,7 @@ import {
   spawn,
 } from '../../src/area-triggers/index.ts';
 import { circle, vec2 } from '../../src/math/index.ts';
+import { castSpell } from '../../src/spells/index.ts';
 import { type Game, makeSpellGame, spell } from '../helpers/spell-game.ts';
 
 /** A pool with pulses, living long enough; its frame does nothing. */
@@ -119,33 +120,7 @@ describe('own pulses', () => {
   });
 });
 
-describe('arming and the frame’s order', () => {
-  it('holds its frame while arming, then runs it with the time left over on the tick it arms', () => {
-    const game = makeSpellGame(
-      {},
-      {
-        areaTriggers: {
-          sentry: pool([], {
-            arming: 0.3,
-
-            frame: (c, dt) => {
-              c.host.log.push(`frame ${dt.toFixed(2)}`);
-
-              return undefined;
-            },
-          }),
-        },
-      },
-    );
-
-    game.areaTriggers.spawn(game.areaId.sentry, { owner: game.unit(1), at: vec2(0, 0) });
-    ticks(game, 3);
-    assert.deepEqual(
-      game.log.filter((line) => line.startsWith('frame')),
-      ['frame 0.20', 'frame 0.25'],
-    );
-  });
-
+describe('the frame’s order', () => {
   it('runs its parts in its declared order', () => {
     const phases = (order?: AnyAreaTriggerDef<Game>['order']): string[] => {
       const game = makeSpellGame(
@@ -267,7 +242,7 @@ describe('contacts and landings', () => {
 });
 
 describe('an area trigger that casts (the sentry)', () => {
-  it('casts its spell as its owner on its own clock, what the cast spawns its child', () => {
+  it('casts from a pulse as its owner, credited to its source, what the cast spawns its child', () => {
     const children: AreaTriggerHandle[] = [];
 
     const game = makeSpellGame(
@@ -284,7 +259,7 @@ describe('an area trigger that casts (the sentry)', () => {
       },
       {
         areaTriggers: {
-          sentry: pool([], { caster: { spell: 'bolt', seconds: 0.5, input: () => undefined } }),
+          sentry: pool([{ seconds: 0.5, hits: 'none', onPulse: () => [castSpell<Game>('bolt')] }]),
           spark: { shape: circle(1), lifetime: 5, init: (c) => void children.push(c.parent) },
         },
       },
@@ -298,12 +273,5 @@ describe('an area trigger that casts (the sentry)', () => {
       ['bolt by 1 for 7 at nothing', 'bolt by 1 for 7 at nothing'],
     );
     assert.deepEqual(children, [sentry, sentry]);
-  });
-
-  it('refuses a spell the game does not have, at load', () => {
-    assert.throws(
-      () => makeSpellGame({}, { areaTriggers: { sentry: pool([], { caster: { spell: 'nothing', seconds: 1 } }) } }),
-      /it casts nothing, which is not a live spell/,
-    );
   });
 });

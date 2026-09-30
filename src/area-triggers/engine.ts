@@ -3,7 +3,7 @@ import { toHandle } from '../core/ids.ts';
 import { createPool, createScratch, type Pool, type Random, type Scratch } from '../core/index.ts';
 import { type CueBuffer, type CueSpec, fireCue } from '../cues/index.ts';
 import type { Proc, ProcOutcome, ProcSystem } from '../procs/index.ts';
-import type { ProcReturn, SpellClock, SpellId, SpellSystem } from '../spells/index.ts';
+import type { ProcReturn, SpellClock, SpellSystem } from '../spells/index.ts';
 import { ProcList } from '../spells/proc-out.ts';
 import type { WorldQuery } from '../world/index.ts';
 import { AuraHolds } from './area-auras.ts';
@@ -11,7 +11,6 @@ import type { EndReason } from './area-def.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import { type AreaServices, AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
-import { AreaCastOptions } from './caster.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import type { AreaLedger } from './delivery-def.ts';
 import { type AreaEngineParts, AreaPlace, missing, OwnerAuraApplication } from './engine-parts.ts';
@@ -60,12 +59,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   /** The queries over the area triggers, which hooks read as `c.areas`. */
   readonly queries: AreaQueryApi<G>;
 
-  /** Each kind's own spell, for a kind that casts. */
-  readonly casterSpells: readonly (SpellId | undefined)[];
-
-  /** The options an area trigger casts with, reused. */
-  readonly castOptions = new AreaCastOptions<G>();
-
   /** The hit ledgers. */
   readonly ledgers = new LedgerBook();
 
@@ -112,7 +105,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.slotKinds = parts.slotKinds;
     this.bindings = parts.bindings;
     this.pauseMasks = parts.pauseMasks;
-    this.casterSpells = parts.casterSpells;
     this.areaAuras = parts.areaAuras;
     this.queries = new AreaQueryApi<G>(this);
     this.tickHeads = Array.from({ length: kinds }, () => undefined);

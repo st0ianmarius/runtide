@@ -1,8 +1,6 @@
-import { countDown, isRunOut } from '../core/index.ts';
 import { stepAreaAuras } from './area-auras.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
-import { stepCaster } from './caster.ts';
 import { ANCHOR_OWNER } from './define-area-triggers.ts';
 import type { AreaPhase } from './delivery-def.ts';
 import { endArea } from './ender.ts';
@@ -77,7 +75,6 @@ const runPhase = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
       break;
     case 'pulses':
       stepPulses(engine, area, dt);
-      stepCaster(engine, area, dt);
       break;
     case 'auras':
       stepAreaAuras(engine, area);
@@ -86,31 +83,9 @@ const runPhase = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
 };
 
 /**
- * The time of a frame its parts run over: all of it once armed, none while arming, and on the tick it arms
- * the time left over after its arming ran out.
- */
-const armedTime = <G extends AreaTriggerTypes>(area: AreaTrigger<G>, dt: number): number => {
-  if (area.arming <= 0) {
-    return dt;
-  }
-
-  const left = area.arming;
-
-  area.arming = countDown(left, dt);
-
-  if (!isRunOut(area.arming)) {
-    return 0;
-  }
-
-  area.arming = 0;
-
-  return dt - left;
-};
-
-/**
  * One frame over `dt`: it ages, an owner-anchored one moves onto its owner, it notes where it
- * was and places its shape, then (once armed) runs its parts in its kind's order: `move` (placing its shape again),
- * `contact`, `frame`, `pulses` with its cast clock, and `auras`. A hook that asked it to end ends it once that part is done.
+ * was and places its shape, then runs its parts in its kind's order: `move` (placing its shape again), `contact`,
+ * `frame`, `pulses` and `auras`. A hook that asked it to end ends it once that part is done.
  */
 export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): void => {
   const { registry } = engine;
@@ -127,9 +102,9 @@ export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: A
 
   const order = registry.get(area.kind).order ?? DEFAULT_ORDER;
 
-  area.frameTime = armedTime(area, dt);
+  area.frameTime = dt;
 
-  for (let i = 0; i < order.length && area.frameTime > 0 && !area.isEnding; i++) {
+  for (let i = 0; i < order.length && !area.isEnding; i++) {
     runPhase(engine, area, order[i] ?? 'frame');
 
     if (area.pending !== undefined && !area.isEnding) {

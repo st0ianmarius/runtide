@@ -1,7 +1,6 @@
 import type { AuraId, AuraSystem } from '../auras/index.ts';
 import type { AnyAreaTriggerDef } from './area-def.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
-import { casterSpellOf } from './caster.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import { AreaEngine } from './engine.ts';
 import { BIND_PRESENT, BIND_STANDING, BIND_SUSPEND } from './stepper.ts';
@@ -143,7 +142,6 @@ export const areaEngineOf = <G extends AreaTriggerTypes>(options: AreaTriggerSys
     bindings: Uint8Array.from(registry.defs, bindingOf),
     pauseMasks: Int32Array.from(registry.defs, (def) => options.spells.interruptMask(def?.bound?.pausedBy ?? [])),
     areaAuras: registry.defs.map((def, id) => areaAurasOf(options.auras, def, registry.names[id] ?? '')),
-    casterSpells: registry.defs.map((def, id) => casterSpellOf(options, def?.caster, registry.names[id] ?? '')),
     createExt: extFactory(options),
     resetExt: options.resetExt,
   });

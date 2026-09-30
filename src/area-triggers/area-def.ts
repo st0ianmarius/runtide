@@ -10,7 +10,6 @@ import type { AreaTriggerHost } from './area-host.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import type {
   AreaAura,
-  AreaCaster,
   AreaCatch,
   AreaContact,
   AreaHit,
@@ -261,12 +260,6 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
    */
   readonly order?: readonly AreaPhase[];
 
-  /**
-   * The seconds before its frame's parts start (the sentry arming): its lifetime counts meanwhile, and the
-   * tick it arms on runs them with the time left over.
-   */
-  readonly arming?: number;
-
   /** Its hit ledgers by name, which its catches name and its hooks read with `c.ledger`. */
   readonly ledgers?: Readonly<Record<string, AreaLedgerSpec>>;
 
@@ -281,9 +274,6 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
 
   /** Whether each of its hits is also its cast's (`spells.hit`: the cast's `onHit`, its cue and its event). */
   readonly hitsCast?: boolean;
-
-  /** The spell it casts on its own clock. */
-  readonly caster?: AreaCaster<G, State>;
 
   /** The auras it keeps on the units in its shape. */
   readonly auras?: readonly AreaAura<G, State>[];

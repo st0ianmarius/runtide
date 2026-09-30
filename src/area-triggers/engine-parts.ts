@@ -3,7 +3,7 @@ import { NO_SOURCE } from '../auras/index.ts';
 import type { Random } from '../core/index.ts';
 import type { CueBuffer, CuePlace } from '../cues/index.ts';
 import type { ProcSystem } from '../procs/index.ts';
-import type { SpellClock, SpellId, SpellSystem } from '../spells/index.ts';
+import type { SpellClock, SpellSystem } from '../spells/index.ts';
 import type { WorldQuery } from '../world/index.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
@@ -79,9 +79,6 @@ export interface AreaEngineParts<G extends AreaTriggerTypes> {
 
   /** Each kind's mask of the owner's interrupts it waits out (`bound.pausedBy`); 0 for none. */
   readonly pauseMasks: Int32Array;
-
-  /** Each kind's own spell, for a kind that casts. */
-  readonly casterSpells: readonly (SpellId | undefined)[];
 
   /** Each kind's auras' ids, by aura index. */
   readonly areaAuras: readonly (readonly AuraId[] | undefined)[];

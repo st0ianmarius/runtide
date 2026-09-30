@@ -3,7 +3,6 @@ import { type CastHandle, NO_CAST } from '../spells/index.ts';
 import type { AnyAreaTriggerDef, Lifetime } from './area-def.ts';
 import { type AreaTrigger, NO_SCALED, NO_STATS } from './area-trigger.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
-import { castSecondsOf } from './caster.ts';
 import { AFTER_PARENT, ANCHOR_OWNER } from './define-area-triggers.ts';
 import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
@@ -167,8 +166,6 @@ const enter = <G extends AreaTriggerTypes>(
   engine.count(area.owner, [area.kind, 1]);
   placeShape(engine, area);
   registry.hooks.init[area.kind]?.(area, area.input);
-  area.arming = def.arming ?? 0;
-  area.castBeat = def.caster === undefined ? 0 : (def.caster.first ?? castSecondsOf(def.caster, area));
   joinPulses(engine, area);
   engine.holdOwnerAura(area, true);
   engine.fire(area, def.cues?.spawn?.(area));

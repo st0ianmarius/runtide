@@ -92,16 +92,10 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   state: unknown = undefined;
   readonly ext: G['areaExt'];
 
-  /** The seconds to each own-clock pulse's next beat, by pulse index. */
+  /** The seconds to each pulse's next beat, by pulse index. */
   readonly beats: number[] = [];
 
-  /** The seconds of arming left; 0 once armed. */
-  arming = 0;
-
-  /** The seconds to its next own cast, for a kind that casts. */
-  castBeat = 0;
-
-  /** The time this frame's parts run over (all of the frame once armed). */
+  /** The time this frame's parts run over. */
   frameTime = 0;
 
   /** The hit ledgers it holds, by name. */
