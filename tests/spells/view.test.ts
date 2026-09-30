@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { CAST_STAGES } from '../../src/spells/index.ts';
+import { CAST_STAGES, type CastView } from '../../src/spells/index.ts';
 import { makeSpellGame, spell } from '../helpers/spell-game.ts';
 
 describe('cast views', () => {
-  it('carries the spell, rank, stage and the stamp its stage ends on, and nothing once it ended', () => {
+  it('fills the spell, rank, stage, the stamp its stage ends on and the press key, and nothing once it ended', () => {
     const game = makeSpellGame({
       bolt: spell({
         ranks: 2,
@@ -19,9 +19,22 @@ describe('cast views', () => {
 
     game.step(4);
 
-    const { handle } = game.spells.cast(caster, game.id.bolt, { rank: 2, source: 9 });
+    const { handle } = game.spells.cast(caster, game.id.bolt, { rank: 2, source: 9, key: 14 });
 
-    assert.deepEqual(game.spells.viewOf(handle), {
+    const view: CastView = {
+      spell: game.id.bolt,
+      rank: 0,
+      stage: 0,
+      seconds: 0,
+      end: 0,
+      started: 0,
+      caster: 0,
+      source: 0,
+      key: 0,
+    };
+
+    assert.equal(game.spells.viewOf(handle, view), true);
+    assert.deepEqual(view, {
       spell: game.id.bolt,
       rank: 2,
       stage: CAST_STAGES.indexOf('windup'),
@@ -30,14 +43,17 @@ describe('cast views', () => {
       started: 4,
       caster: 3,
       source: 9,
+      key: 14,
     });
 
     game.step();
     game.spells.step(caster);
-    assert.equal(game.spells.viewOf(handle)?.end, 8);
+    game.spells.viewOf(handle, view);
+    assert.equal(view.end, 8);
     game.spells.pause(handle);
-    assert.equal(game.spells.viewOf(handle)?.end, Infinity);
+    game.spells.viewOf(handle, view);
+    assert.equal(view.end, Infinity);
     game.spells.cancel(handle);
-    assert.equal(game.spells.viewOf(handle), undefined);
+    assert.equal(game.spells.viewOf(handle, view), false);
   });
 });

@@ -1,7 +1,7 @@
 import type { ActiveAura, AuraSystem, AuraTypes } from '../auras/index.ts';
 import type { EventKind, Random } from '../core/index.ts';
 import type { CueBuffer } from '../cues/index.ts';
-import type { Vec2 } from '../math/index.ts';
+import type { MutableVec2, Vec2 } from '../math/index.ts';
 import type { Proc } from './proc-data.ts';
 
 /**
@@ -106,8 +106,11 @@ export interface ProcHost<G extends ProcTypes> {
   /** Hands out an amount of a resource (its id: its position in the system's `resources`) to a unit. */
   readonly grant?: (unit: G['bearer'], resource: number, amount: number) => void;
 
-  /** Where a unit stands now: where a `cue` proc on it sits, unless the proc names a point. */
-  readonly positionOf?: (unit: G['bearer']) => Vec2;
+  /**
+   * Where a unit stands now (where a `cue` proc on it sits, unless the proc names a point): `out` filled, or the game's
+   * own vector for it, read at once and never kept or changed.
+   */
+  readonly positionOf?: (unit: G['bearer'], out: MutableVec2) => Vec2;
 }
 
 /**

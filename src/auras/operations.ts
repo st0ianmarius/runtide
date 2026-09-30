@@ -21,7 +21,7 @@ import { type AuraSeed, seedAuras } from './seed.ts';
 import { setOf } from './state.ts';
 import type { AuraSystem } from './system.ts';
 import { changeTimeLeft } from './time-left.ts';
-import { viewAuras, type ViewOptions } from './view.ts';
+import { type AuraView, viewAuras, type ViewOptions } from './view.ts';
 
 /** The operations of an aura system. */
 type Operations<G extends AuraTypes> = Pick<
@@ -141,7 +141,7 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
     engine.events.give();
   },
 
-  view: (bearer: G['bearer'], options?: ViewOptions) => viewAuras(engine, bearer, options),
+  view: (bearer: G['bearer'], out: AuraView[], options?: ViewOptions) => viewAuras(engine, [bearer, out], options),
   isPredicted: (aura: AuraId) => ((engine.flags[aura] ?? 0) & PREDICTED) !== 0,
 
   scaleTimeLeft: (bearer: G['bearer'], tag: AuraTagId, factor: number) =>

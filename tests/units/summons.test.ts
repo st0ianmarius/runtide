@@ -160,7 +160,7 @@ describe('summoning', () => {
 
     const around = summon<UnitGame>('add', {
       atOf: (ctx) => {
-        const centre = world.positionOf(ctx.self);
+        const centre = world.positionOf(ctx.self, { x: 0, z: 0 });
         const random = ctx.random();
 
         const sample = (): Vec2 => {

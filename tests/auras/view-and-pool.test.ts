@@ -1,8 +1,20 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
 import { explainAura, NO_SOURCE } from '../../src/auras/index.ts';
 import { aura, makeGame, TAGS } from '../helpers/aura-game.ts';
+
+/** A bearer's aura views, in a fresh array. */
+const viewsOf = <Bearer>(
+  system: { readonly view: (bearer: Bearer, out: AuraView[], options?: ViewOptions) => number },
+  bearer: Bearer,
+  options?: ViewOptions,
+): AuraView[] => {
+  const out: AuraView[] = [];
+
+  return out.slice(0, system.view(bearer, out, options));
+};
 
 const defs = {
   shell: aura({ duration: 10, value: 40, stacking: 'highest', merge: 'max', keepWhenDepleted: true, tags: ['boon'] }),
@@ -26,6 +38,23 @@ const defs = {
 };
 
 describe('views for the wire', () => {
+  it('fill the caller’s records from index 0, reused from call to call', () => {
+    const { auras, id, unit } = makeGame(defs);
+    const u = unit();
+    const out: AuraView[] = [];
+
+    auras.apply(u, id.shell);
+    auras.apply(u, id.echo);
+    assert.equal(auras.view(u, out), 2);
+
+    const [first] = out;
+
+    auras.remove(u, id.echo);
+    assert.equal(auras.view(u, out), 1);
+    assert.equal(out[0], first);
+    assert.equal(out.length, 2);
+  });
+
   it('carry ids and numbers only, in list order, and leave owner-only auras to the owner', () => {
     const { auras, id, unit, run } = makeGame(defs);
     const u = unit();
@@ -33,10 +62,10 @@ describe('views for the wire', () => {
     auras.apply(u, { aura: id.shell, source: 7 });
     auras.apply(u, { aura: id.cooldown, duration: 2 });
     run(u, 4);
-    assert.deepEqual(auras.view(u), [
+    assert.deepEqual(viewsOf(auras, u), [
       { aura: id.shell, serial: 0, stacks: 1, value: 40, duration: 10, remaining: 9.5, end: 80, clock: 0, source: 7 },
     ]);
-    assert.deepEqual(auras.view(u, { forOwner: true })[1], {
+    assert.deepEqual(viewsOf(auras, u, { forOwner: true })[1], {
       aura: id.cooldown,
       serial: 0,
       stacks: 1,

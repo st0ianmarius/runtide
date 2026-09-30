@@ -156,7 +156,7 @@ const enter = <G extends AreaTriggerTypes>(
   area.isOwnerLifetime = lifetime === 'owner';
 
   if ((flags & ANCHOR_OWNER) !== 0) {
-    area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner));
+    area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner, engine.point));
   }
 
   openLedgers(engine, area);

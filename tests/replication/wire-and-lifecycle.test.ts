@@ -1,8 +1,20 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
 import { auraChanges, auraLifecycle, checkWireTable, wireTableOf } from '../../src/replication/index.ts';
 import { aura, makeGame } from '../helpers/aura-game.ts';
+
+/** A bearer's aura views, in a fresh array. */
+const viewsOf = <Bearer>(
+  system: { readonly view: (bearer: Bearer, out: AuraView[], options?: ViewOptions) => number },
+  bearer: Bearer,
+  options?: ViewOptions,
+): AuraView[] => {
+  const out: AuraView[] = [];
+
+  return out.slice(0, system.view(bearer, out, options));
+};
 
 describe('wire tables', () => {
   it('pins a registry’s names by id with a checksum that changes with any name or order', () => {
@@ -46,13 +58,13 @@ describe('aura lifecycle from views', () => {
     auras.apply(u, id.ward);
     auras.apply(u, id.mark);
 
-    const first = auras.view(u);
+    const first = viewsOf(auras, u);
 
     run(u, 8);
     auras.apply(u, id.shield);
     auras.remove(u, id.mark);
 
-    const second = auras.view(u);
+    const second = viewsOf(auras, u);
 
     assert.deepEqual(auraChanges(first, second, u.auras.clocks), [
       { aura: id.shield, serial: 0, change: 'refreshed' },
@@ -61,7 +73,7 @@ describe('aura lifecycle from views', () => {
 
     run(u, 8);
 
-    const third = auras.view(u);
+    const third = viewsOf(auras, u);
 
     assert.deepEqual(auraChanges(second, third, u.auras.clocks), [
       { aura: id.shield, serial: 0, change: 'expired' },
@@ -78,7 +90,7 @@ describe('aura lifecycle from views', () => {
 
     auras.apply(u, id.shield);
 
-    const [base] = auras.view(u);
+    const [base] = viewsOf(auras, u);
 
     assert.ok(base !== undefined);
     assert.equal(auraLifecycle(base, { ...base, stacks: 2 }, []), 'stacked');

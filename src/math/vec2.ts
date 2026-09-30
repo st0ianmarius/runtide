@@ -10,6 +10,15 @@ export interface Vec2 {
   readonly z: number;
 }
 
+/** A vector a caller owns and lets a read fill (`positionOf(unit, out)`). */
+export interface MutableVec2 {
+  /** The across coordinate. */
+  x: number;
+
+  /** The forward coordinate. */
+  z: number;
+}
+
 /** The origin, frozen. */
 export const ORIGIN: Vec2 = Object.freeze({ x: 0, z: 0 });
 

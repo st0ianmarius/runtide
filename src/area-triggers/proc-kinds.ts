@@ -1,4 +1,4 @@
-import type { Vec2 } from '../math/index.ts';
+import type { MutableVec2, Vec2 } from '../math/index.ts';
 import {
   PROC_LANDED,
   PROC_REFUSED,
@@ -20,6 +20,9 @@ import { spawnArea, type SpawnSpec } from './spawner.ts';
 class ProcSpawnSpec<G extends AreaTriggerTypes> implements SpawnSpec<G> {
   owner: G['bearer'];
   at: Vec2 = { x: 0, z: 0 };
+
+  /** The point a unit's position is read into. */
+  readonly point = { x: 0, z: 0 };
   heading = 0;
   input: G['areaInput'] | undefined = undefined;
   source: number | undefined = undefined;
@@ -59,12 +62,12 @@ const kindIdOf = <G extends AreaTriggerTypes>(
   return id;
 };
 
-/** Where a `spawn` proc spawns: its point, or the unit it landed on. */
+/** Where a `spawn` proc spawns: its point, or the unit it landed on (read into `point`). */
 const pointOf = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
-  [proc, ctx]: readonly [SpawnProc<G>, ProcContext<G>],
-  unit: G['bearer'],
-): Vec2 => proc.atOf?.(ctx) ?? proc.at ?? (engine.host.positionOf ?? engine.world.positionOf)(unit);
+  [proc, ctx, unit]: readonly [SpawnProc<G>, ProcContext<G>, G['bearer']],
+  point: MutableVec2,
+): Vec2 => proc.atOf?.(ctx) ?? proc.at ?? (engine.host.positionOf ?? engine.world.positionOf)(unit, point);
 
 /** The `spawn` kind: an area trigger owned by the list's self, at its point or on the unit it lands on. */
 const spawnKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindDef<SpawnProc<G>, G> => {
@@ -81,7 +84,7 @@ const spawnKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindD
       const request = (spec ??= new ProcSpawnSpec<G>(ctx.self));
 
       request.owner = ctx.self;
-      request.at = pointOf(engine, [proc, ctx], unit);
+      request.at = pointOf(engine, [proc, ctx, unit], request.point);
       request.heading = proc.headingOf?.(ctx) ?? proc.heading ?? engine.current?.heading ?? 0;
       request.input = proc.inputOf === undefined ? proc.input : proc.inputOf(ctx);
       request.source = ctx.source;

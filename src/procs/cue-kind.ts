@@ -51,12 +51,15 @@ const unitIn = <G extends ProcTypes>(frame: ProcFrame<G>, on: ProcTarget<G>): G[
   return typeof on === 'string' ? undefined : on;
 };
 
+/** The point a unit's position is read into, read at once. */
+const POINT = { x: 0, z: 0 };
+
 /** Fires the frame's firing on one unit (its position, unless the proc names a point); `self` cues are the unit's. */
 const fireOn = <G extends ProcTypes>(frame: ProcFrame<G>, firing: CueFiring, unit: G['bearer']): void => {
   const id = frame.host.idOf?.(unit) ?? NO_ENTITY;
 
   if (firing.at === undefined) {
-    const point = (frame.host.positionOf ?? missing('host.positionOf'))(unit);
+    const point = (frame.host.positionOf ?? missing('host.positionOf'))(unit, POINT);
 
     firing.x = point.x;
     firing.z = point.z;

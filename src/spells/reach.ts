@@ -111,6 +111,9 @@ const isInRange = <G extends SpellTypes>(
   return dx * dx + dz * dz <= reach * reach;
 };
 
+/** The point the caster's position is read into, read at once. */
+const FROM = { x: 0, z: 0 };
+
 /** A cast's reach rules against its picked target, in order: range, sight. The refusal, or `undefined`. */
 export const checkReach = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -118,7 +121,7 @@ export const checkReach = <G extends SpellTypes>(
   plan: ReachPlan<G>,
 ): ReachRefusal | undefined => {
   const to = targetPoint(engine, plan, cast);
-  const from = (engine.host.positionOf ?? noPosition)(cast.caster);
+  const from = (engine.host.positionOf ?? noPosition)(cast.caster, FROM);
 
   if (plan.range !== undefined && !isInRange(plan.range, cast, [from, to])) {
     return 'range';

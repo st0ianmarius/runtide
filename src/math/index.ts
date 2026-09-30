@@ -57,6 +57,7 @@ export {
   lengthOf,
   lengthSq,
   lerp,
+  type MutableVec2,
   normalize,
   ORIGIN,
   scale,

@@ -283,8 +283,10 @@ const WAVES = [{ maxHealth: 40 }, { maxHealth: 55, power: 12 }, { maxHealth: 70,
   UNITS.variant(TEMPLATES.id.grunt, stats),
 );
 
-/** A point reused for every placement. */
+/** A point reused for every placement, and the two positions a step reads. */
 const AT: { x: number; z: number } = { x: 0, z: 0 };
+const HERE = { x: 0, z: 0 };
+const THERE = { x: 0, z: 0 };
 
 /** Spawns a mob of the current wave on a ring 15–25 m out, into the world, hasted, chasing a hero. */
 const spawnMob = (): Unit<CoopGame> => {
@@ -342,8 +344,8 @@ const moveHeroes = (): void => {
 /** A mob walks toward its hero until its swing reaches, at its folded speed. */
 const walk = (mob: Unit<CoopGame>): void => {
   const hero = heroes[CHASES[mob.id] ?? 0] ?? missing();
-  const at = WORLD.positionOf(mob);
-  const goal = WORLD.positionOf(hero);
+  const at = WORLD.positionOf(mob, HERE);
+  const goal = WORLD.positionOf(hero, THERE);
   const dx = goal.x - at.x;
   const dz = goal.z - at.z;
   const gap = hypot(dx, dz);
@@ -365,7 +367,7 @@ const cast = (): void => {
 
   for (let i = 0; i < heroes.length; i++) {
     const hero = heroes[i] ?? missing();
-    const at = WORLD.positionOf(hero);
+    const at = WORLD.positionOf(hero, HERE);
 
     if ((tick + i * 4) % 15 === 0) {
       AREAS.spawn(AREA_KINDS.id.bolt, { owner: hero, at, heading: DRAW() * 2 * Math.PI });

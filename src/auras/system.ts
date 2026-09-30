@@ -187,8 +187,10 @@ export interface AuraSystem<G extends AuraTypes> {
   /** Gives back the context `takeContext` handed out last. */
   readonly giveContext: () => void;
 
-  /** The bearer's auras as views for the wire. */
-  readonly view: (bearer: G['bearer'], options?: ViewOptions) => AuraView[];
+  /**
+   * Writes the bearer's auras as views for the wire into `out` from index 0, reusing its records; returns how many.
+   */
+  readonly view: (bearer: G['bearer'], out: AuraView[], options?: ViewOptions) => number;
 
   /**
    * Multiplies the time left on every finite aura granting a tag by a factor (a cooldown scaled down),

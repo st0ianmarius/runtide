@@ -271,7 +271,8 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
 
   /**
    * Its declared view: the numbers other code may read about an instance (`areas.viewOf`: a goal, a
-   * charge), so no one reads its state directly.
+   * charge), so no one reads its state directly. Its readers read it at once, so it may fill and return one record
+   * it keeps, allocating nothing per read.
    */
   view?(this: void, c: AreaTriggerContext<G, State>): Readonly<Record<string, number>>;
 

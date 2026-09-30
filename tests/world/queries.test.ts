@@ -228,10 +228,10 @@ describe('motion and the point index', () => {
     world.add(mob, { id: 1, at: vec2(0, 0) });
     world.tick();
     world.place(mob, vec2(1, 2));
-    assert.deepEqual(world.previousOf(mob), { x: 0, z: 0 });
-    assert.deepEqual(world.velocityOf(mob), { x: 2, z: 4 });
+    assert.deepEqual(world.previousOf(mob, { x: 0, z: 0 }), { x: 0, z: 0 });
+    assert.deepEqual(world.velocityOf(mob, { x: 0, z: 0 }), { x: 2, z: 4 });
     world.tick();
-    assert.deepEqual(world.velocityOf(mob), { x: 0, z: 0 });
+    assert.deepEqual(world.velocityOf(mob, { x: 0, z: 0 }), { x: 0, z: 0 });
   });
 
   it('finds units after they move between cells, and forgets removed ones', () => {
@@ -308,7 +308,7 @@ describe('the memory world as a whole', () => {
 
     assert.equal(count(undefined, {}), 1);
     assert.equal(has({ name: 'x' }), false);
-    assert.throws(() => positionOf({ name: 'x' }), RangeError);
+    assert.throws(() => positionOf({ name: 'x' }, { x: 0, z: 0 }), RangeError);
   });
 
   it('is frozen', () => {

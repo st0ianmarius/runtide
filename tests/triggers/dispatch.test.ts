@@ -1,8 +1,20 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
 import { applyAura, raise, removeAura } from '../../src/procs/index.ts';
 import { aura, defined, type Game, type HitEvent, KINDS, makeGame, mark, scripted } from '../helpers/trigger-game.ts';
+
+/** A bearer's aura views, in a fresh array. */
+const viewsOf = <Bearer>(
+  system: { readonly view: (bearer: Bearer, out: AuraView[], options?: ViewOptions) => number },
+  bearer: Bearer,
+  options?: ViewOptions,
+): AuraView[] => {
+  const out: AuraView[] = [];
+
+  return out.slice(0, system.view(bearer, out, options));
+};
 
 describe('dispatch order', () => {
   it('runs the owner, then each party listener in party order; in a bearer, aura order then authored order', () => {
@@ -213,11 +225,11 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
     game.hit(u);
     game.hit(u);
     assert.deepEqual(
-      game.auras.view(u, { forOwner: true }).map((view) => view.aura),
+      viewsOf(game.auras, u, { forOwner: true }).map((view) => view.aura),
       [game.id.echo, cooldown],
     );
     assert.deepEqual(
-      game.auras.view(u).map((view) => view.aura),
+      viewsOf(game.auras, u).map((view) => view.aura),
       [game.id.echo],
     );
     game.procs.run([{ kind: 'removeByTag', tag: 'cooldown' }], { self: u });

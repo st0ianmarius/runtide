@@ -1,4 +1,4 @@
-import type { Box, Shape, Vec2 } from '../math/index.ts';
+import type { Box, MutableVec2, Shape, Vec2 } from '../math/index.ts';
 
 /** Which units a query keeps, relative to the unit it asks for (`of`): its foes, its allies, or every unit. */
 export type QuerySide = 'foes' | 'allies' | 'all';
@@ -111,14 +111,17 @@ export interface WorldQuery<Unit> {
   /** The world's bounds. */
   readonly bounds: Box;
 
-  /** Where a unit stands now, as a new vector (never scratch). */
-  readonly positionOf: (unit: Unit) => Vec2;
+  /**
+   * Where a unit stands now: `out` filled, or the game's own vector for it. Either way read at once and never kept or
+   * changed, so a read allocates nothing.
+   */
+  readonly positionOf: (unit: Unit, out: MutableVec2) => Vec2;
 
-  /** Where a unit stood at the start of this tick, as a new vector. */
-  readonly previousOf: (unit: Unit) => Vec2;
+  /** Where a unit stood at the start of this tick, read as `positionOf` is. */
+  readonly previousOf: (unit: Unit, out: MutableVec2) => Vec2;
 
-  /** A unit's velocity over the last tick, as a new vector. */
-  readonly velocityOf: (unit: Unit) => Vec2;
+  /** A unit's velocity over the last tick, read as `positionOf` is. */
+  readonly velocityOf: (unit: Unit, out: MutableVec2) => Vec2;
 
   /** A unit's body radius. */
   readonly radiusOf: (unit: Unit) => number;

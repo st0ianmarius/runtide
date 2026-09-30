@@ -1,4 +1,4 @@
-import { type Box, hypot, type Shape, type Vec2 } from '../math/index.ts';
+import { type Box, hypot, type MutableVec2, type Shape, type Vec2 } from '../math/index.ts';
 import { Placement } from './placement.ts';
 import { GridIndex, KdIndex, type PointIndex } from './point-index.ts';
 import type { BodyMove, PointPick, QueryOptions, RangeOptions, SweepOptions, WorldQuery } from './query.ts';
@@ -133,26 +133,32 @@ class World<Unit> implements MemoryWorld<Unit> {
     this.#selector.maxMotion = 0;
   };
 
-  readonly positionOf = (unit: Unit): Vec2 => {
+  readonly positionOf = (unit: Unit, out: MutableVec2): Vec2 => {
     const slot = this.#table.slotOf(unit);
 
-    return { x: this.#table.x[slot] ?? 0, z: this.#table.z[slot] ?? 0 };
+    out.x = this.#table.x[slot] ?? 0;
+    out.z = this.#table.z[slot] ?? 0;
+
+    return out;
   };
 
-  readonly previousOf = (unit: Unit): Vec2 => {
+  readonly previousOf = (unit: Unit, out: MutableVec2): Vec2 => {
     const slot = this.#table.slotOf(unit);
 
-    return { x: this.#table.px[slot] ?? 0, z: this.#table.pz[slot] ?? 0 };
+    out.x = this.#table.px[slot] ?? 0;
+    out.z = this.#table.pz[slot] ?? 0;
+
+    return out;
   };
 
-  readonly velocityOf = (unit: Unit): Vec2 => {
+  readonly velocityOf = (unit: Unit, out: MutableVec2): Vec2 => {
     const table = this.#table;
     const slot = table.slotOf(unit);
 
-    return {
-      x: ((table.x[slot] ?? 0) - (table.px[slot] ?? 0)) / this.#dt,
-      z: ((table.z[slot] ?? 0) - (table.pz[slot] ?? 0)) / this.#dt,
-    };
+    out.x = ((table.x[slot] ?? 0) - (table.px[slot] ?? 0)) / this.#dt;
+    out.z = ((table.z[slot] ?? 0) - (table.pz[slot] ?? 0)) / this.#dt;
+
+    return out;
   };
 
   readonly radiusOf = (unit: Unit): number => this.#table.radius[this.#table.slotOf(unit)] ?? 0;

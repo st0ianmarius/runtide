@@ -210,8 +210,11 @@ export interface SpellSystem<G extends SpellTypes> {
    */
   readonly rescaleClocks: (caster: G['bearer'], rescale: ClockScale) => number;
 
-  /** A running cast as the wire carries it: its spell, stage, stage end stamp and credit. */
-  readonly viewOf: (cast: CastHandle) => CastView | undefined;
+  /**
+   * Fills a running cast's view for the wire into `out` (its spell, stage, stage end stamp, credit and press key);
+   * false, leaving `out` alone, for a stale or ended cast.
+   */
+  readonly viewOf: (cast: CastHandle, out: CastView) => boolean;
 
   /**
    * The prediction mirror's side of a cast: fires only the spell's mirror-safe cast cue
@@ -359,7 +362,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     this.#engine.current = this.#engine.castOf(previous);
   };
 
-  readonly viewOf = (cast: CastHandle): CastView | undefined => viewCast(this.#engine, cast);
+  readonly viewOf = (cast: CastHandle, out: CastView): boolean => viewCast(this.#engine, cast, out);
 
   readonly rescaleClocks = (caster: G['bearer'], rescale: ClockScale): number =>
     rescaleClocks(this.#engine, caster, rescale);

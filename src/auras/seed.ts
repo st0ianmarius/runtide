@@ -1,5 +1,3 @@
-// Seeding walks the bearer's list, so the loops are indexed.
-/* oxlint-disable typescript/prefer-for-of */
 import type { AuraItem } from './active-aura.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { CHANGES } from './compile.ts';
@@ -18,8 +16,11 @@ const REMOVED = CHANGES.indexOf('removed');
  * against.
  */
 export interface AuraSeed {
-  /** The views (`auras.view(bearer, { forOwner: true })` on the server). */
+  /** The views (`auras.view(bearer, out, { forOwner: true })` on the server). */
   readonly views: readonly AuraView[];
+
+  /** How many of `views` to seed from, the first; all of them when absent. */
+  readonly count?: number;
 
   /** The server bearer's steps on each clock, by clock id, as the views were taken. */
   readonly clocks: ArrayLike<number>;
@@ -41,6 +42,23 @@ const setSeededClock = <G extends AuraTypes>(
     ? (set.clocks[item.clock] ?? 0) + Math.max(0, view.end - serverNow)
     : Infinity;
   set.noteEnd(item);
+};
+
+/** Puts one predicted aura back on a mirror from its view: a silent state dispatches no beats, so none is due. */
+const seedOne = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  [set, view]: readonly [AuraSet<G>, AuraView],
+  seed: AuraSeed,
+): void => {
+  const item = engine.acquire(view.aura);
+
+  item.serial = view.serial;
+  item.stacks = view.stacks;
+  item.value = view.value;
+  item.source = view.source;
+  item.nextBeat = Number.POSITIVE_INFINITY;
+  setSeededClock([set, item, view], seed.clocks[item.clock] ?? 0);
+  engine.insert(set, item);
 };
 
 /**
@@ -68,19 +86,11 @@ export const seedAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
       }
     }
 
-    for (let i = 0; i < seed.views.length; i++) {
+    for (let i = 0; i < (seed.count ?? seed.views.length); i++) {
       const view = seed.views[i];
 
       if (view !== undefined && ((engine.flags[view.aura] ?? 0) & PREDICTED) !== 0) {
-        const item = engine.acquire(view.aura);
-
-        item.serial = view.serial;
-        item.stacks = view.stacks;
-        item.value = view.value;
-        item.source = view.source;
-        item.nextBeat = Number.POSITIVE_INFINITY;
-        setSeededClock([set, item, view], seed.clocks[item.clock] ?? 0);
-        engine.insert(set, item);
+        seedOne(engine, [set, view], seed);
         seeded += 1;
       }
     }

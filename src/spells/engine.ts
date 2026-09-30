@@ -142,6 +142,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   #handleDepth = 0;
   readonly #place = new CasterPlace();
   readonly #cooldown = new CooldownApplication();
+  readonly #point = { x: 0, z: 0 };
   #depth = 0;
   #pending: G['bearer'] | undefined = undefined;
 
@@ -297,7 +298,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   /** Fires a cue on a caster, credited to its entity id; returns the event, for a key to be set on it. */
   fireOn(caster: G['bearer'], casterId: number, spec: CueSpec): CueEvent {
     const place = this.#place;
-    const point = (this.host.positionOf ?? missing('host.positionOf'))(caster);
+    const point = (this.host.positionOf ?? missing('host.positionOf'))(caster, this.#point);
 
     place.owner = casterId;
     place.entity = casterId;

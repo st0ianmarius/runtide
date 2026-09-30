@@ -93,7 +93,7 @@ export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: A
   area.age += dt;
 
   if (((registry.columns.flags[area.kind] ?? 0) & ANCHOR_OWNER) !== 0) {
-    area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner));
+    area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner, engine.point));
   }
 
   area.previous.x = area.position.x;

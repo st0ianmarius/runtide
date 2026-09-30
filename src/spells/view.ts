@@ -9,52 +9,56 @@ export const CAST_STAGES = ['windup', 'channel', 'recover'] as const;
 /**
  * A running cast as the wire carries it: ids and numbers only, so a client draws a cast bar and
  * plays a cast's cues without being sent its state. Its stage's end is a stamp on the spell clock, so the view does
- * not change while the stage counts down.
+ * not change while the stage counts down. `spells.viewOf` fills the caller's record: read it at once.
  */
 export interface CastView {
   /** The spell. */
-  readonly spell: SpellId;
+  spell: SpellId;
 
   /** Its rank. */
-  readonly rank: number;
+  rank: number;
 
   /** Its stage, by index in `CAST_STAGES`. */
-  readonly stage: number;
+  stage: number;
 
   /** The stage's length, in seconds. */
-  readonly seconds: number;
+  seconds: number;
 
   /** The tick of the spell clock its stage ends on, counted by `stepsUntil`; `Infinity` while paused. */
-  readonly end: number;
+  end: number;
 
   /** The tick it started on. */
-  readonly started: number;
+  started: number;
 
   /** Its caster's entity id. */
-  readonly caster: number;
+  caster: number;
 
   /** The entity id its hits are credited to. */
-  readonly source: number;
+  source: number;
+
+  /** The key of the press that started it (a client matches its predicted cast bar and cues by it); 0 for none. */
+  key: number;
 }
 
-/** A cast's view, or `undefined` for a stale or ended cast. */
-export const viewCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: CastHandle): CastView | undefined => {
+/** Fills a cast's view into `out`; false, leaving it alone, for a stale or ended cast. */
+export const viewCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: CastHandle, out: CastView): boolean => {
   const cast = engine.castOf(handle);
 
   if (cast === undefined || cast.stage === 'ended') {
-    return undefined;
+    return false;
   }
 
   const { clock } = engine;
 
-  return {
-    spell: cast.spell,
-    rank: cast.rank,
-    stage: CAST_STAGES.indexOf(cast.stage),
-    seconds: cast.stageSeconds,
-    end: cast.isPaused ? Infinity : clock.tick + stepsUntil(cast.remaining, clock.dt),
-    started: cast.startTick,
-    caster: cast.casterId,
-    source: cast.source,
-  };
+  out.spell = cast.spell;
+  out.rank = cast.rank;
+  out.stage = CAST_STAGES.indexOf(cast.stage);
+  out.seconds = cast.stageSeconds;
+  out.end = cast.isPaused ? Infinity : clock.tick + stepsUntil(cast.remaining, clock.dt);
+  out.started = cast.startTick;
+  out.caster = cast.casterId;
+  out.source = cast.source;
+  out.key = cast.cueKey;
+
+  return true;
 };

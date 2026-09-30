@@ -65,6 +65,9 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   /** The hits and world query options of catches, by nesting level. */
   readonly catcher = new Catcher<G>();
 
+  /** The point an owner's position is read into, read at once. */
+  readonly point = { x: 0, z: 0 };
+
   /** The area trigger whose hook's procs are running now, which a spawn names as its parent; none outside. */
   current: AreaTrigger<G> | undefined = undefined;
 
