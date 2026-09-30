@@ -118,7 +118,7 @@ const kindCode =
  * A damage event kind as a trigger event: about the blow's `attacker` (for `dealt`) or its `target` (for `taken`), with
  * the filters `crit` (a critical blow), `status` (by name: `blocked`, `absorbed`, `landed`, `avoided`), `damageKind`
  * (by name), `outcome` (an outcome row by name: `dodge`, `block`, `crit`; needs the roll table), `minAmount` (at least
- * the argument reached health) and `crushing` (a crushing blow). A trigger names them in `when`.
+ * the argument reached health). A trigger names them in `when`.
  */
 export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<DamageEvent<G>>,
@@ -147,7 +147,6 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
       },
       damageKind: { test: (event: DamageEvent<G>, id: number) => event.blow?.kind === id, resolve: resolveKind },
       minAmount: { test: (event: DamageEvent<G>, least: number) => (event.blow?.amount ?? 0) >= least },
-      crushing: { test: (event: DamageEvent<G>) => (event.blow?.crushing ?? 0) > 0 },
 
       outcome: {
         test: (event: DamageEvent<G>, code: number) =>

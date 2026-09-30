@@ -41,9 +41,6 @@ export interface BlowView<Unit, Spell> {
   /** Whether it was critical. */
   readonly isCrit: boolean;
 
-  /** Its crushing share. */
-  readonly crushing: number;
-
   /** Whether it killed. */
   readonly hasKilled: boolean;
 

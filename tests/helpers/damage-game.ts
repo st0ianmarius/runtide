@@ -52,6 +52,12 @@ interface Unit extends AuraBearer {
   readonly auras: AuraState;
 }
 
+/** A test blow's own fields. */
+interface BlowFields {
+  /** A share of the target's maximum health a game stage adds. */
+  readonly crushing: number;
+}
+
 /** The test game's types. */
 export interface Game extends DamageTypes, TriggerTypes {
   /** A test unit. */
@@ -67,7 +73,7 @@ export interface Game extends DamageTypes, TriggerTypes {
   readonly event: 'dealt' | 'taken' | 'healed' | 'death' | 'kill';
 
   /** The damage trigger events' filters. */
-  readonly filter: 'crit' | 'status' | 'damageKind' | 'minAmount' | 'crushing';
+  readonly filter: 'crit' | 'status' | 'damageKind' | 'minAmount';
 
   /** The test stats. */
   readonly stat: StatName;
@@ -126,8 +132,8 @@ export interface Game extends DamageTypes, TriggerTypes {
   /** A spell is its number. */
   readonly spell: number;
 
-  /** No game fields on a blow. */
-  readonly blowExt: undefined;
+  /** A blow's game fields: a crushing share, which a game stage adds. */
+  readonly blowExt: BlowFields | undefined;
 }
 
 /** The test stats. */

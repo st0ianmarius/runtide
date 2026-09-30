@@ -4,14 +4,7 @@
  * (a damage meter, tests, analytics) and a checksum for goldens.
  */
 
-export {
-  type CombatEntry,
-  type CombatEntryKind,
-  ENTRY_CRIT,
-  ENTRY_CRUSHING,
-  ENTRY_DEATH_PREVENTED,
-  ENTRY_KILLED,
-} from './entry.ts';
+export { type CombatEntry, type CombatEntryKind, ENTRY_CRIT, ENTRY_DEATH_PREVENTED, ENTRY_KILLED } from './entry.ts';
 
 export {
   type CombatLog,

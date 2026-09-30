@@ -25,9 +25,6 @@ export interface BlowState<G extends DamageTypes> extends Blow<G> {
   /** The outcome row that decided or changed it. */
   outcome: string | undefined;
 
-  /** The crushing share. */
-  crushing: number;
-
   /** The knockback strength. */
   knock: number;
 
@@ -88,7 +85,7 @@ export interface DamageHost<G extends DamageTypes> {
    */
   readonly setHealth: (unit: G['bearer'], health: number) => void;
 
-  /** A unit's maximum health: the crushing stage, the heal cap and `setHealth` shares read it. */
+  /** A unit's maximum health: the heal cap and `setHealth` shares read it. */
   readonly maxHealth?: (unit: G['bearer']) => number;
 
   /**

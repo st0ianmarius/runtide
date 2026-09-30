@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { defineMitigation, flat, percent } from '../../src/damage/index.ts';
+import { defineMitigation, flat, damage as hitProc, percent } from '../../src/damage/index.ts';
 import { hyperbolic, linear } from '../../src/modifiers/index.ts';
-import { BLOCK, BLOCK_THEN_CRIT, type DamageOverrides, makeDamageGame } from '../helpers/damage-game.ts';
+import { BLOCK, BLOCK_THEN_CRIT, type DamageOverrides, type Game, makeDamageGame } from '../helpers/damage-game.ts';
 import { invalid } from '../helpers/trigger-game.ts';
 
 /** Armor with percentage then flat penetration (League of Legends' order), then damage taken. */
@@ -58,16 +58,35 @@ describe('the block stage', () => {
   });
 });
 
-describe('the crushing stage', () => {
-  it('adds its share of the target’s maximum health before mitigation', () => {
-    const { damage, unit, set } = makeDamageGame({});
+describe('a game stage reading the blow’s own fields', () => {
+  it('adds a crushing share of the target’s maximum health before mitigation, from the blow’s ext', () => {
+    const { damage, procs, unit, set } = makeDamageGame(
+      {},
+      {
+        stages: {
+          crushing: {
+            after: 'roll',
+
+            run: (blow) => {
+              blow.amount += (blow.ext?.crushing ?? 0) * blow.target.maxHp;
+
+              return undefined;
+            },
+          },
+        },
+      },
+    );
+
     const target = unit(1);
 
     target.maxHp = 200;
     target.hp = 200;
     set(target, 'taken', 0.5);
 
-    assert.equal(damage.hit({ target, amount: 10, crushing: 0.1, kind: damage.kinds.id.fire }).amount, 15);
+    assert.equal(damage.hit({ target, amount: 10, ext: { crushing: 0.1 }, kind: damage.kinds.id.fire }).amount, 15);
+    assert.equal(damage.hit({ target, amount: 10, kind: damage.kinds.id.fire }).amount, 5);
+    procs.run([hitProc<Game>(10, { damageKind: 'fire', ext: { crushing: 0.1 } })], { self: target, target });
+    assert.equal(target.hp, 200 - 15 - 5 - 15);
   });
 });
 

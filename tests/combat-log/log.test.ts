@@ -188,7 +188,6 @@ describe('outcomes in the log (§I.7.1 F14)', () => {
       mitigated: 0,
       status: 'avoided',
       isCrit: false,
-      crushing: 0,
       hasKilled: false,
       isDeathPrevented: false,
       outcome: 'dodge',

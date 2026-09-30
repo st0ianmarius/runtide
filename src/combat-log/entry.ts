@@ -25,14 +25,11 @@ export type CombatEntryKind = (typeof COMBAT_ENTRY_KINDS)[number];
 /** Flag bit: the blow was critical. */
 export const ENTRY_CRIT = 1;
 
-/** Flag bit: the blow was crushing. */
-export const ENTRY_CRUSHING = 2;
-
 /** Flag bit: the blow killed its target. */
-export const ENTRY_KILLED = 4;
+export const ENTRY_KILLED = 2;
 
 /** Flag bit: an `onLethal` hook prevented the death the blow would have dealt. */
-export const ENTRY_DEATH_PREVENTED = 8;
+export const ENTRY_DEATH_PREVENTED = 4;
 
 /**
  * One combat log entry: ids and numbers only (§I.5.3), so it digests, crosses a wire and feeds a meter as it is. A
@@ -85,7 +82,7 @@ export interface CombatEntry {
   /** What went past health: a blow's overkill, a heal's overheal. */
   readonly overflow: number;
 
-  /** Its flag bits (`ENTRY_CRIT`, `ENTRY_CRUSHING`, `ENTRY_KILLED`, `ENTRY_DEATH_PREVENTED`). */
+  /** Its flag bits (`ENTRY_CRIT`, `ENTRY_KILLED`, `ENTRY_DEATH_PREVENTED`). */
   readonly flags: number;
 
   /** A blow's outcome row, as its index in the log's `outcomes` (the roll table's names); −1 for none. */

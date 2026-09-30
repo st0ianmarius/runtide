@@ -249,15 +249,6 @@ export const rollStage = <G extends DamageTypes>(
   return stop;
 };
 
-/** Crushing: a share of the target's maximum health added to the blow. */
-export const crushingStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
-  if (blow.crushing > 0) {
-    blow.amount += blow.crushing * engine.maxHealthOf(blow.target);
-  }
-
-  return undefined;
-};
-
 /** The mitigation rows that cover the blow's kind, in order (§II.3.14). */
 export const mitigationStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
   if (engine.rows.length === 0) {

@@ -9,7 +9,7 @@ import { compileStageOrder, type StageDef, type StageOrder } from './stage-order
 /**
  * The damage pipeline's built-in stages, in their documented order (§II.6 D1, D2, §II.3.14): the ignore gates before any
  * roll, the defender's block roll, the attacker's outgoing multipliers and crit (block, then crit, as the roll table's
- * `'independent'` mode rolls them), crushing, the mitigation rows, absorbs, `onLethal` and health; then the
+ * `'independent'` mode rolls them), the mitigation rows, absorbs, `onLethal` and health; then the
  * after-stages every blow runs however it ended: the attacker's `onDealt` hooks, the events, the knockback and the
  * death pipeline.
  */
@@ -17,7 +17,6 @@ export const DAMAGE_STAGES = Object.freeze([
   'ignore',
   'outgoing',
   'roll',
-  'crushing',
   'mitigation',
   'absorb',
   'lethal',

@@ -44,9 +44,6 @@ export interface BlowSpec<G extends DamageTypes> {
   /** The strength of the knockback it carries; 0 (none) when absent. */
   readonly knock?: number | undefined;
 
-  /** A share of the target's maximum health added at the crushing stage; 0 when absent. */
-  readonly crushing?: number | undefined;
-
   /**
    * The outcome rows it cannot roll, by name (§II.3.14): `['block']` for an unblockable blow, `['dodge', 'parry']` for
    * an undodgeable one, `['miss']` for one that cannot miss. None when absent.
@@ -95,9 +92,6 @@ export interface Blow<G extends DamageTypes> extends ProcOutcome {
 
   /** The strength of its knockback; 0 for none. */
   readonly knock: number;
-
-  /** The share of the target's maximum health the crushing stage adds. */
-  readonly crushing: number;
 
   /** The outcome rows it cannot roll. */
   readonly skips: readonly string[];
@@ -153,7 +147,6 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   amount = 0;
   from: Vec2 | undefined = undefined;
   knock = 0;
-  crushing = 0;
   skips: readonly string[] = NO_SKIPS;
   outcome: string | undefined = undefined;
   isCrit = false;
@@ -188,7 +181,6 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
     this.amount = spec.amount;
     this.from = spec.from;
     this.knock = spec.knock ?? 0;
-    this.crushing = spec.crushing ?? 0;
     this.skips = spec.skips ?? NO_SKIPS;
     this.ext = spec.ext;
     this.trace = spec.trace;

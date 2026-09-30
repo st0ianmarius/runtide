@@ -27,7 +27,6 @@ const BLOW: BlowView<Unit, number> = {
   mitigated: 8,
   status: 'landed',
   isCrit: true,
-  crushing: 0,
   hasKilled: false,
   isDeathPrevented: false,
   outcome: 'crit',

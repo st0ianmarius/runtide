@@ -1,14 +1,7 @@
 import { END_REASONS } from '../area-triggers/index.ts';
 import { BLOW_STATUSES } from '../damage/index.ts';
 import { CAST_OUTCOMES } from '../spells/index.ts';
-import {
-  type CombatEntryKind,
-  ENTRY_CRIT,
-  ENTRY_CRUSHING,
-  ENTRY_DEATH_PREVENTED,
-  ENTRY_KILLED,
-  type EntryRecord,
-} from './entry.ts';
+import { type CombatEntryKind, ENTRY_CRIT, ENTRY_DEATH_PREVENTED, ENTRY_KILLED, type EntryRecord } from './entry.ts';
 import type { AreaEventView, AuraEventView, BlowView, DeathView, HealView, SpellEventView } from './views.ts';
 
 /** A blow's statuses by code (`BLOW_STATUSES`). */
@@ -72,7 +65,6 @@ export const recordBlow = <Unit, Spell>(
   entry.overflow = Math.max(0, blow.amount - blow.dealt);
   entry.flags =
     (blow.isCrit ? ENTRY_CRIT : 0) |
-    (blow.crushing > 0 ? ENTRY_CRUSHING : 0) |
     (blow.hasKilled ? ENTRY_KILLED : 0) |
     (blow.isDeathPrevented ? ENTRY_DEATH_PREVENTED : 0);
   entry.reason = BLOW_CODES.indexOf(blow.status);

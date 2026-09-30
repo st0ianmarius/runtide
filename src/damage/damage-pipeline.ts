@@ -4,7 +4,6 @@ import {
   type BlowWalks,
   type BuiltInStage,
   createBlowWalks,
-  crushingStage,
   healthStage,
   mitigationStage,
   outgoingStage,
@@ -145,7 +144,6 @@ const builtInStages = <G extends DamageTypes>(
     ignore: (_engine, blow) => (engine.eachHook(walks.ignore, blow) ? 'ignored' : undefined),
     outgoing: outgoingStage,
     roll: rollStage,
-    crushing: crushingStage,
     mitigation: mitigationStage,
 
     absorb: (_engine, blow) => {

@@ -36,8 +36,8 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
   /** Its knockback strength. */
   readonly knock?: number;
 
-  /** Its crushing share of the target's maximum health. */
-  readonly crushing?: number;
+  /** The game's own fields on its blow (`blow.ext`: a crushing share, a hit window's key), which its stages read. */
+  readonly ext?: G['blowExt'];
 
   /** The outcome rows it cannot roll (`['block']`: unblockable), by name. */
   readonly skips?: readonly string[];
