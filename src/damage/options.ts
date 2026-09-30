@@ -151,7 +151,7 @@ export interface DamageSystemOptions<G extends DamageTypes> {
   /** The mitigation rows, run in order by the mitigation stage. */
   readonly mitigation?: MitigationTable<G['stat'], G['damageKind']>;
 
-  /** The heal pipeline's stats and tags. */
+  /** The heal pipeline's stats. */
   readonly heal?: HealOptions<G>;
 
   /** The game's own damage stages, by name, each at its position. */

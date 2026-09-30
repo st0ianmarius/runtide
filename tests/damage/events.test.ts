@@ -122,6 +122,15 @@ describe('the damage trigger events', () => {
     assert.equal(game.auras.has(killer, game.id.soothed), true);
   });
 
+  it('answer only a landed heal, not a blocked one', () => {
+    const game = makeTriggerGame({ healStages: { ward: { before: 'done', run: () => 'blocked' } } });
+    const target = game.listening(1);
+    const event = { heal: game.damage.heal({ target, amount: 10 }) };
+
+    assert.equal(event.heal.status, 'blocked');
+    assert.equal(healTriggerEvent(game.bus.kind.healed, 'target').unit(event), undefined);
+  });
+
   it('filter a blow and a kill by the spell they came from, by name or id', () => {
     const game = makeTriggerGame();
     const [target, killer, other] = [game.listening(1), game.listening(2), game.unit(3)];

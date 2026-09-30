@@ -188,14 +188,27 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   });
 };
 
-/** A heal event kind as a trigger event, about the healed unit or the healer, with the filter `minAmount`. */
+/**
+ * A heal event kind as a trigger event, about the healed unit or the healer, with the filter `minAmount`: only a
+ * landed heal is answered, as only a blow that was not ignored is.
+ */
 export const healTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<HealEvent<G>>,
   about: 'target' | 'healer',
 ): TriggerEvent<G> =>
   Object.freeze({
     kind,
-    unit: (event: HealEvent<G>) => (about === 'healer' ? event.heal?.healer : event.heal?.target),
+
+    unit: (event: HealEvent<G>) => {
+      const heal = event.heal;
+
+      if (heal?.status !== 'landed') {
+        return undefined;
+      }
+
+      return about === 'healer' ? heal.healer : heal.target;
+    },
+
     filters: Object.freeze({
       minAmount: { test: (event: HealEvent<G>, least: number) => (event.heal?.amount ?? 0) >= least },
     }),

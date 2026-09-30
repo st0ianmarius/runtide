@@ -44,7 +44,7 @@ export type BlowStop = 'ignored' | 'blocked' | 'avoided';
  */
 export type RollSlot = string;
 
-/** How a heal ended: `skipped` (no amount, a dead target), `blocked` (a heal-block tag or a stage), `landed`. */
+/** How a heal ended: `skipped` (no amount, a dead target), `blocked` (by a stage), `landed`. */
 export type HealStatus = 'skipped' | 'blocked' | 'landed';
 
 /** How a force ended: `skipped` (no strength, a dead target), `ignored` (cancelled by a hook or stage), `landed`. */

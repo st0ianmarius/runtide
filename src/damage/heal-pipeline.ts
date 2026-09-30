@@ -30,7 +30,7 @@ const raiseHealed = <G extends DamageTypes>(engine: DamageEngine<G>, heal: HealR
   const events = engine.options.events;
   const kind = events?.healed;
 
-  if (events === undefined || kind === undefined || heal.status !== 'landed' || !events.bus.hears(kind)) {
+  if (events === undefined || kind === undefined || !events.bus.hears(kind)) {
     return;
   }
 
@@ -120,9 +120,9 @@ const runHealStages = <G extends DamageTypes>(
 };
 
 /**
- * Builds the heal pipeline: heal-block tags end a heal `blocked`, the healer's healing done and the target's
- * healing received multiply it, the game's stages run at their positions, and health rises up to the maximum; then the
- * heal event. A heal of no amount, an infinite one, or one on a dead unit is `skipped`. `setHealth` bypasses it.
+ * Builds the heal pipeline: the healer's healing done and the target's healing received multiply it, the game's
+ * stages run at their positions (one may end it `blocked`), and health rises up to the maximum; then the heal event,
+ * for a blocked heal too. A heal of no amount, an infinite one, or one on a dead unit is `skipped`. `setHealth` bypasses it.
  */
 export const createHealPipeline = <G extends DamageTypes>(engine: DamageEngine<G>) => {
   const runs = compileHealRuns(engine);

@@ -73,14 +73,21 @@ describe('the heal pipeline', () => {
     assert.deepEqual([damage.heal({ target: wounded, amount: 10 }).status, wounded.hp], ['blocked', 50]);
   });
 
-  it('raises the heal event for a landed heal', () => {
-    const { damage, unit, bus, log } = makeDamageGame({});
-    const target = unit(1);
+  it('raises the heal event for a landed or a blocked heal, never a skipped one', () => {
+    const { damage, unit, bus, log } = makeDamageGame(
+      {},
+      { healStages: { ward: { before: 'done', run: (heal) => (heal.target.id === 2 ? 'blocked' : undefined) } } },
+    );
 
-    bus.on(bus.kind.healed, (event) => log.push(`healed ${event.heal?.amount}@${event.heal?.target.id}`));
+    const [target, warded] = [unit(1), unit(2)];
+
+    bus.on(bus.kind.healed, ({ heal }) => log.push(`healed ${heal?.status} ${heal?.amount}@${heal?.target.id}`));
     target.hp = 90;
+    warded.hp = 50;
     damage.heal({ target, amount: 20 });
-    assert.deepEqual(log, ['healed 10@1']);
+    damage.heal({ target: warded, amount: 20 });
+    damage.heal({ target, amount: 0 });
+    assert.deepEqual(log, ['healed landed 10@1', 'healed blocked 0@2']);
   });
 });
 
