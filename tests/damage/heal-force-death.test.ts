@@ -220,24 +220,6 @@ describe('the death pipeline', () => {
     assert.deepEqual(log, ['remove@1']);
   });
 
-  it('gives an inert unit no rewards and no events, and still removes it', () => {
-    const order: string[] = [];
-
-    const { damage, unit, bus, log } = makeDamageGame(
-      {},
-      { death: { before: [() => order.push('souls')] } },
-      { isInert: (target) => target.id === 1 },
-    );
-
-    const wall = unit(1);
-
-    bus.on(bus.kind.death, () => order.push('death'));
-    damage.hit({ target: wall, amount: 150, attacker: unit(2) });
-
-    assert.deepEqual(order, []);
-    assert.deepEqual(log, ['remove@1']);
-  });
-
   it('never runs for a blow that did not kill, nor twice for one target', () => {
     const deaths: number[] = [];
     const { damage, unit, bus } = makeDamageGame({});

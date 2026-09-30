@@ -9,7 +9,7 @@ const TEMPLATES = {
   grunt: { tags: ['horde'] },
   elite: { tags: ['elite'] },
   boss: { tags: ['boss'] },
-  wall: { traits: { inert: true } },
+  wall: {},
 } satisfies Record<string, UnitDef<UnitGame>>;
 
 describe('every unit folds', () => {
@@ -79,14 +79,14 @@ describe('the damage host', () => {
     assert.deepEqual(game.log.slice(2), ['death 2', 'kill by 1', 'changed 2 alive>dead']);
   });
 
-  it('gives an inert unit no death event and no kill', () => {
+  it('gives a wall a death event and a kill like any unit: its rewards are the game’s to leave out', () => {
     const game = makeUnitGame(TEMPLATES);
     const hero = game.units.spawn(game.id.hero, { side: 0 });
     const wall = game.units.spawn(game.id.wall, { side: 1 });
 
     game.damage.hit({ target: wall, attacker: hero, amount: 500 });
     assert.equal(wall.lifecycle, 'dead');
-    assert.deepEqual(game.log.slice(2), ['changed 2 alive>dead']);
+    assert.deepEqual(game.log.slice(2), ['death 2', 'kill by 1', 'changed 2 alive>dead']);
   });
 });
 

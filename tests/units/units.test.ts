@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { defineUnits, INERT, type UnitDef } from '../../src/units/index.ts';
+import { defineUnits, type UnitDef } from '../../src/units/index.ts';
 import { AURA_TAGS, auraId, HEARD, makeUnitGame, STATS, UNIT_TAGS, type UnitGame } from '../helpers/unit-game.ts';
 
 /** The test templates: a hero with no auto-attack, a grunt, an elite, a boss, a wall and a totem. */
@@ -10,19 +10,17 @@ const TEMPLATES = {
   grunt: { stats: { speed: 4 }, tags: ['horde'], autoAttack: 'swing', data: { souls: 1 } },
   elite: { tags: ['elite'] },
   boss: { tags: ['boss'] },
-  wall: { tags: ['objective'], traits: { inert: true } },
+  wall: { tags: ['objective'] },
 } satisfies Record<string, UnitDef<UnitGame>>;
 
 describe('unit templates', () => {
-  it('lay out base stats, trait bits and class tags at load', () => {
+  it('lay out base stats and class tags at load', () => {
     const units = defineUnits<UnitGame, keyof typeof TEMPLATES>(TEMPLATES, { stats: STATS, tags: UNIT_TAGS });
     const { id } = units;
 
     assert.equal(units.bases[id.hero]?.[STATS.id.maxHealth], 200);
     assert.equal(units.bases[id.grunt]?.[STATS.id.maxHealth], 100);
     assert.equal(units.bases[id.grunt]?.[STATS.id.speed], 4);
-    assert.equal(units.traits[id.elite], 0);
-    assert.equal(units.traits[id.wall], INERT);
     assert.deepEqual(units.get(id.grunt).data, { souls: 1 });
     assert.equal(units.tagSets[id.boss]?.has(UNIT_TAGS.id.boss), true);
   });

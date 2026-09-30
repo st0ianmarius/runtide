@@ -1,6 +1,6 @@
 /**
  * Units: one unit shape for heroes, creatures and summons. Templates
- * (`defineUnits`) carry base stats, class tags, traits and an optional auto-attack; a unit system spawns units with
+ * (`defineUnits`) carry base stats, class tags and an optional auto-attack; a unit system spawns units with
  * their stats snapshotted, moves them through their lifecycle, derives their states from their aura tags
  * (`defineUnitStates`), keeps their health, is the damage system's unit host, and summons units owned by others (F18).
  */
@@ -34,14 +34,6 @@ export { createUnitSystem, type UnitSystem } from './system.ts';
 export { defineUnitTags, type UnitTagDef, type UnitTagTable } from './tags.ts';
 export { Unit, type UnitParts } from './unit.ts';
 
-export {
-  defineUnit,
-  defineUnits,
-  INERT,
-  type UnitDef,
-  type UnitRegistry,
-  type UnitRegistryOptions,
-  type UnitTraits,
-} from './unit-def.ts';
+export { defineUnit, defineUnits, type UnitDef, type UnitRegistry, type UnitRegistryOptions } from './unit-def.ts';
 
 export { type Lifecycle, type UnitId, type UnitShape, type UnitTagId, type UnitTypes } from './unit-types.ts';

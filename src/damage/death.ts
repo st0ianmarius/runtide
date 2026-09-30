@@ -21,9 +21,6 @@ export interface Death<G extends DamageTypes> {
 
   /** The killing blow, when a blow killed (not a `setHealth`). */
   readonly blow: Blow<G> | undefined;
-
-  /** Whether the unit is inert (an objective, a wall): its death runs no rewards and raises no death or kill event. */
-  readonly isInert: boolean;
 }
 
 /** What a death is started from. */
@@ -51,19 +48,17 @@ export class DeathRecord<G extends DamageTypes> implements Death<G> {
   source = NO_SOURCE;
   spell: G['spell'] | undefined = undefined;
   blow: Blow<G> | undefined = undefined;
-  isInert = false;
 
   constructor(unit: G['bearer']) {
     this.unit = unit;
   }
 
   /** Fills the record from a spec. */
-  reset(spec: DeathSpec<G>, isInert: boolean): void {
+  reset(spec: DeathSpec<G>): void {
     this.unit = spec.unit;
     this.killer = spec.killer;
     this.source = spec.source;
     this.spell = spec.spell;
     this.blow = spec.blow;
-    this.isInert = isInert;
   }
 }

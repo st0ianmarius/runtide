@@ -4,17 +4,7 @@ import type { UnitTagTable } from './tags.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
 /**
- * A unit's traits: what the framework's own pipelines read about it instead of its id or class (the death
- * pipeline). What only a game's rules read (a heavy body, an objective, how far a force moves it) is a class tag or
- * the game's own data, read by its own stages.
- */
-export interface UnitTraits {
-  /** No rewards and no kill event when it dies: a wall, a totem. */
-  readonly inert?: boolean;
-}
-
-/**
- * A unit template: its base stats, class tags, traits, auto-attack spell and the game's own data. A
+ * A unit template: its base stats, class tags, auto-attack spell and the game's own data. A
  * spawned unit snapshots its template's stats (with the spawn's own on top), so a later change to the template does
  * not reach it.
  */
@@ -24,9 +14,6 @@ export interface UnitDef<G extends UnitTypes = UnitTypes> {
 
   /** Its class tags. */
   readonly tags?: readonly G['unitTag'][];
-
-  /** Its traits. */
-  readonly traits?: UnitTraits;
 
   /**
    * Its auto-attack spell, by name (an `auto` spell), for a creature's melee swing: armed on every unit
@@ -48,10 +35,7 @@ export const defineUnit =
   (def: UnitDef<G>): UnitDef<G> =>
     def;
 
-/** Trait bit: inert. */
-export const INERT = 1;
-
-/** The game's unit templates, compiled: ids by key order, base stat vectors, trait bits and tag bitsets. */
+/** The game's unit templates, compiled: ids by key order, base stat vectors and tag bitsets. */
 export interface UnitRegistry<G extends UnitTypes = UnitTypes, Name extends string = string> extends Registry<
   'units',
   Name,
@@ -67,9 +51,6 @@ export interface UnitRegistry<G extends UnitTypes = UnitTypes, Name extends stri
   /** Each template's base stats, one number per stat id. */
   readonly bases: readonly Float64Array[];
 
-  /** Each template's trait bits. */
-  readonly traits: Uint8Array;
-
   /** Each template's class tags, as a bitset over tag ids. */
   readonly tagSets: readonly Bitset[];
 }
@@ -82,13 +63,6 @@ export interface UnitRegistryOptions<G extends UnitTypes> {
   /** The game's unit class tags; none when absent. */
   readonly tags?: UnitTagTable<G['unitTag']>;
 }
-
-/** Each flag trait and its bit. */
-const TRAIT_BITS: readonly (readonly [keyof UnitTraits, number])[] = [['inert', INERT]];
-
-/** The trait bits of a template. */
-const traitBits = (traits: UnitTraits | undefined): number =>
-  TRAIT_BITS.reduce((bits, [trait, bit]) => (traits?.[trait] === true ? bits | bit : bits), 0);
 
 /** A problem with a template's stats, as a sentence, or `undefined`. */
 const statProblem = <G extends UnitTypes>(def: UnitDef<G>, options: UnitRegistryOptions<G>): string | undefined => {
@@ -148,7 +122,7 @@ const NO_TAGS: UnitTagTable = createRegistry({}, { kind: 'unitTags' });
 
 /**
  * Registers the game's unit templates: `defineUnits({ grunt, brute, totem }, { stats: STATS, tags:
- * UNIT_TAGS })` gives each its dense id by key order, checks it at load, and lays out its base stats, trait bits and
+ * UNIT_TAGS })` gives each its dense id by key order, checks it at load, and lays out its base stats and
  * class tags for the unit system. `TOMBSTONE` keeps a retired slot.
  */
 export const defineUnits = <G extends UnitTypes, const Name extends string>(
@@ -186,7 +160,6 @@ export const defineUnits = <G extends UnitTypes, const Name extends string>(
     stats: options.stats,
     tags,
     bases: Object.freeze(slots.map((def) => baseOf(def, options.stats))),
-    traits: Uint8Array.from(slots, (def) => traitBits(def?.traits)),
     tagSets: Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => tagIds[tag] ?? 0)))),
   });
 };

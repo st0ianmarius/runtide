@@ -1,7 +1,6 @@
 import type { DamageHost } from '../damage/index.ts';
 import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import { moveTo } from './lifecycle.ts';
-import { INERT } from './unit-def.ts';
 import type { UnitTypes } from './unit-types.ts';
 
 /**
@@ -38,15 +37,12 @@ export const syncHealth = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
 };
 
 /**
- * The damage host a unit system provides: health, maximum health, stats, ids, inert units (no rewards, no kill
- * event:), and a death that leaves the unit dead. A game spreads it into its damage host and adds the rest.
+ * The damage host a unit system provides: health, maximum health, stats, ids, and a death that leaves the unit
+ * dead. A game spreads it into its damage host and adds the rest.
  */
 export const damageHostOf = <G extends UnitTypes>(
   engine: UnitEngine<G>,
-): Pick<
-  DamageHost<G>,
-  'health' | 'setHealth' | 'maxHealth' | 'statsOf' | 'idOf' | 'unitOf' | 'isInert' | 'remove'
-> => ({
+): Pick<DamageHost<G>, 'health' | 'setHealth' | 'maxHealth' | 'statsOf' | 'idOf' | 'unitOf' | 'remove'> => ({
   health: (unit) => unitOf<G>(unit).health,
 
   setHealth: (unit, health) => {
@@ -57,7 +53,6 @@ export const damageHostOf = <G extends UnitTypes>(
   statsOf: (unit) => engine.statsOf(unit),
   idOf: (unit) => unitOf<G>(unit).id,
   unitOf: (id) => engine.byId.get(id),
-  isInert: (unit) => ((engine.registry.traits[unitOf<G>(unit).template] ?? 0) & INERT) !== 0,
 
   remove: (unit) => {
     moveTo(engine, unit, ['dead', undefined]);

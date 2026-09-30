@@ -28,6 +28,6 @@ export interface DamageCues<G extends DamageTypes> {
   /** A force's cues: after its stages, for every force that was not `skipped` (an `ignored` one too). */
   readonly force?: (force: Force<G>, out: CueBuffer) => void;
 
-  /** A death's cues: first in the death pipeline, before the dead unit's auras hear it; for an inert unit too. */
+  /** A death's cues: first in the death pipeline, before the dead unit's auras hear it. */
   readonly death?: (death: Death<G>, out: CueBuffer) => void;
 }

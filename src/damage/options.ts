@@ -114,9 +114,6 @@ export interface DamageHost<G extends DamageTypes> {
 
   /** Takes a dead unit out of the world, last in the death pipeline. */
   readonly remove?: (unit: G['bearer'], death: Death<G>) => void;
-
-  /** Whether a unit is inert (an objective, a wall): its death runs no rewards and raises no death or kill event. */
-  readonly isInert?: (unit: G['bearer']) => boolean;
 }
 
 /** The heal pipeline's stats. */

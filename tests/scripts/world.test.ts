@@ -10,7 +10,7 @@ const behaviour = defineBehaviour<UnitGame>();
 
 /** One bodiless template for every world script, and a rogue. */
 const TEMPLATES = {
-  world: { traits: { inert: true } },
+  world: {},
   rogue: {},
 } satisfies Record<string, UnitDef<UnitGame>>;
 

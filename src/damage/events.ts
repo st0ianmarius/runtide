@@ -58,7 +58,7 @@ export interface DamageEvents<G extends DamageTypes> {
   /** A heal that was not skipped, about its target. */
   readonly healed?: EventKind<HealEvent<G>>;
 
-  /** A death, about the unit that died, between the rewards before it and after it; never for an inert unit. */
+  /** A death, about the unit that died, between the rewards before it and after it. */
   readonly death?: EventKind<DeathEvent<G>>;
 
   /** The same death, about its killer, raised right after `death`; never without a killer. */
