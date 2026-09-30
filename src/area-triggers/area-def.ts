@@ -275,7 +275,7 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   view?(this: void, c: AreaTriggerContext<G, State>): Readonly<Record<string, number>>;
 
   /**
-   * What of it crosses the wire: entries of its view with their rounding, `events-only` (the default) or `derived`;
+   * What of it crosses the wire: entries of its view with their rounding, or `events-only` (the default);
    * `areaTriggers.replicate` writes it.
    */
   readonly replicate?: AreaReplication;

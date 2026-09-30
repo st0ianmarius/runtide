@@ -30,7 +30,7 @@ const replicationGame = () =>
           }),
         }),
         shot: kind(0.5),
-        ember: kind(1, { replicate: 'derived' }),
+        ember: kind(1, { replicate: 'events-only' }),
       },
     },
   );
@@ -42,7 +42,7 @@ describe('area trigger replication', () => {
 
     assert.deepEqual(
       replication.map((spec) => spec.mode),
-      ['state', 'events-only', 'derived'],
+      ['state', 'events-only', 'events-only'],
     );
     assert.deepEqual(replication[game.areaId.pool]?.names, ['x', 'z', 'duration', 'age', 'charge']);
   });

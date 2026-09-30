@@ -15,15 +15,15 @@ export interface AreaReplicationSpec {
 
 /**
  * How a kind replicates: its state as numbers (a spec), `events-only` (only its `spawned` and `ended` events
- * and cues cross: a shot the client flies itself) or `derived` (the client recomputes it from time and the owner); an
- * area trigger kind that declares nothing is `events-only`.
+ * and cues cross: a shot the client flies itself, a blade the client recomputes from time and its owner); an area
+ * trigger kind that declares nothing is `events-only`.
  */
-export type AreaReplication = AreaReplicationSpec | 'events-only' | 'derived';
+export type AreaReplication = AreaReplicationSpec | 'events-only';
 
 /** A kind's replication, resolved at load. */
 export interface CompiledReplication {
   /** How it replicates. */
-  readonly mode: 'state' | 'events-only' | 'derived';
+  readonly mode: 'state' | 'events-only';
 
   /** The view entries written, in order. */
   readonly names: readonly string[];
@@ -49,9 +49,6 @@ export interface AreaReplica {
 
 /** The replication of a kind that sends none: only its events. */
 const EVENTS_ONLY: CompiledReplication = Object.freeze({ mode: 'events-only', names: [], quanta: new Float64Array(0) });
-
-/** The replication of a kind the client derives. */
-const DERIVED: CompiledReplication = Object.freeze({ ...EVENTS_ONLY, mode: 'derived' });
 
 /** Throws unless a spec's entries and quanta are sound. */
 const checkSpec = <G extends AreaTriggerTypes>(
@@ -86,10 +83,6 @@ export const compileReplication = <G extends AreaTriggerTypes>(
 
   if (def === undefined || spec === undefined || spec === 'events-only') {
     return EVENTS_ONLY;
-  }
-
-  if (spec === 'derived') {
-    return DERIVED;
   }
 
   checkSpec(name, [spec, def]);
