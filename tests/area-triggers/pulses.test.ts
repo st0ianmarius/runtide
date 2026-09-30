@@ -220,6 +220,120 @@ describe('contacts and landings', () => {
     );
   });
 
+  it('sweeps each piece against the units’ motion over its share of the frame, so it meets a runner crossing it', () => {
+    for (const at of [0.5, 1]) {
+      const game = makeSpellGame(
+        {},
+        {
+          areaTriggers: {
+            blade: missile({
+              contact: { radius: 0.2 },
+
+              move: (c) => {
+                c.advance({ x: 2, z: 0 }, at);
+                c.advance({ x: 4, z: 0 });
+              }
+            })
+          }
+        }
+      );
+
+      const runner = game.unit(100);
+
+      game.place(runner, vec2(2, 4));
+      game.world.tick();
+      game.areaTriggers.spawn(game.areaId.blade, { owner: game.unit(1), at: vec2(0, 0) });
+      game.step();
+      game.world.tick();
+      game.place(runner, vec2(2, -4));
+      game.areaTriggers.step();
+      assert.equal(game.log.filter((line) => line.startsWith('contact')).length, at === 0.5 ? 1 : 0);
+    }
+  });
+
+  it('reaches a unit at a joint between pieces once, and nothing once a piece’s hook asked it to end', () => {
+    const late: { game?: ReturnType<typeof makeSpellGame> } = {};
+
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          blade: missile({
+            contact: { radius: 0.2 },
+
+            move: (c) => {
+              for (const x of [2, 4, 6]) {
+                c.advance({ x, z: 0 });
+              }
+            },
+
+            onContact: (c, hit) => {
+              c.host.log.push(`contact ${hit.targets.map((unit) => unit.id).join(',')}`);
+
+              if (hit.targets.some((unit) => unit.id === 101)) {
+                c.despawn();
+              }
+
+              return undefined;
+            }
+          })
+        }
+      }
+    );
+
+    late.game = game;
+    game.place(game.unit(100), vec2(2, 0));
+    game.place(game.unit(101), vec2(3, 0));
+    game.place(game.unit(102), vec2(5, 0));
+    game.world.tick();
+    game.areaTriggers.spawn(game.areaId.blade, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 1);
+    assert.deepEqual(
+      game.log.filter((line) => line.startsWith('contact')),
+      ['contact 100', 'contact 101']
+    );
+  });
+
+  it('advances from where it was teleported back to its own previous, and refuses a share out of order', () => {
+    const shares: number[] = [];
+
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          blink: missile({
+            move: (c) => {
+              c.position.x = 4;
+              c.advance(c.previous, 0.25);
+
+              for (const at of [0.5, 0.25, 1.5]) {
+                try {
+                  c.advance(c.position, at);
+                  shares.push(at);
+                } catch {
+                  shares.push(-at);
+                }
+              }
+            }
+          })
+        }
+      }
+    );
+
+    game.place(game.unit(100), vec2(2, 0));
+    game.world.tick();
+
+    const blink = game.areaTriggers.spawn(game.areaId.blink, { owner: game.unit(1), at: vec2(0, 0) });
+
+    ticks(game, 1);
+    assert.deepEqual(game.areaTriggers.get(blink)?.position, { x: 0, z: 0 });
+    assert.deepEqual(
+      game.log.filter((line) => line.startsWith('contact')),
+      ['contact 0.25: 100']
+    );
+    assert.deepEqual(shares, [0.5, -0.25, -1.5]);
+  });
+
   it('sweeps an owner-anchored contact along its owner’s move (a charge’s hitbox)', () => {
     const game = makeSpellGame(
       {},

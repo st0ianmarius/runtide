@@ -87,6 +87,21 @@ export interface SweepOptions<Unit> extends QueryOptions<Unit> {
    */
   readonly relative?: boolean;
 
+  /**
+   * The shares of the tick a relative sweep's segment spans, 0 and 1 by default: a move drawn as several pieces sweeps
+   * each against the units' motion over its own part of the tick, so a piece and a runner meet at the same moment.
+   */
+  readonly since?: number;
+
+  /** Where the span of `since` ends. */
+  readonly until?: number;
+
+  /**
+   * Whether a unit the body already touches at the segment's start is left out: a piece continuing one that reached
+   * it as it ended, so a unit at the joint is touched once. False by default.
+   */
+  readonly isOpen?: boolean;
+
   /** Where each contact's share along the segment is written, beside the unit, if given. */
   readonly shares?: number[];
 }

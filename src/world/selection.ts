@@ -37,6 +37,13 @@ export class Selection<Unit> {
   /** Whether the sweep runs against each unit's own motion this tick. */
   isRelative = false;
 
+  /** The shares of the tick a relative sweep's segment spans. */
+  since = 0;
+  until = 1;
+
+  /** Whether a unit the body already touches at the segment's start is left out. */
+  isOpen = false;
+
   /** The options. */
   options: QueryOptions<Unit> = {};
 
@@ -67,6 +74,9 @@ export class Selection<Unit> {
     this.#reset(options, 'contact');
     this.isSweep = true;
     this.isRelative = options.relative === true;
+    this.since = options.since ?? 0;
+    this.until = options.until ?? 1;
+    this.isOpen = options.isOpen === true;
     this.segment.ax = from.x;
     this.segment.az = from.z;
     this.segment.bx = to.x;
@@ -95,9 +105,19 @@ const target = { at: { x: 0, z: 0 }, r: 0 };
 const start = { x: 0, z: 0 };
 const end = { x: 0, z: 0 };
 
+/** Where a unit stood at a share of the tick, on the line from its previous position to its current one. */
+const at = (previous: number, current: number, share: number): number => {
+  if (share === 0) {
+    return previous;
+  }
+
+  return share === 1 ? current : previous + (current - previous) * share;
+};
+
 /**
  * The share along a selection's segment at which its body first touches a slot's body, or `undefined` when it never
- * does. A relative sweep subtracts the unit's own motion this tick, so the two meet where they are at the same share.
+ * does (or touches it already at the start of an open one). A relative sweep subtracts the unit's own motion over the
+ * shares of the tick the segment spans, so the two meet where they are at the same moment.
  */
 export const contactShare = <Unit>(
   selection: Selection<Unit>,
@@ -110,23 +130,27 @@ export const contactShare = <Unit>(
 
   target.r = selection.reach + (table.radius[slot] ?? 0);
 
-  if (!selection.isRelative) {
+  if (selection.isRelative) {
+    const px = table.px[slot] ?? 0;
+    const pz = table.pz[slot] ?? 0;
+
+    start.x = segment.ax - at(px, x, selection.since);
+    start.z = segment.az - at(pz, z, selection.since);
+    end.x = segment.bx - at(px, x, selection.until);
+    end.z = segment.bz - at(pz, z, selection.until);
+    target.at.x = 0;
+    target.at.z = 0;
+  } else {
     start.x = segment.ax;
     start.z = segment.az;
     end.x = segment.bx;
     end.z = segment.bz;
     target.at.x = x;
     target.at.z = z;
-
-    return sweepCircle(start, end, target);
   }
 
-  start.x = segment.ax - (table.px[slot] ?? 0);
-  start.z = segment.az - (table.pz[slot] ?? 0);
-  end.x = segment.bx - x;
-  end.z = segment.bz - z;
-  target.at.x = 0;
-  target.at.z = 0;
+  const share = sweepCircle(start, end, target);
 
-  return sweepCircle(start, end, target);
+  // An open segment continues one that ended where it starts: a unit touched there was reached by that one.
+  return share === 0 && selection.isOpen ? undefined : share;
 };

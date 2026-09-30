@@ -53,7 +53,7 @@ export interface AreaServices<G extends AreaTriggerTypes> {
   readonly queries: AreaQueries<G>;
 
   /** Moves an area trigger along one piece of its path, its contact sweeping it (`advance`). */
-  readonly advanceFor: (area: AreaTrigger<G>, to: Vec2) => void;
+  readonly advanceFor: (area: AreaTrigger<G>, to: Vec2, at?: number) => void;
 }
 
 /** Who an area trigger's procs run for: its owner, credited to its source. */
@@ -110,6 +110,12 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
 
   /** Whether an `advance` this frame swept up to where it stands, so the frame's contact has nothing left to sweep. */
   hasAdvanced = false;
+
+  /** The share of this frame its last `advance` piece reached, where its next sweep of the units' motion starts. */
+  advancedAt = 0;
+
+  /** The share of this frame its current sweep reaches: the `advance` piece's, else the frame's end. */
+  sweepUntil = 1;
 
   /** The hit ledgers it holds, by name. */
   readonly ledgers = new Map<string, Ledger>();
@@ -191,8 +197,8 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
 
   readonly apply = (proc: Proc<G>): ProcOutcome => this.#services.applyFor(this, proc);
 
-  readonly advance = (to: Vec2): void => {
-    this.#services.advanceFor(this, to);
+  readonly advance = (to: Vec2, at?: number): void => {
+    this.#services.advanceFor(this, to, at);
   };
 
   readonly random = (stream?: G['stream'], targetId = 0, index = 0): Random =>

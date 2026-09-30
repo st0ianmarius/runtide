@@ -99,7 +99,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** The heading it faces, as `atan2(x, z)`: its shape turns with it. Its own to change. */
   heading: number;
 
-  /** Where it was at the start of this frame, or where its last `advance` piece began. */
+  /** Where it was at the start of this frame, or where its last `advance` piece ended: what its frame's contact sweeps from. */
   readonly previous: Vec2;
 
   /** Its shape, placed at its position and turned to its heading once its own motion this frame is done. */
@@ -160,10 +160,14 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /**
    * Moves it along one straight piece of its path to `to`, its contact sweeping that piece now, in order: a curve drawn
    * as several pieces a frame (a chakram's arc), a bounce as two (a glaive off a wall), a teleport as none (move it
-   * with `position` instead, and nothing between is swept). For a `move` or `frame` hook; the frame's own contact
-   * sweeps only what is left after the last piece. Nothing is swept for a kind with no `contact`.
+   * with `position` instead, and nothing between is swept). `at` is the share of the frame it gets there by, from the
+   * last piece's to 1 (the default): each piece sweeps the units' own motion over its part of the frame (a bounce at
+   * a wall hit's share, an arc's i-th of n at i / n), so it meets a runner where both are at the same moment; pieces
+   * left at 1 sweep the units where they stand. A unit at a joint is reached once. For a `move` or `frame` hook; the
+   * frame's own contact sweeps only what is left after the last piece. Nothing is swept for a kind with no `contact`,
+   * nor for one asked to end.
    */
-  readonly advance: (to: Vec2) => void;
+  readonly advance: (to: Vec2, at?: number) => void;
 
   /**
    * Sets the seconds left of its lifetime (a recast refreshing a pool, a kill extending it, a haste), counted from

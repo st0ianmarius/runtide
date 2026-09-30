@@ -98,6 +98,7 @@ export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: A
 
   area.age += dt;
   area.hasAdvanced = false;
+  area.advancedAt = 0;
   // Noted before an owner-anchored one follows its owner, so its contact sweeps the owner's move (a charge's hitbox).
   area.previous.x = area.position.x;
   area.previous.z = area.position.z;

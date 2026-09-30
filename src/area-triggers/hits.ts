@@ -86,6 +86,9 @@ class CatchOptions<G extends AreaTriggerTypes> implements QueryOptions<G['bearer
   readonly measure = 'edge';
   radius = 0;
   readonly relative = true;
+  since = 0;
+  until = 1;
+  isOpen = false;
   hit: Hit<G> | undefined = undefined;
 
   constructor(of: G['bearer']) {
@@ -198,7 +201,11 @@ export const catchAlong = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hi
 
   const options = engine.catcher.optionsFor(hit, area.owner);
 
+  // After an `advance` piece, it sweeps on from that piece's share of the frame and end, open so a joint counts once.
   options.radius = radius;
+  options.since = area.advancedAt;
+  options.until = area.sweepUntil;
+  options.isOpen = area.hasAdvanced;
 
   const count = engine.world.sweep(engine.catcher.segmentOf(area), options, hit.units);
 

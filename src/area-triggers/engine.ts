@@ -266,6 +266,8 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.kindPrev = undefined;
     area.ownerNext = undefined;
     area.ownerPrev = undefined;
+    area.hasAdvanced = false;
+    area.advancedAt = 0;
     area.placer.clear();
     this.pool.release(toHandle<AreaTrigger<G>>(area.handle));
   }
@@ -273,19 +275,37 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   /** Sweeps an area trigger's contact along its piece from `previous` to `position`: set by the frame module. */
   contactAlong: (area: AreaTrigger<G>) => void = () => undefined;
 
-  readonly advanceFor = (area: AreaTrigger<G>, to: Vec2): void => {
-    const from = area.position;
+  readonly advanceFor = (area: AreaTrigger<G>, to: Vec2, at = 1): void => {
+    // Read first: `to` may be its own `previous`, which this overwrites.
+    const { x, z } = to;
 
-    if (!(Number.isFinite(to.x) && Number.isFinite(to.z))) {
-      throw new RangeError(`An area trigger advances to a finite point; got ${to.x}, ${to.z}.`);
+    if (!(Number.isFinite(x) && Number.isFinite(z))) {
+      throw new RangeError(`An area trigger advances to a finite point; got ${x}, ${z}.`);
     }
 
-    area.previous.x = from.x;
-    area.previous.z = from.z;
-    area.moveTo(to);
-    this.contactAlong(area);
+    if (!(at >= area.advancedAt && at <= 1)) {
+      throw new RangeError(`An area trigger advances to a share of its frame from ${area.advancedAt} to 1; got ${at}.`);
+    }
+
     area.previous.x = area.position.x;
     area.previous.z = area.position.z;
+    area.position.x = x;
+    area.position.z = z;
+
+    // One asked to end moves on, and reaches no one.
+    if (!area.isEnding && area.pending === undefined) {
+      area.sweepUntil = at;
+
+      try {
+        this.contactAlong(area);
+      } finally {
+        area.sweepUntil = 1;
+      }
+    }
+
+    area.previous.x = x;
+    area.previous.z = z;
+    area.advancedAt = at;
     area.hasAdvanced = true;
   };
 
