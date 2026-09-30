@@ -150,9 +150,10 @@ const enter = <G extends AreaTriggerTypes>(
 ): void => {
   const { registry } = engine;
   const flags = registry.columns.flags[area.kind] ?? 0;
-  const lifetime = typeof def.lifetime === 'function' ? def.lifetime(area) : def.lifetime;
 
   area.id = engine.allocateId();
+
+  const lifetime = typeof def.lifetime === 'function' ? def.lifetime(area) : def.lifetime;
   area.remaining = secondsOf(registry.name(area.kind), lifetime);
   area.isOwnerLifetime = lifetime === 'owner';
 

@@ -146,7 +146,7 @@ export class Placement {
 
       const score = pick.score(sample);
 
-      if (score > bestScore) {
+      if (score > bestScore || best === undefined) {
         best = sample;
         bestScore = score;
       }

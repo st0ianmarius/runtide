@@ -146,6 +146,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.owner = owner;
     area.origin.self = owner;
     area.origin.target = owner;
+    area.id = -1;
     area.isEnding = false;
     area.pending = undefined;
 

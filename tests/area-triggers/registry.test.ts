@@ -49,14 +49,11 @@ describe('the area trigger registry', () => {
     assert.equal(registry.kind, 'areaTriggers');
   });
 
-  it('builds the typed columns: slot, flags, lifetime and its kind, and limit', () => {
+  it('builds the typed columns: slot and flags', () => {
     const { columns } = KINDS();
 
     assert.deepEqual([...columns.slot], [0, 1, 0, 0]);
-    assert.deepEqual([...columns.flags], [0, 0, 0, 3]);
-    assert.deepEqual([...columns.lifetime], [4, Number.POSITIVE_INFINITY, 0, Number.NaN]);
-    assert.deepEqual([...columns.lifetimeKind], [0, 2, 0, 3]);
-    assert.deepEqual([...columns.limit], [3, 0, 0, Number.NaN]);
+    assert.deepEqual([...columns.flags], [0, 0, 0, 2]);
   });
 
   it('builds a dispatch table per hook, and the tag bitsets', () => {

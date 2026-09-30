@@ -14,14 +14,8 @@ import { END_REASONS } from './events.ts';
 import { type CompiledReplication, compileReplication } from './replication.ts';
 import type { AreaTagTable } from './tags.ts';
 
-/** Flag bit: its shape is a function, read again at every frame. */
-const SHAPE_FUNCTION = 1;
-
 /** Flag bit: it sits on its owner. */
 export const ANCHOR_OWNER = 2;
-
-/** The lifetime kinds, in the order of their codes in the `lifetimeKind` column. */
-const LIFETIME_KINDS = ['seconds', 'owner', 'spent', 'function'] as const;
 
 /** The hooks every area trigger registry builds dispatch tables for. */
 const AREA_TRIGGER_HOOKS = ['state', 'init', 'move', 'frame', 'onContact', 'onLand', 'onExpire', 'onEnd'] as const;
@@ -29,12 +23,8 @@ const AREA_TRIGGER_HOOKS = ['state', 'init', 'move', 'frame', 'onContact', 'onLa
 /** The name of one hook an area trigger registry dispatches. */
 export type AreaTriggerHookName = (typeof AREA_TRIGGER_HOOKS)[number];
 
-/**
- * The typed hot-field columns of an area trigger registry: the tick slot, the flag bits, the lifetime in seconds
- * (infinite for `owner` and `spent`, NaN for a function) and its kind's code, the expiry mode's code, and the limit per
- * owner (0 for none, NaN for a function).
- */
-export type AreaTriggerColumn = 'slot' | 'flags' | 'lifetime' | 'lifetimeKind' | 'limit';
+/** The typed hot-field columns of an area trigger registry: the tick slot and the flag bits. */
+export type AreaTriggerColumn = 'slot' | 'flags';
 
 /** The dispatch table of every area trigger hook, indexed by kind id, typed per hook. */
 export type AreaTriggerHookTables<G extends AreaTriggerTypes> = {
@@ -113,36 +103,7 @@ const liveDef = <G extends AreaTriggerTypes>(
 
 /** The flag bits of a definition. */
 const flagsOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G>): number =>
-  (typeof def.shape === 'function' ? SHAPE_FUNCTION : 0) | (def.anchor === 'owner' ? ANCHOR_OWNER : 0);
-
-/** The lifetime in seconds: infinite for `owner` and `spent`, NaN for a function. */
-const secondsOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G>): number => {
-  const { lifetime } = def;
-
-  if (typeof lifetime === 'number') {
-    return lifetime;
-  }
-
-  return typeof lifetime === 'function' ? Number.NaN : Number.POSITIVE_INFINITY;
-};
-
-/** The code of a definition's lifetime kind. */
-const lifetimeKindOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G>): number => {
-  const { lifetime } = def;
-
-  if (typeof lifetime === 'number') {
-    return 0;
-  }
-
-  return typeof lifetime === 'function' ? 3 : LIFETIME_KINDS.indexOf(lifetime);
-};
-
-/** The limit per owner: 0 for none, NaN for a function. */
-const limitOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G>): number => {
-  const perOwner = def.limit?.perOwner ?? 0;
-
-  return typeof perOwner === 'function' ? Number.NaN : perOwner;
-};
+  def.anchor === 'owner' ? ANCHOR_OWNER : 0;
 
 /** A column of one number per slot (0 for a tombstone). */
 const columnOf = <G extends AreaTriggerTypes, C extends Column>(
@@ -165,10 +126,7 @@ const buildColumns = <G extends AreaTriggerTypes>(
 
   return {
     slot: columnOf(new Uint16Array(size), slots, (def) => def.tickIn ?? 0),
-    flags: columnOf(new Uint8Array(size), slots, flagsOf),
-    lifetime: columnOf(new Float64Array(size), slots, secondsOf),
-    lifetimeKind: columnOf(new Uint8Array(size), slots, lifetimeKindOf),
-    limit: columnOf(new Float64Array(size), slots, limitOf)
+    flags: columnOf(new Uint8Array(size), slots, flagsOf)
   };
 };
 

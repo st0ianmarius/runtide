@@ -94,7 +94,6 @@ describe('views for the wire', () => {
         stacks: 1,
         value: 40,
         duration: 10,
-        remaining: 9.5,
         end: 80,
         clock: 0,
         source: 7
@@ -106,7 +105,6 @@ describe('views for the wire', () => {
       stacks: 1,
       value: 0,
       duration: 2,
-      remaining: 2,
       end: 16,
       clock: 1,
       source: NO_SOURCE

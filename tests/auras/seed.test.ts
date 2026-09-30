@@ -60,7 +60,7 @@ describe('seeding a prediction mirror', () => {
         view.aura,
         view.stacks,
         view.value,
-        view.remaining,
+        auras.remaining(mirror, view.aura),
         view.source
       ]),
       [

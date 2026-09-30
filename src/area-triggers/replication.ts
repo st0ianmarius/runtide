@@ -34,7 +34,7 @@ export interface CompiledReplication {
 
 /** One live area trigger's replicated state, reused by `replicate`: read it at once. */
 export interface AreaReplica {
-  /** Its handle. */
+  /** Its handle on the server, to find it again there; a local pool handle, never for the wire (its `id` is). */
   handle: AreaTriggerHandle;
 
   /** Its entity id, which its cues and events carry. */

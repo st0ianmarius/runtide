@@ -8,7 +8,8 @@ import { setOf } from './state.ts';
 
 /**
  * One aura as the wire carries it: ids and numbers only. The client draws the tile from its own
- * table keyed by `aura`, and tells an expiry from a removal by whether `remaining` had run out. `auras.view` fills the
+ * table keyed by `aura`, and tells an expiry from a removal by whether its `end` had come. It
+ * carries no seconds left, which change every tick: they are `(end − the bearer's clock) × dt`. `auras.view` fills the
  * caller's records, reused from one call to the next: read them at once, or copy what you keep.
  */
 export interface AuraView {
@@ -26,9 +27,6 @@ export interface AuraView {
 
   /** The length of the application that last set its clock, in seconds. */
   duration: number;
-
-  /** The seconds left; `Infinity` for an infinite aura. */
-  remaining: number;
 
   /** The tick of its bearer's clock on which it runs out; `Infinity` for an infinite aura. */
   end: number;
@@ -65,7 +63,6 @@ const newView = (): AuraView => ({
   stacks: 0,
   value: 0,
   duration: 0,
-  remaining: 0,
   end: 0,
   clock: 0,
   source: 0
@@ -98,7 +95,6 @@ export const viewAuras = <G extends AuraTypes>(
     view.stacks = item.stacks;
     view.value = item.value;
     view.duration = item.duration;
-    view.remaining = engine.remainingOf(set, item);
     view.end = item.end;
     view.clock = item.clock;
     view.source = item.source;

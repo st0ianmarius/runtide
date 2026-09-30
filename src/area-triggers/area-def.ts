@@ -63,7 +63,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** Its handle, which stays valid until it ends. */
   readonly handle: AreaTriggerHandle;
 
-  /** Its entity id, allocated by the host when it spawned. */
+  /** Its entity id, allocated as it enters, before `lifetime` and `init` read it; −1 while a limit's `perOwner` reads it. */
   readonly id: number;
 
   /** Its kind. */
@@ -120,7 +120,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** The area trigger whose procs spawned it, if any. */
   readonly parent: AreaTriggerHandle;
 
-  /** Its own state (`AreaTriggerDef.state`), or its parent's when it shares it. */
+  /** Its own state (`AreaTriggerDef.state`). */
   readonly state: State;
 
   /** The game's own fields. */
@@ -284,7 +284,7 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
    */
   readonly replicate?: AreaReplication;
 
-  /** Makes an instance's own state, once per spawn; `undefined` when absent (or its parent's, when shared). */
+  /** Makes an instance's own state, once per spawn; `undefined` when absent. */
   state?(this: void): State;
 
   /** Runs once it has its entity id and before its first frame, with what its spawn handed it. */

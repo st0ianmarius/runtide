@@ -117,7 +117,7 @@ export interface UnitScripts<G extends UnitTypes> {
 
 /** How a unit is spawned. */
 export interface SpawnUnit<G extends UnitTypes> {
-  /** Its side, 0 or 1. */
+  /** Its side, a whole number from 0, which the world's reaction rule reads (hostile, neutral or friendly). */
   readonly side: number;
 
   /** The unit it belongs to; none when absent. */
