@@ -89,17 +89,13 @@ export type AuraHook<G extends AuraTypes> = (ctx: AuraContext<G>) => readonly G[
  */
 export interface AuraPeriodic<G extends AuraTypes> {
   /**
-   * Seconds between beats, the first one `every` after the application; read at every beat when a function (a
-   * period from live stats), which must then return more than 0. `0` beats on every tick of its clock, with the
-   * tick's step as the beat's weight.
+   * Seconds between beats, above 0, the first one `every` after the application; read at every beat when a function
+   * (a period from live stats). A beat that should skip (a regeneration paused by a wound) returns no procs.
    */
   readonly every: number | ((ctx: AuraContext<G>) => number);
 
-  /** Whether a due beat fires; a skipped beat still counts (a regeneration paused by a wound). */
-  readonly when?: (ctx: AuraContext<G>) => boolean;
-
-  /** The beat: procs credited to the aura's source. `weight` is 1, or the tick's step for an every-tick beat. */
-  readonly onBeat: (ctx: AuraContext<G>, weight: number) => readonly G['proc'][] | undefined;
+  /** The beat: procs credited to the aura's source. */
+  readonly onBeat: (ctx: AuraContext<G>) => readonly G['proc'][] | undefined;
 }
 
 /**

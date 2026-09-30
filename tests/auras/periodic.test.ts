@@ -97,37 +97,11 @@ describe('periodic beats', () => {
     assert.deepEqual(perTick, [1, 1, 2]);
   });
 
-  it('beats on every tick with the step as its weight when the period is 0', () => {
-    const weights: number[] = [];
-
-    const { auras, id, unit, run } = makeGame({
-      regen: aura({
-        duration: 0.5,
-
-        periodic: {
-          every: 0,
-
-          onBeat: (_ctx, weight) => {
-            weights.push(weight);
-
-            return undefined;
-          },
-        },
-      }),
-    });
-
-    const u = unit();
-
-    auras.apply(u, id.regen);
-    run(u, 10);
-    assert.deepEqual(weights, [0.125, 0.125, 0.125, 0.125]);
-  });
-
-  it('skips a due beat its gate closes, and keeps counting', () => {
+  it('skips a due beat whose onBeat returns nothing, and keeps counting', () => {
     const { auras, id, unit, run, log } = makeGame({
       heal: aura({
         duration: 'infinite',
-        periodic: { every: 1, when: (ctx) => ctx.bearer.hp >= 50, onBeat: () => ['heal'] },
+        periodic: { every: 1, onBeat: (ctx) => (ctx.bearer.hp >= 50 ? ['heal'] : undefined) },
       }),
     });
 

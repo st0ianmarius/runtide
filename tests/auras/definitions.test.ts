@@ -63,6 +63,7 @@ describe('defineAuras', () => {
     assert.throws(() => defineAuras({ c: aura({ duration: -1 }) }), /Aura c: duration/);
     assert.throws(() => defineAuras({ d: aura({ value: Number.NaN }) }), /Aura d: duration/);
     assert.throws(() => defineAuras({ e: aura({ periodic: { every: -1, onBeat: () => undefined } }) }), /Aura e/);
+    assert.throws(() => defineAuras({ e: aura({ periodic: { every: 0, onBeat: () => undefined } }) }), /above 0/);
     assert.throws(() => defineAuras({ f: aura({ stacking: 'independent', perSource: true }) }), /Aura f/);
   });
 });

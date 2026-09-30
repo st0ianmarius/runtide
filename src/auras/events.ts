@@ -62,7 +62,7 @@ export class AuraEvents<G extends AuraTypes> {
   readonly #bearers: (G['bearer'] | undefined)[] = [];
   readonly #items: (AuraItem<G> | undefined)[] = [];
   readonly #handles: number[] = [];
-  readonly #weights: number[] = [];
+  readonly #stateBits: number[] = [];
   readonly #causes: AuraCause[] = [];
   readonly #openCauses: AuraCause[] = [];
   readonly #retired: (AuraItem<G> | undefined)[] = [];
@@ -114,15 +114,13 @@ export class AuraEvents<G extends AuraTypes> {
   /** Queues a bearer's entry into a state (its bit) for one of its auras, when anything hears it. */
   raiseState(bearer: G['bearer'], item: AuraItem<G>, bit: number): void {
     if (this.#isHeard(STATE_ENTERED, item.id) && this.#queue(STATE_ENTERED, bearer, item)) {
-      this.#weights[this.#count - 1] = bit;
+      this.#stateBits[this.#count - 1] = bit;
     }
   }
 
   /** Queues a beat for a bearer that is not silent. */
-  beat(bearer: G['bearer'], item: AuraItem<G>, weight: number): void {
-    if (this.#queue(BEAT, bearer, item)) {
-      this.#weights[this.#count - 1] = weight;
-    }
+  beat(bearer: G['bearer'], item: AuraItem<G>): void {
+    this.#queue(BEAT, bearer, item);
   }
 
   /** Marks an aura as off its bearer; its slot goes back to the pool once no dispatch is running. */
@@ -191,7 +189,7 @@ export class AuraEvents<G extends AuraTypes> {
     this.#bearers[i] = bearer;
     this.#items[i] = item;
     this.#handles[i] = item.handle;
-    this.#weights[i] = 1;
+    this.#stateBits[i] = 0;
     this.#causes[i] = this.#openCauses.at(-1) ?? 'apply';
     this.#count = i + 1;
 
@@ -215,7 +213,7 @@ export class AuraEvents<G extends AuraTypes> {
     }
   }
 
-  /** Dispatches a beat, if its aura is still the one it was queued for and its gate lets it fire. */
+  /** Dispatches a beat, if its aura is still the one it was queued for. */
   #beat(bearer: G['bearer'], item: AuraItem<G>, i: number): void {
     const periodic = this.#parts.registry.defs[item.id]?.periodic;
 
@@ -228,9 +226,7 @@ export class AuraEvents<G extends AuraTypes> {
     context.cause = this.#causes[i] ?? 'tick';
 
     try {
-      if (periodic.when?.(context) !== false) {
-        this.run(periodic.onBeat(context, this.#weights[i] ?? 1), context);
-      }
+      this.run(periodic.onBeat(context), context);
     } finally {
       this.give();
     }
@@ -272,7 +268,7 @@ export class AuraEvents<G extends AuraTypes> {
 
   /** The state queued `stateEntered` event `i` entered. */
   #stateOf(i: number): G['state'] {
-    const name = this.#parts.tables.stateNames[this.#weights[i] ?? 0];
+    const name = this.#parts.tables.stateNames[this.#stateBits[i] ?? 0];
 
     if (!isState<G>(name)) {
       throw new RangeError('An aura heard a state its system does not have.');

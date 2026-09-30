@@ -37,7 +37,7 @@ const periodOf = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'
 
 /**
  * Counts down an aura's beat by one step of its clock and queues every beat that came due (catching up when a period
- * is shorter than a step). An every-tick beat (`every: 0`) beats once, weighted by the step.
+ * is shorter than a step).
  */
 const countBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], item: AuraItem<G>): void => {
   const beatClock = engine.tables.beatClock[item.id] ?? 0;
@@ -49,19 +49,11 @@ const countBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer
     return;
   }
 
-  if (periodic.every === 0) {
-    if (!isSilent) {
-      engine.events.beat(bearer, item, clock.dt);
-    }
-
-    return;
-  }
-
   item.nextBeat -= clock.dt;
 
   while (isRunOut(item.nextBeat)) {
     if (!isSilent) {
-      engine.events.beat(bearer, item, 1);
+      engine.events.beat(bearer, item);
     }
 
     item.nextBeat += periodOf(engine, bearer, item);
