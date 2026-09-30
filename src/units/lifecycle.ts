@@ -2,7 +2,7 @@ import type { EventKind } from '../core/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import type { UnitEvent } from './events.ts';
-import { despawnBound, leaveOwner, rejoinOwner } from './summons.ts';
+import { despawnBound, leaveOwner, orphanSummons, rejoinOwner } from './summons.ts';
 import type { Lifecycle, UnitTypes } from './unit-types.ts';
 
 /**
@@ -101,6 +101,7 @@ const despawned = <G extends UnitTypes>(
   const unit = unitOf<G>(bearer);
 
   engine.byId.delete(unit.id);
+  orphanSummons(bearer);
   engine.options.ai?.release(bearer);
   raise(engine, engine.options.events?.despawned, [bearer, from, 'despawned', undefined, reason]);
 

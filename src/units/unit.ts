@@ -56,7 +56,10 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   readonly id: number;
   readonly template: UnitId;
   side: number;
-  readonly owner: G['bearer'] | undefined;
+  owner: G['bearer'] | undefined;
+
+  /** The entity id its deeds are credited to once its owner despawned (orphaned); −1 while it has its owner. */
+  credit = -1;
   readonly isBound: boolean;
   readonly auras: AuraState;
   readonly casts: CasterState;

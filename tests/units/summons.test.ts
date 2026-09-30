@@ -111,6 +111,18 @@ describe('summoning', () => {
     assert.deepEqual(units.summonsOf(caster), [pet]);
   });
 
+  it('lets an owner despawned for good go from its unbound summons, which keep crediting it', () => {
+    const { procs, units, caster } = summoning();
+
+    procs.apply(summon<UnitGame>('pet', { isBound: false }), { self: caster });
+
+    const [pet] = units.summonsOf(caster);
+
+    units.despawn(caster);
+    assert.deepEqual([pet?.lifecycle, pet?.owner, units.summonsOf(caster)], ['alive', undefined, []]);
+    assert.equal(pet === undefined ? -1 : units.creditOf(pet), caster.id);
+  });
+
   it('drops a summon from its owner’s list as it dies', () => {
     const { procs, units, caster } = summoning();
 

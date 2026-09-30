@@ -115,10 +115,17 @@ describe('world scripts: scripts on bodiless units', () => {
 
     game.tick([early]);
     game.tick([early]);
+
+    const orphans = [...game.units.summonsOf(early)];
+
     game.units.despawn(early);
     assert.deepEqual(
-      game.units.summonsOf(early).map((rogue) => rogue.lifecycle),
-      ['alive', 'alive', 'alive']
+      orphans.map((rogue) => [rogue.lifecycle, rogue.owner]),
+      [
+        ['alive', undefined],
+        ['alive', undefined],
+        ['alive', undefined]
+      ]
     );
   });
 

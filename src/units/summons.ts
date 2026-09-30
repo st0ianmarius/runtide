@@ -21,7 +21,10 @@ export const rejoinOwner = (bearer: UnitTypes['bearer']): void => {
   }
 };
 
-/** The entity id a unit's deeds are credited to: its owner's, up the chain, or its own. */
+/**
+ * The entity id a unit's deeds are credited to: its owner's, up the chain, or its own; an orphan's, the owner's it had
+ * (a turret its despawned summoner left still credits the summoner).
+ */
 export const creditOf = (bearer: UnitTypes['bearer']): number => {
   let root = unitOf<UnitTypes>(bearer);
 
@@ -29,7 +32,24 @@ export const creditOf = (bearer: UnitTypes['bearer']): number => {
     root = unitOf<UnitTypes>(root.owner);
   }
 
-  return root.id;
+  return root.credit >= 0 ? root.credit : root.id;
+};
+
+/**
+ * A unit despawned for good: the summons it still has (the unbound ones) let go of it, so none keeps a unit the game
+ * may reuse, and keep crediting its id.
+ */
+export const orphanSummons = (bearer: UnitTypes['bearer']): void => {
+  const { summons } = unitOf<UnitTypes>(bearer);
+
+  for (const summon of summons) {
+    const unit = unitOf<UnitTypes>(summon);
+
+    unit.credit = creditOf(summon);
+    unit.owner = undefined;
+  }
+
+  summons.length = 0;
 };
 
 /**
