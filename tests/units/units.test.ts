@@ -121,6 +121,22 @@ describe('bearer states on the lifecycle (§II.6 U3, D5)', () => {
     assert.deepEqual(HEARD, [`dead ${hero.id}`, `dead ${grunt.id}`, `despawned ${wall.id}`]);
     assert.equal(auras.has(grunt, auraId('mark')), false);
   });
+
+  it('gives a despawned unit’s every aura back to the pool, so units coming and going leak none', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const { units, auras } = game;
+
+    for (let i = 0; i < 3; i++) {
+      const grunt = units.spawn(game.id.grunt, { side: 1 });
+
+      auras.apply(grunt, auraId('haste'));
+      auras.apply(grunt, auraId('vigour'));
+      units.despawn(grunt);
+      assert.deepEqual([auras.list(grunt).length, auras.pool.live], [0, 0]);
+    }
+
+    assert.equal(auras.pool.created, 2);
+  });
 });
 
 describe('derived states (§I.7.1 F13)', () => {

@@ -71,7 +71,10 @@ const leaveFor = <G extends UnitTypes>(
   despawnBound(engine, bearer);
 };
 
-/** A unit despawned: its id forgotten, its brain freed, the `despawned` event raised, then its script detached. */
+/**
+ * A unit despawned: its id forgotten, its brain freed, the `despawned` event raised, then its script detached and its
+ * auras released to their pool.
+ */
 const despawned = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
@@ -88,6 +91,7 @@ const despawned = <G extends UnitTypes>(
   }
 
   unit.scriptSlot = -1;
+  engine.options.auras.release(bearer);
 };
 
 /**

@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { type AuraEvent, createAuraEvent } from '../../src/auras/index.ts';
 import { createBus } from '../../src/core/index.ts';
-import { aura, makeGame, type TestAuras } from '../helpers/aura-game.ts';
+import { aura, makeGame, TAGS, type TestAuras } from '../helpers/aura-game.ts';
 
 /** Hooks that log every lifecycle change of an aura as a proc named `change:name`. */
 const logged = (name: string) =>
@@ -80,6 +80,17 @@ describe('lifecycle hooks and their raise rules (§II.6 A1)', () => {
       'removed:echo@1',
       'applied:echo@1',
     ]);
+  });
+
+  it('raise nothing as a bearer gone for good releases its auras, whose slots go back to the pool', () => {
+    const { auras, id, unit, log } = makeGame(defs);
+    const u = unit();
+
+    auras.apply(u, id.renew);
+    auras.apply(u, id.ward);
+    assert.equal(auras.release(u), 2);
+    assert.deepEqual(log, ['applied:renew@1', 'applied:ward@1']);
+    assert.deepEqual([auras.list(u).length, auras.hasTag(u, TAGS.id.immune), auras.pool.live], [0, false, 0]);
   });
 
   it('raise expired once, in list order after the whole list has counted, and a state entered without removing', () => {

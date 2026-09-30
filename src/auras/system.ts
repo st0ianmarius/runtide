@@ -138,6 +138,12 @@ export interface AuraSystem<G extends AuraTypes> {
   /** A source is gone: every aura bound to it is removed; how many went. */
   readonly sourceGone: (bearer: G['bearer'], source: number) => number;
 
+  /**
+   * The bearer is gone for good (a despawned unit): every aura still on it comes off, raising nothing, and its slot goes
+   * back to the pool; how many went. Enter its last state first, so its auras hear it.
+   */
+  readonly release: (bearer: G['bearer']) => number;
+
   /** Steps the bearer's clock once: beats, then expiries. */
   readonly tick: (bearer: G['bearer'], clock: G['clock']) => void;
 

@@ -7,7 +7,16 @@ import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
 import { type AuraPipelineHook, collectIn } from './collect.ts';
 import { PREDICTED } from './define-auras.ts';
 import type { AuraEngine } from './engine.ts';
-import { enterState, refreshAura, removeAura, removeByTag, sourceGone, spendStacks, spendValue } from './remove.ts';
+import {
+  enterState,
+  refreshAura,
+  releaseAll,
+  removeAura,
+  removeByTag,
+  sourceGone,
+  spendStacks,
+  spendValue,
+} from './remove.ts';
 import { type AuraSeed, seedAuras } from './seed.ts';
 import { setOf } from './state.ts';
 import type { AuraSystem } from './system.ts';
@@ -26,6 +35,7 @@ type Operations<G extends AuraTypes> = Pick<
   | 'enterState'
   | 'hasState'
   | 'sourceGone'
+  | 'release'
 >;
 
 /** The queries and reads of an aura system. */
@@ -61,6 +71,7 @@ export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operat
   enterState: (bearer: G['bearer'], state: G['state']) => enterState(engine, bearer, state),
   hasState: (state: string): state is G['state'] => engine.tables.stateNames.includes(state),
   sourceGone: (bearer: G['bearer'], source: number) => sourceGone(engine, bearer, source),
+  release: (bearer: G['bearer']) => releaseAll(engine, bearer),
 });
 
 /** The first instance of an aura on a bearer. */

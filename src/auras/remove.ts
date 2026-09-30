@@ -151,6 +151,33 @@ export const enterState = <G extends AuraTypes>(
   return removeWhere(engine, bearer, { cause: 'enterState', match: byState, arg: bit });
 };
 
+/**
+ * Takes every aura off a bearer gone for good (a despawned unit), raising nothing: its auras heard the state it left
+ * in already. Their slots go back to the pool; how many went.
+ */
+export const releaseAll = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer']): number => {
+  const set = setOf<G>(bearer);
+  const count = set.items.length;
+  const from = engine.events.open('remove');
+
+  for (let i = count - 1; i >= 0; i--) {
+    const item = set.items.pop();
+
+    if (item !== undefined) {
+      engine.events.retire(item);
+    }
+  }
+
+  if (count > 0) {
+    set.changes += 1;
+    engine.refreshTags(set);
+  }
+
+  engine.events.close(from);
+
+  return count;
+};
+
 /** Removes every aura bound to a source that is gone; how many went. */
 export const sourceGone = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], source: number): number =>
   removeWhere(engine, bearer, { cause: 'sourceGone', match: bySource, arg: source });
