@@ -11,77 +11,35 @@ import type { OwnerAreas } from './order.ts';
 const EXPIRY_BEFORE = 1;
 const EXPIRY_CLIP = 2;
 
-/** Binding bit: it ends as `source-gone` when its owner leaves the world. */
-export const BIND_PRESENT = 1;
-
-/** Binding bit: it needs its owner standing as well. */
-export const BIND_STANDING = 2;
-
-/** Binding bit: it waits while its owner is down, rather than ending. */
-export const BIND_SUSPEND = 4;
-
 /** Whether a unit is in the world, as the host says (true when it cannot tell). */
 const isPresent = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, unit: G['bearer']): boolean =>
   engine.host.isPresent?.(unit) ?? true;
 
-/** Whether a unit is standing, as the host says (true when it cannot tell). */
-const isStanding = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, unit: G['bearer']): boolean =>
-  engine.host.isStanding?.(unit) ?? true;
-
 /**
- * Checks its owner: an owner that left ends it as `source-gone`; a standing-bound owner that is down ends
- * it as `bound` or suspends it. A lifetime of `owner` binds it to its owner standing. Returns whether it runs on.
+ * Checks what binds it before its frame: an owner it needs present that left ends it as `source-gone`; its
+ * `suspendWhile` suspends it (its clock and hooks too); a failed `when` ends it as `bound`. Returns whether it runs
+ * this frame.
  */
-const checkOwner = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): boolean => {
-  const bits = (engine.bindings[area.kind] ?? 0) | (area.isOwnerLifetime ? BIND_PRESENT | BIND_STANDING : 0);
+const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): boolean => {
+  const { bound } = engine.registry.get(area.kind);
 
-  if (bits === 0) {
-    return true;
-  }
-
-  if (!isPresent(engine, area.owner)) {
+  if ((area.isOwnerLifetime || bound?.owner === 'present') && !isPresent(engine, area.owner)) {
     endArea(engine, area, { reason: 'source-gone' });
 
     return false;
   }
 
-  if ((bits & BIND_STANDING) === 0 || isStanding(engine, area.owner)) {
-    area.isSuspended = false;
-
+  if (bound === undefined) {
     return true;
   }
 
-  if ((bits & BIND_SUSPEND) !== 0) {
-    area.isSuspended = true;
-
-    return false;
-  }
-
-  endArea(engine, area, { reason: area.isOwnerLifetime ? 'source-gone' : 'bound' });
-
-  return false;
-};
-
-/**
- * Checks what binds it before its frame: its owner, the owner's interrupts it waits out (suspended while held), then
- * its condition. Returns whether it runs this frame.
- */
-const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): boolean => {
-  if (!checkOwner(engine, area)) {
-    return false;
-  }
-
-  const pausedBy = engine.pauseMasks[area.kind] ?? 0;
-
-  area.isSuspended = pausedBy !== 0 && (engine.spells.heldInterrupts(area.owner) & pausedBy) !== 0;
+  area.isSuspended = bound.suspendWhile?.(area) === true;
 
   if (area.isSuspended) {
     return false;
   }
 
-  const { bound } = engine.registry.get(area.kind);
-
-  if (bound?.when !== undefined && !bound.when(area)) {
+  if (bound.when !== undefined && !bound.when(area)) {
     endArea(engine, area, { reason: 'bound' });
 
     return false;

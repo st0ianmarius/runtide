@@ -14,7 +14,4 @@ export interface AreaTriggerHost<G extends AreaTriggerTypes> extends SpellHost<G
 
   /** Whether a unit is still in the world (a `present` bound, the dies-with-source rule); true when absent. */
   readonly isPresent?: (unit: G['bearer']) => boolean;
-
-  /** Whether a unit is standing (not down, not dead): what a `standing` bound reads; true when absent. */
-  readonly isStanding?: (unit: G['bearer']) => boolean;
 }

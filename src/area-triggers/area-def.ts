@@ -111,7 +111,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** The seconds left of its lifetime; infinite for one that lives while its owner does, or until spent. */
   readonly remaining: number;
 
-  /** Whether it is suspended while its owner is down (its clock and hooks wait). */
+  /** Whether its bound's `suspendWhile` holds it now (its clock and hooks wait). */
   readonly isSuspended: boolean;
 
   /** The area trigger whose procs spawned it, if any. */
@@ -158,24 +158,18 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
 }
 
 /**
- * What ends an area trigger early, or suspends it. Each part is optional; the owner's presence and standing
- * are the host's answers (`isPresent`, `isStanding`).
+ * What ends an area trigger early, or suspends it. Each part is optional; the owner's presence is the host's answer
+ * (`isPresent`). Its owner going down, or holding an interrupt, is the game's to read in `suspendWhile` or `when`.
  */
 export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
-  /**
-   * Its owner must stay `present` (in the world: ends as `source-gone` when it leaves) or `standing` (as well not down:
-   * ends as `bound`, or waits, as `whileDown` says).
-   */
-  readonly owner?: 'present' | 'standing';
-
-  /** What it does while its standing-bound owner is down: `end` (the default) or `suspend` (its clock waits). */
-  readonly whileDown?: 'end' | 'suspend';
+  /** Its owner must stay `present` (in the world): it ends as `source-gone` when the owner leaves. */
+  readonly owner?: 'present';
 
   /**
-   * The owner's interrupts it waits out: suspended, its clock and hooks too, while its owner
-   * holds any of them (`spells.isInterrupted`): a frozen caster's telegraphs pause, even from casts that ended.
+   * Suspends it while true, its clock and hooks too, checked before each frame: its owner down (Ember Blades keep
+   * their clock), or frozen (`spells.isInterrupted`: a frozen caster's telegraphs pause, even from casts that ended).
    */
-  readonly pausedBy?: readonly G['interrupt'][];
+  suspendWhile?(this: void, c: AreaTriggerContext<G, State>): boolean;
 
   /** A condition it lives under (the granting spell still owned): false ends it as `bound`. */
   when?(this: void, c: AreaTriggerContext<G, State>): boolean;
@@ -202,7 +196,7 @@ export interface AreaCues<G extends AreaTriggerTypes, State = unknown> {
   end?(this: void, c: AreaTriggerContext<G, State>, reason: EndReason<G>): CueSpec | undefined;
 }
 
-/** How long an area trigger lives: seconds, while its owner lives (`owner`), or until its hit budget is spent. */
+/** How long an area trigger lives: seconds, while its owner is present (`owner`), or until its hit budget is spent. */
 export type Lifetime = number | 'owner' | 'spent';
 
 /**

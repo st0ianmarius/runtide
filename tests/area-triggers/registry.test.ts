@@ -31,7 +31,7 @@ const KINDS = () =>
         shape: (c) => circle(c.rank),
         lifetime: (c) => c.rank * 2,
         anchor: 'owner',
-        bound: { owner: 'standing', whileDown: 'suspend' },
+        bound: { owner: 'present', suspendWhile: () => false },
         limit: { perOwner: (c) => c.rank, replace: 'refuse' },
         onEnd: () => undefined,
       }),
@@ -122,8 +122,8 @@ describe('the load-time checks', () => {
     refuse(forged(base, 'tags', ['wall']), /unknown area trigger tag wall/);
   });
 
-  it('refuse a bound that suspends without a standing owner, and a limit below 1', () => {
-    refuse({ ...base, bound: { owner: 'present', whileDown: 'suspend' } }, /suspends/);
+  it('refuse a bound that is not a function, and a limit below 1', () => {
+    refuse(forged(base, 'bound', { suspendWhile: true }), /when and suspendWhile are functions/);
     refuse({ ...base, limit: { perOwner: 0 } }, /its limit per owner/);
     refuse(forged(base, 'limit', { perOwner: 1, replace: 'newest' }), /its limit replaces/);
   });

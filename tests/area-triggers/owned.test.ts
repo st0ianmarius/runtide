@@ -4,10 +4,12 @@ import { describe, it } from 'node:test';
 import { type AreaTriggerHandle, despawnOwned, NO_AREA_TRIGGER, spawn } from '../../src/area-triggers/index.ts';
 import { circle } from '../../src/math/index.ts';
 import { after, castSpell } from '../../src/spells/index.ts';
-import { type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
+import { type Game, makeSpellGame, mark, spell, type Unit } from '../helpers/spell-game.ts';
 
-/** A game with a telegraph (a pool tagged as such, waiting out a stun), a lingering patch, and a volley spell. */
+/** A game with a telegraph (a pool tagged as such, suspended while its owner is stunned), a lingering patch, and a volley spell. */
 const owned = () => {
+  const late: { isStunned?: (unit: Unit) => boolean } = {};
+
   const game = makeSpellGame(
     {
       volley: spell({
@@ -18,7 +20,12 @@ const owned = () => {
     {
       spells: { interrupts: ['stun'] },
       areaTriggers: {
-        telegraph: { tags: ['pool'], shape: circle(1), lifetime: 2, bound: { pausedBy: ['stun'] } },
+        telegraph: {
+          tags: ['pool'],
+          shape: circle(1),
+          lifetime: 2,
+          bound: { suspendWhile: (c) => late.isStunned?.(c.owner) === true },
+        },
         patch: { shape: circle(1), lifetime: 2 },
       },
     },
@@ -26,6 +33,7 @@ const owned = () => {
 
   const elite = game.unit(1);
 
+  late.isStunned = (unit) => game.spells.isInterrupted(unit, 'stun');
   game.spells.cast(elite, game.id.volley);
 
   const tick = () => {
@@ -38,7 +46,7 @@ const owned = () => {
 };
 
 describe('an owner’s interrupts pausing its area triggers', () => {
-  it('suspend a kind that waits them out while its owner holds one, even once the cast ended', () => {
+  it('suspend a kind whose suspendWhile reads them while its owner holds one, even once the cast ended', () => {
     const { game, elite, tick } = owned();
     const out: AreaTriggerHandle[] = [];
 
@@ -59,17 +67,6 @@ describe('an owner’s interrupts pausing its area triggers', () => {
     tick();
     assert.equal(game.areaTriggers.get(telegraph)?.isSuspended, false);
     assert.equal(game.areaTriggers.get(telegraph)?.remaining, 1.5);
-  });
-
-  it('refuse at load an interrupt the spell system does not know', () => {
-    assert.throws(
-      () =>
-        makeSpellGame(
-          {},
-          { areaTriggers: { telegraph: { shape: circle(1), lifetime: 2, bound: { pausedBy: ['stun'] } } } },
-        ),
-      /Interrupt stun is not one the spell system knows/,
-    );
   });
 });
 

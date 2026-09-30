@@ -74,16 +74,15 @@ const checkBound = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
     return;
   }
 
-  if (!isOneOf(bound.owner, ['present', 'standing']) || !isOneOf(bound.whileDown, ['end', 'suspend'])) {
-    fail(name, "its bound's owner is 'present' or 'standing', and whileDown 'end' or 'suspend'.");
+  if (!isOneOf(bound.owner, ['present'])) {
+    fail(name, "its bound's owner is 'present' when given.");
   }
 
-  if (bound.whileDown === 'suspend' && bound.owner !== 'standing') {
-    fail(name, "it suspends while its owner is down only with a bound owner of 'standing'.");
-  }
-
-  if (bound.when !== undefined && typeof bound.when !== 'function') {
-    fail(name, "its bound's when is a function.");
+  if (
+    (bound.when !== undefined && typeof bound.when !== 'function') ||
+    (bound.suspendWhile !== undefined && typeof bound.suspendWhile !== 'function')
+  ) {
+    fail(name, "its bound's when and suspendWhile are functions.");
   }
 };
 

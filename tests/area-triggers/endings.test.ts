@@ -88,15 +88,19 @@ describe('ending', () => {
 });
 
 describe('bounds', () => {
-  /** A game whose host says who is present and who is standing. */
-  const boundGame = (bound: AnyAreaTriggerDef<Game>['bound'], lifetime: AnyAreaTriggerDef<Game>['lifetime'] = 5) => {
+  /** A game whose host says who is present, and a bound made over who is down. */
+  const boundGame = (
+    boundOf: (down: ReadonlySet<number>) => AnyAreaTriggerDef<Game>['bound'],
+    lifetime: AnyAreaTriggerDef<Game>['lifetime'] = 5,
+  ) => {
     const gone = new Set<number>();
     const down = new Set<number>();
+    const bound = boundOf(down);
 
     const game = makeSpellGame(
       {},
       {
-        host: { isPresent: (unit) => !gone.has(unit.id), isStanding: (unit) => !down.has(unit.id) },
+        host: { isPresent: (unit) => !gone.has(unit.id) },
         areaTriggers: { ward: ending({ lifetime, ...(bound === undefined ? {} : { bound }) }) },
       },
     );
@@ -113,7 +117,7 @@ describe('bounds', () => {
   };
 
   it('ends as source-gone when its owner leaves the world', () => {
-    const { game, gone, tick } = boundGame({ owner: 'present' });
+    const { game, gone, tick } = boundGame(() => ({ owner: 'present' }));
 
     tick();
     gone.add(1);
@@ -121,16 +125,16 @@ describe('bounds', () => {
     assert.deepEqual(linesOf(game.log), ['end source-gone', 'ended ward@1 source-gone']);
   });
 
-  it('ends as bound when its standing-bound owner goes down', () => {
-    const { game, down, tick } = boundGame({ owner: 'standing' });
+  it('ends as bound when its when fails (its owner went down)', () => {
+    const { game, down, tick } = boundGame((isDown) => ({ when: (c) => !isDown.has(c.owner.id) }));
 
     down.add(1);
     tick();
     assert.deepEqual(linesOf(game.log), ['end bound', 'ended ward@1 bound']);
   });
 
-  it('waits while its owner is down when it suspends, its clock and frames held, then runs on', () => {
-    const { game, down, handle, tick } = boundGame({ owner: 'standing', whileDown: 'suspend' });
+  it('waits while its suspendWhile holds (its owner down), its clock and frames held, then runs on', () => {
+    const { game, down, handle, tick } = boundGame((isDown) => ({ suspendWhile: (c) => isDown.has(c.owner.id) }));
 
     tick();
     down.add(1);
@@ -145,20 +149,20 @@ describe('bounds', () => {
     assert.equal(game.areaTriggers.get(handle)?.age, 0.5);
   });
 
-  it('ends as bound when its condition fails, and lives on its owner’s standing with a lifetime of owner', () => {
+  it('ends as bound when its condition fails, and lives while its owner is present with a lifetime of owner', () => {
     let isOwned = true;
-    const conditioned = boundGame({ when: () => isOwned });
+    const conditioned = boundGame(() => ({ when: () => isOwned }));
 
     conditioned.tick();
     isOwned = false;
     conditioned.tick();
     assert.deepEqual(linesOf(conditioned.game.log), ['end bound', 'ended ward@1 bound']);
 
-    const owned = boundGame(undefined, 'owner');
+    const owned = boundGame(() => undefined, 'owner');
 
     owned.tick();
     assert.equal(owned.game.areaTriggers.isLive(owned.handle), true);
-    owned.down.add(1);
+    owned.gone.add(1);
     owned.tick();
     assert.deepEqual(linesOf(owned.game.log), ['end source-gone', 'ended ward@1 source-gone']);
   });

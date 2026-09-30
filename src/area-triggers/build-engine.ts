@@ -3,7 +3,6 @@ import type { AnyAreaTriggerDef } from './area-def.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import { AreaEngine } from './engine.ts';
-import { BIND_PRESENT, BIND_STANDING, BIND_SUSPEND } from './stepper.ts';
 import type { AreaTriggerSystemOptions } from './system-options.ts';
 
 /** Whether `undefined` is the game's `areaExt`: true exactly when the options could leave `createExt` out. */
@@ -96,19 +95,6 @@ const slotKindsOf = <G extends AreaTriggerTypes>(
   return Object.freeze(kinds.map((list) => Object.freeze(list)));
 };
 
-/** A kind's binding bits, from its bound. */
-const bindingOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G> | undefined): number => {
-  const bound = def?.bound;
-
-  if (bound?.owner === undefined) {
-    return 0;
-  }
-
-  return (
-    BIND_PRESENT | (bound.owner === 'standing' ? BIND_STANDING : 0) | (bound.whileDown === 'suspend' ? BIND_SUSPEND : 0)
-  );
-};
-
 /** Checks at load that kinds with cues have a buffer to fire into. */
 const checkCues = <G extends AreaTriggerTypes>(options: AreaTriggerSystemOptions<G>): void => {
   const { registry } = options;
@@ -139,8 +125,6 @@ export const areaEngineOf = <G extends AreaTriggerTypes>(options: AreaTriggerSys
     cues: options.cues,
     ownerAuras: registry.defs.map((def, id) => ownerAuraOf(options.auras, def, registry.names[id] ?? '')),
     slotKinds: slotKindsOf(registry, options.slots?.size ?? 1),
-    bindings: Uint8Array.from(registry.defs, bindingOf),
-    pauseMasks: Int32Array.from(registry.defs, (def) => options.spells.interruptMask(def?.bound?.pausedBy ?? [])),
     areaAuras: registry.defs.map((def, id) => areaAurasOf(options.auras, def, registry.names[id] ?? '')),
     createExt: extFactory(options),
     resetExt: options.resetExt,

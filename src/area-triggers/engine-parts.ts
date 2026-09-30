@@ -74,12 +74,6 @@ export interface AreaEngineParts<G extends AreaTriggerTypes> {
   /** The kinds each tick slot steps, in kind order. */
   readonly slotKinds: readonly (readonly number[])[];
 
-  /** Each kind's binding bits (what its bound makes of its owner leaving or going down). */
-  readonly bindings: Uint8Array;
-
-  /** Each kind's mask of the owner's interrupts it waits out (`bound.pausedBy`); 0 for none. */
-  readonly pauseMasks: Int32Array;
-
   /** Each kind's auras' ids, by aura index. */
   readonly areaAuras: readonly (readonly AuraId[] | undefined)[];
 

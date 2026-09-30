@@ -38,8 +38,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   readonly cues: CueBuffer | undefined;
   readonly ownerAuras: readonly (AuraId | undefined)[];
   readonly slotKinds: readonly (readonly number[])[];
-  readonly bindings: Uint8Array;
-  readonly pauseMasks: Int32Array;
   readonly pool: Pool<AreaTrigger<G>>;
 
   /** The head and tail of each kind's list in creation order, which is also its tick order. */
@@ -99,8 +97,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.cues = parts.cues;
     this.ownerAuras = parts.ownerAuras;
     this.slotKinds = parts.slotKinds;
-    this.bindings = parts.bindings;
-    this.pauseMasks = parts.pauseMasks;
     this.areaAuras = parts.areaAuras;
     this.queries = new AreaQueryApi<G>(this);
     this.kindHeads = Array.from({ length: kinds }, () => undefined);
