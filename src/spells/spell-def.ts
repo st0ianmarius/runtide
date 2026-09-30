@@ -1,9 +1,10 @@
+import type { AuraId } from '../auras/index.ts';
 import type { Random } from '../core/index.ts';
 import type { CueSpec } from '../cues/index.ts';
 import type { Shape, Vec2 } from '../math/index.ts';
 import type { Scaled, ScaledSnapshot, StatView } from '../modifiers/index.ts';
 import type { Proc, ProcOutcome } from '../procs/index.ts';
-import type { Activation } from './activation.ts';
+import type { Activation, CastSeconds } from './activation.ts';
 import type { GateAnswer } from './cast-request.ts';
 import type { CastHandle } from './ids.ts';
 import type { MirrorCtx } from './mirror.ts';
@@ -219,6 +220,18 @@ export interface SpellCues<G extends SpellTypes, Source extends StatsSource<G>, 
 }
 
 /**
+ * A spell's own cooldown: an aura on the caster that refuses its casts (as `cooldown`) while held, landed as a cast
+ * starts, for `seconds` or the aura's own duration. `spells.check` and a picker see it, as they see the gates.
+ */
+export interface SpellCooldown<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> {
+  /** The aura: its name in data, its id in code. */
+  readonly aura: G['auraName'] | AuraId;
+
+  /** Its seconds, read as the cast starts; the aura's own duration when absent. */
+  readonly seconds?: CastSeconds<G, Source>;
+}
+
+/**
  * A spell: plain data and standalone hooks returning procs, registered by name (`defineSpells`), with no id
  * of its own. `Source` is its stats' form, `Target` what its `target` hook picks, `State` its casts' own state.
  */
@@ -260,6 +273,9 @@ export interface SpellDef<
 
   /** Its reach rules, asked after `target`: a range, a clear line. */
   readonly reach?: Reach<G, Source, Target>;
+
+  /** Its own cooldown, asked right after the gates; none when absent. */
+  readonly cooldown?: SpellCooldown<G, Source>;
 
   /** Makes a cast's own state, once per cast (`ctx.state`); `undefined` when absent. */
   state?(this: void): State;

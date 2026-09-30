@@ -55,7 +55,6 @@ export type { ProcOut } from './proc-out.ts';
 export {
   after,
   type AfterProc,
-  type CastCooldown,
   castSpell,
   type CastSpellProc,
   type DelayBound,
@@ -74,6 +73,7 @@ export {
   type ProcReturn,
   type ScaledOf,
   type SpellContext,
+  type SpellCooldown,
   type SpellCues,
   type SpellDef,
   type SpellHit,

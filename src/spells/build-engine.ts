@@ -1,9 +1,11 @@
+import type { AuraId, AuraSystem } from '../auras/index.ts';
 import { type ActivationRegistry, CORE_ACTIVATIONS, isAuto } from './activation.ts';
 import { type CastPlan, planOf } from './cast-plan.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import { SpellEngine } from './engine.ts';
 import { OPEN_WORLD } from './mirror.ts';
 import type { ReachPlan } from './reach.ts';
+import type { AnySpellDef } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
 import { baseView, StatsBoxes } from './stats-box.ts';
 import type { SpellSystemOptions } from './system-options.ts';
@@ -91,6 +93,34 @@ const resetsAfterCastOf = <G extends SpellTypes>(registry: SpellRegistry<G>): Ui
     def !== undefined && isAuto(def.activation) && def.activation.afterCast === 'reset' ? 1 : 0,
   );
 
+/** Resolves a spell's cooldown aura against the aura registry at load; `undefined` for none. */
+const cooldownOf = <G extends SpellTypes>(
+  auras: AuraSystem<G>,
+  def: AnySpellDef<G> | undefined,
+  name: string,
+): AuraId | undefined => {
+  const cooldown = def?.cooldown;
+
+  if (cooldown === undefined) {
+    return undefined;
+  }
+
+  const { seconds } = cooldown;
+
+  if (typeof seconds === 'number' && !(seconds >= 0 && Number.isFinite(seconds))) {
+    throw new RangeError(`Spell ${name}: its cooldown lasts a finite number of seconds from 0.`);
+  }
+
+  const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
+  const id = typeof cooldown.aura === 'string' ? ids[cooldown.aura] : cooldown.aura;
+
+  if (id === undefined || id < 0 || id >= auras.registry.size || auras.registry.isRetired(id)) {
+    throw new RangeError(`Spell ${name}: its cooldown aura ${cooldown.aura} is not a live aura.`);
+  }
+
+  return id;
+};
+
 /** Builds the engine over the options, every table resolved. */
 export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): SpellEngine<G> => {
   const { registry } = options;
@@ -103,6 +133,7 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
   return new SpellEngine<G>({
     registry,
     auras: options.auras,
+    cooldowns: registry.defs.map((def, id) => cooldownOf(options.auras, def, registry.names[id] ?? '')),
     procs: options.procs,
     clock: options.clock,
     host: options.host,

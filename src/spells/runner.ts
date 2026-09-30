@@ -83,7 +83,7 @@ const passGates = <G extends SpellTypes>(
   return refusalOf(kind?.gate?.(def.activation, cast), 'gate');
 };
 
-/** The cast order up to `begin`: gates, stats, `canCast`, target, reach. The refusal, or `undefined`. */
+/** The cast order up to `begin`: gates, cooldown, stats, `canCast`, target, reach. The refusal, or `undefined`. */
 const admit = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
@@ -93,6 +93,10 @@ const admit = <G extends SpellTypes>(
 
   if (gated !== undefined) {
     return gated;
+  }
+
+  if (engine.isCooling(cast)) {
+    return 'cooldown';
   }
 
   takeStats(engine, cast, def);
@@ -268,12 +272,13 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
 };
 
 /**
- * Begins an admitted cast: it joins its caster's casts, makes its own state, enters its windup,
+ * Begins an admitted cast: it joins its caster's casts, makes its own state, starts its cooldown, enters its windup,
  * fires its start cue, runs `begin` and raises `start`; a windup already run out releases at once.
  */
 const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def: AnySpellDef<G>): void => {
   recordOf(cast.caster).add(cast.cast);
   cast.state = engine.registry.hooks.state[cast.spell]?.();
+  engine.startCooldown(cast, def);
   enterStage(cast, 'windup', engine.plans[cast.spell]?.windup);
   cast.isLocked = engine.plans[cast.spell]?.track === undefined;
   if (def.cues?.cast !== undefined) {

@@ -1,5 +1,5 @@
-import type { AuraSystem } from '../auras/index.ts';
-import { toHandle } from '../core/ids.ts';
+import type { AuraApplication, AuraId, AuraSystem } from '../auras/index.ts';
+import { toHandle, toId } from '../core/ids.ts';
 import { createPool, type Pool, type Random } from '../core/index.ts';
 import type { CueBuffer, CueEvent, CuePlace, CueSpec } from '../cues/index.ts';
 import { fireCue } from '../cues/index.ts';
@@ -14,7 +14,7 @@ import { type CastHandle, NO_CAST, toCastHandle } from './ids.ts';
 import type { MirrorContext, StaticWorld } from './mirror.ts';
 import { missing } from './missing.ts';
 import { ProcList } from './proc-out.ts';
-import type { ProcReturn, SpellHit } from './spell-def.ts';
+import type { AnySpellDef, ProcReturn, SpellHit } from './spell-def.ts';
 import type { SpellHost } from './spell-host.ts';
 import type { SpellTypes } from './spell-types.ts';
 import type { StatsBoxes } from './stats-box.ts';
@@ -26,6 +26,12 @@ export interface SpellClock {
 
   /** The fixed step in seconds. */
   readonly dt: number;
+}
+
+/** The application a spell's cooldown lands with, reused. */
+class CooldownApplication implements AuraApplication {
+  aura: AuraId = toId<'auras'>(0);
+  duration: number | undefined = undefined;
 }
 
 /** Where a spell's cues sit: on the caster, credited to it. */
@@ -43,6 +49,9 @@ export interface EngineParts<G extends SpellTypes> {
 
   /** The aura system cooldowns land through. */
   readonly auras: AuraSystem<G>;
+
+  /** Each spell's cooldown aura, by id; `undefined` for none. */
+  readonly cooldowns: readonly (AuraId | undefined)[];
 
   /** The proc system hooks' procs run through, or a function returning it (resolved on first use). */
   readonly procs: ProcSystem<G> | (() => ProcSystem<G>);
@@ -101,6 +110,7 @@ export interface EngineParts<G extends SpellTypes> {
 export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   readonly registry: SpellRegistry<G>;
   readonly auras: AuraSystem<G>;
+  readonly cooldowns: readonly (AuraId | undefined)[];
   readonly clock: SpellClock;
   readonly host: SpellHost<G> & G['host'];
   readonly events: SpellEvents<G> | undefined;
@@ -140,12 +150,14 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   readonly #handles: CastHandle[][] = [];
   #handleDepth = 0;
   readonly #place = new CasterPlace();
+  readonly #cooldown = new CooldownApplication();
   #depth = 0;
   #pending: G['bearer'] | undefined = undefined;
 
   constructor(parts: EngineParts<G>) {
     this.registry = parts.registry;
     this.auras = parts.auras;
+    this.cooldowns = parts.cooldowns;
     this.clock = parts.clock;
     this.host = parts.host;
     this.events = parts.events;
@@ -321,6 +333,27 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     payload.hit = hit;
     payload.outcome = kind === 'end' ? cast.outcome : undefined;
     events.bus.raise(event, payload);
+  }
+
+  /** Whether a cast's caster holds its spell's cooldown. */
+  isCooling(cast: Cast<G>): boolean {
+    const aura = this.cooldowns[cast.spell];
+
+    return aura !== undefined && this.auras.has(cast.caster, aura);
+  }
+
+  /** Lands a starting cast's spell cooldown on its caster, for its seconds or the aura's own duration. */
+  startCooldown(cast: Cast<G>, def: AnySpellDef<G>): void {
+    const aura = this.cooldowns[cast.spell];
+    const seconds = def.cooldown?.seconds;
+
+    if (aura === undefined) {
+      return;
+    }
+
+    this.#cooldown.aura = aura;
+    this.#cooldown.duration = typeof seconds === 'function' ? seconds(cast) : seconds;
+    this.auras.apply(cast.caster, this.#cooldown);
   }
 
   /** Puts an ended cast's record back: its stats box, the game's fields, its references. */

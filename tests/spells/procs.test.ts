@@ -32,16 +32,18 @@ describe('the castSpell proc', () => {
     ]);
   });
 
-  it('keeps its own cooldown as an aura on the caster: refused while held, landed once a cast started', () => {
+  it('casts a spell whose own cooldown refuses it while held, landed once a cast started', () => {
     const game = makeSpellGame(
       {
-        proc: spell({
+        proc: spell({ activation: { kind: 'trigger' }, release: () => [castSpell<Game>('nova')] }),
+        nova: spell({
           activation: { kind: 'trigger' },
-          release: () => [castSpell<Game>('nova', { cooldown: { aura: 'icd', seconds: 1 } })],
+          cooldown: { aura: 'icd', seconds: 1 },
+          release: () => [mark('nova')],
         }),
-        nova: spell({ activation: { kind: 'trigger' }, release: () => [mark('nova')] }),
         refused: spell({
           activation: { kind: 'trigger' },
+          cooldown: { aura: 'icd' },
           canCast: () => false,
           release: () => undefined,
         }),
@@ -59,6 +61,7 @@ describe('the castSpell proc', () => {
       ['nova@1'],
     );
     assert.equal(game.auras.remaining(hero, icd), 1);
+    assert.equal(game.spells.check(hero, game.id.nova), 'cooldown');
     for (let i = 0; i < 4; i++) {
       game.step();
       game.auras.tick(hero, 'world');
@@ -68,13 +71,30 @@ describe('the castSpell proc', () => {
     assert.equal(game.log.filter((line) => line === 'nova@1').length, 2);
 
     const other = game.unit(2);
-    const refused = game.procs.apply(castSpell<Game>('refused', { cooldown: { aura: icd } }), { self: other });
+    const refused = game.procs.apply(castSpell<Game>('refused'), { self: other });
 
     assert.equal(refused.status, 'refused');
     assert.equal(game.auras.has(other, icd), false);
     assert.throws(
-      () => game.procs.prepare([castSpell<Game>('nova', { cooldown: { aura: 'icd', seconds: -1 } })], 'Test'),
-      /a castSpell cooldown lasts a finite number of seconds from 0/,
+      () =>
+        makeSpellGame(
+          {
+            nova: spell({
+              activation: { kind: 'trigger' },
+              cooldown: { aura: 'icd', seconds: -1 },
+              release: () => undefined,
+            }),
+          },
+          { auras: { icd: aura({ duration: 5 }) } },
+        ),
+      /its cooldown lasts a finite number of seconds from 0/,
+    );
+    assert.throws(
+      () =>
+        makeSpellGame({
+          nova: spell({ activation: { kind: 'trigger' }, cooldown: { aura: 'nope' }, release: () => undefined }),
+        }),
+      /its cooldown aura nope is not a live aura/,
     );
   });
 

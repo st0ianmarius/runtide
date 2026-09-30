@@ -1,11 +1,9 @@
-import type { AuraApplication, AuraId } from '../auras/index.ts';
-import { toId } from '../core/ids.ts';
 import { PROC_LANDED, PROC_REFUSED, PROC_SKIPPED, type ProcKindDef } from '../procs/index.ts';
 import { rescaleClocks } from './auto.ts';
 import type { CastOptions, CastReport } from './cast-request.ts';
 import type { SpellEngine } from './engine.ts';
 import { missing } from './missing.ts';
-import type { AfterProc, CastCooldown, CastSpellProc, RescaleClocksProc, SpellProcKinds } from './procs.ts';
+import type { AfterProc, CastSpellProc, RescaleClocksProc, SpellProcKinds } from './procs.ts';
 import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 
 /** The options a `castSpell` proc casts with, reused: the cast order reads them before any hook runs. */
@@ -50,45 +48,6 @@ const spellIdOf = <G extends SpellTypes>(
   return id;
 };
 
-/** A `castSpell` cooldown's aura id, from its name or id. Throws for an unknown name. */
-const cooldownAura = <G extends SpellTypes>(engine: SpellEngine<G>, cooldown: CastCooldown<G>): AuraId => {
-  const ids: Readonly<Record<string, AuraId | undefined>> = engine.auras.registry.id;
-
-  return typeof cooldown.aura === 'string' ? (ids[cooldown.aura] ?? unknownAura(cooldown.aura)) : cooldown.aura;
-};
-
-/** Throws for an aura name the aura registry does not have. */
-const unknownAura = (name: string): never => {
-  throw new RangeError(`unknown aura ${name}.`);
-};
-
-/** Whether a caster holds a `castSpell` cooldown's aura. */
-const isCooling = <G extends SpellTypes>(
-  engine: SpellEngine<G>,
-  caster: G['bearer'],
-  cooldown: CastCooldown<G> | undefined,
-): boolean => cooldown !== undefined && engine.auras.has(caster, cooldownAura(engine, cooldown));
-
-/** The application a `castSpell` cooldown lands with, reused: the aura system reads it before any hook runs. */
-class CooldownApplication implements AuraApplication {
-  aura: AuraId = toId<'auras'>(0);
-  duration: number | undefined = undefined;
-}
-
-/** The one cooldown application. */
-const COOLDOWN = new CooldownApplication();
-
-/** Lands a `castSpell` cooldown on its caster: the aura, for `seconds` or its own duration. */
-const startCooldown = <G extends SpellTypes>(
-  engine: SpellEngine<G>,
-  caster: G['bearer'],
-  cooldown: CastCooldown<G>,
-): void => {
-  COOLDOWN.aura = cooldownAura(engine, cooldown);
-  COOLDOWN.duration = cooldown.seconds;
-  engine.auras.apply(caster, COOLDOWN);
-};
-
 /** The `castSpell` kind: the full cast order for the unit it lands on, at the running cast's rank by default. */
 const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<CastSpellProc<G>, G> => {
   const { engine } = parts;
@@ -102,10 +61,6 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
         return PROC_SKIPPED;
       }
 
-      if (isCooling(engine, caster, proc.cooldown)) {
-        return PROC_REFUSED;
-      }
-
       const parent = engine.current;
 
       options.input = proc.inputOf === undefined ? proc.input : proc.inputOf(ctx);
@@ -116,30 +71,10 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
 
       options.input = undefined;
 
-      if (status === 'refused') {
-        return PROC_REFUSED;
-      }
-
-      if (proc.cooldown !== undefined) {
-        startCooldown(engine, caster, proc.cooldown);
-      }
-
-      return PROC_LANDED;
+      return status === 'refused' ? PROC_REFUSED : PROC_LANDED;
     },
 
-    prepare: (proc, resolve) => {
-      const { cooldown } = proc;
-
-      if (cooldown?.seconds !== undefined && !(cooldown.seconds >= 0 && Number.isFinite(cooldown.seconds))) {
-        throw new RangeError(`a castSpell cooldown lasts a finite number of seconds from 0; got ${cooldown.seconds}.`);
-      }
-
-      return {
-        ...proc,
-        spell: spellIdOf(engine, proc.spell, true),
-        ...(cooldown === undefined ? {} : { cooldown: { ...cooldown, aura: resolve.aura(cooldown.aura) } }),
-      };
-    },
+    prepare: (proc) => ({ ...proc, spell: spellIdOf(engine, proc.spell, true) }),
 
     explain: (proc) => ({
       values: {

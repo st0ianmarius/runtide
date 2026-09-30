@@ -1,4 +1,3 @@
-import type { AuraId } from '../auras/index.ts';
 import type { TickSlotId } from '../core/index.ts';
 import type { ChanceOption, Proc, ProcContext, ProcKindDef, ProcShape, ProcTarget } from '../procs/index.ts';
 import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
@@ -26,21 +25,6 @@ export interface CastSpellProc<G extends SpellTypes> extends ProcShape {
 
   /** Its rank; the rank of the cast whose procs these are, else the caster's own (`host.rankOf`), when absent. */
   readonly rank?: number;
-
-  /**
-   * Its own cooldown (an internal cooldown on a chained or triggered cast): an aura on the
-   * caster that refuses the proc while held, landed once a cast started. None when absent.
-   */
-  readonly cooldown?: CastCooldown<G>;
-}
-
-/** A `castSpell` proc's cooldown: an aura on the caster, for its own duration or for `seconds`. */
-export interface CastCooldown<G extends SpellTypes> {
-  /** The aura: its name in data, its id in code. */
-  readonly aura: G['auraName'] | AuraId;
-
-  /** Its seconds, from 0; the aura's own duration when absent. */
-  readonly seconds?: number;
 }
 
 /**
