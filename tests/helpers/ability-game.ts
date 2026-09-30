@@ -15,7 +15,7 @@ import {
   defineAuras,
   defineAuraTags
 } from '../../src/auras/index.ts';
-import { createClock, type SimClock } from '../../src/core/index.ts';
+import { createClock, type SimClock, type Tombstone } from '../../src/core/index.ts';
 import { createCueBuffer, type CueBuffer, defineCue, defineCues } from '../../src/cues/index.ts';
 import type { Vec2 } from '../../src/math/index.ts';
 import { defineStats, type StatView } from '../../src/modifiers/index.ts';
@@ -264,7 +264,7 @@ const viewOf = (hero: Hero): StatView => ({
  * stats are each hero's, in a static world (an open one when absent), with a cue buffer over the test cues.
  */
 export const makeAbilityGame = <const Spell extends string>(
-  defs: Readonly<Record<Spell, AnySpellDef<AbilityGame>>>,
+  defs: Readonly<Record<Spell, AnySpellDef<AbilityGame> | Tombstone>>,
   options: AbilityGameOptions = {}
 ): AbilityTestGame<Spell> => {
   const { slots = SLOTS, world, mirror } = options;

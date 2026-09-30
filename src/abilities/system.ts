@@ -164,6 +164,10 @@ const mirrorReadsOf = <G extends AbilityTypes>(engine: AbilityEngine<G>): Mirror
         auras.add(button.costAura);
       }
 
+      if (button.toggle >= 0) {
+        auras.add(button.toggle);
+      }
+
       for (const tag of [...button.requires, ...button.blockedBy, ...button.resets]) {
         tags.add(tag);
       }

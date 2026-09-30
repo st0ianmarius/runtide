@@ -211,16 +211,28 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
     return engine.refuse('empty');
   }
 
-  if (button.toggle >= 0 && engine.auras.has(bearer, toId<'auras'>(button.toggle))) {
-    engine.auras.remove(bearer, toId<'auras'>(button.toggle));
-    engine.refusal = undefined;
+  if (button.toggle >= 0) {
+    if (engine.auras.has(bearer, toId<'auras'>(button.toggle))) {
+      engine.auras.remove(bearer, toId<'auras'>(button.toggle));
+      engine.refusal = undefined;
 
-    return true;
+      return true;
+    }
+
+    // Decided as held, so its rules went unasked: an earlier slot of this press took it off.
+    const rule = failedRule(engine, bearer, button);
+
+    if (rule !== undefined) {
+      return engine.refuse(rule);
+    }
   }
 
-  options.input = engine.input;
-  options.key = engine.key;
-  options.rank = record.ranks[slot] ?? 1;
+  const { input, key } = engine;
+  const rank = record.ranks[slot] ?? 1;
+
+  options.input = input;
+  options.key = key;
+  options.rank = rank;
 
   const refused = admission(engine, bearer, [spell, button]) ?? commit(engine, bearer, [spell, button]);
 
@@ -228,7 +240,11 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
     return engine.refuse(refused);
   }
 
+  // A press nested in `checkCast` or `activate` (a pet ordered along) used the same options.
   engine.refusal = undefined;
+  options.input = input;
+  options.key = key;
+  options.rank = rank;
   options.committed = !button.commitsOnCast;
   castCommitted(engine, bearer, spell);
   options.committed = false;
@@ -248,10 +264,10 @@ export const press = <G extends AbilityTypes>(
   pressed: number
 ): number => {
   const count = engine.slots.size;
-  const { refusals } = engine;
+  const { refusals, input, key } = engine;
   let accepted = 0;
 
-  for (let slot = 0; slot < count && pressed !== 0; slot++) {
+  for (let slot = 0; slot < count; slot++) {
     const bit = 1 << slot;
     const refusal = (pressed & bit) === 0 ? undefined : refusalAt(engine, bearer, slot);
 
@@ -266,6 +282,9 @@ export const press = <G extends AbilityTypes>(
     const bit = 1 << slot;
 
     if ((accepted & bit) !== 0) {
+      // A press nested in an earlier slot's hooks cleared these on its way out.
+      engine.input = input;
+      engine.key = key;
       accepted &= fire(engine, bearer, slot) ? ~0 : ~bit;
 
       if (refusals !== undefined) {

@@ -1,4 +1,5 @@
 import type { AuraId, AuraSystem, AuraTagId } from '../auras/index.ts';
+import { toId } from '../core/ids.ts';
 import { type ButtonActivation, isButton, type SpellId, type SpellSystem } from '../spells/index.ts';
 import type { AbilityTypes } from './ability-types.ts';
 
@@ -92,12 +93,12 @@ const compileButton = <G extends AbilityTypes>(state: Compiling<G>, def: ButtonA
     commitsOnCast: def.commitsOn === 'cast',
     costAura: cost === undefined ? -1 : checkAura(state, cost.aura),
     costStacks: cost?.stacks ?? 1,
-    requires: tagsOf(state, def.requires),
-    blockedBy: tagsOf(state, def.blockedBy),
-    resets: tagsOf(state, def.resets),
-    clears: tagsOf(state, def.clears),
+    requires: Object.freeze(tagsOf(state, def.requires)),
+    blockedBy: Object.freeze(tagsOf(state, def.blockedBy)),
+    resets: Object.freeze(tagsOf(state, def.resets)),
+    clears: Object.freeze(tagsOf(state, def.clears)),
     toggle: def.toggle === undefined ? -1 : checkAura(state, def.toggle),
-    applies: (def.applies ?? []).map((aura) => checkAura(state, aura))
+    applies: Object.freeze((def.applies ?? []).map((aura) => checkAura(state, aura)))
   });
 };
 
@@ -109,8 +110,9 @@ export const compileButtons = <G extends AbilityTypes>(
   spells: SpellSystem<G>,
   auras: AuraSystem<G>
 ): readonly (CompiledButton<G> | undefined)[] =>
-  spells.registry.ids.map((id: SpellId) => {
+  Array.from({ length: spells.registry.size }, (_unused, index) => {
     const { registry } = spells;
+    const id: SpellId = toId<'spells'>(index);
 
     if (registry.isRetired(id)) {
       return undefined;
