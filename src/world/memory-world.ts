@@ -1,17 +1,8 @@
 import { type Box, hypot, type Shape, type Vec2 } from '../math/index.ts';
 import { Placement } from './placement.ts';
 import { GridIndex, KdIndex, type PointIndex } from './point-index.ts';
-import type {
-  BodyMove,
-  Cluster,
-  DensestOptions,
-  PointPick,
-  QueryOptions,
-  RangeOptions,
-  SweepOptions,
-  WorldQuery,
-} from './query.ts';
-import { densest, type SearchParts, sweep } from './searches.ts';
+import type { BodyMove, PointPick, QueryOptions, RangeOptions, SweepOptions, WorldQuery } from './query.ts';
+import { type SearchParts, sweep } from './searches.ts';
 import { Selection } from './selection.ts';
 import { differentSides, type FoeRule, Selector } from './selector.ts';
 import { StaticGeometry, type StaticShape } from './statics.ts';
@@ -92,7 +83,7 @@ class World<Unit> implements MemoryWorld<Unit> {
         : new GridIndex(this.#table, { bounds: options.bounds, cell: options.cell ?? 4 });
     this.#isFoe = options.isFoe ?? differentSides;
     this.#selector = new Selector(this.#table, this.#index, this.#isFoe);
-    this.#parts = { table: this.#table, selector: this.#selector, selection: this.#selection, slots: [] };
+    this.#parts = { table: this.#table, selector: this.#selector, selection: this.#selection };
     this.isPositionClear = placement.isPositionClear;
     this.lineClear = placement.lineClear;
     this.clamp = placement.clamp;
@@ -180,9 +171,6 @@ class World<Unit> implements MemoryWorld<Unit> {
 
   readonly nearest = (from: Vec2, options: RangeOptions<Unit>, out: (Unit | undefined)[]): number =>
     this.#selector.write(this.#selection.around(from, options), out);
-
-  readonly densest = (from: Vec2, options: DensestOptions<Unit>, out: Cluster<Unit>): Cluster<Unit> =>
-    densest(this.#parts, [from, options], out);
 
   readonly sweep = (segment: readonly [Vec2, Vec2], options: SweepOptions<Unit>, out: (Unit | undefined)[]): number =>
     sweep(this.#parts, [segment, options], out);

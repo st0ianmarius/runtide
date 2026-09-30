@@ -53,17 +53,12 @@ export class Selector<Unit> {
     return this.#order;
   }
 
-  /** The slots the last `gather` kept, in no fixed order, valid up to its count. */
-  get gathered(): readonly number[] {
-    return this.#kept;
-  }
-
   /** The contact share of each selected slot of the last sweep, in order. */
   get contacts(): readonly number[] {
     return this.#contacts;
   }
 
-  /** Keeps the units that pass a selection's tests, unordered; returns how many (read them from `gathered`). */
+  /** Keeps the units that pass a selection's tests, unordered; returns how many. */
   gather(selection: Selection<Unit>): number {
     return this.#keep(selection, this.#index.search(this.#boxOf(selection), this.#candidates));
   }

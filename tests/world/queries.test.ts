@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import fc from 'fast-check';
 
 import { circle, lane, ring, vec2 } from '../../src/math/index.ts';
-import { type Cluster, createMemoryWorld, type MemoryWorld } from '../../src/world/index.ts';
+import { createMemoryWorld, type MemoryWorld } from '../../src/world/index.ts';
 
 /** A test unit: a name to read results by. */
 interface Mob {
@@ -160,7 +160,7 @@ describe('inside: the units a shape covers', () => {
   });
 });
 
-describe('nearest and densest', () => {
+describe('nearest', () => {
   it('finds the nearest within a range, the rim counting only when inclusive', () => {
     const { world } = worldOf([
       [1, 3, 0],
@@ -173,42 +173,6 @@ describe('nearest and densest', () => {
     assert.deepEqual(names(out, world.nearest(vec2(0, 0), { range: 3 }, out)), ['m2', 'm3']);
     assert.deepEqual(names(out, world.nearest(vec2(0, 0), { range: 3, inclusive: true }, out)), ['m2', 'm3', 'm1']);
     assert.deepEqual(names(out, world.nearest(vec2(0, 0), { range: 3, limit: 1 }, out)), ['m2']);
-  });
-
-  it('picks the candidate with the most units around it, with the cluster centroid', () => {
-    const { world } = worldOf([
-      [1, 1, 0],
-      [2, 10, 0],
-      [3, 11, 0],
-      [4, 10, 1],
-    ]);
-
-    const cluster: Cluster<Mob> = { unit: undefined, count: 0, x: 0, z: 0 };
-
-    world.densest(vec2(0, 0), { range: 20, radius: 2 }, cluster);
-    assert.equal(cluster.unit?.name, 'm2');
-    assert.equal(cluster.count, 3);
-    assert.ok(Math.abs(cluster.x - 31 / 3) < 1e-12 && Math.abs(cluster.z - 1 / 3) < 1e-12);
-  });
-
-  it('keeps the first highest candidate on ties, and scores only up to the cap', () => {
-    const { world } = worldOf([
-      [1, 5, 0],
-      [2, 6, 0],
-      [3, -5, 0],
-      [4, -6, 0],
-      [5, -7, 0],
-    ]);
-
-    const cluster: Cluster<Mob> = { unit: undefined, count: 0, x: 0, z: 0 };
-
-    world.densest(vec2(0, 0), { range: 20, radius: 1.5 }, cluster);
-    assert.equal(cluster.unit?.name, 'm4');
-    world.densest(vec2(0, 0), { range: 20, radius: 1.5, cap: 2 }, cluster);
-    assert.equal(cluster.unit?.name, 'm1');
-    assert.equal(cluster.count, 2);
-    world.densest(vec2(40, 40), { range: 1, radius: 1.5 }, cluster);
-    assert.equal(cluster.unit, undefined);
   });
 });
 

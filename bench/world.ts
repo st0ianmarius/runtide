@@ -1,6 +1,6 @@
 import { stream } from '../src/core/index.ts';
 import { circle, secondsInside, vec2 } from '../src/math/index.ts';
-import { type Cluster, createMemoryWorld, type MemoryWorld } from '../src/world/index.ts';
+import { createMemoryWorld, type MemoryWorld } from '../src/world/index.ts';
 
 /** A bench unit: its place, which it wanders from each tick. */
 interface Mob {
@@ -57,11 +57,9 @@ for (let id = 0; id < UNITS; id++) {
 const CROWD_NEAR = { side: 'foes', of: HERO, range: 30, limit: 1 } as const;
 const KD = worldOf('kd');
 const OUT: (Mob | undefined)[] = [];
-const CLUSTER: Cluster<Mob> = { unit: undefined, count: 0, x: 0, z: 0 };
 const CASTER = MOBS[0] ?? { x: 0, z: 0 };
 const FOES = { side: 'foes', of: CASTER } as const;
 const NEAR = { ...FOES, range: 10, limit: 1 } as const;
-const DENSE = { ...FOES, range: 15, radius: 3, cap: 16 } as const;
 const SWEEP = { ...FOES, radius: 0.5 } as const;
 const SEGMENT = [vec2(-20, 0), vec2(20, 0)] as const;
 const CIRCLE = circle(6, vec2(10, 10));
@@ -102,13 +100,6 @@ export const WORLD_TASKS: readonly (readonly [string, () => void, number])[] = [
     'world: nearest foe in 10 m (grid)',
     () => {
       worldCounter.found += GRID.nearest(CASTER, NEAR, OUT);
-    },
-    1,
-  ],
-  [
-    'world: densest r 3 in 15 m, cap 16 (grid)',
-    () => {
-      worldCounter.found += GRID.densest(CASTER, DENSE, CLUSTER).count;
     },
     1,
   ],

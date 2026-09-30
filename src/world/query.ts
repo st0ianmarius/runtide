@@ -54,30 +54,6 @@ export interface RangeOptions<Unit> extends QueryOptions<Unit> {
   readonly range: number;
 }
 
-/** The options of `densest`: the candidates within `range` of the point, each scored by the units within `radius`. */
-export interface DensestOptions<Unit> extends RangeOptions<Unit> {
-  /** How far around a candidate its cluster reaches. */
-  readonly radius: number;
-
-  /** The most candidates scored, taken in the query's order; all by default. */
-  readonly cap?: number;
-}
-
-/** What `densest` found: its best candidate, the size of its cluster, and the cluster's centroid. Reused. */
-export interface Cluster<Unit> {
-  /** The candidate at the heart of the densest cluster; `undefined` when nothing was in range. */
-  unit: Unit | undefined;
-
-  /** How many units the cluster holds, the candidate included. */
-  count: number;
-
-  /** The mean position of the cluster's units (the candidate's own position for a cluster of one). */
-  x: number;
-
-  /** The mean position's z. */
-  z: number;
-}
-
 /** The options of `sweep`: the moving body's radius, and whether it sweeps against the units' own motion. */
 export interface SweepOptions<Unit> extends QueryOptions<Unit> {
   /** The moving body's radius; 0 by default. */
@@ -171,9 +147,6 @@ export interface WorldQuery<Unit> {
 
   /** The units within `range` of `from`, nearest first unless ordered otherwise. */
   readonly nearest: (from: Vec2, options: RangeOptions<Unit>, out: (Unit | undefined)[]) => number;
-
-  /** The candidate within `range` of `from` with the most units around it (first highest on ties), into `out`. */
-  readonly densest: (from: Vec2, options: DensestOptions<Unit>, out: Cluster<Unit>) => Cluster<Unit>;
 
   /** The units a body moving `from → to` touches, in the order it reaches them (lower id on ties). */
   readonly sweep: (segment: readonly [Vec2, Vec2], options: SweepOptions<Unit>, out: (Unit | undefined)[]) => number;

@@ -14,8 +14,6 @@ export {
 
 export type {
   BodyMove,
-  Cluster,
-  DensestOptions,
   PointPick,
   QueryOptions,
   QueryOrder,
