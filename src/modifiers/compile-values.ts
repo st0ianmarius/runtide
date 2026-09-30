@@ -176,6 +176,11 @@ const curveParams = (curve: CompiledCurve | undefined): readonly (CompiledParam 
   }
 };
 
+/** The caster stats a compiled curve's parameters read, each once: what a conversion through it follows. */
+export const curveReads = (curve: CompiledCurve): readonly StatId[] => [
+  ...new Set(curveParams(curve).flatMap((param) => paramReads(param).casters))
+];
+
 /** Compiles a scaled value with a stat index (the table's own conversions use this while the table is built). */
 const compileScaledWith = (index: StatIndex, value: Scaled, options: CompileOptions = {}): CompiledScaled => {
   const state: Compiling = { index, options, what: options.what ?? 'A scaled value' };

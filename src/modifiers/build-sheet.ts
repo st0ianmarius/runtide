@@ -105,7 +105,9 @@ export const listFor = <Host>(into: Gathering<Host>, op: CompiledModifier['op'])
 /** Throws when stat-valued modifiers and derived terms make a stat follow itself. */
 const checkAcyclic = <Host>(sheet: Sheet<Host>, lists: readonly Gathering<Host>[]): void => {
   const follows = (stat: number): number[] => [
-    ...(sheet.tables.derivations[stat] ?? []).map((derivation) => derivation.from),
+    ...(sheet.tables.derivations[stat] ?? []).flatMap((derivation) =>
+      derivation.kind === 'converts' ? [derivation.from, ...derivation.reads] : [derivation.from]
+    ),
     ...[...(lists[stat]?.adds ?? []), ...(lists[stat]?.muls ?? []), ...(lists[stat]?.mins ?? [])]
       .filter((entry) => entry.valueKind === FROM_STAT)
       .map((entry) => entry.valueStat),

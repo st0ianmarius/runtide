@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { defineCurves, defineStats, linear, type StatDef } from '../../src/modifiers/index.ts';
+import {
+  add,
+  customCurve,
+  defineCurves,
+  defineStats,
+  linear,
+  scaled,
+  type StatDef
+} from '../../src/modifiers/index.ts';
 import { HASTE } from '../helpers/curves.ts';
 
 describe('the stat table', () => {
@@ -48,6 +56,22 @@ describe('the stat table', () => {
           b: { base: 0, kind: 'flat', derives: { from: 'c', per: 1 } },
           c: { base: 0, kind: 'flat' }
         }),
+      /derives from itself/
+    );
+  });
+
+  it('refuses a conversion whose curve parameters read the stat it converts into', () => {
+    const curves = defineCurves({ dr: customCurve((x, { k }) => x / (x + k), { k: scaled(1, add('armor', 1)) }) });
+
+    assert.throws(
+      () =>
+        defineStats(
+          {
+            rating: { base: 10, kind: 'flat', converts: { to: 'armor', curve: 'dr' } },
+            armor: { base: 0, kind: 'flat' }
+          },
+          { curves }
+        ),
       /derives from itself/
     );
   });

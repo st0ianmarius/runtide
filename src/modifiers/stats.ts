@@ -1,5 +1,5 @@
 import { createRegistry, type Registry } from '../core/index.ts';
-import { compileCurveWith } from './compile-values.ts';
+import { compileCurveWith, curveReads } from './compile-values.ts';
 import type { CompiledCurve } from './compiled.ts';
 import { type CurveRef, type CurveTable, NO_CURVES } from './curves.ts';
 import type { StatId, StatIndex } from './stat-id.ts';
@@ -74,6 +74,9 @@ export type Derivation =
 
       /** The compiled curve it goes through. */
       readonly curve: CompiledCurve;
+
+      /** The stats the curve's parameters read, which the conversion follows as it follows `from`. */
+      readonly reads: readonly StatId[];
     };
 
 /** The columns every stat table has, indexed by stat id. */
@@ -171,14 +174,22 @@ const buildDerivations = (stats: Registry<'stats', string, StatDef, StatColumn>,
       const what = `Stat ${stats.name(id)}, conversion`;
       const curve = compileCurveWith(index, converts.curve, { allowsTarget: false, what });
 
-      out[linked(index, stats.name(id), converts.to)]?.push({ kind: 'converts', from: id, curve });
+      out[linked(index, stats.name(id), converts.to)]?.push({
+        kind: 'converts',
+        from: id,
+        curve,
+        reads: curveReads(curve)
+      });
     }
   }
 
   return out;
 };
 
-/** Throws when derived terms form a cycle (a stat that, through derives and conversions, follows itself). */
+/**
+ * Throws when derived terms form a cycle (a stat that, through derives, conversions and the stats a conversion's
+ * curve parameters read, follows itself).
+ */
 const checkAcyclic = (derivations: readonly (readonly Derivation[])[], nameOf: (stat: number) => string): void => {
   const state = new Uint8Array(derivations.length);
 
@@ -195,6 +206,10 @@ const checkAcyclic = (derivations: readonly (readonly Derivation[])[], nameOf: (
 
     for (const derivation of derivations[stat] ?? []) {
       visit(derivation.from);
+
+      for (const read of derivation.kind === 'converts' ? derivation.reads : []) {
+        visit(read);
+      }
     }
 
     state[stat] = 2;
