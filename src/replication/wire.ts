@@ -5,6 +5,16 @@ export interface WireSource {
 
   /** Its names by id, a retired name keeping its slot. */
   readonly names: readonly string[];
+
+  /** Whether an id is retired (a registry's own `isRetired`): a retirement changes the checksum. */
+  isRetired?(id: number): boolean;
+
+  /**
+   * What else of an entry both sides must agree on, as a string: a cue's parameter kinds and scales, an aura's
+   * audience and prediction flag. Folded into the checksum, so a changed schema fails the handshake instead of
+   * decoding garbage. Nothing but the names when absent.
+   */
+  signature?(id: number): string;
 }
 
 /**
@@ -18,7 +28,7 @@ export interface WireTable {
   /** The names by id. */
   readonly names: readonly string[];
 
-  /** A 32-bit FNV-1a hash of the kind and the names in order, as eight hex digits. */
+  /** A 32-bit FNV-1a hash of the kind and each entry in order (its name, retirement and signature), as eight hex digits. */
   readonly checksum: string;
 }
 
@@ -44,10 +54,14 @@ const fnv1a = (text: string): string => {
 export const wireTableOf = (registry: WireSource): WireTable => {
   const names = Object.freeze([...registry.names]);
 
+  const entries = names.map((name, id) =>
+    [name, registry.isRetired?.(id) === true ? '†' : '', registry.signature?.(id) ?? ''].join('\t')
+  );
+
   return Object.freeze({
     kind: registry.kind,
     names,
-    checksum: fnv1a(`${registry.kind}\n${names.join('\n')}`)
+    checksum: fnv1a(`${registry.kind}\n${entries.join('\n')}`)
   });
 };
 

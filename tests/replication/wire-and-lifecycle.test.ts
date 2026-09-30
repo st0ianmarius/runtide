@@ -29,6 +29,20 @@ describe('wire tables', () => {
     assert.notEqual(wireTableOf({ kind: 'cues', names: ['slow', 'fast'] }).checksum, table.checksum);
   });
 
+  it('changes its checksum with a retirement or an entry’s signature, its names the same', () => {
+    const plain = wireTableOf({ kind: 'cues', names: ['hit', 'burst'] }).checksum;
+
+    assert.notEqual(
+      wireTableOf({ kind: 'cues', names: ['hit', 'burst'], isRetired: (id) => id === 1 }).checksum,
+      plain
+    );
+    assert.notEqual(
+      wireTableOf({ kind: 'cues', names: ['hit', 'burst'], signature: (id) => (id === 0 ? 'size:u8' : '') }).checksum,
+      plain
+    );
+    assert.equal(wireTableOf({ kind: 'cues', names: ['hit', 'burst'], signature: () => '' }).checksum, plain);
+  });
+
   it('passes an append and refuses a move or a removal', () => {
     const table = wireTableOf({ kind: 'spells', names: ['bolt', 'nova', 'wave'] });
 
