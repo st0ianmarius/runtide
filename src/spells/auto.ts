@@ -43,9 +43,35 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
 };
 
 /**
- * Steps a caster's armed `auto` clocks by one step, in registry order: each counts down, and one
- * that ran out casts its spell. After the cast the clock is set, with no carry-over, to what its
- * activation's `next` answers (`autoNext` by default: the interval read at the cast, or the next step). A clock whose activation says the caster is not `ready` waits at zero, casting nothing. A caster with
+ * Counts one armed clock down (its index in `autos`); the spell's activation when the clock ran out and the caster is
+ * `ready`, so the spell casts, else `undefined`.
+ */
+const countClock = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  caster: G['bearer'],
+  index: number,
+): AutoActivation<G> | undefined => {
+  const record = recordOf(caster);
+  const left = countDown(record.clocks[index] ?? 0, engine.clock.dt);
+
+  record.clocks[index] = left;
+
+  if (!isRunOut(left)) {
+    return undefined;
+  }
+
+  const spell = record.autos[index];
+  const activation = spell === undefined ? undefined : autoOf(engine, spell);
+
+  return activation === undefined || activation.ready?.(caster) === false ? undefined : activation;
+};
+
+/**
+ * Steps a caster's armed `auto` clocks by one step, in registry order: each counts down, and one that ran out casts
+ * its spell. After the cast the clock is set, with no carry-over, to what its activation's `next` answers (`autoNext`
+ * by default: the interval read at the cast, or the next step). A clock whose activation says the caster is not
+ * `ready` waits at zero, casting nothing. The walk goes by spell, not by index, since a cast may arm or disarm clocks:
+ * one armed during it after the spell that cast is stepped too, as it would have been armed before. A caster with
  * nothing armed costs one length check.
  */
 export const stepAutoClocks = <G extends SpellTypes>(
@@ -54,28 +80,20 @@ export const stepAutoClocks = <G extends SpellTypes>(
   cast: (caster: G['bearer'], spell: SpellId) => Report<G>,
 ): void => {
   const record = recordOf(caster);
-  const { autos, clocks } = record;
-  const { dt } = engine.clock;
+  let index = 0;
+  let spell = record.autos[0];
 
-  for (let i = 0; i < autos.length; i++) {
-    const spell = autos[i];
-    const left = countDown(clocks[i] ?? 0, dt);
+  while (spell !== undefined) {
+    const activation = countClock(engine, caster, index);
 
-    clocks[i] = left;
+    if (activation !== undefined) {
+      const report = cast(caster, spell);
 
-    if (spell === undefined || !isRunOut(left)) {
-      continue;
+      record.settle(spell, nextOf(engine, caster, [spell, activation, report]));
     }
 
-    const activation = autoOf(engine, spell);
-
-    if (activation.ready?.(caster) === false) {
-      continue;
-    }
-
-    const report = cast(caster, spell);
-
-    record.settle(spell, report.interval, nextOf(engine, caster, [spell, activation, report]));
+    index = record.after(spell);
+    spell = record.autos[index];
   }
 };
 

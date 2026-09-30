@@ -22,9 +22,6 @@ export class CasterRecord implements CasterState {
   /** The seconds left on each armed spell's clock, by its index in `autos`. */
   readonly clocks: number[] = [];
 
-  /** The interval each armed spell last read at a cast, by the same index; 0 before its first. */
-  readonly intervals: number[] = [];
-
   /** How many casts run. */
   count = 0;
 
@@ -47,22 +44,35 @@ export class CasterRecord implements CasterState {
 
     this.autos.splice(index, 0, spell);
     this.clocks.splice(index, 0, seconds);
-    this.intervals.splice(index, 0, 0);
 
     return true;
   }
 
   /**
-   * Sets an armed clock after its cast: the interval the cast read (none when NaN) and the seconds it now has left.
-   * The cast may have disarmed clocks (a proc of the game's), so the clock is found again by its spell.
+   * Sets an armed clock after its cast to the seconds it now has left. The cast may have armed or disarmed clocks (a
+   * proc of the game's), so the clock is found again by its spell.
    */
-  settle(spell: SpellId, interval: number, left: number): void {
+  settle(spell: SpellId, left: number): void {
     const index = this.autos.indexOf(spell);
 
     if (index >= 0) {
-      this.intervals[index] = Number.isNaN(interval) ? (this.intervals[index] ?? 0) : interval;
       this.clocks[index] = left;
     }
+  }
+
+  /** The index of the first armed spell after `spell` in registry order, or how many are armed. */
+  after(spell: SpellId): number {
+    const { autos } = this;
+
+    for (let i = 0; i < autos.length; i++) {
+      const armed = autos[i];
+
+      if (armed !== undefined && armed > spell) {
+        return i;
+      }
+    }
+
+    return autos.length;
   }
 
   /** Disarms a spell's clock; false when it was not armed. */
@@ -75,7 +85,6 @@ export class CasterRecord implements CasterState {
 
     this.autos.splice(index, 1);
     this.clocks.splice(index, 1);
-    this.intervals.splice(index, 1);
 
     return true;
   }

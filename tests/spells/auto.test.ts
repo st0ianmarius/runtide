@@ -216,6 +216,35 @@ describe('auto clocks', () => {
     assert.throws(() => autoGame({ bad: spell({ activation, release: () => [] }) }), /next is a function/);
   });
 
+  it('steps every other clock once when a cast disarms its own or arms another', () => {
+    const late: { disarm?: () => void; arm?: () => void } = {};
+
+    const game = autoGame({
+      opener: spell({
+        activation: { kind: 'auto', interval: 1 },
+
+        release: () => {
+          late.disarm?.();
+          late.arm?.();
+
+          return [mark('opener')];
+        },
+      }),
+      swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('swing')] }),
+      volley: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('volley')] }),
+    });
+
+    late.disarm = () => void game.spells.disarm(game.a, game.id.opener);
+    late.arm = () => void game.spells.arm(game.a, game.id.volley, 0.5);
+    game.spells.disarm(game.a, game.id.volley);
+    game.advance(1);
+    assert.deepEqual(
+      game.log.filter((line) => !line.includes(' ') && !line.startsWith('t')),
+      ['opener@1', 'swing@1'],
+    );
+    assert.equal(game.spells.autoClock(game.a, game.id.volley), 0.25);
+  });
+
   it('reads 0 for a spell that is not auto', () => {
     const game = autoGame({ bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined }) });
 
