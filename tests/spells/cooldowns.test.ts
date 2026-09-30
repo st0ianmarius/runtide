@@ -88,6 +88,18 @@ describe('a spell’s cooldowns', () => {
       [game.spells.check(hero, game.id.dash), game.spells.cooldownLeft(hero, game.id.dash)],
       ['cooldown', 1]
     );
+
+    const other = game.unit(2);
+
+    game.spells.cast(other, game.id.dash);
+
+    for (let i = 0; i < 2; i++) {
+      game.step();
+      game.auras.tick(other, 'world');
+    }
+
+    game.spells.cast(other, game.id.dash);
+    assert.equal(game.spells.cooldownLeft(other, game.id.dash), 1 - 2 * game.clock.dt);
     assert.throws(
       () =>
         makeSpellGame(

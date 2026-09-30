@@ -30,8 +30,11 @@ export const hitCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: Ca
     engine.giveList(list);
   }
 
-  engine.raise('hit', cast, hit);
-  engine.unhold(cast);
+  try {
+    engine.raise('hit', cast, hit);
+  } finally {
+    engine.unhold(cast);
+  }
 
   return went;
 };

@@ -19,6 +19,15 @@ import { autoIntervalOf, refreshLive, takeStats } from './take-stats.ts';
  */
 export const isEnded = <G extends SpellTypes>(cast: Cast<G>): boolean => cast.stage === 'ended';
 
+/** A cast's rank, checked: a whole number from 1 (above the spell's ranks, its stats read the top one). */
+const rankFor = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId, rank: number): number => {
+  if (!Number.isInteger(rank) || rank < 1) {
+    throw new RangeError(`${engine.registry.name(spell)} cast at rank ${rank}: a rank is a whole number from 1.`);
+  }
+
+  return rank;
+};
+
 /** Sets a fresh cast's fields from its options. */
 const initCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -29,7 +38,7 @@ const initCast = <G extends SpellTypes>(
   const casterId = engine.host.idOf?.(cast.caster) ?? NO_SOURCE;
 
   cast.spell = parts.spell;
-  cast.rank = options.rank ?? engine.host.rankOf?.(cast.caster, parts.spell) ?? 1;
+  cast.rank = rankFor(engine, parts.spell, options.rank ?? engine.host.rankOf?.(cast.caster, parts.spell) ?? 1);
   cast.input = options.input;
   cast.casterId = casterId;
   cast.source = options.source ?? casterId;
@@ -184,19 +193,22 @@ export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast
   const def = engine.registry.get(cast.spell);
 
   cast.holds += 1;
-  refreshLive(engine, cast, def);
   cast.stage = 'ended';
   cast.outcome = outcome;
   cast.remaining = 0;
   recordOf(cast.caster).remove(cast.cast);
-  engine.fire(cast, def.cues?.end?.(cast, outcome));
-  runEnd(engine, cast);
 
-  if (cast.hasStarted) {
-    engine.raise('end', cast);
+  try {
+    refreshLive(engine, cast, def);
+    engine.fire(cast, def.cues?.end?.(cast, outcome));
+    runEnd(engine, cast);
+
+    if (cast.hasStarted) {
+      engine.raise('end', cast);
+    }
+  } finally {
+    engine.unhold(cast);
   }
-
-  engine.unhold(cast);
 };
 
 /** After the payload (the release, or the channel's end): the recovery when the spell has one, else the end. */
@@ -205,6 +217,10 @@ export const afterPayload = <G extends SpellTypes>(
   cast: Cast<G>,
   outcome: CastOutcome<G>
 ): void => {
+  if (cast.stage === 'ended') {
+    return;
+  }
+
   cast.outcome = outcome;
 
   const recover = engine.plans[cast.spell]?.recover;
@@ -323,8 +339,29 @@ export const startCast = <G extends SpellTypes>(
   const def = engine.registry.get(request.spell);
   const cast = engine.acquire(request.caster);
 
-  initCast(engine, cast, request);
+  try {
+    initCast(engine, cast, request);
 
+    return runStart(engine, [cast, def], report);
+  } catch (error) {
+    // A hook threw: the cast stops where it is, with no more hooks, and goes back to the pool.
+    if (cast.stage !== 'ended') {
+      cast.stage = 'ended';
+      recordOf(cast.caster).remove(cast.cast);
+    }
+
+    engine.unhold(cast);
+
+    throw error;
+  }
+};
+
+/** The cast order of `startCast` on its fresh cast, which it lets go of when done. */
+const runStart = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  [cast, def]: readonly [Cast<G>, AnySpellDef<G>],
+  report: Report<G>
+): Report<G> => {
   const refusal = admit(engine, cast, def);
   const interval = autoIntervalOf(engine, cast, def);
 

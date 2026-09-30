@@ -110,7 +110,7 @@ export class DelayedProcs<G extends SpellTypes> {
   }
 
   /**
-   * Schedules a list for the origin of the running proc context, held by the cast whose procs are running (if any),
+   * Schedules a list for the origin of the running proc context, held by the cast the running list belongs to (if any),
    * due `seconds` from now or from the landing list's due time.
    */
   schedule(ctx: ProcContext<G>, spec: DelaySpec<G>): void {
@@ -133,7 +133,7 @@ export class DelayedProcs<G extends SpellTypes> {
     record.anchor = parent?.anchor ?? engine.clock.tick;
     record.offset = (parent?.offset ?? 0) + spec.seconds;
     record.slot = spec.slot ?? parent?.slot ?? 0;
-    record.cast = engine.current;
+    record.cast = engine.castFor(ctx);
     record.index = this.#live.length;
     this.#live.push(record);
 
@@ -218,9 +218,8 @@ export class DelayedProcs<G extends SpellTypes> {
     } finally {
       engine.current = current;
       this.landing = landing;
+      this.#release(record);
     }
-
-    this.#release(record);
   }
 
   /** Lets go of a list that has not landed: out of the live list, then released. */

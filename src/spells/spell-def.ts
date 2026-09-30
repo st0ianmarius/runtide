@@ -159,8 +159,14 @@ export interface SpellContext<
   /** Whether its stage is paused (by `spells.pause` or an interrupt), so it does not count down. */
   readonly isPaused: boolean;
 
-  /** How it ended, or is ending: `undefined` until its payload went out or it was stopped. */
+  /**
+   * How it ended, or is ending: `undefined` until its payload went out or it was stopped. A cast stopped in its
+   * recovery ends `cancelled` although its payload went out: `hasReleased` tells the two apart.
+   */
   readonly outcome: CastOutcome<G> | undefined;
+
+  /** Whether its payload went out (its `release` ran): true through its recovery, and after, however it ended. */
+  readonly hasReleased: boolean;
 
   /** The tick it started on. */
   readonly startTick: number;

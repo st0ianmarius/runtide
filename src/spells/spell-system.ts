@@ -1,6 +1,7 @@
 import type { AuraId } from '../auras/index.ts';
 import type { TickSlotId } from '../core/index.ts';
 import type { StatId } from '../modifiers/index.ts';
+import type { ProcContext } from '../procs/index.ts';
 import type { ClockScale } from './auto.ts';
 import type { CastOptions, CastRefusal, CastReport } from './cast-request.ts';
 import type { CasterState } from './caster.ts';
@@ -184,6 +185,12 @@ export interface SpellSystem<G extends SpellTypes> {
    * itself).
    */
   readonly current: CastHandle;
+
+  /**
+   * The cast a proc list running in `ctx` belongs to (what it spawns and summons is held by): `current`, unless the list
+   * is an aura's (its hooks, its triggers), which belongs to no cast, even one landing the aura now. `NO_CAST` for none.
+   */
+  readonly castFor: (ctx: Pick<ProcContext<G>, 'aura'>) => CastHandle;
 
   /**
    * Keeps a cast's record alive after it ends (its area triggers and summons live on), until as many

@@ -137,13 +137,51 @@ export class Cooldowns<G extends SpellTypes> {
     for (let i = 0; i < list.length; i++) {
       const cooldown = list[i];
 
-      most =
-        cooldown === undefined || !this.#holds(caster, cooldown)
-          ? most
-          : Math.max(most, this.#auras.remaining(caster, cooldown.aura));
+      if (cooldown !== undefined && this.#holds(caster, cooldown)) {
+        most = Math.max(
+          most,
+          cooldown.charges === 1 ? this.#auras.remaining(caster, cooldown.aura) : this.#chargeLeft(caster, cooldown)
+        );
+      }
     }
 
     return most;
+  }
+
+  /**
+   * The seconds until a charged cooldown frees a charge: until enough of its aura's instances run out, soonest first,
+   * that the stacks left fall below its charges.
+   */
+  #chargeLeft(caster: G['bearer'], cooldown: CompiledCooldown<G>): number {
+    const auras = this.#auras;
+    const list = auras.list(caster);
+    let held = auras.stacks(caster, cooldown.aura);
+    let at = 0;
+
+    while (held >= cooldown.charges) {
+      let next = Number.POSITIVE_INFINITY;
+      let going = 0;
+
+      for (const item of list) {
+        const left = item.id === cooldown.aura ? auras.remainingOf(caster, item) : 0;
+
+        if (left > at && left < next) {
+          next = left;
+          going = item.stacks;
+        } else if (left > at && left === next) {
+          going += item.stacks;
+        }
+      }
+
+      if (going === 0) {
+        return next === Number.POSITIVE_INFINITY ? auras.remaining(caster, cooldown.aura) : next;
+      }
+
+      held -= going;
+      at = next;
+    }
+
+    return at;
   }
 
   /** Whether any of a spell's cooldowns reads its seconds from a cast (a function), so starting them needs one. */

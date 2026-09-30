@@ -184,6 +184,8 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     return this.#engine.current?.cast ?? NO_CAST;
   }
 
+  readonly castFor = (ctx: { readonly aura: unknown }): CastHandle => this.#engine.castFor(ctx)?.cast ?? NO_CAST;
+
   readonly retain = (cast: CastHandle): boolean => holdCast(this.#engine, cast);
 
   readonly unretain = (cast: CastHandle): void => {

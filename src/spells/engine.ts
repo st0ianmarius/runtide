@@ -215,6 +215,14 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     }
   }
 
+  /**
+   * The cast a proc list running in `ctx` belongs to: the running cast, unless the list is an aura's (its hooks, its
+   * triggers), which belongs to its bearer and no cast, even one landing it now (a victim's thorns, a death burst).
+   */
+  castFor(ctx: { readonly aura: unknown }): Cast<G> | undefined {
+    return ctx.aura === undefined ? this.current : undefined;
+  }
+
   readonly applyFor = (cast: Cast<G>, proc: Proc<G>): ProcOutcome => {
     const outer = this.current;
 

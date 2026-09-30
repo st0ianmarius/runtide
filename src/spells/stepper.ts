@@ -94,8 +94,15 @@ const beatsDue = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, e
  */
 const stepChannel = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
   if (engine.defOf(cast.spell).timeline?.channel?.breakIf?.(cast, cast.target) === true) {
-    afterPayload(engine, cast, 'broken');
+    // A `breakIf` that cancelled or finished the cast itself leaves it where it went.
+    if (cast.stage === 'channel') {
+      afterPayload(engine, cast, 'broken');
+    }
 
+    return;
+  }
+
+  if (cast.stage !== 'channel') {
     return;
   }
 
@@ -161,6 +168,17 @@ const snapshot = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['beare
   return handles;
 };
 
+/** Steps one cast, held so it outlives its own step's hooks. */
+const stepHeld = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
+  cast.holds += 1;
+
+  try {
+    stepCast(engine, cast);
+  } finally {
+    engine.unhold(cast);
+  }
+};
+
 /**
  * Steps every cast a caster runs by one step of the clock, in the order they started (stepped per caster so the
  * game keeps its own per-unit order; pausing is not counting down). A cast started during the step waits for the next.
@@ -179,9 +197,7 @@ export const stepCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caster:
       const cast = engine.castOf(handles[i] ?? NO_CAST);
 
       if (cast !== undefined && !isEnded(cast)) {
-        cast.holds += 1;
-        stepCast(engine, cast);
-        engine.unhold(cast);
+        stepHeld(engine, cast);
       }
     }
   } finally {
@@ -276,8 +292,12 @@ export const finishCast = <G extends SpellTypes>(
   }
 
   cast.holds += 1;
-  afterPayload(engine, cast, outcome);
-  engine.unhold(cast);
+
+  try {
+    afterPayload(engine, cast, outcome);
+  } finally {
+    engine.unhold(cast);
+  }
 
   return true;
 };

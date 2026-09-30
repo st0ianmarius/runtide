@@ -249,6 +249,73 @@ describe('pooled casts', () => {
     assert.equal(game.spells.get(outer), undefined);
     assert.equal(game.spells.isRunning(outer), false);
   });
+
+  it('stops a cast whose hook throws where it is, and gives its record back', () => {
+    const game = makeSpellGame({
+      bolt: spell({
+        activation: { kind: 'trigger' },
+        timeline: { windup: { seconds: () => -0.1 } },
+        release: () => [mark('bolt released')]
+      }),
+      boom: spell({
+        activation: { kind: 'trigger' },
+
+        begin: () => {
+          throw new Error('game bug');
+        },
+
+        release: () => [mark('boom released')]
+      })
+    });
+
+    const hero = game.unit(1);
+
+    assert.throws(() => game.spells.cast(hero, game.id.bolt), /finite number of seconds/);
+    assert.throws(() => game.spells.cast(hero, game.id.boom), /game bug/);
+    game.spells.step(hero);
+    assert.deepEqual([game.spells.isCasting(hero), game.spells.pool.live, game.log], [false, 0, []]);
+  });
+
+  it('leaves a channel that breakIf cancelled cancelled, with no recovery', () => {
+    const game = makeSpellGame({
+      beam: spell({
+        activation: { kind: 'trigger' },
+
+        timeline: {
+          channel: {
+            seconds: 2,
+
+            breakIf: (ctx) => {
+              game.spells.cancel(ctx.cast);
+
+              return true;
+            }
+          },
+          recover: { seconds: 1 }
+        },
+
+        release: () => undefined
+      })
+    });
+
+    const hero = game.unit(1);
+    const { handle } = game.spells.cast(hero, game.id.beam);
+
+    game.spells.step(hero);
+    assert.deepEqual([game.spells.isRunning(handle), game.spells.pool.live], [false, 0]);
+    assert.equal(game.log.at(-1), 'end beam@1 cancelled');
+  });
+
+  it('refuses a rank that is not a whole number from 1', () => {
+    const game = makeSpellGame({ bolt });
+    const hero = game.unit(1);
+
+    for (const rank of [0, 1.5, Number.NaN]) {
+      assert.throws(() => game.spells.cast(hero, game.id.bolt, { rank }), /a rank is a whole number from 1/);
+    }
+
+    assert.equal(game.spells.pool.live, 0);
+  });
 });
 
 describe('stats (decision 2)', () => {

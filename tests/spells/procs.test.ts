@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { defineTickSlots } from '../../src/core/index.ts';
 import { damage } from '../../src/damage/index.ts';
-import { escapeReport, explainProc, run } from '../../src/procs/index.ts';
+import { applyAura, escapeReport, explainProc, run } from '../../src/procs/index.ts';
 import { after, castSpell, CORE_ACTIVATIONS, defineActivationKind, defineActivations } from '../../src/spells/index.ts';
 import { aura, type Charged, type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
 
@@ -307,5 +307,36 @@ describe('the escape report', () => {
     assert.deepEqual(report.activationKinds, ['charged']);
     assert.deepEqual(escapeReport({ procs, damage, areaTriggers }).procKinds, ['castSpell', 'after', 'rescaleClocks']);
     assert.deepEqual(escapeReport({ procs, damage, spells }).procKinds, ['spawn', 'despawnOwned']);
+  });
+});
+
+describe('the cast a proc list belongs to', () => {
+  it('credits an aura’s hooks to no cast, even while a cast lands the aura', () => {
+    const game = makeSpellGame(
+      {
+        bolt: spell({
+          activation: { kind: 'trigger' },
+          target: (ctx) => ctx.input,
+          release: (_ctx, target) => (target === undefined ? undefined : [applyAura<Game>('thorns', { to: target })])
+        }),
+        retort: spell({ activation: { kind: 'trigger' }, release: (ctx) => [mark(`retort rank ${ctx.rank}`)] })
+      },
+      {
+        auras: {
+          thorns: aura({
+            duration: 'infinite',
+            onApplied: () => [after<Game>(1, [mark('late')]), castSpell<Game>('retort')]
+          })
+        }
+      }
+    );
+
+    const hero = game.unit(1);
+    const victim = game.unit(100);
+
+    game.spells.cast(hero, game.id.bolt, { input: victim, rank: 5 });
+    assert.ok(game.log.includes('retort rank 1@100'));
+    assert.equal(game.spells.withdrawDelayed(hero), 0);
+    assert.equal(game.spells.withdrawDelayed(victim), 1);
   });
 });

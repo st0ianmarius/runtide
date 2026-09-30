@@ -61,7 +61,7 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
         return PROC_SKIPPED;
       }
 
-      const parent = engine.current;
+      const parent = engine.castFor(ctx);
 
       options.input = proc.inputOf === undefined ? proc.input : proc.inputOf(ctx);
       options.rank = proc.rank ?? parent?.rank;

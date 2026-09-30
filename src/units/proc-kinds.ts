@@ -112,7 +112,7 @@ const spawnSummon = <G extends UnitTypes>(
   });
 
   const { spells } = parts.engine.options;
-  const cast = spells.current;
+  const cast = spells.castFor(ctx);
 
   if (cast !== NO_CAST && spells.retain(cast)) {
     unitOf<G>(unit).cast = cast;
