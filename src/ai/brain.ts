@@ -1,13 +1,10 @@
 /**
- * What the AI system keeps on a unit (`AiBearer.brain`): its timers, its focus and its last pick. The game reads the
- * focus and the last pick here, and changes them through the system; where a unit wants to go is the game's own.
+ * What the AI system keeps on a unit (`AiBearer.brain`): its timers and its focus. The game reads the focus here,
+ * and changes it through the system; where a unit wants to go is the game's own.
  */
 export interface BrainState {
   /** The entity id of the unit it focuses (a tether's target, a sticky target); −1 for none. */
   readonly focus: number;
-
-  /** The spell it last picked (`ai.pick`); −1 before its first. */
-  readonly lastPick: number;
 }
 
 /** A brain's record: a class for fast properties, its timer columns typed arrays. */
@@ -28,7 +25,6 @@ export class Brain implements BrainState {
   holds = 0;
 
   focus = -1;
-  lastPick = -1;
 
   constructor(slot: number, timers: number) {
     this.slot = slot;

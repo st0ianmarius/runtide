@@ -39,35 +39,22 @@ const picking = () => {
   return { ...game, beast, pool, gate, weight, slam, bolt, nova };
 };
 
-describe('the weighted anti-repeat picker', () => {
+describe('the weighted picker', () => {
   it('draws in proportion to the game’s weights, over the spells that would start', () => {
     const { ai, beast, pool, gate, weight, slam, bolt, nova } = picking();
 
-    assert.equal(ai.pick(beast, pool, { random: fixed(0), weight, repeat: 'allow' }), slam);
-    assert.equal(ai.pick(beast, pool, { random: fixed(0.2), weight, repeat: 'allow' }), bolt);
-    assert.equal(ai.pick(beast, pool, { random: fixed(0.6), weight, repeat: 'allow' }), nova);
+    assert.equal(ai.pick(beast, pool, { random: fixed(0), weight }), slam);
+    assert.equal(ai.pick(beast, pool, { random: fixed(0.2), weight }), bolt);
+    assert.equal(ai.pick(beast, pool, { random: fixed(0.6), weight }), nova);
     gate.isOpen = false;
-    assert.equal(ai.pick(beast, pool, { random: fixed(0.99), weight, repeat: 'allow' }), bolt);
-    assert.equal(beast.brain.lastPick, bolt);
-  });
-
-  it('leaves the last pick out while another fits, and picks it when it is the only one', () => {
-    const { ai, beast, pool, weight, bolt, slam } = picking();
-
-    ai.pick(beast, pool, { random: fixed(0.2), weight });
-    assert.equal(
-      ai.pick(beast, pool, { random: fixed(0), weight: (_unit, spell) => (spell === slam ? 0 : 1) }),
-      pool[2],
-    );
-    assert.equal(ai.pick(beast, [bolt], { random: fixed(0.5) }), bolt);
-    assert.equal(ai.pick(beast, [bolt], { random: fixed(0.5) }), bolt);
+    assert.equal(ai.pick(beast, pool, { random: fixed(0.99), weight }), bolt);
   });
 
   it('takes the game’s filter (a budget), weighs 1 by default, and answers none when nothing fits', () => {
     const { ai, beast, pool, slam, bolt } = picking();
     const allows = (_unit: unknown, spell: SpellId) => spell !== bolt;
 
-    assert.equal(ai.pick(beast, pool, { random: fixed(0.3), allows, repeat: 'allow' }), slam);
+    assert.equal(ai.pick(beast, pool, { random: fixed(0.3), allows }), slam);
     assert.equal(ai.pick(beast, pool, { random: fixed(0.3), weight: () => 0 }), undefined);
     assert.equal(ai.pick(beast, [], { random: fixed(0.3) }), undefined);
   });
@@ -79,7 +66,6 @@ describe('the weighted anti-repeat picker', () => {
     gate.isOpen = false;
     assert.equal(ai.first(beast, [nova, slam]), slam);
     assert.equal(ai.first(beast, [nova, slam], { allows: () => false }), undefined);
-    assert.equal(beast.brain.lastPick, -1);
   });
 });
 

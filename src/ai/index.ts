@@ -1,6 +1,6 @@
 /**
  * The AI toolkit: what every creature brain is built from, kept small and general. Named timers on a
- * timing wheel (`defineTimers`, `ai.start`, `ai.step`), one weighted anti-repeat spell picker reading each spell's
+ * timing wheel (`defineTimers`, `ai.start`, `ai.step`), one weighted spell picker reading each spell's
  * cast rules (`ai.pick`, `ai.first`), and a focus procs may set. Reactions, budgets, target policies and movement
  * are the game's: a brain combines these parts as it needs.
  */

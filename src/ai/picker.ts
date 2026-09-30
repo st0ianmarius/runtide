@@ -1,7 +1,6 @@
 import type { Random } from '../core/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
 import type { AiTypes } from './ai-types.ts';
-import { brainOf } from './brain.ts';
 
 /**
  * How a pick is made: every part but the draw is optional, and a game makes one set per kind
@@ -22,16 +21,12 @@ export interface PickOptions<G extends AiTypes> {
 
   /** Whether a spell may be picked now: a budget, a gap the game keeps. Every spell may when absent. */
   readonly allows?: (caster: G['bearer'], spell: SpellId) => boolean;
-
-  /** `avoid` (the default) leaves the last pick out while another spell fits; `allow` does not. */
-  readonly repeat?: 'avoid' | 'allow';
 }
 
 /**
- * The one weighted anti-repeat picker: over a pool of spells, each fitting one (a weight above
- * 0, allowed, and one that would start: `spells.check`, so range, sight and the gates are the spell's own) is drawn
- * with a chance in proportion to its weight, the caster's last pick left out while another fits. Deterministic for a
- * given draw; notes the pick on the caster's brain.
+ * The one weighted picker: over a pool of spells, each fitting one (a weight above 0, allowed, and one that would
+ * start: `spells.check`, so range, sight and the gates are the spell's own) is drawn with a chance in proportion to
+ * its weight. Deterministic for a given draw. Leaving out the last pick is the game's, through its `weight`.
  */
 export class Picker<G extends AiTypes> {
   readonly #spells: SpellSystem<G>;
@@ -43,37 +38,19 @@ export class Picker<G extends AiTypes> {
 
   /** Picks a spell from `pool` for `caster`, or `undefined` when none fits. */
   pick(caster: G['bearer'], pool: readonly SpellId[], options: PickOptions<G>): SpellId | undefined {
-    const brain = brainOf(caster.brain);
     const weights = this.#weigh(caster, pool, options);
     let total = 0;
-    let fits = 0;
 
     for (let i = 0; i < pool.length; i++) {
-      const weight = weights[i] ?? 0;
-
-      total += weight;
-      fits += weight > 0 ? 1 : 0;
+      total += weights[i] ?? 0;
     }
 
-    const last = options.repeat === 'allow' || fits < 2 ? -1 : indexOfPick(pool, brain.lastPick);
-
-    if (last >= 0 && (weights[last] ?? 0) > 0) {
-      total -= weights[last] ?? 0;
-      weights[last] = 0;
-    }
-
-    const spell = draw(pool, weights, total * options.random());
-
-    if (spell !== undefined) {
-      brain.lastPick = spell;
-    }
-
-    return spell;
+    return draw(pool, weights, total * options.random());
   }
 
   /**
    * The first spell of an ordered list that would start now (a reaction's forced cast before the picker),
-   * allowed when `allows` says so; `undefined` when none would. Does not change the last pick.
+   * allowed when `allows` says so; `undefined` when none would.
    */
   first(
     caster: G['bearer'],
@@ -119,17 +96,6 @@ export class Picker<G extends AiTypes> {
     return this.#spells.check(caster, spell, options.input === undefined ? undefined : options) === undefined;
   }
 }
-
-/** Where a last pick sits in a pool; −1 when it is not there. */
-const indexOfPick = (pool: readonly SpellId[], last: number): number => {
-  for (let i = 0; i < pool.length; i++) {
-    if (pool[i] === last) {
-      return i;
-    }
-  }
-
-  return -1;
-};
 
 /** The spell whose share of the weights a point on `[0, total)` falls in; `undefined` for a total of 0. */
 const draw = (pool: readonly SpellId[], weights: Float64Array, point: number): SpellId | undefined => {

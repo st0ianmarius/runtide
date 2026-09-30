@@ -30,7 +30,7 @@ export interface AiSystemOptions<G extends AiTypes> {
 
 /**
  * An AI system: the toolkit every brain is built from, and nothing more. Named timers on a timing wheel
- * (TrinityCore's `EventMap`), one weighted anti-repeat spell picker that reads each spell's own cast rules, a focus
+ * (TrinityCore's `EventMap`), one weighted spell picker that reads each spell's own cast rules, a focus
  * the procs may set. What a brain decides with them (its reactions, its budget, its target policy, its movement) is
  * the game's.
  */
