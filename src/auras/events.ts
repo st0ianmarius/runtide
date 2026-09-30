@@ -74,7 +74,7 @@ export interface EventParts<G extends AuraTypes> {
         readonly bus: AuraEventBus;
 
         /** The aura event kind on it. */
-        readonly kind: EventKind<AuraEvent<G>>;
+        readonly changed: EventKind<AuraEvent<G>>;
       }
     | undefined;
 
@@ -216,7 +216,7 @@ export class AuraEvents<G extends AuraTypes> {
   #isHeard(code: number, id: number): boolean {
     const events = this.#parts.events;
 
-    return this.#heard[code]?.has(id) === true || events?.bus.hears(events.kind) === true;
+    return this.#heard[code]?.has(id) === true || events?.bus.hears(events.changed) === true;
   }
 
   /** Queues one event, unless the bearer is silent; true when it was queued. */
@@ -313,18 +313,18 @@ export class AuraEvents<G extends AuraTypes> {
   #publish(i: number, bearer: G['bearer'], item: AuraItem<G>): void {
     const events = this.#parts.events;
 
-    if (events === undefined || !events.bus.hears(events.kind)) {
+    if (events === undefined || !events.bus.hears(events.changed)) {
       return;
     }
 
-    const payload = events.bus.payload(events.kind);
+    const payload = events.bus.payload(events.changed);
 
     payload.change = CHANGES[this.#codes[i] ?? 0] ?? 'applied';
     payload.cause = this.#causes[i] ?? 'apply';
     payload.op = this.#ops[i] ?? 0;
     payload.bearer = bearer;
     payload.aura = item;
-    events.bus.raise(events.kind, payload);
+    events.bus.raise(events.changed, payload);
   }
 
   /** Dispatches the events queued since `from`, then drops them (even if a hook throws). */

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { revive, type UnitDef } from '../../src/units/index.ts';
+import { defineAuraTags } from '../../src/auras/index.ts';
+import { defineUnitStates, revive, type UnitDef } from '../../src/units/index.ts';
 import { auraId, makeUnitGame, type UnitGame } from '../helpers/unit-game.ts';
 
 /** A creature. */
@@ -56,11 +57,14 @@ describe('states interrupting casts (§I.7.1 F16)', () => {
     assert.equal(spells.get(handle)?.remaining, 0.75);
   });
 
-  it('refuse at load a state the table does not have', () => {
-    assert.throws(
-      () => makeUnitGame(TEMPLATES, { interrupts: { dazed: 'stun' } }),
-      /the interrupting state dazed is not a unit state/,
+  it('refuse more interrupting states than a unit has bits for', () => {
+    const tags = defineAuraTags(['stun']);
+
+    const many = Object.fromEntries(
+      Array.from({ length: 32 }, (_unused, i) => [`s${i}`, { tags: ['stun' as const], interrupt: 'stun' as const }]),
     );
+
+    assert.throws(() => defineUnitStates(tags, many), /At most 31 unit states may raise interrupts/);
   });
 });
 

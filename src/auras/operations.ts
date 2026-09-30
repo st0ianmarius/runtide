@@ -33,6 +33,7 @@ type Operations<G extends AuraTypes> = Pick<
   | 'spendStacks'
   | 'spendValue'
   | 'enterState'
+  | 'hasState'
   | 'sourceGone'
   | 'bearerDied'
 >;
@@ -68,6 +69,7 @@ export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operat
   spendStacks: (bearer: G['bearer'], id: AuraId, count: number) => spendStacks(engine, bearer, { id, count }),
   spendValue: (bearer: G['bearer'], id: AuraId, amount: number) => spendValue(engine, bearer, { id, amount }),
   enterState: (bearer: G['bearer'], state: G['state']) => enterState(engine, bearer, state),
+  hasState: (state: string): state is G['state'] => engine.tables.stateNames.includes(state),
   sourceGone: (bearer: G['bearer'], source: number) => sourceGone(engine, bearer, source),
 
   bearerDied: (bearer: G['bearer']) => {

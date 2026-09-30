@@ -1,6 +1,6 @@
 import type { EventKind } from '../core/index.ts';
 import type { Vec2 } from '../math/index.ts';
-import { type UnitEngine, unitOf } from './engine.ts';
+import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import type { UnitEvent } from './events.ts';
 import { despawnBound, leaveOwner } from './summons.ts';
 import type { Lifecycle, UnitTypes } from './unit-types.ts';
@@ -61,10 +61,10 @@ const leaveFor = <G extends UnitTypes>(
     engine.options.spells.cancelAll(bearer);
   }
 
-  const state = engine.options.lifecycleStates?.[to];
+  const { auras } = engine.options;
 
-  if (state !== undefined) {
-    engine.options.auras.enterState(bearer, state);
+  if (auras.hasState(to)) {
+    auras.enterState(bearer, to);
   }
 
   if (to === 'dead' || to === 'despawned') {
@@ -85,10 +85,11 @@ const despawned = <G extends UnitTypes>(
   engine.options.ai?.release(bearer);
   raise(engine, engine.options.events?.despawned, [bearer, from, 'despawned', undefined, reason]);
 
-  if (unit.scriptSlot >= 0) {
-    engine.options.scripts?.().detach(bearer);
-    unit.scriptSlot = -1;
+  if (unit.scriptSlot >= 0 && engine.options.scripts !== undefined) {
+    lateOf(engine.options.scripts).detach(bearer);
   }
+
+  unit.scriptSlot = -1;
 };
 
 /**

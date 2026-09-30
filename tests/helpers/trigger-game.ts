@@ -345,7 +345,7 @@ export const makeGame = <const Name extends string>(
     registry,
     tags: TAGS,
     clocks: CLOCKS,
-    events: { bus, kind: bus.kind.aura },
+    events: { bus, changed: bus.kind.aura },
     host: { run: (procs, ctx) => holder.procs?.runAura(procs, ctx) },
   });
 

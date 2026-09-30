@@ -167,7 +167,7 @@ describe('aura events on the bus', () => {
   it('reach capped handlers (the triggers) and then subscribers, after the hook', () => {
     const bus = createBus({ aura: createAuraEvent<TestAuras> });
     const heard: string[] = [];
-    const { auras, id, unit, log } = makeGame(defs, { events: { bus, kind: bus.kind.aura } });
+    const { auras, id, unit, log } = makeGame(defs, { events: { bus, changed: bus.kind.aura } });
     const u = unit();
 
     const note = (tier: string) => (event: AuraEvent<TestAuras>) => {
@@ -188,7 +188,7 @@ describe('aura events on the bus', () => {
 
   it('are not filled when nothing listens', () => {
     const bus = createBus({ aura: createAuraEvent<TestAuras> });
-    const { auras, id, unit } = makeGame(defs, { events: { bus, kind: bus.kind.aura } });
+    const { auras, id, unit } = makeGame(defs, { events: { bus, changed: bus.kind.aura } });
     const u = unit();
 
     auras.apply(u, id.renew);

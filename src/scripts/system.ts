@@ -44,8 +44,8 @@ export interface ScriptSystemOptions<G extends ScriptTypes> {
   /** The bus the bound events are raised on. */
   readonly bus: ScriptBus;
 
-  /** The game's events behaviours handle, bound to their bus kinds and units. */
-  readonly events?: ScriptEventBindings<G>;
+  /** The game's events behaviours handle, each bound to its bus kind and the unit it reaches. */
+  readonly bindings?: ScriptEventBindings<G>;
 
   /** The host handlers read (`ctx.host`). */
   readonly host: G['host'];
@@ -295,7 +295,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
 
   /** Subscribes to each bound event some script handles; throws for a handled event with no binding. */
   #bind(options: ScriptSystemOptions<G>): void {
-    const bindings: Readonly<Record<string, ScriptEventBinding<G, unknown> | undefined>> = options.events ?? {};
+    const bindings: Readonly<Record<string, ScriptEventBinding<G, unknown> | undefined>> = options.bindings ?? {};
 
     for (const event of this.registry.events) {
       const binding = bindings[event];
@@ -342,7 +342,7 @@ const isStateOf = <G extends ScriptTypes, State>(_behaviour: Behaviour<G, State>
   true;
 
 /**
- * Creates the script system (§I.7.1 F19): `createScriptSystem({ registry: SCRIPTS, ai, procs, bus, host, events:
+ * Creates the script system (§I.7.1 F19): `createScriptSystem({ registry: SCRIPTS, ai, procs, bus, host, bindings:
  * { damaged: { kind: bus.kind.taken, unitOf: (e) => e.blow?.target } } })`, then `createUnitSystem({ …, scripts: () =>
  * scripts.forUnits })`. Throws for a handled event that is not bound.
  */

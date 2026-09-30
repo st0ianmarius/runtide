@@ -1,5 +1,5 @@
 import { NO_CAST } from '../spells/index.ts';
-import { type UnitEngine, unitOf } from './engine.ts';
+import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import { moveTo } from './lifecycle.ts';
 import type { UnitTypes } from './unit-types.ts';
 
@@ -69,7 +69,7 @@ export const attachScript = <G extends UnitTypes>(
     return;
   }
 
-  const scripts = (engine.options.scripts ?? noScripts)();
+  const scripts = lateOf(engine.options.scripts ?? noScripts);
 
   unit.scriptSlot = scripts.attach(bearer, script);
   scripts.start(bearer);

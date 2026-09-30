@@ -86,7 +86,7 @@ export interface UnitGame extends ScriptTypes {
   readonly clock: 'world';
 
   /** The lifecycle states auras may be removed on. */
-  readonly state: 'down' | 'dead' | 'despawned';
+  readonly state: 'downed' | 'dead' | 'despawned';
 
   /** The framework's blow. */
   readonly blow: Blow<UnitGame>;
@@ -232,9 +232,9 @@ export const UNIT_TAGS = defineUnitTags(['horde', 'elite', 'boss', 'objective'])
  * makes it frozen, which pauses its casts.
  */
 const UNIT_STATES = defineUnitStates(AURA_TAGS, {
-  stunned: { tags: ['stun'], blocks: ['act', 'move'] },
+  stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' },
   rooted: { tags: ['root', 'freeze'], blocks: ['move'] },
-  frozen: { tags: ['freeze'] },
+  frozen: { tags: ['freeze'], interrupt: 'freeze' },
 });
 
 /** A unit test game's options. */
@@ -256,9 +256,6 @@ export interface UnitGameOptions<Extra extends string = never> {
 
   /** The world summons are placed in; none when absent. */
   readonly world?: Pick<WorldQuery<Unit<UnitGame>>, 'positionOf' | 'pickPoint'>;
-
-  /** The interrupting states; a stun's and a freeze's when absent. */
-  readonly interrupts?: Readonly<Record<string, 'stun' | 'freeze'>>;
 }
 
 /** A small unit test game. */
@@ -329,7 +326,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     registry: AURAS,
     tags: AURA_TAGS,
     clocks: { world: clock },
-    states: ['down', 'dead', 'despawned'],
+    states: ['downed', 'dead', 'despawned'],
     modifiers,
     fold: 'auras',
     host: {
@@ -372,8 +369,6 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     ...(options.folds === false ? {} : { modifiers: { system: modifiers, base: 'base' as const } }),
     health: { stat: 'maxHealth', ...(options.policy === undefined ? {} : { policy: options.policy }) },
     states: UNIT_STATES,
-    interrupts: options.interrupts ?? { stunned: 'stun', frozen: 'freeze' },
-    lifecycleStates: { downed: 'down', dead: 'dead', despawned: 'despawned' },
     damage: () => damage,
     events: { bus, spawned: bus.kind.spawned, changed: bus.kind.changed, despawned: bus.kind.despawned },
     createExt: () => ({ marks: 0 }),
@@ -416,7 +411,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     procs,
     bus,
     host: {},
-    events: {
+    bindings: {
       changed: { kind: bus.kind.changed, unitOf: (event) => event.unit?.owner },
       death: { kind: bus.kind.death, unitOf: (event) => event.death?.unit },
     },

@@ -47,8 +47,8 @@ export interface AuraSystemBase<G extends AuraTypes> {
     /** The bus. */
     readonly bus: AuraEventBus;
 
-    /** The aura event kind. */
-    readonly kind: EventKind<AuraEvent<G>>;
+    /** The kind its lifecycle events (`applied`, `removed`, …: an aura changing) are raised as. */
+    readonly changed: EventKind<AuraEvent<G>>;
   };
 
   /** Clears the game's fields of an aura as its slot goes back to the pool. */
@@ -128,6 +128,9 @@ export interface AuraSystem<G extends AuraTypes> {
 
   /** The bearer enters a state: every aura whose `removedOn` names it is removed; how many went. */
   readonly enterState: (bearer: G['bearer'], state: G['state']) => number;
+
+  /** Whether the system declares a bearer state by this name (a unit system enters its lifecycle's by name). */
+  readonly hasState: (state: string) => state is G['state'];
 
   /** A source is gone: every aura bound to it is removed; how many went. */
   readonly sourceGone: (bearer: G['bearer'], source: number) => number;

@@ -1,7 +1,6 @@
 import { type AbilitySystem, NO_LOADOUT } from '../abilities/index.ts';
 import { type AiSystem, NO_BRAIN } from '../ai/index.ts';
 import type { AuraSystem } from '../auras/index.ts';
-import type { Bitset } from '../core/index.ts';
 import type { DamageSystem } from '../damage/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import {
@@ -17,9 +16,9 @@ import type { SpellId, SpellSystem } from '../spells/index.ts';
 import type { WorldQuery } from '../world/index.ts';
 import { BaseView } from './base-view.ts';
 import type { UnitEvents } from './events.ts';
-import type { UnitStateTable } from './states.ts';
+import type { InterruptingState, UnitStateTable } from './states.ts';
 import type { UnitRegistry } from './unit-def.ts';
-import type { Lifecycle, UnitId, UnitTypes } from './unit-types.ts';
+import type { UnitId, UnitTypes } from './unit-types.ts';
 import { Unit } from './unit.ts';
 
 /**
@@ -52,10 +51,11 @@ export interface UnitSystemBase<G extends UnitTypes> {
   readonly world?: Pick<WorldQuery<G['bearer']>, 'positionOf' | 'pickPoint'>;
 
   /**
-   * The script system, given lazily since it is made after the unit system (§I.7.1 F19): a unit whose template names a
-   * script is attached to it once spawned and detached once despawned. Required when any template names a script.
+   * The script system's side (`scripts.forUnits`), or a function giving it, since the script system is made after the
+   * unit system (§I.7.1 F19): a unit whose template names a script is attached to it once spawned and detached once
+   * despawned. Required when any template names a script.
    */
-  readonly scripts?: () => UnitScripts<G>;
+  readonly scripts?: UnitScripts<G> | (() => UnitScripts<G>);
 
   /** The ability system, for units with buttons; every unit has an empty loadout when absent. */
   readonly abilities?: AbilitySystem<G>;
@@ -81,20 +81,11 @@ export interface UnitSystemBase<G extends UnitTypes> {
     readonly policy?: HealthPolicy<G>;
   };
 
-  /** The game's derived unit states (`defineUnitStates`); none when absent. */
-  readonly states?: UnitStateTable<G['unitState']>;
+  /** The game's derived unit states (`defineUnitStates`), with the interrupts they raise; none when absent. */
+  readonly states?: UnitStateTable<G['unitState'], G['interrupt']>;
 
-  /**
-   * The interrupt each derived state raises on the unit's casts while it is in it (§I.7.1 F16: `{ stunned: 'stun',
-   * frozen: 'freeze' }`), through `syncStates`, which the aura host's `onTagsChanged` calls. None when absent.
-   */
-  readonly interrupts?: Readonly<Partial<Record<G['unitState'], G['interrupt']>>>;
-
-  /** The aura system's bearer states the lifecycle enters (`removedOn`: going down, dying, leaving). */
-  readonly lifecycleStates?: Readonly<Partial<Record<Exclude<Lifecycle, 'standing'>, G['state']>>>;
-
-  /** The damage system a max health gain heals through; set directly when absent. */
-  readonly damage?: () => DamageSystem<G>;
+  /** The damage system a max health gain heals through, or a function giving it; set directly when absent. */
+  readonly damage?: DamageSystem<G> | (() => DamageSystem<G>);
 
   /** The bus and kinds the system raises its events on. */
   readonly events?: UnitEvents<G>;
@@ -151,36 +142,8 @@ export interface SpawnUnit<G extends UnitTypes> {
   readonly script?: G['scriptName'];
 }
 
-/** A derived state that raises an interrupt: its aura tags and the interrupt. */
-export interface InterruptingState<G extends UnitTypes> {
-  /** Its aura tags. */
-  readonly tags: Bitset;
-
-  /** The interrupt it raises. */
-  readonly reason: G['interrupt'];
-}
-
-/** The most states that may raise interrupts: each is a bit of a unit's `interrupts`. */
-const MAX_INTERRUPTING = 31;
-
-/** The states that raise interrupts, resolved against the state table. Throws for a state it does not have. */
-const interruptingOf = <G extends UnitTypes>(options: UnitSystemOptions<G>): readonly InterruptingState<G>[] => {
-  const map: Readonly<Record<string, G['interrupt'] | undefined>> = options.interrupts ?? {};
-  const tags: Readonly<Record<string, Bitset | undefined>> = options.states?.tags ?? {};
-
-  const list = Object.keys(map).flatMap((state) => {
-    const reason = map[state];
-    const bits = tags[state] ?? missing(`the interrupting state ${state} is not a unit state`);
-
-    return reason === undefined ? [] : [{ tags: bits, reason }];
-  });
-
-  if (list.length > MAX_INTERRUPTING) {
-    throw new RangeError(`At most ${MAX_INTERRUPTING} unit states may raise interrupts; got ${list.length}.`);
-  }
-
-  return Object.freeze(list);
-};
+/** A dependency given as itself or as a function giving it (made after the system that needs it). */
+export const lateOf = <T extends object>(value: T | (() => T)): T => (typeof value === 'function' ? value() : value);
 
 /** The unit system's state: its parts, the live units by entity id, the next id, and each template's auto-attack. */
 export class UnitEngine<G extends UnitTypes> {
@@ -197,7 +160,7 @@ export class UnitEngine<G extends UnitTypes> {
   readonly autoAttacks: readonly (SpellId | undefined)[];
 
   /** The states that raise interrupts, in declared order: each one's aura tags and its interrupt. */
-  readonly interrupting: readonly InterruptingState<G>[];
+  readonly interrupting: readonly InterruptingState<G['interrupt']>[];
 
   nextId = 1;
 
@@ -217,7 +180,7 @@ export class UnitEngine<G extends UnitTypes> {
       registry.stats.index.idOf(options.health.stat) ??
       missing(`the health stat ${options.health.stat} is not in the stat table`);
 
-    this.interrupting = interruptingOf(options);
+    this.interrupting = options.states?.interrupting ?? [];
     this.autoAttacks = registry.ids.map((id) => {
       const name = registry.defs[id]?.autoAttack;
 

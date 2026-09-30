@@ -1,7 +1,7 @@
 import type { AuraApplication, AuraDecision, AuraId } from '../auras/index.ts';
 import { type Bitset, createBitset } from '../core/index.ts';
 import type { DamageHost, ForceStage, StageDef } from '../damage/index.ts';
-import { type UnitEngine, unitOf } from './engine.ts';
+import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import { moveTo } from './lifecycle.ts';
 import { HOLDS_GROUND, IMMOVABLE, INERT, PULL_IMMUNE } from './unit-def.ts';
 import type { UnitTypes } from './unit-types.ts';
@@ -33,7 +33,7 @@ export const syncHealth = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
   } else if (engine.options.damage === undefined) {
     unit.health = Math.min(unit.health + (after - before), after);
   } else {
-    engine.options.damage().heal({ target: bearer, amount: after - before });
+    lateOf(engine.options.damage).heal({ target: bearer, amount: after - before });
   }
 
   return unit.health;

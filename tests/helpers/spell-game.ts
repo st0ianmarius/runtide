@@ -483,7 +483,7 @@ export const makeSpellGame = <
     tags: TAGS,
     clocks: { world: clock },
     host: { run: (list, ctx) => late.procs?.runAura(list, ctx) },
-    events: { bus, kind: bus.kind.aura },
+    events: { bus, changed: bus.kind.aura },
   });
 
   const statsOf = (unit: Unit): StatView => views.get(unit) ?? viewOf(unit);

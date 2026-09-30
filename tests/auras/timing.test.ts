@@ -172,7 +172,7 @@ describe('causes and operations', () => {
           },
         }),
       },
-      { events: { bus, kind: bus.kind.aura } },
+      { events: { bus, changed: bus.kind.aura } },
     );
 
     const u = unit();
