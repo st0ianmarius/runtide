@@ -412,6 +412,49 @@ describe('the owner aura, cues and events', () => {
   });
 });
 
+describe('setting the time left', () => {
+  it('counts from what a hook set, and a recast refreshes a live one through the system', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          pool: ending({
+            lifetime: 0.5,
+
+            frame: (c) => {
+              if (c.age === 0.25) {
+                c.setRemaining(0.25);
+              }
+
+              return undefined;
+            }
+          })
+        }
+      }
+    );
+
+    const handle = game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
+
+    game.step();
+    game.areaTriggers.step();
+    assert.equal(game.areaTriggers.get(handle)?.remaining, 0.25);
+    assert.equal(game.areaTriggers.setRemaining(handle, 1), true);
+
+    for (let i = 0; i < 4; i++) {
+      game.step();
+      game.areaTriggers.step();
+    }
+
+    assert.equal(game.areaTriggers.isLive(handle), false);
+    assert.equal(game.areaTriggers.setRemaining(handle, 1), false);
+    assert.throws(() => {
+      const again = game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
+
+      game.areaTriggers.setRemaining(again, -1);
+    }, /seconds from 0/);
+  });
+});
+
 describe('ending during a hook', () => {
   it('keeps a record out of the pool until its own hook returns, so a spawn there takes a fresh one', () => {
     const game = makeSpellGame(

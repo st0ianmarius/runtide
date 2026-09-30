@@ -63,6 +63,9 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
   /** Ends a live area trigger now with a reason (`self` by default); false for one already gone. */
   readonly despawn: (handle: AreaTriggerHandle, reason?: EndReason<G>) => boolean;
 
+  /** Sets a live area trigger's seconds left (`c.setRemaining`); false for one already gone. */
+  readonly setRemaining: (handle: AreaTriggerHandle, seconds: number) => boolean;
+
   /** How many area triggers of a kind an owner has live. */
   readonly countOf: (owner: G['bearer'], kind: AreaTriggerId) => number;
 
@@ -134,6 +137,14 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
   readonly stepOwner = (owner: G['bearer'], slot?: TickSlotId): number => stepSlot(this.#engine, slot ?? 0, owner);
 
   readonly isLive = (handle: AreaTriggerHandle): boolean => this.#engine.areaOf(handle) !== undefined;
+
+  readonly setRemaining = (handle: AreaTriggerHandle, seconds: number): boolean => {
+    const area = this.#engine.areaOf(handle);
+
+    area?.setRemaining(seconds);
+
+    return area !== undefined;
+  };
 
   readonly despawn = (handle: AreaTriggerHandle, reason: EndReason<G> = 'self'): boolean => {
     checkReason(this.#engine, reason);

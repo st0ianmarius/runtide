@@ -91,6 +91,9 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   spawnTick = 0;
   age = 0;
   remaining = 0;
+
+  /** Whether a hook set its time left during this frame, which then does not count down. */
+  isLifeSet = false;
   isSuspended = false;
   parent: AreaTriggerHandle = NO_AREA_TRIGGER;
   state: unknown = undefined;
@@ -203,6 +206,15 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
     }
 
     this.pending ??= reason;
+  };
+
+  readonly setRemaining = (seconds: number): void => {
+    if (!(seconds >= 0)) {
+      throw new RangeError(`An area trigger's lifetime is seconds from 0; got ${seconds}.`);
+    }
+
+    this.remaining = seconds;
+    this.isLifeSet = true;
   };
 
   readonly ledger = (name: string): AreaLedger<G['bearer']> => this.#services.ledgerFor(this, name);

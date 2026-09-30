@@ -158,6 +158,12 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   readonly despawn: (reason?: 'self' | 'spent' | G['endReason']) => void;
 
   /**
+   * Sets the seconds left of its lifetime (a recast refreshing a pool, a kill extending it, a haste), counted from
+   * after this frame: finite from 0 (0 expires it at this frame's end), or infinite. Throws for any other.
+   */
+  readonly setRemaining: (seconds: number) => void;
+
+  /**
    * One of its kind's hit ledgers, by name, for a hook that records its own hits (a chain's links, a
    * frame's sweep): a reused view, read at once; throws for a name its kind does not declare.
    */

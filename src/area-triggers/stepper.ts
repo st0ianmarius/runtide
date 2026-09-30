@@ -46,18 +46,18 @@ export const stepArea = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area
     return;
   }
 
-  const next = countDown(area.remaining, dt);
-  const isOut = isRunOut(next);
-
+  area.isLifeSet = false;
   frame(engine, area, dt);
 
   if (area.isEnding) {
     return;
   }
 
-  area.remaining = next;
+  // A frame that set its time left (`setRemaining`) counts from there; else this frame's step counts down.
+  area.remaining = area.isLifeSet ? area.remaining : countDown(area.remaining, dt);
+  area.isLifeSet = false;
 
-  if (isOut) {
+  if (isRunOut(area.remaining)) {
     endArea(engine, area, { reason: 'expired' });
   }
 };
