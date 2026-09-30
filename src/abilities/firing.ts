@@ -266,22 +266,3 @@ export const slotHolding = (bearer: AbilityBearer, spell: SpellId): SlotId | und
 
   return index < 0 ? undefined : toId<'slots'>(index);
 };
-
-/** Runs the `travel` hook of every equipped ability, in slot order: the motion half on a motion step. */
-export const travel = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], dt: number): void => {
-  const record = loadoutOf(bearer);
-
-  for (let slot = 0; slot < record.spells.length; slot++) {
-    const spell = spellAt(record, slot);
-
-    const travelOf = spell === undefined ? undefined : engine.buttons[spell]?.def.travel;
-
-    if (spell !== undefined && travelOf !== undefined) {
-      const mirror = engine.mirrorFor(bearer, spell);
-
-      mirror.input = undefined;
-      mirror.dt = dt;
-      travelOf(mirror);
-    }
-  }
-};

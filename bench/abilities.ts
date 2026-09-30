@@ -159,12 +159,6 @@ const SPELLS = defineSpells<BenchGame, 'roll' | 'nova' | 'surge'>({
       kind: 'button',
       cooldown: 1,
       applies: [auraId('sprint')],
-
-      travel: ({ bearer, dt }) => {
-        if (AURA_SYSTEM.hasTag(bearer, AURA_TAGS.id.sprinting)) {
-          bearer.travelled += 8 * dt;
-        }
-      },
     },
     release: () => GRANT,
   },
@@ -241,7 +235,10 @@ const pressTick = (): void => {
   for (const hero of HERO_LIST) {
     AURA_SYSTEM.tick(hero, 'world');
     ABILITIES.tryActivate(hero, ALL);
-    ABILITIES.travel(hero, CLOCK.dt);
+
+    if (AURA_SYSTEM.hasTag(hero, AURA_TAGS.id.sprinting)) {
+      hero.travelled += 8 * CLOCK.dt;
+    }
   }
 };
 

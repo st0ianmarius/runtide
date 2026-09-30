@@ -81,7 +81,7 @@ export interface ButtonCost<G extends SpellTypes = SpellTypes> {
  * A `button` activation: a unit's key pulls it, through its loadout (`abilities.tryActivate`).
  * An ability **is** a spell with this activation: its cooldown is an aura on the slot it sits in, its cost is stacks of
  * an aura, `requires` and `blockedBy` are aura tags, and as it fires it pays, moves (`activate`), starts its cooldown,
- * lands `applies`, clears `resets`, then casts. The motion half (`activate`, `travel`) reads and writes only the
+ * lands `applies`, clears `resets`, then casts. The motion half (`activate`) reads and writes only the
  * bearer, so a prediction mirror runs it too.
  */
 export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
@@ -123,12 +123,6 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
    * Mirror-safe: it reads only its `MirrorCtx`.
    */
   activate?(this: void, ctx: MirrorCtx<G>): void;
-
-  /**
-   * The motion half on every motion step while equipped (`abilities.travel`): a dodge carrying its bearer by `ctx.dt`
-   * through the static world. Mirror-safe: it reads only its `MirrorCtx`.
-   */
-  travel?(this: void, ctx: MirrorCtx<G>): void;
 }
 
 /**

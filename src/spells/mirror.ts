@@ -13,7 +13,7 @@ export type StaticWorld = Pick<WorldQuery<unknown>, 'lineClear' | 'isPositionCle
  * What a hook the prediction mirror runs may read: the bearer, the input it
  * was handed, its synced stats, the static world and the step. No random stream, no other unit and no server state,
  * so a hook typed over it cannot reach them: the compiler holds the rule, not a test. A button's motion half
- * (`activate`, `travel`) receives one; it is reused, so a hook reads it while it runs and never keeps it.
+ * (`activate`) receives one; it is reused, so a hook reads it while it runs and never keeps it.
  */
 export interface MirrorCtx<G extends SpellTypes> {
   /** The bearer the hook moves or reads (its body, its predicted auras). */

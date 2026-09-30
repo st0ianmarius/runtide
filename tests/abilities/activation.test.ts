@@ -38,22 +38,18 @@ const logRelease =
 const button = (name: string, data: Omit<ButtonActivation<AbilityGame>, 'kind'> = {}, spellRanks = 1) =>
   spell({ ranks: spellRanks, activation: { kind: 'button', ...data }, release: logRelease(name) });
 
-/** The dodge: a sprint, a heading from the input, and travel while sprinting. */
+/** The dodge: a sprint, and a step along the heading from the input through the static world. */
 const roll = button('roll', {
   cooldown: 2,
   applies: ['sprint'],
 
-  activate: ({ bearer, input, dt, stats }) => {
+  activate: ({ bearer, input, dt, stats, world }) => {
     seen.lines.push(`activate roll dt ${dt} duration ${stats?.total(STATS.id.duration)}`);
     bearer.heading = input ?? bearer.heading;
-  },
 
-  travel: ({ bearer, dt, world }) => {
-    if (current().auras.has(bearer, auraNamed('sprint'))) {
-      const to = { x: bearer.at.x + bearer.heading.x * 4 * dt, z: bearer.at.z + bearer.heading.z * 4 * dt };
+    const to = { x: bearer.at.x + bearer.heading.x * 4 * dt, z: bearer.at.z + bearer.heading.z * 4 * dt };
 
-      bearer.at = world.moveBody([bearer.at, to], 0.5).position;
-    }
+    bearer.at = world.moveBody([bearer.at, to], 0.5).position;
   },
 });
 
@@ -156,7 +152,7 @@ describe('a press', () => {
     assert.equal(abilities.check(other, ultimate), 'blocked');
   });
 
-  it('pays, moves, cools and lands before its cast, which releases before the bearer travels', () => {
+  it('pays, moves, cools and lands before its cast', () => {
     const { game, hero } = setUp();
     const { abilities, auras } = game;
     const { dodge } = abilities.slots.id;
@@ -164,10 +160,9 @@ describe('a press', () => {
     hero.stats[STATS.id.duration] = 1.5;
     abilities.equip(hero, dodge, game.id.roll);
     abilities.tryActivate(hero, abilities.bit(dodge), { input: { x: 0, z: 1 } });
-    abilities.travel(hero, 0.25);
     assert.deepEqual(seen.lines, [
       'activate roll dt 0.25 duration 1.5',
-      'roll at 1,0 input 0,1 rank 1 cooling 2 sprint 2 charge 0',
+      'roll at 1,1 input 0,1 rank 1 cooling 2 sprint 2 charge 0',
     ]);
     assert.deepEqual(hero.at, { x: 1, z: 1 });
     assert.equal(auras.remaining(hero, auraNamed('sprint')), 2);
@@ -187,7 +182,6 @@ describe('a press', () => {
 
     abilities.equip(hero, abilities.slots.id.dodge, game.id.roll);
     abilities.tryActivate(hero, abilities.bit(abilities.slots.id.dodge), { input: { x: 0, z: 1 } });
-    abilities.travel(hero, 0.25);
     assert.deepEqual(hero.at, { x: 1, z: 0 });
   });
 

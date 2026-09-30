@@ -4,7 +4,7 @@ import type { SpellId } from '../spells/index.ts';
 import type { AbilityTypes, ButtonRefusal, SlotId } from './ability-types.ts';
 import { AbilityEngine, type AbilityParts } from './engine.ts';
 import { type ButtonExplanation, explainButton } from './explain.ts';
-import { cooldownSeconds, press, refusalAt, slotHolding, spellAt, travel } from './firing.ts';
+import { cooldownSeconds, press, refusalAt, slotHolding, spellAt } from './firing.ts';
 import { loadoutOf, LoadoutRecord, type LoadoutState } from './loadout.ts';
 import type { SlotTable } from './slots.ts';
 
@@ -90,16 +90,10 @@ export interface AbilitySystem<G extends AbilityTypes> {
    * accepted one fires in slot order: pays its cost, runs `activate` (with a `MirrorCtx` of the press's input and the
    * clock's step), starts its slot's cooldown (on `activation`),
    * lands `applies` then `resets`, and casts its spell with the press's input and key (a no-windup spell releases here, before the
-   * bearer travels), starting a `cast` cooldown once the cast was not refused. Returns the mask of the slots that
+   * game moves the bearer), starting a `cast` cooldown once the cast was not refused. Returns the mask of the slots that
    * fired. The game calls it inside its motion step, on the server and on a prediction mirror alike.
    */
   readonly tryActivate: (bearer: G['bearer'], pressed: number, press?: Press<G>) => number;
-
-  /**
-   * Runs every equipped ability's `travel` hook, in slot order, each with a `MirrorCtx` of the bearer, its stats for
-   * the spell, the static world and `dt`: the motion half, after `tryActivate`.
-   */
-  readonly travel: (bearer: G['bearer'], dt: number) => void;
 
   /**
    * A button spell's cooldown in seconds at a rank (1 when absent), as it would start now: for a caster, read from its
@@ -237,10 +231,6 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
       engine.key = data?.key ?? 0;
 
       return press(engine, bearer, pressed);
-    },
-
-    travel: (bearer, dt) => {
-      travel(engine, bearer, dt);
     },
 
     cooldownOf: (caster, spell, rank = 1) => cooldownSeconds(engine, caster, [spell, rank]),
