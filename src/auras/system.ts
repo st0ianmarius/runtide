@@ -179,10 +179,11 @@ export interface AuraSystem<G extends AuraTypes> {
   readonly context: (bearer: G['bearer'], aura: ActiveAura<G>) => AuraContext<G>;
 
   /**
-   * The reused hook context of the next nesting level, filled for one aura: what a pipeline calls a hook with when it
-   * must not allocate. Give it back with `giveContext` once the hook and the procs it returned are done.
+   * The reused hook context of the next nesting level, filled for one aura and the event's other unit, if any: what a
+   * pipeline calls a hook with when it must not allocate. Give it back with `giveContext` once the hook and the procs
+   * it returned are done.
    */
-  readonly takeContext: (bearer: G['bearer'], aura: ActiveAura<G>) => AuraContext<G>;
+  readonly takeContext: (bearer: G['bearer'], aura: ActiveAura<G>, other?: G['bearer']) => AuraContext<G>;
 
   /** Gives back the context `takeContext` handed out last. */
   readonly giveContext: () => void;

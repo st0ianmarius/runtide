@@ -7,7 +7,7 @@ import type { ProcSystem } from './system.ts';
  * Where an explained proc lands: one of the symbolic targets, `unit` for a unit named in code, `none` for a kind that
  * acts on no unit.
  */
-export type ProcTargetKind = 'self' | 'target' | 'eventUnit' | 'party' | 'unit' | 'none';
+export type ProcTargetKind = 'self' | 'target' | 'eventUnit' | 'other' | 'party' | 'unit' | 'none';
 
 /**
  * A proc explained as data: its kind's id, its odds, where it lands and its numbers, for the client to
@@ -38,7 +38,7 @@ const NONE: Readonly<Record<string, number>> = Object.freeze({});
 
 /** The explained form of a target. */
 const targetKind = (to: unknown): ProcTargetKind => {
-  if (to === 'self' || to === 'target' || to === 'eventUnit' || to === 'party') {
+  if (to === 'self' || to === 'target' || to === 'eventUnit' || to === 'other' || to === 'party') {
     return to;
   }
 

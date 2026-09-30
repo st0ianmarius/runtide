@@ -143,7 +143,8 @@ const spellFilter = <Payload>(spellOf: (event: Payload) => unknown, spells: Spel
  * the filters `crit` (a critical blow), `status` (by name: `blocked`, `absorbed`, `landed`, `avoided`), `damageKind`
  * (by name), `outcome` (an outcome row by name: `dodge`, `block`, `crit`; needs the roll table), `spell` (the spell it
  * came from, by id, or by name given the spells), `minAmount` (at least the argument reached health). A trigger names
- * them in `when`.
+ * them in `when`. The blow's other unit is its procs' `other`: the victim for `dealt` (an on-hit poison), the attacker
+ * for `taken` (thorns).
  */
 export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<DamageEvent<G>>,
@@ -166,6 +167,7 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   return Object.freeze({
     kind,
     unit: (event: DamageEvent<G>) => (spec.about === 'attacker' ? event.blow?.attacker : event.blow?.target),
+    other: (event: DamageEvent<G>) => (spec.about === 'attacker' ? event.blow?.target : event.blow?.attacker),
 
     filters: Object.freeze({
       crit: { test: (event: DamageEvent<G>) => event.blow?.isCrit === true },
@@ -190,7 +192,7 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
 
 /**
  * A heal event kind as a trigger event, about the healed unit or the healer, with the filter `minAmount`: only a
- * landed heal is answered, as only a blow that was not ignored is.
+ * landed heal is answered, as only a blow that was not ignored is. The heal's other unit is its procs' `other`.
  */
 export const healTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<HealEvent<G>>,
@@ -209,6 +211,8 @@ export const healTriggerEvent = <G extends DamageTypes & TriggerTypes>(
       return about === 'healer' ? heal.healer : heal.target;
     },
 
+    other: (event: HealEvent<G>) => (about === 'healer' ? event.heal?.target : event.heal?.healer),
+
     filters: Object.freeze({
       minAmount: { test: (event: HealEvent<G>, least: number) => (event.heal?.amount ?? 0) >= least },
     }),
@@ -216,7 +220,8 @@ export const healTriggerEvent = <G extends DamageTypes & TriggerTypes>(
 
 /**
  * A death or kill event kind as a trigger event, about the unit that died or its killer, with the filter `spell` (the
- * spell whose blow killed: by id, or by name given the spells): "when a Hexfire kill…".
+ * spell whose blow killed: by id, or by name given the spells): "when a Hexfire kill…". The death's other unit (the
+ * killer, or the one killed) is its procs' `other`.
  */
 export const deathTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<DeathEvent<G>>,
@@ -226,5 +231,6 @@ export const deathTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   Object.freeze({
     kind,
     unit: (event: DeathEvent<G>) => (about === 'killer' ? event.death?.killer : event.death?.unit),
+    other: (event: DeathEvent<G>) => (about === 'killer' ? event.death?.unit : event.death?.killer),
     filters: Object.freeze({ spell: spellFilter((event: DeathEvent<G>) => event.death?.spell, spells) }),
   });

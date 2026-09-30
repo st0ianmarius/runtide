@@ -63,6 +63,12 @@ export interface AuraContext<G extends AuraTypes = AuraTypes> {
 
   /** Why the hook runs: the operation behind the change (`removeByTag` for a dispel, `tick` for an expiry). */
   readonly cause: AuraCause;
+
+  /**
+   * The other unit of the event a pipeline hook answers (a blow's attacker for its target's hooks, its target for the
+   * attacker's `onDealt`), which the hook's procs reach as `other`; `undefined` for a lifecycle hook.
+   */
+  readonly other: G['bearer'] | undefined;
 }
 
 /** The mutable instance behind an `ActiveAura`, pooled by its system. */
@@ -93,6 +99,7 @@ export class MutableContext<G extends AuraTypes> implements AuraContext<G> {
   aura: ActiveAura<G>;
   stats: StatView | undefined = undefined;
   cause: AuraCause = 'apply';
+  other: G['bearer'] | undefined = undefined;
 
   constructor(bearer: G['bearer'], aura: ActiveAura<G>) {
     this.bearer = bearer;

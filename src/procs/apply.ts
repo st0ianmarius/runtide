@@ -51,6 +51,10 @@ const unitOf = <G extends ProcTypes>(frame: ProcFrame<G>, to: ProcTarget<G>): G[
     return frame.eventUnit;
   }
 
+  if (to === 'other') {
+    return frame.other;
+  }
+
   return typeof to === 'string' ? undefined : to;
 };
 

@@ -15,6 +15,12 @@ const AURAS = {
   soothed: aura({ duration: 3 }),
   hexed: aura({ duration: 3 }),
   seared: aura({ duration: 3 }),
+  poisoned: aura({ duration: 3 }),
+  pricked: aura({ duration: 3 }),
+  thorny: aura({
+    duration: 'infinite',
+    triggers: [{ on: 'taken', do: [applyAura<Game>('pricked', { to: 'other' })] }],
+  }),
 
   listener: aura({
     duration: 'infinite',
@@ -33,6 +39,11 @@ const AURAS = {
       { on: 'kill', when: [{ filter: 'spell', arg: 'hexfire' }], do: [applyAura<Game>('hexed')] },
       { on: 'dealt', when: [{ filter: 'spell', arg: 4 }], do: [applyAura<Game>('seared')] },
       { on: 'healed', when: [{ filter: 'minAmount', arg: 5 }], do: [applyAura<Game>('soothed')] },
+      {
+        on: 'dealt',
+        when: [{ filter: 'damageKind', arg: 'fire' }],
+        do: [applyAura<Game>('poisoned', { to: 'other' })],
+      },
     ],
   }),
 } as const;
@@ -120,6 +131,17 @@ describe('the damage trigger events', () => {
     assert.equal(game.auras.has(killer, game.id.soothed), false);
     game.damage.heal({ target: killer, amount: 5 });
     assert.equal(game.auras.has(killer, game.id.soothed), true);
+  });
+
+  it('hand a trigger’s procs the event’s other unit: the victim on dealt, the attacker on taken', () => {
+    const game = makeTriggerGame();
+    const [victim, attacker] = [game.unit(1), game.listening(2)];
+
+    game.auras.apply(victim, game.id.thorny);
+    game.damage.hit({ target: victim, attacker, amount: 10, kind: game.damage.kinds.id.fire });
+    assert.equal(game.auras.has(victim, game.id.poisoned), true, 'the attacker’s dealt trigger poisons the victim');
+    assert.equal(game.auras.has(attacker, game.id.pricked), true, 'the victim’s taken trigger pricks the attacker');
+    assert.equal(game.auras.has(attacker, game.id.poisoned), false);
   });
 
   it('answer only a landed heal, not a blocked one', () => {

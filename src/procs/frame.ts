@@ -74,6 +74,7 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
   self: G['bearer'];
   target: G['bearer'];
   eventUnit: G['bearer'] | undefined = undefined;
+  other: G['bearer'] | undefined = undefined;
   source = NO_SOURCE;
   aura: ActiveAura<G> | undefined = undefined;
   readonly depth: number;
@@ -119,6 +120,7 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
     this.self = origin.self;
     this.target = origin.target ?? origin.self;
     this.eventUnit = origin.eventUnit;
+    this.other = origin.other;
     this.source = origin.source ?? this.host.idOf?.(origin.self) ?? NO_SOURCE;
     this.aura = origin.aura;
 

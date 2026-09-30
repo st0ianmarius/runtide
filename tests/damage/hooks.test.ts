@@ -23,6 +23,7 @@ const AURAS = {
   halve: aura({ duration: 10, onIncomingDamage: () => ({ scale: 0.5 }) }),
   escape: aura({ duration: 10, onLethal: () => ({ prevent: true, procs: [setHealth({ share: 0.3 })] }) }),
   leech: aura({ duration: 10, onDealt: (_ctx, blow) => [heal(blow.dealt / 2)] }),
+  venom: aura({ duration: 10, onDealt: (ctx) => (ctx.other === undefined ? undefined : [heal(1, { to: 'other' })]) }),
   pledge: aura({
     duration: 10,
     value: 20,
@@ -199,5 +200,15 @@ describe('the attacker’s onDealt hooks', () => {
     auras.apply(target, id.invulnerable);
     damage.hit({ target, attacker, amount: 30 });
     assert.equal(attacker.hp, 65);
+  });
+
+  it('name the blow’s target as the other unit, which their procs reach as `other`', () => {
+    const { damage, auras, id, unit } = makeDamageGame(AURAS);
+    const [target, attacker] = [unit(1), unit(2)];
+
+    attacker.hp = 50;
+    auras.apply(attacker, id.venom);
+    damage.hit({ target, attacker, amount: 30 });
+    assert.deepEqual([target.hp, attacker.hp], [71, 50]);
   });
 });

@@ -121,6 +121,9 @@ interface MutableOrigin<G extends ProcTypes> {
   /** The event unit. */
   eventUnit: G['bearer'] | undefined;
 
+  /** The event's other unit. */
+  other: G['bearer'] | undefined;
+
   /** The credited source. */
   source: number;
 
@@ -324,12 +327,14 @@ class Procs<G extends ProcTypes> implements ProcSystem<G> {
       self: ctx.bearer,
       target: ctx.bearer,
       eventUnit: undefined,
+      other: ctx.other,
       source: ctx.aura.source,
       aura: ctx.aura,
     });
 
     origin.self = ctx.bearer;
     origin.target = ctx.bearer;
+    origin.other = ctx.other;
     origin.source = ctx.aura.source;
     origin.aura = ctx.aura;
     this.run(procs, origin);

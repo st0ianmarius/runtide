@@ -135,7 +135,8 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
     return context;
   },
 
-  takeContext: (bearer: G['bearer'], aura: ActiveAura<G>): AuraContext<G> => engine.events.take(bearer, aura),
+  takeContext: (bearer: G['bearer'], aura: ActiveAura<G>, other?: G['bearer']): AuraContext<G> =>
+    engine.events.take(bearer, aura, other),
 
   giveContext: () => {
     engine.events.give();

@@ -22,6 +22,12 @@ export interface TriggerEvent<G extends TriggerTypes> {
   /** The unit the event is about: its owner-side triggers answer; `undefined` answers nothing. */
   unit(this: void, payload: unknown): G['bearer'] | undefined;
 
+  /**
+   * The event's other unit (a blow's victim for its attacker's triggers, its attacker for its victim's): what a
+   * trigger's procs reach as `other`; none when absent.
+   */
+  other?(this: void, payload: unknown): G['bearer'] | undefined;
+
   /** The filters the event carries, by name; a filter it does not carry fails. */
   readonly filters: Readonly<Record<string, TriggerFilterSpec<G> | undefined>>;
 }
@@ -41,6 +47,9 @@ export type TriggerFilterOf<Payload, G extends TriggerTypes> =
 export interface TriggerEventSpec<Payload, G extends TriggerTypes> {
   /** The unit the event is about. */
   readonly unit: (payload: Payload) => G['bearer'] | undefined;
+
+  /** The event's other unit, which a trigger's procs reach as `other` (an on-hit poison, thorns). */
+  readonly other?: (payload: Payload) => G['bearer'] | undefined;
 
   /** The filters it carries, by name. */
   readonly filters?: Readonly<Partial<Record<G['filter'], TriggerFilterOf<Payload, G>>>>;
@@ -63,6 +72,7 @@ export const triggerEvent = <Payload, G extends TriggerTypes = TriggerTypes>(
   return Object.freeze({
     kind,
     unit: spec.unit,
+    ...(spec.other === undefined ? {} : { other: spec.other }),
     filters: Object.freeze(
       Object.fromEntries(
         Object.entries(written).flatMap(([name, filter]) => (filter === undefined ? [] : [[name, specOf(filter)]])),

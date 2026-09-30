@@ -301,7 +301,7 @@ export class DamageEngine<G extends DamageTypes> {
     subject: S,
     at: { readonly unit: G['bearer']; readonly aura: ActiveAura<G> },
   ): boolean {
-    const ctx = this.auras.takeContext(at.unit, at.aura);
+    const ctx = this.auras.takeContext(at.unit, at.aura, walk.other?.(subject));
 
     try {
       return walk.step(subject, at.aura, ctx);
@@ -321,6 +321,9 @@ export interface HookWalk<G extends DamageTypes, S> {
 
   /** The unit whose auras are walked, or `undefined` to walk none. */
   readonly unit: (subject: S) => G['bearer'] | undefined;
+
+  /** The subject's other unit, which the hooks' context and procs name `other`; none when absent. */
+  readonly other?: (subject: S) => G['bearer'] | undefined;
 
   /** The step for one aura; true stops the walk. */
   readonly step: (subject: S, aura: ActiveAura<G>, ctx: AuraContext<G>) => boolean;

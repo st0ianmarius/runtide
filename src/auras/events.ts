@@ -144,8 +144,8 @@ export class AuraEvents<G extends AuraTypes> {
     }
   }
 
-  /** Takes the context of the next nesting level, filled for one aura. Give it back with `give`. */
-  take(bearer: G['bearer'], aura: ActiveAura<G>): MutableContext<G> {
+  /** Takes the context of the next nesting level, filled for one aura (and an event's other unit). Give it back with `give`. */
+  take(bearer: G['bearer'], aura: ActiveAura<G>, other?: G['bearer']): MutableContext<G> {
     const context = this.#contexts[this.#contextDepth] ?? new MutableContext<G>(bearer, aura);
 
     this.#contexts[this.#contextDepth] = context;
@@ -154,6 +154,7 @@ export class AuraEvents<G extends AuraTypes> {
     context.aura = aura;
     context.stats = this.#parts.host.statsOf?.(bearer);
     context.cause = this.#openCauses.at(-1) ?? 'apply';
+    context.other = other;
 
     return context;
   }

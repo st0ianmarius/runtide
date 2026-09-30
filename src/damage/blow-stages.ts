@@ -74,18 +74,21 @@ const deathPreventer =
 export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>): BlowWalks<G> => {
   const { hooks } = engine.auras.registry;
   const target = (blow: BlowRecord<G>): G['bearer'] => blow.target;
+  const attacker = (blow: BlowRecord<G>): G['bearer'] | undefined => blow.attacker;
   const applyChange = changeApplier(engine);
 
   return {
     ignore: {
       hook: 'onIgnore',
       unit: target,
+      other: attacker,
       step: (blow, aura, ctx) => hooks.onIgnore[aura.id]?.(ctx, blow) === true,
     },
 
     outgoing: {
       hook: 'onOutgoingDamage',
-      unit: (blow) => blow.attacker,
+      unit: attacker,
+      other: target,
 
       step: (blow, aura, ctx) => {
         const scale = hooks.onOutgoingDamage[aura.id]?.(ctx, blow)?.scale;
@@ -101,6 +104,7 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
     absorb: {
       hook: 'onIncomingDamage',
       unit: target,
+      other: attacker,
 
       step: (blow, aura, ctx) => {
         const change = hooks.onIncomingDamage[aura.id]?.(ctx, blow);
@@ -113,11 +117,12 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
       },
     },
 
-    lethal: { hook: 'onLethal', unit: target, step: deathPreventer(engine) },
+    lethal: { hook: 'onLethal', unit: target, other: attacker, step: deathPreventer(engine) },
 
     dealt: {
       hook: 'onDealt',
-      unit: (blow) => blow.attacker,
+      unit: attacker,
+      other: target,
 
       step: (blow, aura, ctx) => {
         engine.runProcs(hooks.onDealt[aura.id]?.(ctx, blow), ctx);

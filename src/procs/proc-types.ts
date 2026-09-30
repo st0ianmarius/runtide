@@ -46,10 +46,11 @@ export interface ProcTypes extends AuraTypes {
 
 /**
  * Where a proc lands: `self` (who the procs act for), `target` (the list's default target: a trigger's owner, an aura
- * hook's bearer), `eventUnit` (the unit the event a trigger answers is about), `party` (every unit of the self's
- * party, in the host's order), or a unit itself.
+ * hook's bearer), `eventUnit` (the unit the event a trigger answers is about), `other` (the event's other unit: a
+ * blow's victim for its attacker's trigger or `onDealt`, its attacker for its victim's), `party` (every unit of the
+ * self's party, in the host's order), or a unit itself.
  */
-export type ProcTarget<G extends ProcTypes> = 'self' | 'target' | 'eventUnit' | 'party' | G['bearer'];
+export type ProcTarget<G extends ProcTypes> = 'self' | 'target' | 'eventUnit' | 'other' | 'party' | G['bearer'];
 
 /**
  * What became of one proc: `skipped` (it did not go off: its chance failed, its list was too deep, its target was
@@ -126,6 +127,9 @@ export interface ProcOrigin<G extends ProcTypes> {
   /** The unit the event being answered is about, for `eventUnit` targets. */
   readonly eventUnit?: G['bearer'] | undefined;
 
+  /** The event's other unit, for `other` targets (a blow's victim for its attacker's procs). */
+  readonly other?: G['bearer'] | undefined;
+
   /** The entity id the procs are credited to; the host's id of `self` when absent. */
   readonly source?: number | undefined;
 
@@ -146,6 +150,9 @@ export interface ProcContext<G extends ProcTypes> {
 
   /** The unit the answered event is about, if any. */
   readonly eventUnit: G['bearer'] | undefined;
+
+  /** The event's other unit, if any. */
+  readonly other: G['bearer'] | undefined;
 
   /** The entity id the procs are credited to. */
   readonly source: number;

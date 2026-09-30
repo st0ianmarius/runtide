@@ -70,6 +70,10 @@ class DispatchFrame<G extends TriggerTypes, Host> implements TriggerContext<G>, 
   payload: unknown;
   eventUnit: G['bearer'];
   owner: G['bearer'];
+
+  /** The event's other unit, which the procs reach as `other`; `undefined` for an event with none. */
+  other: G['bearer'] | undefined = undefined;
+
   trigger: TriggerId = toId<'triggers'>(0);
   index = 0;
   source = NO_SOURCE;
@@ -108,6 +112,7 @@ class DispatchFrame<G extends TriggerTypes, Host> implements TriggerContext<G>, 
     this.payload = payload;
     this.eventUnit = unit;
     this.owner = unit;
+    this.other = event.other?.(payload);
     this.#aura = undefined;
   }
 
