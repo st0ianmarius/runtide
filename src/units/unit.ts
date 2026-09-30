@@ -55,7 +55,7 @@ export interface UnitParts<G extends UnitTypes> {
 export class Unit<G extends UnitTypes> implements UnitShape {
   readonly id: number;
   readonly template: UnitId;
-  readonly side: number;
+  side: number;
   readonly owner: G['bearer'] | undefined;
   readonly isBound: boolean;
   readonly auras: AuraState;

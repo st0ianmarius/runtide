@@ -12,6 +12,9 @@ export interface AreaTriggerHost<G extends AreaTriggerTypes> extends SpellHost<G
    */
   readonly allocateId?: () => number;
 
-  /** Whether a unit is still in the world (a `present` bound, the dies-with-source rule); true when absent. */
-  readonly isPresent?: (unit: G['bearer']) => boolean;
+  /**
+   * A unit's side, which an area trigger it spawns keeps for its catches: the world's `sideOf` when absent, which a
+   * unit with no place in the world (a world script) has none of.
+   */
+  readonly sideOf?: (unit: G['bearer']) => number;
 }

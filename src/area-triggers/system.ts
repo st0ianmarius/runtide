@@ -11,7 +11,7 @@ import type { AreaTriggerProcKinds } from './procs.ts';
 import { type AreaQueries, type AreaQuery, checkReason, despawnWhere } from './queries.ts';
 import { type AreaReplica, replicateAreas } from './replication.ts';
 import { spawnArea, type SpawnSpec } from './spawner.ts';
-import { stepSlot } from './stepper.ts';
+import { endOwned, stepSlot } from './stepper.ts';
 import type { AreaTriggerSystemOptions } from './system-options.ts';
 
 /**
@@ -68,6 +68,12 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
 
   /** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended. */
   readonly despawnWhere: (query: AreaQuery<G>, reason?: EndReason<G>) => number;
+
+  /**
+   * An owner left the world (its despawn): every area trigger of it that needs it (living while it does, bound to its
+   * presence, anchored on it) ends as `source-gone`; the rest live on. Returns how many ended.
+   */
+  readonly ownerGone: (owner: G['bearer']) => number;
 
   /**
    * Writes the replicated state of every live area trigger whose kind replicates its state into `out` from index 0
@@ -144,6 +150,8 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
   };
 
   readonly countOf = (owner: G['bearer'], kind: AreaTriggerId): number => this.#engine.countOf(owner, kind);
+
+  readonly ownerGone = (owner: G['bearer']): number => endOwned(this.#engine, owner);
 
   readonly despawnWhere = (query: AreaQuery<G>, reason: EndReason<G> = 'self'): number => {
     checkReason(this.#engine, reason);

@@ -93,15 +93,17 @@ describe('bounds', () => {
     boundOf: (down: ReadonlySet<number>) => AnyAreaTriggerDef<Game>['bound'],
     lifetime: AnyAreaTriggerDef<Game>['lifetime'] = 5,
   ) => {
-    const gone = new Set<number>();
     const down = new Set<number>();
     const bound = boundOf(down);
 
     const game = makeSpellGame(
       {},
       {
-        host: { isPresent: (unit) => !gone.has(unit.id) },
-        areaTriggers: { ward: ending({ lifetime, ...(bound === undefined ? {} : { bound }) }) },
+        areaTriggers: {
+          ward: ending({ lifetime, ...(bound === undefined ? {} : { bound }) }),
+          shot: ending({ lifetime: 5 }),
+          halo: ending({ lifetime: 5, anchor: 'owner' }),
+        },
       },
     );
 
@@ -113,16 +115,25 @@ describe('bounds', () => {
       game.areaTriggers.step();
     };
 
-    return { game, gone, down, handle, tick };
+    return { game, owner, down, handle, tick };
   };
 
-  it('ends as source-gone when its owner leaves the world', () => {
-    const { game, gone, tick } = boundGame(() => ({ owner: 'present' }));
+  it('ends as source-gone when its owner leaves the world, as it needs its owner, and leaves the others be', () => {
+    const { game, owner, tick } = boundGame(() => ({ owner: 'present' }));
+    const shot = game.areaTriggers.spawn(game.areaId.shot, { owner, at: vec2(0, 0) });
+    const halo = game.areaTriggers.spawn(game.areaId.halo, { owner, at: vec2(0, 0) });
 
     tick();
-    gone.add(1);
-    tick();
-    assert.deepEqual(linesOf(game.log), ['end source-gone', 'ended ward@1 source-gone']);
+    assert.equal(game.areaTriggers.ownerGone(owner), 2);
+    assert.deepEqual(linesOf(game.log), [
+      'end source-gone',
+      'ended ward@1 source-gone',
+      'end source-gone',
+      'ended halo@1 source-gone',
+    ]);
+    assert.notEqual(game.areaTriggers.get(shot), undefined);
+    assert.equal(game.areaTriggers.get(halo), undefined);
+    assert.equal(game.areaTriggers.ownerGone(game.unit(7)), 0);
   });
 
   it('ends as bound when its when fails (its owner went down)', () => {
@@ -162,9 +173,43 @@ describe('bounds', () => {
 
     owned.tick();
     assert.equal(owned.game.areaTriggers.isLive(owned.handle), true);
-    owned.gone.add(1);
-    owned.tick();
+    owned.game.areaTriggers.ownerGone(owned.owner);
     assert.deepEqual(linesOf(owned.game.log), ['end source-gone', 'ended ward@1 source-gone']);
+  });
+});
+
+describe('sides', () => {
+  it('catch relative to the side their owner had as they spawned, even an owner with no place in the world', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        host: { sideOf: (unit): number => (unit.id >= 100 ? 1 : 0) },
+        areaTriggers: {
+          pool: ending({
+            lifetime: 5,
+            every: [
+              {
+                seconds: 0.25,
+                onPulse: (c, hit) => void c.host.log.push(`pulse ${hit.targets.map((unit) => unit.id).join(',')}`),
+              },
+            ],
+          }),
+        },
+      },
+    );
+
+    const director = game.unit(50);
+    const foe = game.unit(101);
+
+    game.place(foe, vec2(1, 0));
+    game.world.remove(director);
+    game.areaTriggers.spawn(game.areaId.pool, { owner: director, at: vec2(0, 0) });
+    game.step();
+    game.areaTriggers.step();
+    assert.deepEqual(
+      game.log.filter((line) => line.startsWith('pulse')),
+      ['pulse 101'],
+    );
   });
 });
 

@@ -1,6 +1,7 @@
 import { countDown, isRunOut } from '../core/index.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
+import { ANCHOR_OWNER } from './define-area-triggers.ts';
 import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
 import { frame } from './frame.ts';
@@ -11,23 +12,12 @@ import type { OwnerAreas } from './order.ts';
 const EXPIRY_BEFORE = 1;
 const EXPIRY_CLIP = 2;
 
-/** Whether a unit is in the world, as the host says (true when it cannot tell). */
-const isPresent = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, unit: G['bearer']): boolean =>
-  engine.host.isPresent?.(unit) ?? true;
-
 /**
- * Checks what binds it before its frame: an owner it needs present that left ends it as `source-gone`; its
- * `suspendWhile` suspends it (its clock and hooks too); a failed `when` ends it as `bound`. Returns whether it runs
- * this frame.
+ * Checks what binds it before its frame: its `suspendWhile` suspends it (its clock and hooks too); a failed `when`
+ * ends it as `bound`. Returns whether it runs this frame. (Its owner leaving is told, not asked: `ownerGone`.)
  */
 const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): boolean => {
   const { bound } = engine.registry.get(area.kind);
-
-  if ((area.isOwnerLifetime || bound?.owner === 'present') && !isPresent(engine, area.owner)) {
-    endArea(engine, area, { reason: 'source-gone' });
-
-    return false;
-  }
 
   if (bound === undefined) {
     return true;
@@ -158,3 +148,41 @@ export const stepSlot = <G extends AreaTriggerTypes>(
 
   return stepped;
 };
+
+/**
+ * Ends, as `source-gone`, every area trigger of an owner that needs its owner: one that lives while its owner does,
+ * one bound to its owner's presence, and one anchored on its owner. The game calls it as the owner leaves the world
+ * (its despawn); an owner's others (a pool, a missile) live on. Returns how many ended.
+ */
+export const endOwned = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, owner: G['bearer']): number => {
+  const owned = engine.ownerOf(owner);
+
+  if (owned === undefined) {
+    return 0;
+  }
+
+  const handles = engine.handles.take();
+  const count = snapshotOwned(owned, engine.registry.ids, handles);
+  let ended = 0;
+
+  try {
+    for (let i = 0; i < count; i++) {
+      const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
+
+      if (area !== undefined && needsOwner(engine, area)) {
+        endArea(engine, area, { reason: 'source-gone' });
+        ended += 1;
+      }
+    }
+  } finally {
+    engine.handles.give(count);
+  }
+
+  return ended;
+};
+
+/** Whether an area trigger needs its owner in the world: its lifetime, its bound or its anchor is its owner. */
+const needsOwner = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): boolean =>
+  area.isOwnerLifetime ||
+  engine.registry.get(area.kind).bound?.owner === 'present' ||
+  ((engine.registry.columns.flags[area.kind] ?? 0) & ANCHOR_OWNER) !== 0;

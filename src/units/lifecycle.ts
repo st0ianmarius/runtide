@@ -48,6 +48,24 @@ export const raiseSpawned = <G extends UnitTypes>(
   raise(engine, engine.options.events?.spawned, [unit, 'alive', 'alive', at, '']);
 };
 
+/** Puts a unit on another side and raises `sideChanged`; false when it was on that side already. */
+export const changeSide = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer'], side: number): boolean => {
+  const unit = unitOf<G>(bearer);
+
+  if (!Number.isInteger(side)) {
+    throw new RangeError(`A side is a whole number; got ${side}.`);
+  }
+
+  if (unit.side === side) {
+    return false;
+  }
+
+  unit.side = side;
+  raise(engine, engine.options.events?.sideChanged, [bearer, unit.lifecycle, unit.lifecycle, undefined, '']);
+
+  return true;
+};
+
 /**
  * A unit leaves life (dies or despawns): its casts end if it lived, it enters the matching bearer state (its auras
  * hear it, then those `removedOn` it go), and it leaves its owner's summons, taking its bound ones along.

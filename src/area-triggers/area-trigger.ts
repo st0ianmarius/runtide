@@ -76,6 +76,10 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   kind: AreaTriggerId = toId<'areaTriggers'>(0);
   owner: G['bearer'];
   source = NO_SOURCE;
+
+  /** The side its catches are relative to: its owner's as it spawned. */
+  side = 0;
+
   cast: SpellContext<G> | undefined = undefined;
   rank = 1;
   stats: Readonly<Record<string, unknown>> = NO_STATS;

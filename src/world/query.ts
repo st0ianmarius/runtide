@@ -1,7 +1,16 @@
 import type { Box, MutableVec2, Shape, Vec2 } from '../math/index.ts';
 
-/** Which units a query keeps, relative to the unit it asks for (`of`): its foes, its allies, or every unit. */
-export type QuerySide = 'foes' | 'allies' | 'all';
+/**
+ * How a unit regards another, by their sides: `hostile` (a foe), `friendly` (an ally, itself included), or `neutral`
+ * (neither: a critter, a merchant, a player not flagged for combat).
+ */
+export type Reaction = 'hostile' | 'neutral' | 'friendly';
+
+/**
+ * Which units a query keeps, by how the unit it asks for (`of`) regards them: its foes (`hostile`), its allies
+ * (`friendly`), what it may attack (`hostile` or `neutral`), or every unit.
+ */
+export type QuerySide = 'foes' | 'allies' | 'attackable' | 'all';
 
 /**
  * One key a query orders its results by, ascending: `near` and `far` by distance from the query's point (its `from`),
@@ -23,8 +32,17 @@ export interface QueryOptions<Unit> {
   /** Which side to keep, relative to `of`; `all` by default. */
   readonly side?: QuerySide;
 
-  /** The unit the side is relative to (the caster); required for `foes` and `allies`. */
+  /**
+   * The unit asking (the caster): the side is relative to it, and the world's targeting rule (`canTarget`) asks for it.
+   * Required for a side other than `all`, unless `ofSide` gives the side.
+   */
   readonly of?: Unit;
+
+  /**
+   * The side the query is relative to, in place of `of`'s: an area trigger's side, captured as it spawned, whose owner
+   * has no place in the world (a world script's hazard).
+   */
+  readonly ofSide?: number;
 
   /** Distances run to a unit's centre (the default) or to the edge of its body. */
   readonly measure?: 'centre' | 'edge';
@@ -126,15 +144,15 @@ export interface WorldQuery<Unit> {
   /** A unit's body radius. */
   readonly radiusOf: (unit: Unit) => number;
 
-  /** A unit's side, which `isFoe` compares. */
+  /** A unit's side, which `reactionOf` reads. */
   readonly sideOf: (unit: Unit) => number;
 
   /**
-   * Whether two units are foes, by their sides: what a `foes` query keeps and an `allies` query leaves out. Different
-   * sides are foes in the reference world, unless the game gives it its own rule (a neutral side hurt by all, a free
-   * for all).
+   * How `a` regards `b`, by their sides: what a `foes`, `allies` or `attackable` query keeps. One side is friendly and
+   * two are hostile in the reference world, unless the game gives it its own rule (a neutral side, a free for all,
+   * factions).
    */
-  readonly isFoe: (a: Unit, b: Unit) => boolean;
+  readonly reactionOf: (a: Unit, b: Unit) => Reaction;
 
   /** A unit's entity id, which orders ties. */
   readonly idOf: (unit: Unit) => number;

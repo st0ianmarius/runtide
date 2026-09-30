@@ -75,6 +75,9 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** The entity id its hits are credited to. */
   readonly source: number;
 
+  /** The side its catches are relative to: its owner's as it spawned (`host.sideOf`, else the world's). */
+  readonly side: number;
+
   /** The cast it belongs to, kept alive while it lives; `undefined` when it spawned outside a cast. */
   readonly cast: SpellContext<G> | undefined;
 
@@ -158,11 +161,12 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
 }
 
 /**
- * What ends an area trigger early, or suspends it. Each part is optional; the owner's presence is the host's answer
- * (`isPresent`). Its owner going down, or holding an interrupt, is the game's to read in `suspendWhile` or `when`.
+ * What ends an area trigger early, or suspends it. Each part is optional; its owner leaving the world is told by the
+ * game (`areaTriggers.ownerGone`). Its owner going down, or holding an interrupt, is the game's to read in
+ * `suspendWhile` or `when`.
  */
 export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
-  /** Its owner must stay `present` (in the world): it ends as `source-gone` when the owner leaves. */
+  /** Its owner must stay `present` (in the world): it ends as `source-gone` as the owner leaves (`ownerGone`). */
   readonly owner?: 'present';
 
   /**

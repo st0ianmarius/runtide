@@ -1,15 +1,15 @@
 import { type Box, hypot, type MutableVec2, type Shape, type Vec2 } from '../math/index.ts';
 import { Placement } from './placement.ts';
 import { GridIndex, KdIndex, type PointIndex } from './point-index.ts';
-import type { BodyMove, PointPick, QueryOptions, RangeOptions, SweepOptions, WorldQuery } from './query.ts';
+import type { BodyMove, PointPick, QueryOptions, RangeOptions, Reaction, SweepOptions, WorldQuery } from './query.ts';
 import { type SearchParts, sweep } from './searches.ts';
 import { Selection } from './selection.ts';
-import { differentSides, type FoeRule, Selector } from './selector.ts';
+import { bySides, type ReactionRule, Selector, type TargetRule } from './selector.ts';
 import { StaticGeometry, type StaticShape } from './statics.ts';
 import { type UnitSpec, UnitTable } from './unit-table.ts';
 
 /** What a memory world is created with. */
-export interface MemoryWorldOptions {
+export interface MemoryWorldOptions<Unit = unknown> {
   /** The world's bounds: the grid covers them, and bodies stay inside them. */
   readonly bounds: Box;
 
@@ -25,8 +25,17 @@ export interface MemoryWorldOptions {
   /** The static geometry (walls, pillars), indexed once in an R-tree. */
   readonly statics?: readonly StaticShape[];
 
-  /** The game's rule for which sides are foes, by side (a neutral side, a free for all); different sides by default. */
-  readonly isFoe?: FoeRule;
+  /**
+   * The game's rule for how sides regard each other (a neutral side, a free for all, factions); one side friendly and
+   * two hostile by default.
+   */
+  readonly reaction?: ReactionRule;
+
+  /**
+   * The game's targeting rule, asked of every query with a unit asking (`of`): whether it may pick a unit at all
+   * (stealth against detection, a phased or untargetable unit, a spawn intro). Every unit may when absent.
+   */
+  readonly canTarget?: TargetRule<Unit>;
 }
 
 /**
@@ -51,6 +60,9 @@ export interface MemoryWorld<Unit> extends WorldQuery<Unit> {
   /** Moves a unit to `at` now. */
   readonly place: (unit: Unit, at: Vec2) => void;
 
+  /** Puts a unit on another side now (a charm, a flag for combat), which every query reads from here on. */
+  readonly setSide: (unit: Unit, side: number) => void;
+
   /** Starts a tick: every unit's previous position becomes its current one. */
   readonly tick: () => void;
 }
@@ -70,9 +82,9 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly #selection = new Selection<Unit>();
   readonly #parts: SearchParts<Unit>;
   readonly #dt: number;
-  readonly #isFoe: FoeRule;
+  readonly #reaction: ReactionRule;
 
-  constructor(options: MemoryWorldOptions) {
+  constructor(options: MemoryWorldOptions<Unit>) {
     const placement = new Placement(options.bounds, new StaticGeometry(options.statics ?? []));
 
     this.bounds = options.bounds;
@@ -81,8 +93,11 @@ class World<Unit> implements MemoryWorld<Unit> {
       options.index === 'kd'
         ? new KdIndex(this.#table)
         : new GridIndex(this.#table, { bounds: options.bounds, cell: options.cell ?? 4 });
-    this.#isFoe = options.isFoe ?? differentSides;
-    this.#selector = new Selector(this.#table, this.#index, this.#isFoe);
+    this.#reaction = options.reaction ?? bySides;
+    this.#selector = new Selector(this.#table, this.#index, {
+      reaction: this.#reaction,
+      canTarget: options.canTarget,
+    });
     this.#parts = { table: this.#table, selector: this.#selector, selection: this.#selection };
     this.isPositionClear = placement.isPositionClear;
     this.lineClear = placement.lineClear;
@@ -163,7 +178,11 @@ class World<Unit> implements MemoryWorld<Unit> {
 
   readonly radiusOf = (unit: Unit): number => this.#table.radius[this.#table.slotOf(unit)] ?? 0;
   readonly sideOf = (unit: Unit): number => this.#table.side[this.#table.slotOf(unit)] ?? 0;
-  readonly isFoe = (a: Unit, b: Unit): boolean => this.#isFoe(this.sideOf(a), this.sideOf(b));
+  readonly reactionOf = (a: Unit, b: Unit): Reaction => this.#reaction(this.sideOf(a), this.sideOf(b));
+
+  readonly setSide = (unit: Unit, side: number): void => {
+    this.#table.side[this.#table.slotOf(unit)] = side;
+  };
   readonly idOf = (unit: Unit): number => this.#table.id[this.#table.slotOf(unit)] ?? 0;
 
   readonly inside = (shape: Shape, options: QueryOptions<Unit>, out: (Unit | undefined)[]): number =>
@@ -188,11 +207,11 @@ export type QueryExtensions = Readonly<Record<string, (...args: never[]) => unkn
 /** `createMemoryWorld`'s two forms: without extensions, and with the game's own. */
 export interface CreateMemoryWorld {
   /** A memory world with the framework's queries only. */
-  <Unit>(options: MemoryWorldOptions): MemoryWorld<Unit>;
+  <Unit>(options: MemoryWorldOptions<Unit>): MemoryWorld<Unit>;
 
   /** A memory world with the game's own query extensions, made over it. */
   <Unit, Ext extends QueryExtensions>(
-    options: MemoryWorldOptions,
+    options: MemoryWorldOptions<Unit>,
     extend: (world: MemoryWorld<Unit>) => Ext,
   ): MemoryWorld<Unit> & Ext;
 }
@@ -210,7 +229,7 @@ const isExtended = <Unit, Ext extends QueryExtensions>(
  * `extensions` for the escape report: `createMemoryWorld({ bounds }, (world) => ({ squareClear: … }))`.
  */
 export const createMemoryWorld: CreateMemoryWorld = <Unit, Ext extends QueryExtensions>(
-  options: MemoryWorldOptions,
+  options: MemoryWorldOptions<Unit>,
   extend?: (world: MemoryWorld<Unit>) => Ext,
 ): MemoryWorld<Unit> & Ext => {
   const world = new World<Unit>(options);

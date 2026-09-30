@@ -4,7 +4,7 @@ import type { UnitVariant } from './bases.ts';
 import { type SpawnUnit, UnitEngine, unitOf, type UnitSystemOptions } from './engine.ts';
 import { damageHostOf, syncHealth } from './hosts.ts';
 import { syncStates } from './interrupts.ts';
-import { moveTo, raiseSpawned } from './lifecycle.ts';
+import { changeSide, moveTo, raiseSpawned } from './lifecycle.ts';
 import { createUnitProcKinds } from './proc-kinds.ts';
 import type { UnitProcKinds } from './procs.ts';
 import { attachScript, creditOf, joinOwner } from './summons.ts';
@@ -67,6 +67,18 @@ export interface UnitSystem<G extends UnitTypes> {
 
   /** Whether a unit may move: it is alive, and holds no aura tag of a state that blocks moving. */
   readonly canMove: (unit: G['bearer']) => boolean;
+
+  /**
+   * Whether a unit may be picked as a target: it holds no aura tag of a state that blocks targeting (stealth, phasing,
+   * a spawn intro). A game's world asks it in its targeting rule (`canTarget`), beside its own (detection, sides).
+   */
+  readonly isTargetable: (unit: G['bearer']) => boolean;
+
+  /**
+   * Puts a unit on another side (a charm, a flag for combat) and raises `sideChanged`, which the game answers by
+   * moving it in its world (`setSide`). Returns whether the side changed.
+   */
+  readonly setSide: (unit: G['bearer'], side: number) => boolean;
 
   /** Whether a unit has a class tag. */
   readonly hasTag: (unit: G['bearer'], tag: G['unitTag']) => boolean;
@@ -160,6 +172,8 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
     canAct: (unit) => isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksAct)),
     canMove: (unit) => isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksMove)),
+    isTargetable: (unit) => states === undefined || !unit.auras.tags.intersects(states.blocksTarget),
+    setSide: (unit, side) => changeSide(engine, unit, side),
 
     hasTag: (unit, tag) => {
       const ids: Readonly<Record<string, number | undefined>> = registry.tags.id;

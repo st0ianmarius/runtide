@@ -43,4 +43,7 @@ export interface UnitEvents<G extends UnitTypes> {
 
   /** A unit despawned: removed without dying. */
   readonly despawned?: EventKind<UnitEvent<G>>;
+
+  /** A unit changed sides (`units.setSide`): the game moves it to its new side in its world. */
+  readonly sideChanged?: EventKind<UnitEvent<G>>;
 }

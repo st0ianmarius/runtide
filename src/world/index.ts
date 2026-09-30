@@ -19,11 +19,12 @@ export type {
   QueryOrder,
   QuerySide,
   RangeOptions,
+  Reaction,
   SweepOptions,
   UnitSet,
   WorldQuery,
 } from './query.ts';
 
-export type { FoeRule } from './selector.ts';
+export type { ReactionRule, TargetRule } from './selector.ts';
 export type { StaticShape } from './statics.ts';
 export type { UnitSpec } from './unit-table.ts';

@@ -1,15 +1,18 @@
 import type { AuraTagTable } from '../auras/index.ts';
 import { type Bitset, createBitset } from '../core/index.ts';
 
-/** What a derived state keeps a unit from doing. */
-export type UnitBlock = 'act' | 'move';
+/** What a derived state keeps a unit from doing, or from having done to it: being picked as a target (`target`). */
+export type UnitBlock = 'act' | 'move' | 'target';
 
 /** A derived unit state: held while the unit holds an aura with any of its aura tags. */
 export interface UnitStateDef<T extends string = string, I extends string = string> {
   /** The aura tags that put a unit in it. */
   readonly tags: readonly T[];
 
-  /** What it keeps the unit from doing: casting and acting (`act`), moving (`move`); nothing when absent. */
+  /**
+   * What it keeps the unit from doing: casting and acting (`act`), moving (`move`), being picked as a target
+   * (`target`: stealth, phasing, a spawn intro); nothing when absent.
+   */
   readonly blocks?: readonly UnitBlock[];
 
   /**
@@ -44,6 +47,9 @@ export interface UnitStateTable<Name extends string = string, I extends string =
 
   /** The aura tags that keep a unit from moving. */
   readonly blocksMove: Bitset;
+
+  /** The aura tags that keep a unit from being picked as a target. */
+  readonly blocksTarget: Bitset;
 
   /** The states that raise interrupts, in declared order: a unit keeps one bit each. */
   readonly interrupting: readonly InterruptingState<I>[];
@@ -112,6 +118,7 @@ export const defineUnitStates = <T extends string, const Name extends string, co
     tags: Object.freeze(tags),
     blocksAct: blocking('act'),
     blocksMove: blocking('move'),
+    blocksTarget: blocking('target'),
     interrupting: Object.freeze(interrupting),
   });
 };

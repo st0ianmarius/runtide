@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { createEntityIds } from '../../src/core/index.ts';
 import { defineUnits, type UnitDef } from '../../src/units/index.ts';
 import { AURA_TAGS, auraId, HEARD, makeUnitGame, STATS, UNIT_TAGS, type UnitGame } from '../helpers/unit-game.ts';
 
@@ -96,6 +97,38 @@ describe('variants', () => {
 
     Reflect.set(odd, 'luck', 1);
     assert.throws(() => units.variant(game.id.grunt, odd), /there is no stat named luck/);
+  });
+});
+
+describe('sides, targeting and ids', () => {
+  it('puts a unit on another side with an event, and is refused a side that is not whole', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const grunt = game.units.spawn(game.id.grunt, { side: 1 });
+
+    assert.equal(game.units.setSide(grunt, 0), true);
+    assert.equal(game.units.setSide(grunt, 0), false);
+    assert.equal(grunt.side, 0);
+    assert.deepEqual(game.log.slice(-1), ['side 1 0']);
+    assert.throws(() => game.units.setSide(grunt, 0.5), /whole number/);
+  });
+
+  it('is untargetable while in a state that blocks targeting', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const grunt = game.units.spawn(game.id.grunt, { side: 1 });
+
+    assert.equal(game.units.isTargetable(grunt), true);
+    game.auras.apply(grunt, auraId('veil'));
+    assert.equal(game.units.isTargetable(grunt), false);
+  });
+
+  it('draws entity ids from a shared counter, a summon’s too', () => {
+    const ids = createEntityIds(40);
+    const game = makeUnitGame(TEMPLATES, { allocateId: ids.next });
+    const hero = game.units.spawn(game.id.hero, { side: 0 });
+
+    ids.next();
+    assert.deepEqual([hero.id, game.units.spawn(game.id.grunt, { side: 1 }).id, ids.count()], [41, 43, 43]);
+    assert.throws(() => createEntityIds(-1), /whole number/);
   });
 });
 

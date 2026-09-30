@@ -94,24 +94,87 @@ describe('inside: the units a shape covers', () => {
     assert.throws(() => world.inside(circle(5), { side: 'foes' }, out), RangeError);
   });
 
-  it("sorts foes by the game's rule when it has one: side 2 is everyone's foe, and its own", () => {
-    const world = createMemoryWorld<Mob>({ bounds: BOUNDS, isFoe: (a, b) => a !== b || a === 2 });
-    const [hero, mob, hazard, other] = [{ name: 'h' }, { name: 'm' }, { name: 'z' }, { name: 'o' }];
+  it("reads the game's reaction rule: side 2 is everyone's foe and its own, side 3 neutral to all", () => {
+    const world = createMemoryWorld<Mob>({
+      bounds: BOUNDS,
+
+      reaction: (a, b) => {
+        if (a === 2 || b === 2) {
+          return 'hostile';
+        }
+
+        if (a === 3 || b === 3) {
+          return 'neutral';
+        }
+
+        return a === b ? 'friendly' : 'hostile';
+      },
+    });
+
+    const [hero, mob, hazard, other, critter] = [
+      { name: 'h' },
+      { name: 'm' },
+      { name: 'z' },
+      { name: 'o' },
+      { name: 'c' },
+    ];
 
     world.add(hero, { id: 1, at: vec2(0, 0), side: 0 });
     world.add(mob, { id: 2, at: vec2(1, 0), side: 1 });
     world.add(hazard, { id: 3, at: vec2(0, 1), side: 2 });
     world.add(other, { id: 4, at: vec2(1, 1), side: 2 });
+    world.add(critter, { id: 5, at: vec2(-1, 0), side: 3 });
 
     const out: (Mob | undefined)[] = [];
 
-    assert.deepEqual(names(out, world.inside(circle(5), { side: 'foes', of: hero }, out)), ['m', 'z', 'o']);
-    assert.deepEqual(names(out, world.inside(circle(5), { side: 'foes', of: hazard }, out)), ['h', 'm', 'z', 'o']);
-    assert.deepEqual(names(out, world.inside(circle(5), { side: 'allies', of: hazard }, out)), []);
+    const query = (side: 'foes' | 'allies' | 'attackable', of: Mob) =>
+      names(out, world.inside(circle(5), { side, of }, out));
+
+    assert.deepEqual(query('foes', hero), ['m', 'z', 'o']);
+    assert.deepEqual(query('attackable', hero), ['m', 'z', 'o', 'c']);
+    assert.deepEqual(query('allies', hero), ['h']);
+    assert.deepEqual(query('foes', hazard), ['h', 'm', 'z', 'o', 'c']);
+    assert.deepEqual(query('allies', hazard), []);
     assert.deepEqual(
-      [world.isFoe(hero, mob), world.isFoe(hero, hero), world.isFoe(other, hazard)],
-      [true, false, true],
+      [world.reactionOf(hero, mob), world.reactionOf(hero, hero), world.reactionOf(hero, critter)],
+      ['hostile', 'friendly', 'neutral'],
     );
+  });
+
+  it('moves a unit to another side, and takes the side from ofSide for an asker with no place', () => {
+    const { world, mob } = worldOf([
+      [1, 0, 0, 0],
+      [2, 1, 0, 1],
+      [3, 0, 1, 1],
+    ]);
+
+    const out: (Mob | undefined)[] = [];
+
+    world.setSide(mob(3), 0);
+    assert.deepEqual(names(out, world.inside(circle(5), { side: 'foes', of: mob(1) }, out)), ['m2']);
+    assert.deepEqual(names(out, world.inside(circle(5), { side: 'foes', of: { name: 'x' }, ofSide: 1 }, out)), [
+      'm1',
+      'm3',
+    ]);
+  });
+
+  it("leaves out whom the game's targeting rule says the asker may not pick", () => {
+    const world = createMemoryWorld<Mob>({
+      bounds: BOUNDS,
+      canTarget: (by, unit) => by.name === 'seer' || unit.name !== 'shade',
+    });
+
+    const [seer, grunt, shade] = [{ name: 'seer' }, { name: 'grunt' }, { name: 'shade' }];
+
+    world.add(seer, { id: 1, at: vec2(0, 0), side: 0 });
+    world.add(grunt, { id: 2, at: vec2(1, 0), side: 0 });
+    world.add(shade, { id: 3, at: vec2(0, 1), side: 1 });
+
+    const out: (Mob | undefined)[] = [];
+
+    assert.deepEqual(names(out, world.inside(circle(5), { of: grunt }, out)), ['seer', 'grunt']);
+    assert.deepEqual(names(out, world.inside(circle(5), { of: seer }, out)), ['seer', 'grunt', 'shade']);
+    assert.deepEqual(names(out, world.inside(circle(5), {}, out)), ['seer', 'grunt', 'shade']);
   });
 
   it('leaves out an exclude set and what fails the filter', () => {

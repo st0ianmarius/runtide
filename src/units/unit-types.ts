@@ -27,7 +27,7 @@ export interface UnitShape extends AbilityBearer, AiBearer {
   /** Its template. */
   readonly template: UnitId;
 
-  /** Its side: 0 or 1, the two sides that fight. */
+  /** Its side, which the world's reaction rule reads (`units.setSide` changes it: a charm, a flag for combat). */
   readonly side: number;
 
   /** The unit it belongs to (a summoner, a pet's owner); `undefined` for none. */

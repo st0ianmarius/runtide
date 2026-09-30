@@ -92,6 +92,7 @@ const fill = <G extends AreaTriggerTypes>(
 ): void => {
   const { registry } = engine;
 
+  area.side = (engine.host.sideOf ?? engine.world.sideOf)(spec.owner);
   area.moveTo(spec.at);
   area.previous.x = spec.at.x;
   area.previous.z = spec.at.z;

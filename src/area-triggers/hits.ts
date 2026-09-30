@@ -82,6 +82,7 @@ export class Hit<G extends AreaTriggerTypes> implements AreaHit<G> {
 class CatchOptions<G extends AreaTriggerTypes> implements QueryOptions<G['bearer']>, SweepOptions<G['bearer']> {
   side: QuerySide = 'foes';
   of: G['bearer'];
+  ofSide = 0;
   readonly measure = 'edge';
   radius = 0;
   readonly relative = true;
@@ -145,6 +146,7 @@ export class Catcher<G extends AreaTriggerTypes> {
 
     options.side = hit.spec?.side ?? 'foes';
     options.of = owner;
+    options.ofSide = hit.area?.side ?? 0;
     options.hit = hit;
 
     return options;

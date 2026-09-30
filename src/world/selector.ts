@@ -1,15 +1,27 @@
 import { boundsOf, covers, emptyBox, hypot, type MutableBox, ORIGIN } from '../math/index.ts';
 import { IndexSorter, KeySorter } from './index-sorter.ts';
 import type { PointIndex } from './point-index.ts';
-import type { QueryOptions } from './query.ts';
+import type { QueryOptions, Reaction } from './query.ts';
 import { contactShare, type Selection, type SortKey } from './selection.ts';
 import type { UnitTable } from './unit-table.ts';
 
-/** A game's rule for which sides are foes: `a` is the side a query is relative to, `b` a candidate's. */
-export type FoeRule = (a: number, b: number) => boolean;
+/** A game's rule for how sides regard each other: `a` is the side a query is relative to, `b` a candidate's. */
+export type ReactionRule = (a: number, b: number) => Reaction;
 
-/** The default foe rule: different sides are foes. */
-export const differentSides: FoeRule = (a, b) => a !== b;
+/** The default rule: one side is friendly, two sides are hostile. */
+export const bySides: ReactionRule = (a, b) => (a === b ? 'friendly' : 'hostile');
+
+/** A game's targeting rule: whether `by` may pick `unit` at all (stealth, phasing, a spawn intro, a downed unit). */
+export type TargetRule<Unit> = (by: Unit, unit: Unit) => boolean;
+
+/** What the rules make of a query's side, and how. */
+export interface SelectorRules<Unit> {
+  /** How sides regard each other. */
+  readonly reaction: ReactionRule;
+
+  /** Whether a unit may be picked by the one asking; every unit may when absent. */
+  readonly canTarget: TargetRule<Unit> | undefined;
+}
 
 /**
  * Selects units for a memory world's queries: narrows by the point index, keeps the units that pass the
@@ -26,7 +38,8 @@ export class Selector<Unit> {
 
   readonly #table: UnitTable<Unit>;
   readonly #index: PointIndex;
-  readonly #isFoe: FoeRule | undefined;
+  readonly #reaction: ReactionRule | undefined;
+  readonly #canTarget: TargetRule<Unit> | undefined;
   readonly #box: MutableBox = emptyBox();
   readonly #candidates: number[] = [];
   readonly #kept: number[] = [];
@@ -43,10 +56,11 @@ export class Selector<Unit> {
   #fromX = 0;
   #fromZ = 0;
 
-  constructor(table: UnitTable<Unit>, index: PointIndex, isFoe: FoeRule) {
+  constructor(table: UnitTable<Unit>, index: PointIndex, rules: SelectorRules<Unit>) {
     this.#table = table;
     this.#index = index;
-    this.#isFoe = isFoe === differentSides ? undefined : isFoe;
+    this.#reaction = rules.reaction === bySides ? undefined : rules.reaction;
+    this.#canTarget = rules.canTarget;
   }
 
   /** The slots the last `run` selected, in order, valid up to its count. */
@@ -155,7 +169,7 @@ export class Selector<Unit> {
     return kept;
   }
 
-  /** The side of the unit the query asks for, or NaN when it keeps every side. */
+  /** The side the query is relative to, or NaN when it keeps every side. */
   #sideOf(options: QueryOptions<Unit>): number {
     const side = options.side ?? 'all';
 
@@ -163,8 +177,12 @@ export class Selector<Unit> {
       return Number.NaN;
     }
 
+    if (options.ofSide !== undefined) {
+      return options.ofSide;
+    }
+
     if (options.of === undefined) {
-      throw new RangeError(`A query for ${side} needs the unit they are relative to (of).`);
+      throw new RangeError(`A query for ${side} needs the unit they are relative to (of), or its side (ofSide).`);
     }
 
     return this.#table.side[this.#table.slotOf(options.of)] ?? 0;
@@ -177,6 +195,7 @@ export class Selector<Unit> {
     return (
       this.#isOnSide(options, slot) &&
       options.exclude?.has(unit) !== true &&
+      (this.#canTarget === undefined || options.of === undefined || this.#canTarget(options.of, unit)) &&
       this.#isCaught(selection, slot) &&
       (options.filter?.(unit) ?? true)
     );
@@ -191,9 +210,19 @@ export class Selector<Unit> {
     }
 
     const side = this.#table.side[slot] ?? 0;
-    const isFoe = this.#isFoe === undefined ? side !== ofSide : this.#isFoe(ofSide, side);
+    const reaction = this.#reaction === undefined ? bySides(ofSide, side) : this.#reaction(ofSide, side);
 
-    return (options.side === 'foes') === isFoe;
+    const keep = options.side ?? 'all';
+
+    if (keep === 'foes') {
+      return reaction === 'hostile';
+    }
+
+    if (keep === 'allies') {
+      return reaction === 'friendly';
+    }
+
+    return keep === 'all' || reaction !== 'friendly';
   }
 
   /** Whether a slot passes the selection's exact test: its shape, its range, or its sweep (noting the contact). */

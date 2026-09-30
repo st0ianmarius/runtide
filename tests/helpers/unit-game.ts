@@ -78,7 +78,7 @@ export interface UnitGame extends ScriptTypes {
   readonly source: 'base' | 'auras';
 
   /** The test aura tags. */
-  readonly tag: 'stun' | 'root' | 'freeze' | 'slow' | 'freezeImmune';
+  readonly tag: 'stun' | 'root' | 'freeze' | 'slow' | 'freezeImmune' | 'veil';
 
   /** One clock. */
   readonly clock: 'world';
@@ -174,7 +174,7 @@ export interface UnitGame extends ScriptTypes {
   readonly unitTag: 'horde' | 'elite' | 'boss' | 'objective';
 
   /** The test derived states. */
-  readonly unitState: 'stunned' | 'rooted' | 'frozen';
+  readonly unitState: 'stunned' | 'rooted' | 'frozen' | 'hidden';
 
   /** A counter the tests write. */
   readonly unitExt: {
@@ -199,7 +199,7 @@ export const STATS = defineStats({
 const aura = defineAura<UnitGame>;
 
 /** The test aura tags. */
-export const AURA_TAGS = defineAuraTags(['stun', 'root', 'freeze', 'slow', 'freezeImmune']);
+export const AURA_TAGS = defineAuraTags(['stun', 'root', 'freeze', 'slow', 'freezeImmune', 'veil']);
 
 /** The bearer states the test mark heard, as `state id`; a test clears it. */
 export const HEARD: string[] = [];
@@ -207,6 +207,7 @@ export const HEARD: string[] = [];
 /** The test auras: control, a vigour that raises maximum health, a haste, and a mark that hears states and goes. */
 const AURAS = defineAuras<UnitGame, string>({
   stun: aura({ duration: 1, tags: ['stun'] }),
+  veil: aura({ duration: 3, tags: ['veil'] }),
   root: aura({ duration: 2, tags: ['root'] }),
   freeze: aura({ duration: 2, tags: ['freeze'], blockedBy: ['freezeImmune'] }),
   slow: aura({ duration: 2, tags: ['slow'] }),
@@ -248,12 +249,16 @@ const UNIT_STATES = defineUnitStates(AURA_TAGS, {
   stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' },
   rooted: { tags: ['root', 'freeze'], blocks: ['move'] },
   frozen: { tags: ['freeze'], interrupt: 'freeze' },
+  hidden: { tags: ['veil'], blocks: ['target'] },
 });
 
 /** A unit test game's options. */
 export interface UnitGameOptions<Extra extends string = never> {
   /** The health policy. */
   readonly policy?: HealthPolicy<UnitGame>;
+
+  /** The shared entity id counter the unit system draws from; its own when absent. */
+  readonly allocateId?: () => number;
 
   /** The aura host's application policy, handed the unit system. */
   readonly onIncomingAura?: (
@@ -331,6 +336,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     spawned: (): UnitEvent<UnitGame> => createUnitEvent<UnitGame>(),
     changed: (): UnitEvent<UnitGame> => createUnitEvent<UnitGame>(),
     despawned: (): UnitEvent<UnitGame> => createUnitEvent<UnitGame>(),
+    sideChanged: (): UnitEvent<UnitGame> => createUnitEvent<UnitGame>(),
     death: (): DeathEvent<UnitGame> => createDeathEvent<UnitGame>(),
     kill: (): DeathEvent<UnitGame> => createDeathEvent<UnitGame>(),
   });
@@ -383,7 +389,14 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     ...(options.folds === false ? {} : { modifiers: { system: modifiers, base: 'base' as const } }),
     health: { stat: 'maxHealth', ...(options.policy === undefined ? {} : { policy: options.policy }) },
     states: UNIT_STATES,
-    events: { bus, spawned: bus.kind.spawned, changed: bus.kind.changed, despawned: bus.kind.despawned },
+    events: {
+      bus,
+      spawned: bus.kind.spawned,
+      changed: bus.kind.changed,
+      despawned: bus.kind.despawned,
+      sideChanged: bus.kind.sideChanged,
+    },
+    ...(options.allocateId === undefined ? {} : { allocateId: options.allocateId }),
     createExt: (template, spawn) => ({ marks: 0, made: `${template}/${spawn.side}` }),
   });
 
@@ -437,6 +450,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
 
   bus.on(bus.kind.spawned, line('spawned'));
   bus.on(bus.kind.changed, line('changed'));
+  bus.on(bus.kind.sideChanged, (event) => log.push(`side ${event.unit?.id ?? '?'} ${event.unit?.side ?? '?'}`));
   bus.on(bus.kind.despawned, (event) => {
     line('despawned')(event);
 

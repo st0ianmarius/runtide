@@ -80,6 +80,12 @@ export interface UnitSystemBase<G extends UnitTypes> {
 
   /** The bus and kinds the system raises its events on. */
   readonly events?: UnitEvents<G>;
+
+  /**
+   * Allocates a unit's entity id from the game's shared counter (`createEntityIds().next`), so units, area triggers
+   * and casts share one id space. Without it the system counts its own ids from 1.
+   */
+  readonly allocateId?: () => number;
 }
 
 /** Makes the game's fields of a new unit: its template tells a mob from a hero, its spawn holds what it was given. */
@@ -235,7 +241,7 @@ export class UnitEngine<G extends UnitTypes> {
 
   /** A spawn's entity id: its own, or the next; refuses one already live. */
   #idFor(spawn: SpawnUnit<G>): number {
-    const id = spawn.id ?? this.nextId;
+    const id = spawn.id ?? this.options.allocateId?.() ?? this.nextId;
 
     if (this.byId.has(id)) {
       missing(`entity id ${id} is already a live unit`);
