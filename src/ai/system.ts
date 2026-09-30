@@ -7,12 +7,12 @@ import type { AiProcKinds } from './procs.ts';
 import { Scheduler } from './scheduler.ts';
 import type { TimerTable } from './timers.ts';
 
-/** The hold bit of the game's own holds (`ai.hold`); each interrupt that holds has its own above it. */
-const GAME_HOLD = 1;
+/** The most hold reasons a system takes: each is one bit of a brain's holds. */
+const MAX_HOLDS = 31;
 
 /** What an AI system is built from. */
 export interface AiSystemOptions<G extends AiTypes> {
-  /** The spell system its picks check against (`spells.check`) and whose interrupts hold its timers. */
+  /** The spell system its picks check against (`spells.check`). */
   readonly spells: SpellSystem<G>;
 
   /** The fixed-step clock its timers count on (the spell system's). */
@@ -22,10 +22,10 @@ export interface AiSystemOptions<G extends AiTypes> {
   readonly timers: TimerTable<G['timerName']>;
 
   /**
-   * The interrupts that hold a brain's timers while its unit holds them (a stun or a freeze holds a
-   * creature's timers as it pauses its cast), raised through `ai.interrupt`. None when absent.
+   * The reasons that hold a brain's timers (`ai.hold`), the game's own: an intro or a blink, and the unit states'
+   * interrupts its creatures wait out (a freeze, which the unit system passes on). None when absent; at most 31.
    */
-  readonly heldBy?: readonly G['interrupt'][];
+  readonly holds?: readonly string[];
 }
 
 /**
@@ -73,18 +73,13 @@ export interface AiSystem<G extends AiTypes> {
   readonly step: (fire: (unit: G['bearer'], timer: TimerId) => void) => number;
 
   /**
-   * The game's own hold on a brain's timers (stages such as an intro or a blink hold them): while on, they
-   * stop counting; returns whether the brain is held now, by this or an interrupt.
+   * Holds (or lets go of) a brain's timers for one reason: while any of the system's `holds` is on, they stop counting.
+   * A reason the system was not given does nothing (a unit state's interrupt its creatures do not wait out). Returns
+   * whether the brain is held now.
    */
-  readonly hold: (unit: G['bearer'], isOn: boolean) => boolean;
+  readonly hold: (unit: G['bearer'], reason: string, isOn: boolean) => boolean;
 
-  /**
-   * An interrupt on a unit starts or ends (a unit system calls it with its states' interrupts): one the system is
-   * `heldBy` holds the unit's timers while on. Returns whether the brain is held now.
-   */
-  readonly interrupt: (unit: G['bearer'], reason: G['interrupt'], isOn: boolean) => boolean;
-
-  /** Picks a spell from a pool, weighted, the last pick left out while another fits; `undefined` for none. */
+  /** Picks a spell from a pool, weighted; `undefined` for none. */
   readonly pick: (caster: G['bearer'], pool: readonly SpellId[], options: PickOptions<G>) => SpellId | undefined;
 
   /** The first spell of an ordered list that would start now (a reaction); `undefined` for none. */
@@ -101,14 +96,19 @@ export interface AiSystem<G extends AiTypes> {
   readonly setFocus: (unit: G['bearer'], focus: number) => void;
 }
 
-/** Creates the AI system: `createAiSystem({ spells, clock, timers: TIMERS, heldBy: ['stun', 'freeze'] })`. */
+/** Creates the AI system: `createAiSystem({ spells, clock, timers: TIMERS, holds: ['intro', 'freeze'] })`. */
 export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): AiSystem<G> => {
   const { spells, timers } = options;
   const scheduler = new Scheduler<G>(options.clock, timers.names.length);
   const picker = new Picker<G>(spells);
-  const heldBy = spells.interruptMask(options.heldBy ?? []);
-  // Each holding interrupt's bit, looked up once: a stun edge reads one map, where a mask would build an array.
-  const holdBits = new Map((options.heldBy ?? []).map((reason) => [reason, spells.interruptMask([reason])]));
+  const holds = options.holds ?? [];
+
+  if (holds.length > MAX_HOLDS || new Set(holds).size !== holds.length) {
+    throw new RangeError(`An AI system takes at most ${MAX_HOLDS} hold reasons, each once.`);
+  }
+
+  // Each reason's bit, looked up once: a freeze edge reads one map.
+  const holdBits = new Map(holds.map((reason, index) => [reason, 2 ** index]));
 
   const system: AiSystem<G> = {
     timers,
@@ -134,10 +134,7 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
     cancel: (unit, timer) => scheduler.cancel(unit, timer),
     remaining: (unit, timer) => scheduler.remaining(unit, timer),
     step: (fire) => scheduler.step(fire),
-    hold: (unit, isOn) => scheduler.hold(unit, { bits: GAME_HOLD, isOn }),
-
-    interrupt: (unit, reason, isOn) =>
-      scheduler.hold(unit, { bits: holdBits.get(reason) ?? spells.interruptMask([reason]) & heldBy, isOn }),
+    hold: (unit, reason, isOn) => scheduler.hold(unit, { bits: holdBits.get(reason) ?? 0, isOn }),
 
     pick: (caster, pool, pick) => picker.pick(caster, pool, pick),
     first: (caster, list, first) => picker.first(caster, list, first),

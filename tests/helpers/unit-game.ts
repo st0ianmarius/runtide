@@ -370,7 +370,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     host: { canAct: (unit) => late.units?.canAct(unit) ?? true },
   });
 
-  const ai = createAiSystem<UnitGame>({ spells, clock, timers: TIMERS, heldBy: ['freeze'] });
+  const ai = createAiSystem<UnitGame>({ spells, clock, timers: TIMERS, holds: ['intro', 'freeze'] });
 
   const holdScripts: { system?: ScriptSystem<UnitGame> } = {};
 

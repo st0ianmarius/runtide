@@ -56,17 +56,17 @@ describe('named timers (EventMap)', () => {
     assert.deepEqual(fired, []);
   });
 
-  it('are held by the game or by a held interrupt, counting on from what they had left', () => {
+  it('are held for the game’s reasons, a unit state’s interrupt among them, counting on from what they had left', () => {
     const { ai, auras, a, fired, tick } = timed();
 
     ai.start(a, TIMERS.id.pick, 1);
     tick();
-    assert.equal(ai.hold(a, true), true);
+    assert.equal(ai.hold(a, 'intro', true), true);
     assert.equal(ai.remaining(a, TIMERS.id.pick), 0.75);
     tick(8);
     assert.deepEqual(fired, []);
     auras.apply(a, auraId('freeze'));
-    assert.equal(ai.hold(a, false), true);
+    assert.equal(ai.hold(a, 'intro', false), true);
     ai.start(a, TIMERS.id.raise, 0.25);
     tick(4);
     auras.remove(a, auraId('freeze'));
@@ -75,7 +75,7 @@ describe('named timers (EventMap)', () => {
     assert.deepEqual(fired, ['raise@1@14']);
     tick(2);
     assert.deepEqual(fired, ['raise@1@14', 'pick@1@16']);
-    assert.equal(ai.interrupt(a, 'stun', true), false);
+    assert.equal(ai.hold(a, 'stun', true), false);
   });
 
   it('stop with a despawned unit, whose brain the next unit reuses', () => {

@@ -28,7 +28,6 @@ import {
   finishCast,
   holdCast,
   interruptCaster,
-  interruptMaskOf,
   isCasting,
   MANUAL_PAUSE,
   setPause,
@@ -174,15 +173,6 @@ export interface SpellSystem<G extends SpellTypes> {
    * declare (`interrupts`) and no timeline names. A cast started while it holds does not answer it.
    */
   readonly isInterrupted: (caster: G['bearer'], reason: G['interrupt']) => boolean;
-
-  /**
-   * The bits of a list of interrupts, for a system that checks them often (`heldInterrupts`): an area trigger's
-   * `pausedBy`, resolved at load. Throws for one the game did not declare (`interrupts`) and no timeline names.
-   */
-  readonly interruptMask: (reasons: readonly G['interrupt'][]) => number;
-
-  /** The bits of the interrupts a caster holds now, to test against an `interruptMask`. */
-  readonly heldInterrupts: (caster: G['bearer']) => number;
 
   /** Cancels every cast a caster runs (its death), in the order they started; how many. */
   readonly cancelAll: (caster: G['bearer']) => number;
@@ -345,10 +335,6 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     (recordOf(caster).interrupts & (this.#engine.interruptBits.get(reason) ?? 0)) !== 0;
 
   readonly cancelAll = (caster: G['bearer']): number => cancelCaster(this.#engine, caster);
-
-  readonly interruptMask = (reasons: readonly G['interrupt'][]): number => interruptMaskOf(this.#engine, reasons);
-
-  readonly heldInterrupts = (caster: G['bearer']): number => recordOf(caster).interrupts;
 
   get current(): CastHandle {
     return this.#engine.current?.cast ?? NO_CAST;
