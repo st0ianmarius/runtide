@@ -397,6 +397,23 @@ for (const [name, task, ticks] of HORDE_TASKS) {
 
 await last.run();
 
+// The co-op game runs after it, on a fresh module for the same reason.
+const { COOP_TASKS, coopCounter, coopStats } = await import('./coop.ts');
+const coop = new Bench({ time: 400, warmup: true });
+
+for (const [name, task, ticks] of COOP_TASKS) {
+  const calls = Math.max(1, BATCH / ticks);
+
+  BATCHES.set(name, calls);
+  coop.add(name, () => {
+    for (let i = 0; i < calls; i++) {
+      task();
+    }
+  });
+}
+
+await coop.run();
+
 sink +=
   counter.granted +
   damageCounter.taken +
@@ -409,13 +426,15 @@ sink +=
   abilityCounter.granted +
   logCounter.seen +
   unitCounter.seen +
-  hordeCounter.seen;
+  hordeCounter.seen +
+  coopCounter.seen;
 
 const horde = spellHordeStats();
 const areas = areaStats();
 const whole = hordeStats();
+const party = coopStats();
 
-const rows = [...bench.tasks, ...last.tasks].map((task) => {
+const rows = [...bench.tasks, ...last.tasks, ...coop.tasks].map((task) => {
   const { result } = task;
   const batch = BATCHES.get(task.name) ?? BATCH;
   const nanoseconds = result.state === 'completed' ? (result.latency.mean * 1e6) / batch : Number.NaN;
@@ -427,5 +446,6 @@ process.stdout.write(
   `${[`${'benchmark'.padEnd(48)}    per op`, ...rows].join('\n')}\n(sink ${sink > 0 ? 'ok' : 'empty'}; ` +
     `one cue tick is ${CUE_TICK_BYTES} bytes; ${horde.inFlight} of 2,000 casters have a spell in flight, ` +
     `${horde.created} cast records made; ${areas.live} area triggers live, ${areas.created} records made; ` +
-    `${whole.inReach} of the whole game's mobs in reach, ${whole.swings} swings landed)\n`,
+    `${whole.inReach} of the whole game's mobs in reach, ${whole.swings} swings landed; ` +
+    `${party.inReach} of the co-op game's mobs in reach, ${party.live} area triggers live)\n`,
 );
