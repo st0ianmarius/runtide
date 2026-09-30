@@ -66,7 +66,19 @@ export interface AfterProc<G extends SpellTypes> extends ProcShape {
 
   /** The tick slot they land in (`spells.stepDelayed(slot)`); the landing list's for `due`, else the first. */
   readonly slot?: TickSlotId;
+
+  /**
+   * Whether they still land, asked of their owner (the cast's caster, else the list's self) as they fall due: a false
+   * drops them unrun (Galeheart's strike lands only while its owner stands). They always land when absent.
+   */
+  readonly bound?: DelayBound<G>;
 }
+
+/** An `after` proc's bound: whether its owner still lets it land; declared as a method so a narrower owner fits. */
+export type DelayBound<G extends SpellTypes> = {
+  /** Reads the owner. */
+  bivarianceHack(owner: G['bearer']): boolean;
+}['bivarianceHack'];
 
 /**
  * Rescales the clocks of the unit it lands on (§II.6 A13, P3, §I.7.1 F15): its `auto` clocks still counting in scope
@@ -120,5 +132,5 @@ export const castSpell = <G extends SpellTypes = SpellTypes>(
 export const after = <G extends SpellTypes = SpellTypes>(
   seconds: number,
   procs: readonly Proc<G>[],
-  options: ChanceOption & Pick<AfterProc<G>, 'from' | 'slot'> = {},
+  options: ChanceOption & Pick<AfterProc<G>, 'from' | 'slot' | 'bound'> = {},
 ): AfterProc<G> => ({ ...options, kind: 'after', seconds, procs });

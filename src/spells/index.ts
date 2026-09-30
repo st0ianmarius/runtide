@@ -62,6 +62,7 @@ export {
   type CastCooldown,
   castSpell,
   type CastSpellProc,
+  type DelayBound,
   rescaleClocks,
   type RescaleClocksProc,
   type SpellProcKinds,

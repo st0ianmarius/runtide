@@ -161,6 +161,10 @@ const checkAfter = <G extends SpellTypes>(engine: SpellEngine<G>, proc: AfterPro
   if (proc.slot !== undefined && !(proc.slot >= 0 && proc.slot < engine.delayed.slots)) {
     throw new RangeError(`an after proc's slot ${proc.slot} is not one of the system's ${engine.delayed.slots}.`);
   }
+
+  if (proc.bound !== undefined && typeof proc.bound !== 'function') {
+    throw new TypeError("an after proc's bound is a function of its owner.");
+  }
 };
 
 /** The `after` kind: schedules its procs on the timing wheel of its slot. */

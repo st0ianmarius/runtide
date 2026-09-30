@@ -155,6 +155,35 @@ describe('delayed procs (§II.3.4, §II.6 P5, S6)', () => {
     assert.equal(game.spells.pool.live, 0);
   });
 
+  it('lands a bound list while its owner passes, and drops it unrun, letting its cast go, once it fails', () => {
+    const standing = new Set<number>([1]);
+
+    const game = makeSpellGame({
+      strike: spell({
+        activation: { kind: 'trigger' },
+        release: () => [after<Game>(0.5, [mark('struck')], { bound: (owner) => standing.has(owner.id) })],
+      }),
+    });
+
+    const a = game.unit(1);
+
+    game.spells.cast(a, game.id.strike);
+    game.step(2);
+    assert.equal(game.spells.stepDelayed(), 1);
+
+    const { handle } = game.spells.cast(a, game.id.strike);
+
+    game.step(2);
+    standing.delete(1);
+    assert.equal(game.spells.stepDelayed(), 0);
+    assert.deepEqual(
+      game.log.filter((line) => line.startsWith('struck')),
+      ['struck@1'],
+    );
+    assert.equal(game.spells.get(handle), undefined);
+    assert.equal(game.spells.delayed.pending, 0);
+  });
+
   it("counts a chained delay from its parent's due time with from: 'due', else from now", () => {
     const landed: string[] = [];
 

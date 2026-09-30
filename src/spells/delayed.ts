@@ -14,6 +14,7 @@ import type { Proc, ProcContext, ProcOrigin } from '../procs/index.ts';
 import type { Cast } from './cast.ts';
 import type { SpellEngine } from './engine.ts';
 import { missing } from './missing.ts';
+import type { DelayBound } from './procs.ts';
 import type { SpellTypes } from './spell-types.ts';
 
 /** No procs. */
@@ -31,6 +32,7 @@ class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
   source = NO_SOURCE;
   procs: readonly Proc<G>[] = NO_PROCS;
   cast: Cast<G> | undefined = undefined;
+  bound: DelayBound<G> | undefined = undefined;
   handle: Handle<Delayed<G>> = toHandle<Delayed<G>>(0);
 
   /** The tick its delay counts from. */
@@ -64,6 +66,9 @@ export interface DelaySpec<G extends SpellTypes> {
 
   /** Its tick slot; the landing list's slot for `due`, else 0. */
   readonly slot?: number | undefined;
+
+  /** Whether its owner still lets it land, asked as it falls due; it always lands when absent. */
+  readonly bound?: DelayBound<G> | undefined;
 }
 
 /**
@@ -124,6 +129,7 @@ export class DelayedProcs<G extends SpellTypes> {
     record.eventUnit = ctx.eventUnit;
     record.source = ctx.source;
     record.procs = spec.procs;
+    record.bound = spec.bound;
     record.anchor = parent?.anchor ?? engine.clock.tick;
     record.offset = (parent?.offset ?? 0) + spec.seconds;
     record.slot = spec.slot ?? parent?.slot ?? 0;
@@ -141,7 +147,10 @@ export class DelayedProcs<G extends SpellTypes> {
     wheel.schedule(record.anchor + stepsUntil(record.offset, dt, countdown), handle);
   }
 
-  /** Lands every list of a slot due by the clock's tick, in due order; returns how many landed. */
+  /**
+   * Lands every list of a slot due by the clock's tick, in due order, dropping unrun each whose bound its owner fails;
+   * returns how many landed.
+   */
   land(slot: number): number {
     const wheel = this.#wheels[slot] ?? missing(`tick slot ${slot}`);
     const due = this.#due.take();
@@ -153,7 +162,13 @@ export class DelayedProcs<G extends SpellTypes> {
         const handle = due[i];
         const record = handle === undefined ? undefined : this.#pool.get(handle);
 
-        if (record !== undefined) {
+        if (record === undefined) {
+          continue;
+        }
+
+        if (record.bound?.(record.cast?.caster ?? record.self) === false) {
+          this.#free(record);
+        } else {
           this.#landOne(record);
           landed += 1;
         }
@@ -232,6 +247,7 @@ export class DelayedProcs<G extends SpellTypes> {
     const { cast } = record;
 
     record.cast = undefined;
+    record.bound = undefined;
     record.procs = NO_PROCS;
     record.eventUnit = undefined;
     this.#pool.release(record.handle);
