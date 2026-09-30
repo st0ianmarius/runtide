@@ -140,9 +140,6 @@ export const curveOf = <const S extends string = never>(
   }
 });
 
-/** `× 100 / (100 + coef × haste)`: `scaled(12, haste(0.5))` is a 12 s cooldown taking half the ability haste. */
-export const haste = (coef: PerRank): ScalingPart<never> => curveOf('haste', coef);
-
 /** Appends a curve part, refusing a second curve: a scaled value has one curve at most. */
 const withCurve = <S extends string>(
   current: Scaling<S>['curve'],

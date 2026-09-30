@@ -10,7 +10,6 @@ import {
   evaluateScaled,
   explainScaled,
   finishScaled,
-  haste,
   hyperbolic,
   ranks,
   scaled,
@@ -19,17 +18,21 @@ import {
   type StatTable,
   type StatView
 } from '../../src/modifiers/index.ts';
+import { CURVES } from '../helpers/curves.ts';
 
-const STATS = defineStats({
-  attackDamage: { base: 60, kind: 'flat' },
-  abilityPower: { base: 0, kind: 'flat' },
-  abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
-  maxHealth: { base: 600, kind: 'flat' },
-  level: { base: 1, kind: 'flat' },
-  damage: { base: 1, kind: 'multiplier' },
-  critDamage: { base: 1.75, kind: 'multiplier' },
-  armorPen: { base: 0, kind: 'multiplier', neutral: 0 }
-});
+const STATS = defineStats(
+  {
+    attackDamage: { base: 60, kind: 'flat' },
+    abilityPower: { base: 0, kind: 'flat' },
+    abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
+    maxHealth: { base: 600, kind: 'flat' },
+    level: { base: 1, kind: 'flat' },
+    damage: { base: 1, kind: 'multiplier' },
+    critDamage: { base: 1.75, kind: 'multiplier' },
+    armorPen: { base: 0, kind: 'multiplier', neutral: 0 }
+  },
+  { curves: CURVES }
+);
 
 const { id } = STATS;
 
@@ -62,14 +65,14 @@ describe('scaled values', () => {
   });
 
   it('shorten a cooldown through the haste curve: 12 s × 100 / (100 + 0.5 × haste)', () => {
-    const cooldown = compileScaled(STATS, scaled(12, haste(0.5)));
+    const cooldown = compileScaled(STATS, scaled(12, curveOf('haste', 0.5)));
 
     assert.equal(evaluateScaled(cooldown, { caster: unit({ abilityHaste: 100 }) }), 8);
     assert.equal(evaluateScaled(cooldown, { caster: unit({}) }), 12);
   });
 
   it('evaluate in the fixed order (base + Σ add) × Π amp × curve(Σ curve terms)', () => {
-    const value = compileScaled(STATS, scaled(10, add('attackDamage', 0.1), amp('damage', 1.1), haste(0.5)));
+    const value = compileScaled(STATS, scaled(10, add('attackDamage', 0.1), amp('damage', 1.1), curveOf('haste', 0.5)));
 
     const caster = unit({ attackDamage: 100, damage: 1.35, abilityHaste: 10 });
 
@@ -209,13 +212,16 @@ describe('load-time checks', () => {
   });
 
   it('refuse two curves, a curve term no stat declares, and unknown stats', () => {
-    assert.throws(() => scaled(1, haste(1), curveOf(hyperbolic({ k: 1 }), 1, { stat: 'level' })), /one curve at most/);
+    assert.throws(
+      () => scaled(1, curveOf('haste', 1), curveOf(hyperbolic({ k: 1 }), 1, { stat: 'level' })),
+      /one curve at most/
+    );
     const loose: StatTable = STATS;
 
     assert.throws(() => compileScaled(loose, scaled(1, curveOf('haste', 1, { stat: 'nope' }))), /no stat named nope/);
 
     const table = defineStats({ level: { base: 1, kind: 'flat' } });
 
-    assert.throws(() => compileScaled(table, scaled(1, haste(1))), /no stat declares its curve/);
+    assert.throws(() => compileScaled(table, scaled(1, curveOf('haste', 1))), /no stat declares its curve/);
   });
 });

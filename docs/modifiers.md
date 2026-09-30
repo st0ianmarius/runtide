@@ -154,7 +154,7 @@ The table exposes:
 - `stats.columns.base`, `.neutral`, `.min`, `.max`: `Float64Array` columns indexed by stat id.
 - `stats.columns.isMultiplier`: a `Uint8Array` kind column.
 - `stats.index`: the index used by the scaling compilers.
-- `stats.curves`: named curves, containing only `haste` by default.
+- `stats.curves`: named curves, empty by default.
 - `stats.derivations`: compiled intrinsic relationships indexed by destination stat id.
 
 Use `neutral` and `base` deliberately. A critical-damage stat can start at `base: 1.75` but retain `neutral: 1`.
@@ -686,8 +686,20 @@ The following setup combines a reach-to-area derivation, a hit-rating conversion
 <!-- example: modifiers-values.ts#stats-and-curves -->
 
 ```ts
+// A game's own curves: LoL's ability haste, and WoW's diminishing returns on avoidance with evaluated parameters.
+const haste = customCurve((x) => (x >= 0 ? 100 / (100 + x) : 1 - x / 100));
+
+const avoidance = customCurve(
+  (x, { per, cap, k }) => {
+    const percent = x / per / 100;
+
+    return percent <= 0 ? 0 : 1 / (1 / cap + k / percent);
+  },
+  { per: 10, cap: 0.65, k: 1 }
+);
+
 const curves = defineCurves({
-  haste: hasteCurve(),
+  haste,
   armor: hyperbolic({ k: 100, cap: 0.75, negative: 'amplify' }),
   hitRating: rating(
     byLevel([
@@ -695,7 +707,7 @@ const curves = defineCurves({
       [60, 20]
     ])
   ),
-  dodge: avoidance({ per: 10, cap: 0.65, k: 1 }),
+  dodge: avoidance,
   slowResistance: stacking(0.2),
   growth: table([
     [1, 1],
@@ -759,25 +771,30 @@ Reference: [`stats.ts`](../src/modifiers/stats.ts), [`build-sheet.ts`](../src/mo
 Curves are data or pure game functions mapping an input number to an effect. They are used by scaling, stat conversions,
 and damage integrations. They do not automatically apply damage mitigation just because a stat is named armor.
 
+The library ships general shapes only. A game's own formulas, such as League of Legends' ability haste or WoW's
+diminishing returns on avoidance (both in the example above), are custom curves the game registers under its own names.
 Register a named table with `defineCurves`, pass it to `defineStats`, and then use a curve name or an inline curve object.
-Supplying a custom table replaces the default one; include `haste: hasteCurve()` yourself if using `haste(...)`.
+The table is empty when none is passed.
 
 | Constructor                            | Result                                           | Content constraints / interpretation                                    |
 | -------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------- |
 | `linear(per)`                          | `x × per`                                        | Flat conversion, no automatic clamp                                     |
 | `rating(per)`                          | `x / per / 100`                                  | Rating per one percentage point; `per > 0`                              |
 | `hyperbolic({ k, cap?, negative? })`   | Positive input: `x / (x + k)`, optionally capped | `k > 0`; cap in `(0, 1]`; result is a reduction fraction                |
-| `hasteCurve()`                         | `100 / (100 + x)`                                | A duration factor; `x = 100` gives half duration                        |
-| `avoidance({ per, cap, k })`           | `1 / (1 / cap + k / p)`, `p = x / per / 100`     | At/below zero: 0; `per, k > 0`, cap in `(0, 1]`                         |
 | `stacking(rate)`                       | `1 - (1 - rate) ** x`                            | Equal-instance multiplicative removal; rate in `[0, 1]`                 |
 | `table(points)`                        | Piecewise linear interpolation                   | Finite points, strictly ascending x; endpoint values hold outside range |
-| Game function passed to `defineCurves` | That function's result                           | Pure deterministic function of x; compiled as `custom`                  |
+| `customCurve(map, params?)`            | `map(x, values)`                                 | Pure deterministic; `values` holds each named parameter, evaluated      |
+| Game function passed to `defineCurves` | That function's result                           | Shorthand for `customCurve(map)` with no parameters                     |
 
 `hyperbolic` with its default `negative: 'zero'` gives zero reduction at/below zero. With `negative: 'amplify'`, a
 negative input instead returns `2 - k / (k - x)`, a **damage multiplier**, not a reduction. The damage pipeline understands
 that distinction; a custom consumer must branch appropriately rather than apply `1 - result` to both cases.
 
-Curve parameters such as `per`, `k`, `cap`, and `rate` can be numbers, scaled formulas, or lookup objects.
+Curve parameters such as `per`, `k`, `cap`, and `rate` can be numbers, scaled formulas, or lookup objects. So can a
+custom curve's named parameters: the framework evaluates them before each call and passes their values to `map` by name,
+so a game formula can read the attacker's level or the defender's stats, and snapshots and target checks see those reads.
+A custom curve's function must not read stats itself. It receives only numbers; the parameter record is reused between
+calls, so read it during the call and do not keep it. Custom parameters are only checked to be finite.
 `byLevel(points, { stat?, from? })` produces a lookup, defaulting to the caster's `level` stat. It reads the stat's
 resolved total and uses the same linear interpolation/endpoint behavior as a table curve.
 
@@ -802,8 +819,8 @@ assert.equal(explainScaled(damage, 2).total, undefined);
 ```
 
 Load-time checks verify declared parameter values (or a scaled parameter's base values), not every possible runtime
-result of a dynamic formula. Keep dynamic denominators positive and finite. The haste formula does not protect against
-an input of -100; use game content constraints or stat clamps for the allowed range.
+result of a dynamic formula. Keep dynamic denominators positive and finite. A custom curve's formula is the game's own:
+guard its domain (a haste formula written as `100 / (100 + x)` alone divides by zero at -100), or clamp its input stat.
 
 Reference: [`curves.ts`](../src/modifiers/curves.ts), [`evaluate.ts`](../src/modifiers/evaluate.ts),
 [`curves.test.ts`](../tests/modifiers/curves.test.ts).
@@ -826,7 +843,6 @@ It evaluates in the fixed order:
 | `add(stat, coef, { of?, from? })`             | Add `coef × stat` to formula base         | Flat stats only                                                      |
 | `amp(stat, coef, { from? })`                  | Multiply by `1 + coef × (stat − neutral)` | Multiplier stats only; `of: 'bonus'` is rejected                     |
 | `curveOf(curve, coef, { stat?, of?, from? })` | Add a term to the final curve's input     | Explicit stat, or infer one stat declaring a named curve             |
-| `haste(coef)`                                 | Curve term for named `haste`              | Requires exactly one stat declaring that curve                       |
 
 These helper names describe formula construction. They do not install modifiers on a sheet.
 
@@ -868,7 +884,7 @@ const target = modifiers.view(targetSheet);
 assert.equal(evaluateScaled(damage, { caster, target, rank: 2 }), 400);
 assert.equal(evaluateScaled(damage, { caster, rank: 2 }), 240); // Target term omitted for this preview.
 
-const cooldown = compileScaled(stats, scaled(12, haste(0.5)), { allowsTarget: false });
+const cooldown = compileScaled(stats, scaled(12, curveOf('haste', 0.5)), { allowsTarget: false });
 
 assert.equal(evaluateScaled(cooldown, { caster }), 8);
 
@@ -1223,7 +1239,7 @@ Checking one resolved stat builds and checks the sheet's full explicit dependenc
 | A computed multiplier wipes the result to zero    | `perStat` returns a factor directly, and its followed bonus is zero                                             | Use a value formula that deliberately includes the desired neutral factor           |
 | A cycle error appears only during the first read  | Sheet-level graph validation is lazy                                                                            | Warm up sheets; remove the circular relationships, even conditional ones            |
 | A bonus term rejects a zero-base stat             | `of: 'bonus'` is redundant for table base zero                                                                  | Use the total term                                                                  |
-| `haste(...)` fails to infer a stat                | No stat, or multiple stats, declares named haste; custom curve table may omit haste                             | Declare one or use explicit `curveOf('haste', coef, { stat })`                      |
+| `curveOf('haste', …)` fails to infer a stat       | No stat, or multiple stats, declares the named curve                                                            | Declare one or name it: `curveOf('haste', coef, { stat })`                          |
 | A delayed hit changes after a caster buff expires | It uses a live view or only part of its attacker stats was frozen                                               | Snapshot formula and required downstream attacker stats at the intended point       |
 | A frozen view throws for a stat                   | Required stat was not taken, or storage was retaken for another effect                                          | Freeze every required stat and keep storage owned by one effect                     |
 | Damage seems multiplied twice                     | Both scaled `amp` and pipeline outgoing stages include the same bonus                                           | Put the factor at its intended single stage                                         |
@@ -1237,18 +1253,18 @@ Checking one resolved stat builds and checks the sheet's full explicit dependenc
 Use [`src/modifiers/index.ts`](../src/modifiers/index.ts) as the authoritative export list. This table groups all public
 runtime exports; accompanying type exports describe the same contracts.
 
-| Area                             | Runtime exports                                                                                             | Primary types / source                                                                                                                                                                                                                                                 |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stats                            | `defineStats`                                                                                               | `StatDef`, `StatTable`, `Derivation`, `StatId`, `StatIndex`, `NamedCurve`; [stats](../src/modifiers/stats.ts), [ids/index](../src/modifiers/stat-id.ts)                                                                                                                |
-| Sources                          | `defineSources`, `sourceMask`                                                                               | `SourceDef`, `SourceId`, `SourceTable`; [sources](../src/modifiers/sources.ts)                                                                                                                                                                                         |
-| Modifier content                 | `plus`, `mul`, `cap`, `perStat`, `hostValue`                                                                | `Modifier`, `ModifierOptions`, `ModifierValue`, `StatValue`, `HostValue`, `CompiledValue`, `CompiledModifier`, `ModifierList`, `ModifierTables`; [modifier](../src/modifiers/modifier.ts)                                                                              |
-| System                           | `createModifierSystem`                                                                                      | `ModifierSystem`, `ModifierSystemOptions`, `StatSheet`, `FoldRead`; [system](../src/modifiers/system.ts), [sheet](../src/modifiers/sheet.ts)                                                                                                                           |
-| Scaling content                  | `ranks`, `scaled`, `add`, `amp`, `curveOf`, `haste`                                                         | `PerRank`, `Scaled`, `Scaling`, `ScalingPart`, `Term`, `CurveTerm`, `TermOptions`; [scaled](../src/modifiers/scaled.ts)                                                                                                                                                |
-| Scaling compilation / evaluation | `compileScaled`, `compileCurve`, `evaluateScaled`, `evaluateCurve`, `shareOf`                               | `CompileOptions`, `StatView`, `ScaledContext`, `CompiledScaled`, `CompiledTerm`, `CompiledCurve`, `CompiledParam`, `CompiledLookup`; [compile](../src/modifiers/compile-values.ts), [compiled](../src/modifiers/compiled.ts), [evaluate](../src/modifiers/evaluate.ts) |
-| Curves                           | `defineCurves`, `linear`, `rating`, `hyperbolic`, `hasteCurve`, `avoidance`, `stacking`, `table`, `byLevel` | `Curve`, `CurveRef`, `CurveParam`, `CurveTable`, `CurveId`, `Lookup`, and the eight curve interfaces; [curves](../src/modifiers/curves.ts)                                                                                                                             |
-| Snapshots / bases                | `snapshotScaled`, `finishScaled`, `freezeStats`, `FrozenStats`, `basesView`                                 | `ScaledSnapshot`; [snapshot](../src/modifiers/snapshot.ts), [frozen stats](../src/modifiers/frozen-stats.ts), [bases](../src/modifiers/bases-view.ts)                                                                                                                  |
-| Explanations                     | `explainModifier`, `explainModifiers`, `explainScaled`; system method `explainStat`                         | `ModifierExplanation`, `Contribution`, `DerivedContribution`, `StatExplanation`, `ScaledExplanation`, `TermExplanation`; [modifier/stat explanations](../src/modifiers/explain.ts), [scaled explanations](../src/modifiers/explain-scaled.ts)                          |
-| Changes                          | `watchStats`                                                                                                | `StatWatch`, `StatChange`; [watch](../src/modifiers/watch.ts)                                                                                                                                                                                                          |
+| Area                             | Runtime exports                                                                                 | Primary types / source                                                                                                                                                                                                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stats                            | `defineStats`                                                                                   | `StatDef`, `StatTable`, `Derivation`, `StatId`, `StatIndex`, `NamedCurve`; [stats](../src/modifiers/stats.ts), [ids/index](../src/modifiers/stat-id.ts)                                                                                                                |
+| Sources                          | `defineSources`, `sourceMask`                                                                   | `SourceDef`, `SourceId`, `SourceTable`; [sources](../src/modifiers/sources.ts)                                                                                                                                                                                         |
+| Modifier content                 | `plus`, `mul`, `cap`, `perStat`, `hostValue`                                                    | `Modifier`, `ModifierOptions`, `ModifierValue`, `StatValue`, `HostValue`, `CompiledValue`, `CompiledModifier`, `ModifierList`, `ModifierTables`; [modifier](../src/modifiers/modifier.ts)                                                                              |
+| System                           | `createModifierSystem`                                                                          | `ModifierSystem`, `ModifierSystemOptions`, `StatSheet`, `FoldRead`; [system](../src/modifiers/system.ts), [sheet](../src/modifiers/sheet.ts)                                                                                                                           |
+| Scaling content                  | `ranks`, `scaled`, `add`, `amp`, `curveOf`                                                      | `PerRank`, `Scaled`, `Scaling`, `ScalingPart`, `Term`, `CurveTerm`, `TermOptions`; [scaled](../src/modifiers/scaled.ts)                                                                                                                                                |
+| Scaling compilation / evaluation | `compileScaled`, `compileCurve`, `evaluateScaled`, `evaluateCurve`, `shareOf`                   | `CompileOptions`, `StatView`, `ScaledContext`, `CompiledScaled`, `CompiledTerm`, `CompiledCurve`, `CompiledParam`, `CompiledLookup`; [compile](../src/modifiers/compile-values.ts), [compiled](../src/modifiers/compiled.ts), [evaluate](../src/modifiers/evaluate.ts) |
+| Curves                           | `defineCurves`, `linear`, `rating`, `hyperbolic`, `stacking`, `table`, `customCurve`, `byLevel` | `Curve`, `CurveRef`, `CurveParam`, `CurveTable`, `CurveId`, `Lookup`, and the six curve interfaces; [curves](../src/modifiers/curves.ts)                                                                                                                               |
+| Snapshots / bases                | `snapshotScaled`, `finishScaled`, `freezeStats`, `FrozenStats`, `basesView`                     | `ScaledSnapshot`; [snapshot](../src/modifiers/snapshot.ts), [frozen stats](../src/modifiers/frozen-stats.ts), [bases](../src/modifiers/bases-view.ts)                                                                                                                  |
+| Explanations                     | `explainModifier`, `explainModifiers`, `explainScaled`; system method `explainStat`             | `ModifierExplanation`, `Contribution`, `DerivedContribution`, `StatExplanation`, `ScaledExplanation`, `TermExplanation`; [modifier/stat explanations](../src/modifiers/explain.ts), [scaled explanations](../src/modifiers/explain-scaled.ts)                          |
+| Changes                          | `watchStats`                                                                                    | `StatWatch`, `StatChange`; [watch](../src/modifiers/watch.ts)                                                                                                                                                                                                          |
 
 The system's callable methods are `compile`, `createSheet`, `setSource`, `share`, `resolve`, `view`, and `explainStat`.
 It also exposes `stats` and `sources`. These functions are created as bound closures; consumers do not need a class

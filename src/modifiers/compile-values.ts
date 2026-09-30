@@ -161,17 +161,15 @@ const curveParams = (curve: CompiledCurve | undefined): readonly (CompiledParam 
       return [curve.k, curve.cap];
     }
 
-    case 'avoidance': {
-      return [curve.per, curve.cap, curve.k];
-    }
-
     case 'stacking': {
       return [curve.rate];
     }
 
-    case 'haste':
+    case 'custom': {
+      return curve.params;
+    }
+
     case 'table':
-    case 'custom':
     case undefined: {
       return [];
     }
@@ -260,20 +258,6 @@ const compileCurveObject = (curve: Curve, id: CurveId | undefined, state: Compil
       };
     }
 
-    case 'haste': {
-      return { kind: 'haste', id };
-    }
-
-    case 'avoidance': {
-      return {
-        kind: 'avoidance',
-        id,
-        per: param(curve.per),
-        cap: param(curve.cap),
-        k: param(curve.k)
-      };
-    }
-
     case 'stacking': {
       return { kind: 'stacking', id, rate: param(curve.rate) };
     }
@@ -285,7 +269,11 @@ const compileCurveObject = (curve: Curve, id: CurveId | undefined, state: Compil
     }
 
     case 'custom': {
-      return { kind: 'custom', id, map: curve.map };
+      const names = Object.keys(curve.params);
+      const params = names.map((name) => param(curve.params[name] ?? 0));
+      const values = Object.fromEntries(names.map((name) => [name, 0]));
+
+      return { kind: 'custom', id, names, params, values, map: curve.map };
     }
   }
 };

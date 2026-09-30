@@ -80,6 +80,7 @@ import {
 } from '../../src/spells/index.ts';
 import { createTriggerSystem, type TriggerDef, type TriggerTypes } from '../../src/triggers/index.ts';
 import { createMemoryWorld, type MemoryWorld } from '../../src/world/index.ts';
+import { CURVES } from './curves.ts';
 
 /** A test unit: an entity id, a place, health, a stat column per stat, its auras and its casts. */
 export interface Unit extends SpellCaster {
@@ -247,12 +248,15 @@ export interface Game extends AreaTriggerTypes, DamageTypes, TriggerTypes {
 }
 
 /** The test stats: a flat power, a multiplier damage bonus, haste, and the target's maximum health. */
-export const STATS = defineStats({
-  power: { base: 10, kind: 'flat' },
-  damage: { base: 1, kind: 'multiplier' },
-  abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
-  maxHealth: { base: 100, kind: 'flat' }
-});
+export const STATS = defineStats(
+  {
+    power: { base: 10, kind: 'flat' },
+    damage: { base: 1, kind: 'multiplier' },
+    abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
+    maxHealth: { base: 100, kind: 'flat' }
+  },
+  { curves: CURVES }
+);
 
 /** The name of a test stat. */
 type StatName = keyof typeof STATS.id;

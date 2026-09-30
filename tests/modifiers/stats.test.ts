@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { defineCurves, defineStats, hasteCurve, linear, type StatDef } from '../../src/modifiers/index.ts';
+import { defineCurves, defineStats, linear, type StatDef } from '../../src/modifiers/index.ts';
+import { HASTE } from '../helpers/curves.ts';
 
 describe('the stat table', () => {
   it('gives dense ids in key order and typed columns for the fold', () => {
@@ -51,13 +52,14 @@ describe('the stat table', () => {
     );
   });
 
-  it('names curves in the game’s curve table, haste alone by default', () => {
-    const curves = defineCurves({ haste: hasteCurve(), soft: (x) => x / 2 });
+  it('names curves in the game’s curve table, which is empty by default', () => {
+    const curves = defineCurves({ haste: HASTE, soft: (x) => x / 2 });
 
     const stats = defineStats({ abilityHaste: { base: 0, kind: 'flat', curve: 'haste' } }, { curves });
 
     assert.deepEqual(curves.id, { haste: 0, soft: 1 });
     assert.equal(stats.curves, curves);
-    assert.deepEqual(defineStats({ a: { base: 0, kind: 'flat', curve: 'haste' } }).curves.names, ['haste']);
+    assert.deepEqual(defineStats({ a: { base: 0, kind: 'flat' } }).curves.names, []);
+    assert.throws(() => defineStats({ a: { base: 0, kind: 'flat', curve: 'haste' } }), /no curve named haste/);
   });
 });

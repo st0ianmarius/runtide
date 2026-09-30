@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import {
   add,
   amp,
-  avoidance,
   basesView,
   byLevel,
   compileCurve,
   compileScaled,
   createModifierSystem,
   curveOf,
+  customCurve,
   defineCurves,
   defineSources,
   defineStats,
@@ -18,8 +18,6 @@ import {
   explainScaled,
   finishScaled,
   freezeStats,
-  haste,
-  hasteCurve,
   hyperbolic,
   linear,
   plus,
@@ -33,8 +31,20 @@ import {
 } from '../../src/modifiers/index.ts';
 
 // #region stats-and-curves
+// A game's own curves: LoL's ability haste, and WoW's diminishing returns on avoidance with evaluated parameters.
+const haste = customCurve((x) => (x >= 0 ? 100 / (100 + x) : 1 - x / 100));
+
+const avoidance = customCurve(
+  (x, { per, cap, k }) => {
+    const percent = x / per / 100;
+
+    return percent <= 0 ? 0 : 1 / (1 / cap + k / percent);
+  },
+  { per: 10, cap: 0.65, k: 1 }
+);
+
 const curves = defineCurves({
-  haste: hasteCurve(),
+  haste,
   armor: hyperbolic({ k: 100, cap: 0.75, negative: 'amplify' }),
   hitRating: rating(
     byLevel([
@@ -42,7 +52,7 @@ const curves = defineCurves({
       [60, 20]
     ])
   ),
-  dodge: avoidance({ per: 10, cap: 0.65, k: 1 }),
+  dodge: avoidance,
   slowResistance: stacking(0.2),
   growth: table([
     [1, 1],
@@ -112,7 +122,7 @@ const target = modifiers.view(targetSheet);
 assert.equal(evaluateScaled(damage, { caster, target, rank: 2 }), 400);
 assert.equal(evaluateScaled(damage, { caster, rank: 2 }), 240); // Target term omitted for this preview.
 
-const cooldown = compileScaled(stats, scaled(12, haste(0.5)), { allowsTarget: false });
+const cooldown = compileScaled(stats, scaled(12, curveOf('haste', 0.5)), { allowsTarget: false });
 
 assert.equal(evaluateScaled(cooldown, { caster }), 8);
 

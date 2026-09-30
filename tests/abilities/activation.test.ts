@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { PressRefusal } from '../../src/abilities/index.ts';
 import type { AuraSystem } from '../../src/auras/index.ts';
-import { haste, ranks, scaled } from '../../src/modifiers/index.ts';
+import { curveOf, ranks, scaled } from '../../src/modifiers/index.ts';
 import type {
   ButtonActivation,
   SpellContext,
@@ -84,7 +84,7 @@ const makeGame = (world?: StaticWorld) =>
       nova: spell({
         ranks: 2,
         activation: { kind: 'button', cost: { aura: auraNamed('charge'), stacks: 2 } },
-        stats: { cooldown: scaled(ranks(8, 6), haste(1)) },
+        stats: { cooldown: scaled(ranks(8, 6), curveOf('haste', 1)) },
         cooldown: { aura: 'skillCooldown', seconds: (ctx) => ctx.stats.cooldown },
         release: logRelease('nova')
       }),

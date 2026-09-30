@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { haste, scaled } from '../../src/modifiers/index.ts';
+import { curveOf, scaled } from '../../src/modifiers/index.ts';
 import { type AnySpellDef, autoNext, type SpellHost } from '../../src/spells/index.ts';
 import { type Game, makeSpellGame, mark, spell, STATS, type Unit } from '../helpers/spell-game.ts';
 
@@ -56,7 +56,7 @@ describe('auto clocks', () => {
     const game = autoGame({
       volley: spell({
         activation: { kind: 'auto', interval: (ctx) => ctx.stats.interval },
-        stats: { interval: scaled(1, haste(1)) },
+        stats: { interval: scaled(1, curveOf('haste', 1)) },
         release: () => [mark('volley')]
       })
     });

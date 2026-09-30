@@ -3,22 +3,27 @@ import { describe, it } from 'node:test';
 
 import {
   add,
-  avoidance,
   byLevel,
   compileCurve,
+  compileScaled,
   type Curve,
+  curveOf,
+  customCurve,
   defineCurves,
   defineStats,
   evaluateCurve,
-  hasteCurve,
+  evaluateScaled,
+  finishScaled,
   hyperbolic,
   linear,
   rating,
   scaled,
+  snapshotScaled,
   stacking,
   type StatView,
   table
 } from '../../src/modifiers/index.ts';
+import { avoidance, HASTE } from '../helpers/curves.ts';
 
 const STATS = defineStats({
   level: { base: 1, kind: 'flat' },
@@ -59,14 +64,9 @@ describe('the curve library', () => {
     assert.equal(at(hyperbolic({ k: 83 }), 37), 0.30833333333333335);
   });
 
-  it('haste is 100 / (100 + x), avoidance 1 / (1 / cap + k / p), stacking 1 − (1 − rate)^x', () => {
-    assert.equal(at(hasteCurve(), 100), 0.5);
-    assert.equal(at(hasteCurve(), 50), 0.6666666666666666);
-    assert.equal(at(hasteCurve(), -100), 2);
-    assert.equal(at(hasteCurve(), -300), 4);
-    assert.equal(at(avoidance({ per: 20, cap: 0.6563, k: 0.956 }), 400), 0.1586371562398329);
-    assert.equal(at(avoidance({ per: 20, cap: 0.6563, k: 0.956 }), 0), 0);
+  it('stacking is 1 − (1 − rate)^x', () => {
     assert.equal(at(stacking(0.3), 2), 0.51);
+    assert.equal(at(stacking(0), 5), 0);
   });
 
   it('table is piecewise linear, holding its end values outside its range', () => {
@@ -83,13 +83,63 @@ describe('the curve library', () => {
   });
 
   it('takes game curves by name, plain functions as custom curves', () => {
-    const curves = defineCurves({ haste: hasteCurve(), halve: (x) => x / 2 });
+    const curves = defineCurves({ haste: HASTE, halve: (x) => x / 2 });
     const stats = defineStats({ level: { base: 1, kind: 'flat' } }, { curves });
     const view = { total: () => 0, base: () => 0 };
 
     assert.equal(evaluateCurve(compileCurve(stats, 'halve'), 9, { caster: view }), 4.5);
     assert.equal(compileCurve(stats, 'halve').id, curves.id.halve);
     assert.throws(() => compileCurve(stats, 'soft'), /no curve named soft/);
+  });
+});
+
+describe('custom curves', () => {
+  it('map the input with a game function: LoL ability haste, a slow below zero', () => {
+    assert.equal(at(HASTE, 100), 0.5);
+    assert.equal(at(HASTE, 50), 0.6666666666666666);
+    assert.equal(at(HASTE, -100), 2);
+    assert.equal(at(HASTE, -300), 4);
+  });
+
+  it('receive their parameters evaluated: WoW avoidance with a rating per 1% by level', () => {
+    const dodge = avoidance({
+      per: byLevel([
+        [1, 10],
+        [60, 20]
+      ]),
+      cap: 0.6563,
+      k: 0.956
+    });
+
+    assert.equal(at(dodge, 400, { caster: unit([60, 0]) }), 0.1586371562398329);
+    assert.equal(at(dodge, 200, { caster: unit([1, 0]) }), 0.1586371562398329);
+    assert.equal(at(dodge, 0), 0);
+  });
+
+  it('let snapshots see the stats their parameters read, and refuse a target read where there is none', () => {
+    const k = customCurve((x, { k }) => x / (x + k), { k: scaled(0, add('level', 10)) });
+    const value = compileScaled(STATS, scaled(100, curveOf(k, 1, { stat: 'armor' })));
+    const snapshot = snapshotScaled(value, { caster: unit([10, 100]) });
+
+    assert.deepEqual(value.casterStats, [STATS.id.armor, STATS.id.level]);
+    assert.equal(evaluateScaled(value, { caster: unit([10, 100]) }), 50);
+    // A stat the snapshot missed would read NaN.
+    assert.equal(finishScaled(snapshot), 50);
+
+    const byTarget = customCurve((x, { k }) => x * k, { k: scaled(0, add('level', 1, { from: 'target' })) });
+
+    assert.throws(
+      () => compileScaled(STATS, scaled(1, curveOf(byTarget, 1, { stat: 'armor' })), { allowsTarget: false }),
+      /no target/
+    );
+  });
+
+  it('refuse a parameter that is not finite, whatever its sign', () => {
+    assert.throws(
+      () => defineCurves({ bad: customCurve((x) => x, { k: Number.NaN }) }),
+      /k is NaN; it must be finite\./
+    );
+    assert.doesNotThrow(() => defineCurves({ shift: customCurve((x, { by }) => x + by, { by: -5 }) }));
   });
 });
 
@@ -123,7 +173,6 @@ describe('curve parameter checks', () => {
     assert.throws(() => defineCurves({ bad: hyperbolic({ k: 100, cap: 1.5 }) }), /0 < cap ≤ 1/);
     assert.throws(() => defineCurves({ bad: hyperbolic({ k: 100, cap: 0 }) }), /0 < cap ≤ 1/);
     assert.throws(() => defineCurves({ bad: rating(0) }), /per > 0/);
-    assert.throws(() => defineCurves({ bad: avoidance({ per: 1, cap: 0.5, k: -1 }) }), /k > 0/);
     assert.throws(() => defineCurves({ bad: stacking(1.5) }), /0 ≤ rate ≤ 1/);
     assert.throws(
       () =>

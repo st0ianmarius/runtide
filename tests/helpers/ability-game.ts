@@ -31,6 +31,7 @@ import {
   type SpellSystem,
   type StaticWorld
 } from '../../src/spells/index.ts';
+import { CURVES } from './curves.ts';
 
 /** A test hero: an entity id, a place, a stat column per stat, its auras, casts and loadout. */
 export interface Hero extends AbilityBearer {
@@ -150,11 +151,14 @@ export interface AbilityGame extends AbilityTypes {
 }
 
 /** The test stats: a flat power, ability haste on the haste curve, and a Duration multiplier. */
-export const STATS = defineStats({
-  power: { base: 10, kind: 'flat' },
-  abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
-  duration: { base: 1, kind: 'multiplier' }
-});
+export const STATS = defineStats(
+  {
+    power: { base: 10, kind: 'flat' },
+    abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
+    duration: { base: 1, kind: 'multiplier' }
+  },
+  { curves: CURVES }
+);
 
 /** `defineSpell` fixed to the test types. */
 export const spell = defineSpell<AbilityGame>();

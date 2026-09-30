@@ -20,8 +20,6 @@ export type {
 export { compileCurve, type CompileOptions, compileScaled } from './compile-values.ts';
 
 export {
-  avoidance,
-  type AvoidanceCurve,
   byLevel,
   type Curve,
   type CurveId,
@@ -29,9 +27,8 @@ export {
   type CurveRef,
   type CurveTable,
   type CustomCurve,
+  customCurve,
   defineCurves,
-  type HasteCurve,
-  hasteCurve,
   hyperbolic,
   type HyperbolicCurve,
   linear,
@@ -80,7 +77,6 @@ export {
   amp,
   curveOf,
   type CurveTerm,
-  haste,
   type PerRank,
   ranks,
   type Scaled,

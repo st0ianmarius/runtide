@@ -121,29 +121,6 @@ export type CompiledCurve =
     }
   | {
       /** The discriminant. */
-      readonly kind: 'haste';
-
-      /** The curve's id in the game's table, or `undefined` for an inline curve. */
-      readonly id: CurveId | undefined;
-    }
-  | {
-      /** The discriminant. */
-      readonly kind: 'avoidance';
-
-      /** The curve's id in the game's table, or `undefined` for an inline curve. */
-      readonly id: CurveId | undefined;
-
-      /** The rating for 1% before diminishing returns. */
-      readonly per: CompiledParam;
-
-      /** The asymptote. */
-      readonly cap: CompiledParam;
-
-      /** The diminishing constant. */
-      readonly k: CompiledParam;
-    }
-  | {
-      /** The discriminant. */
       readonly kind: 'stacking';
 
       /** The curve's id in the game's table, or `undefined` for an inline curve. */
@@ -172,6 +149,15 @@ export type CompiledCurve =
       /** The curve's id in the game's table, or `undefined` for an inline curve. */
       readonly id: CurveId | undefined;
 
+      /** The parameter names, in declaration order. */
+      readonly names: readonly string[];
+
+      /** The compiled parameters, matching `names`. */
+      readonly params: readonly CompiledParam[];
+
+      /** The record `map` receives, refilled with the parameters' values before each call. */
+      readonly values: Record<string, number>;
+
       /** The game's function. */
-      readonly map: (x: number) => number;
+      readonly map: (x: number, params: Readonly<Record<string, number>>) => number;
     };

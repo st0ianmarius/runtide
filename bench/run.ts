@@ -24,11 +24,13 @@ import {
   amp,
   compileScaled,
   createModifierSystem,
+  curveOf,
+  customCurve,
+  defineCurves,
   defineSources,
   defineStats,
   evaluateScaled,
   finishScaled,
-  haste,
   mul,
   plus,
   ranks,
@@ -82,14 +84,17 @@ interface Bearer {
   readonly stacks: number[];
 }
 
-const STATS = defineStats({
-  attackDamage: { base: 60, kind: 'flat' },
-  abilityPower: { base: 0, kind: 'flat' },
-  abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
-  maxHealth: { base: 600, kind: 'flat' },
-  damage: { base: 1, kind: 'multiplier' },
-  moveSpeed: { base: 0, kind: 'flat', min: 0 }
-});
+const STATS = defineStats(
+  {
+    attackDamage: { base: 60, kind: 'flat' },
+    abilityPower: { base: 0, kind: 'flat' },
+    abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
+    maxHealth: { base: 600, kind: 'flat' },
+    damage: { base: 1, kind: 'multiplier' },
+    moveSpeed: { base: 0, kind: 'flat', min: 0 }
+  },
+  { curves: defineCurves({ haste: customCurve((x) => (x >= 0 ? 100 / (100 + x) : 1 - x / 100)) }) }
+);
 
 const SOURCES = defineSources(['race', 'gear', 'banner', 'talents', 'auras', 'stance']);
 
@@ -134,7 +139,7 @@ const DAMAGE = compileScaled(
   { ranks: 3 }
 );
 
-const COOLDOWN = compileScaled(STATS, scaled(12, haste(0.5)));
+const COOLDOWN = compileScaled(STATS, scaled(12, curveOf('haste', 0.5)));
 const EVALUATION = { caster: CASTER, target: TARGET, rank: 2 };
 const SNAPSHOT = snapshotScaled(DAMAGE, { caster: CASTER, rank: 2 });
 

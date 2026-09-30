@@ -137,15 +137,15 @@ const hyperbolicAt = (curve: Extract<CompiledCurve, { kind: 'hyperbolic' }>, x: 
   return reduction > cap ? cap : reduction;
 };
 
-/** `1 / (1 / cap + k / p)` with `p = x / per / 100`; 0 at or below zero. */
-const avoidanceAt = (curve: Extract<CompiledCurve, { kind: 'avoidance' }>, x: number, ctx: ScaledContext): number => {
-  const percent = x / paramValue(curve.per, ctx) / 100;
+/** A custom curve's function at `x`, its parameter record refilled with this evaluation's values first. */
+const customAt = (curve: Extract<CompiledCurve, { kind: 'custom' }>, x: number, ctx: ScaledContext): number => {
+  const { names, params, values } = curve;
 
-  if (percent <= 0) {
-    return 0;
+  for (let i = 0; i < names.length; i++) {
+    values[names[i] ?? ''] = paramValue(params[i] ?? 0, ctx);
   }
 
-  return 1 / (1 / paramValue(curve.cap, ctx) + paramValue(curve.k, ctx) / percent);
+  return curve.map(x, values);
 };
 
 /**
@@ -167,15 +167,6 @@ export const evaluateCurve = (curve: CompiledCurve, x: number, ctx: ScaledContex
       return hyperbolicAt(curve, x, ctx);
     }
 
-    case 'haste': {
-      // Negative haste slows as positive haste speeds: -100 doubles the time, never divides by zero.
-      return x >= 0 ? 100 / (100 + x) : 1 - x / 100;
-    }
-
-    case 'avoidance': {
-      return avoidanceAt(curve, x, ctx);
-    }
-
     case 'stacking': {
       return 1 - (1 - paramValue(curve.rate, ctx)) ** x;
     }
@@ -185,7 +176,7 @@ export const evaluateCurve = (curve: CompiledCurve, x: number, ctx: ScaledContex
     }
 
     case 'custom': {
-      return curve.map(x);
+      return customAt(curve, x, ctx);
     }
   }
 };

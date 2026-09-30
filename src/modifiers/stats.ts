@@ -1,7 +1,7 @@
 import { createRegistry, type Registry } from '../core/index.ts';
 import { compileCurveWith } from './compile-values.ts';
 import type { CompiledCurve } from './compiled.ts';
-import { type CurveRef, type CurveTable, DEFAULT_CURVES } from './curves.ts';
+import { type CurveRef, type CurveTable, NO_CURVES } from './curves.ts';
 import type { StatId, StatIndex } from './stat-id.ts';
 
 /**
@@ -207,7 +207,7 @@ const checkAcyclic = (derivations: readonly (readonly Derivation[])[], nameOf: (
 
 /**
  * Declares the game's stat table: each stat's base, kind, neutral value, clamp, curve, derived share and
- * rating conversion, checked at load. `curves` is the game's curve table (`defineCurves`), `haste` alone by default.
+ * rating conversion, checked at load. `curves` is the game's curve table (`defineCurves`), empty by default.
  */
 export const defineStats = <const Defs extends Readonly<Record<string, StatDef<Extract<keyof Defs, string>>>>>(
   defs: Defs,
@@ -222,7 +222,7 @@ export const defineStats = <const Defs extends Readonly<Record<string, StatDef<E
     checkDef(name, def);
   }
 
-  const curves = options.curves ?? DEFAULT_CURVES;
+  const curves = options.curves ?? NO_CURVES;
 
   const registry = createRegistry<Readonly<Record<Name, StatDef<Name>>>, 'stats', StatColumn>(defs, {
     kind: 'stats',

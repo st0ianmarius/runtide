@@ -63,27 +63,6 @@ export interface HyperbolicCurve<S extends string = string> {
   readonly negative: 'zero' | 'amplify';
 }
 
-/** `100 / (100 + x)`: League of Legends ability haste, applied to a duration; below 0, `1 - x / 100` (a slow). */
-export interface HasteCurve {
-  /** The discriminant. */
-  readonly kind: 'haste';
-}
-
-/** `1 / (1 / cap + k / p)` with `p = x / per / 100`: WoW's diminishing returns on avoidance ratings. */
-export interface AvoidanceCurve<S extends string = string> {
-  /** The discriminant. */
-  readonly kind: 'avoidance';
-
-  /** The rating that gives 1% before diminishing returns; it must be above zero. */
-  readonly per: CurveParam<S>;
-
-  /** The asymptote, in `(0, 1]`. */
-  readonly cap: CurveParam<S>;
-
-  /** The diminishing constant; it must be above zero. */
-  readonly k: CurveParam<S>;
-}
-
 /** `1 − (1 − rate)^x`: multiplicative stacking of `x` equal instances (tenacity, slow resistance). */
 export interface StackingCurve<S extends string = string> {
   /** The discriminant. */
@@ -102,13 +81,23 @@ export interface TableCurve {
   readonly points: readonly (readonly [number, number])[];
 }
 
-/** A game's own curve: a pure, deterministic function of the input. */
-export interface CustomCurve {
+/**
+ * A game's own curve: a pure, deterministic function of the input and of its parameters. The parameters are curve
+ * parameters like the library curves' (numbers, scaled values, lookups), so they can read either side of a hit and
+ * snapshots see the stats they read; `map` receives their values by name.
+ */
+export interface CustomCurve<S extends string = string> {
   /** The discriminant. */
   readonly kind: 'custom';
 
-  /** Maps the input to the effect; it must be pure and deterministic. */
-  readonly map: (x: number) => number;
+  /** The named parameters `map` receives, evaluated for each call. */
+  readonly params: Readonly<Record<string, CurveParam<S>>>;
+
+  /**
+   * Maps the input to the effect; it must be pure and deterministic. The parameter record is reused between calls,
+   * so read it during the call and do not keep it.
+   */
+  readonly map: (x: number, params: Readonly<Record<string, number>>) => number;
 }
 
 /** A curve: a pure, deterministic function from a number to an effect, as data. */
@@ -116,11 +105,9 @@ export type Curve<S extends string = string> =
   | LinearCurve<S>
   | RatingCurve<S>
   | HyperbolicCurve<S>
-  | HasteCurve
-  | AvoidanceCurve<S>
   | StackingCurve<S>
   | TableCurve
-  | CustomCurve;
+  | CustomCurve<S>;
 
 /** Where a curve is named: a curve object, or the name of one in the game's curve table. */
 export type CurveRef<S extends string = string> = Curve<S> | string;
@@ -154,21 +141,6 @@ export const hyperbolic = <const S extends string = never>(options: {
   negative: options.negative ?? 'zero'
 });
 
-/** `100 / (100 + x)`. Named `hasteCurve` because `haste(coef)` is the scaled-value helper that applies it. */
-export const hasteCurve = (): HasteCurve => ({ kind: 'haste' });
-
-/** `1 / (1 / cap + k / p)` with `p = x / per / 100`. */
-export const avoidance = <const S extends string = never>(options: {
-  /** The rating for 1% before diminishing returns. */
-  readonly per: CurveParam<S>;
-
-  /** The asymptote, in `(0, 1]`. */
-  readonly cap: CurveParam<S>;
-
-  /** The diminishing constant. */
-  readonly k: CurveParam<S>;
-}): AvoidanceCurve<S> => ({ kind: 'avoidance', per: options.per, cap: options.cap, k: options.k });
-
 /** `1 − (1 − rate)^x`. */
 export const stacking = <const S extends string = never>(rate: CurveParam<S>): StackingCurve<S> => ({
   kind: 'stacking',
@@ -181,8 +153,14 @@ export const table = (points: readonly (readonly [number, number])[]): TableCurv
   points
 });
 
-/** A game's own curve from a pure function. */
-const customCurve = (map: (x: number) => number): CustomCurve => ({ kind: 'custom', map });
+/**
+ * A game's own curve: `customCurve((x) => 100 / (100 + x))`, or with parameters the framework evaluates and passes by
+ * name, `customCurve((x, { k }) => x / (x + k), { k: byLevel(ARMOR_K) })`.
+ */
+export const customCurve = <const P extends string = never, const S extends string = never>(
+  map: (x: number, params: Readonly<Record<P, number>>) => number,
+  params?: Readonly<Record<P, CurveParam<S>>>
+): CustomCurve<S> => ({ kind: 'custom', params: params ?? {}, map });
 
 /** A parameter read from the bearer's `stat` (by default `level`) through a piecewise linear table. */
 export const byLevel = <const S extends string = 'level'>(
@@ -203,6 +181,9 @@ export const byLevel = <const S extends string = 'level'>(
 
 /** The allowed range of a numeric parameter, for the load-time check. */
 interface Range {
+  /** Whether any finite number is allowed, a custom curve's parameters being the game's to check. */
+  readonly isAny: boolean;
+
   /** Whether zero itself is allowed at the low end. */
   readonly isZeroAllowed: boolean;
 
@@ -210,9 +191,10 @@ interface Range {
   readonly isUnbounded: boolean;
 }
 
-const POSITIVE: Range = { isZeroAllowed: false, isUnbounded: true };
-const SHARE: Range = { isZeroAllowed: false, isUnbounded: false };
-const RATE: Range = { isZeroAllowed: true, isUnbounded: false };
+const ANY: Range = { isAny: true, isZeroAllowed: true, isUnbounded: true };
+const POSITIVE: Range = { isAny: false, isZeroAllowed: false, isUnbounded: true };
+const SHARE: Range = { isAny: false, isZeroAllowed: false, isUnbounded: false };
+const RATE: Range = { isAny: false, isZeroAllowed: true, isUnbounded: false };
 
 /** The plain numbers a parameter declares: itself, a scaled value's base (per rank), or a lookup's y values. */
 const declaredNumbers = (param: CurveParam | undefined): readonly number[] => {
@@ -234,12 +216,13 @@ const declaredNumbers = (param: CurveParam | undefined): readonly number[] => {
 /** Throws when a parameter's declared numbers are out of its range; a scaled parameter is checked by its base. */
 const checkParam = (param: CurveParam | undefined, what: string, range: Range): void => {
   for (const number of declaredNumbers(param)) {
-    const isLow = range.isZeroAllowed ? number < 0 : number <= 0;
+    const isLow = !range.isAny && (range.isZeroAllowed ? number < 0 : number <= 0);
 
     if (!Number.isFinite(number) || isLow || (!range.isUnbounded && number > 1)) {
       const bounds = range.isUnbounded ? `${what} > 0` : `${range.isZeroAllowed ? '0 ≤' : '0 <'} ${what} ≤ 1`;
+      const must = range.isAny ? 'finite' : `finite and ${bounds}`;
 
-      throw new RangeError(`Curve parameter ${what} is ${number}; it must be finite and ${bounds}.`);
+      throw new RangeError(`Curve parameter ${what} is ${number}; it must be ${must}.`);
     }
   }
 };
@@ -262,9 +245,15 @@ export const checkPoints = (points: readonly (readonly [number, number])[], what
 /** Checks every plain-number parameter of a curve against its range (`k > 0`, `0 < cap ≤ 1`, …); throws on a mistake. */
 export const checkCurve = (curve: Curve): void => {
   switch (curve.kind) {
-    case 'linear':
-    case 'haste':
+    case 'linear': {
+      return;
+    }
+
     case 'custom': {
+      for (const [name, param] of Object.entries<CurveParam>(curve.params)) {
+        checkParam(param, name, ANY);
+      }
+
       return;
     }
 
@@ -277,14 +266,6 @@ export const checkCurve = (curve: Curve): void => {
     case 'hyperbolic': {
       checkParam(curve.k, 'k', POSITIVE);
       checkParam(curve.cap, 'cap', SHARE);
-
-      return;
-    }
-
-    case 'avoidance': {
-      checkParam(curve.per, 'per', POSITIVE);
-      checkParam(curve.cap, 'cap', SHARE);
-      checkParam(curve.k, 'k', POSITIVE);
 
       return;
     }
@@ -308,8 +289,8 @@ export type CurveTable<Name extends string = string> = Registry<'curves', Extrac
 const toCurve = (def: Curve | ((x: number) => number)): Curve => (typeof def === 'function' ? customCurve(def) : def);
 
 /**
- * Registers the game's named curves: library curves with their parameters, or plain functions for the
- * game's own. Stats and scaled values name them (`curve: 'haste'`). Parameters are range-checked here.
+ * Registers the game's named curves: library curves with their parameters, or the game's own (`customCurve`, or a
+ * plain function). Stats and scaled values name them (`curve: 'haste'`). Parameters are range-checked here.
  */
 export const defineCurves = <const Name extends string>(
   defs: Readonly<Record<Name, Curve | ((x: number) => number)>>
@@ -324,5 +305,5 @@ export const defineCurves = <const Name extends string>(
   return createRegistry<Readonly<Record<Name, Curve>>, 'curves'>(curves, { kind: 'curves' });
 };
 
-/** The curve table a stat table uses when the game passes none: `haste` alone. */
-export const DEFAULT_CURVES: CurveTable<'haste'> = defineCurves({ haste: hasteCurve() });
+/** The curve table a stat table uses when the game passes none: empty. */
+export const NO_CURVES: CurveTable<never> = defineCurves({});
