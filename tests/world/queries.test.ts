@@ -49,6 +49,24 @@ describe('inside: the units a shape covers', () => {
     assert.deepEqual(names(out, world.inside(circle(2), {}, out)), ['m1', 'm3', 'm4']);
   });
 
+  it('keeps a crowd in id order too, and refuses an id that is not a whole number from 0', () => {
+    const ids = Array.from({ length: 120 }, (_unused, i) => (i * 7919) % 100_003);
+    const { world } = worldOf(ids.map((id, i) => [id, (i % 11) - 5, Math.floor(i / 11) - 5]));
+    const out: (Mob | undefined)[] = [];
+    const count = world.inside(circle(30), {}, out);
+
+    assert.deepEqual(
+      names(out, count),
+      [...ids].sort((a, b) => a - b).map((id) => `m${id}`),
+    );
+    assert.throws(() => {
+      world.add({ name: 'x' }, { id: -1, at: vec2(0, 0) });
+    }, /whole number from 0/);
+    assert.throws(() => {
+      world.add({ name: 'y' }, { id: 1.5, at: vec2(0, 0) });
+    }, /whole number from 0/);
+  });
+
   it('reaches bodies by their radius when measured to the edge', () => {
     const { world } = worldOf([
       [1, 3, 0, 0, 0.5],

@@ -1,5 +1,5 @@
 import { boundsOf, covers, emptyBox, hypot, type MutableBox, ORIGIN } from '../math/index.ts';
-import { IndexSorter } from './index-sorter.ts';
+import { IndexSorter, KeySorter } from './index-sorter.ts';
 import type { PointIndex } from './point-index.ts';
 import type { QueryOptions } from './query.ts';
 import { contactShare, type Selection, type SortKey } from './selection.ts';
@@ -33,6 +33,7 @@ export class Selector<Unit> {
   readonly #contacts: number[] = [];
   readonly #order: number[] = [];
   readonly #sorter = new IndexSorter((a, b) => this.#compare(a, b));
+  readonly #ids = new KeySorter();
   readonly #keys: number[] = [];
   readonly #single: SortKey<Unit>[] = ['id'];
   readonly #point = { x: 0, z: 0 };
@@ -226,8 +227,8 @@ export class Selector<Unit> {
     return selection.options.inclusive === true ? d <= selection.range : d < selection.range;
   }
 
-  /** Reads every kept entry's keys into `#keys`, and numbers the entries in `#order`. */
-  #readKeys(selection: Selection<Unit>, kept: number): void {
+  /** Reads every kept entry's keys into `#keys`, and numbers the entries in `#order`; returns the keys. */
+  #readKeys(selection: Selection<Unit>, kept: number): readonly SortKey<Unit>[] {
     const keys = this.#keysOf(selection);
 
     for (let i = 0; i < kept; i++) {
@@ -237,6 +238,8 @@ export class Selector<Unit> {
         this.#keys[i * keys.length + k] = this.#keyOf(keys[k] ?? 'id', i);
       }
     }
+
+    return keys;
   }
 
   /** Puts the first kept entry by the selection's keys first (a limit of 1): one scan, where a sort would order all. */
@@ -255,8 +258,14 @@ export class Selector<Unit> {
 
   /** Orders the kept entries into `#order` (their slots) and `#contacts` by the selection's keys. */
   #sort(selection: Selection<Unit>, kept: number): void {
-    this.#readKeys(selection, kept);
-    this.#sorter.sort(this.#order, kept);
+    const keys = this.#readKeys(selection, kept);
+
+    // Ordered by entity id alone (every catch): the ids are whole numbers, sorted natively with no comparison.
+    if (keys.length === 1 && keys[0] === 'id') {
+      this.#ids.sort(this.#order, this.#keys, kept);
+    } else {
+      this.#sorter.sort(this.#order, kept);
+    }
 
     // The keys are spent: the contacts are reordered through them, then the entries become their slots.
     for (let i = 0; i < kept; i++) {

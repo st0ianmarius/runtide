@@ -2,7 +2,7 @@ import type { Vec2 } from '../math/index.ts';
 
 /** What a unit is added to a memory world with. */
 export interface UnitSpec {
-  /** Its entity id, which orders ties and keys rolls. */
+  /** Its entity id, a whole number from 0 below 2³², which orders ties and keys rolls. */
   readonly id: number;
 
   /** Where it stands. */
@@ -50,6 +50,7 @@ export class UnitTable<Unit> {
   readonly #radius = new Column(64);
   readonly #side = new Column(64);
   readonly #id = new Column(64);
+  readonly #columns: readonly Column[] = [this.#x, this.#z, this.#px, this.#pz, this.#radius, this.#side, this.#id];
   readonly #slots = new Map<Unit, number>();
   readonly #free: number[] = [];
 
@@ -104,9 +105,13 @@ export class UnitTable<Unit> {
       throw new RangeError(`Unit ${spec.id} is already in the world.`);
     }
 
+    if (!(Number.isInteger(spec.id) && spec.id >= 0 && spec.id < 2 ** 32)) {
+      throw new RangeError(`A unit's entity id is a whole number from 0 below 2^32; got ${spec.id}.`);
+    }
+
     const slot = this.#free.pop() ?? this.units.length;
 
-    for (const column of [this.#x, this.#z, this.#px, this.#pz, this.#radius, this.#side, this.#id]) {
+    for (const column of this.#columns) {
       column.fit(slot + 1);
     }
 
