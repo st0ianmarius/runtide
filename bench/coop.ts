@@ -8,6 +8,7 @@ import {
 } from '../src/area-triggers/index.ts';
 import {
   auraGates,
+  auraRevision,
   auraStacks,
   createAuraSystem,
   defineAura,
@@ -127,7 +128,8 @@ const MODIFIERS = createModifierSystem({
   stats: STATS,
   sources: SOURCES,
   stacks: auraStacks,
-  held: auraGates
+  held: auraGates,
+  revision: auraRevision
 });
 
 const WORLD = createMemoryWorld<Unit<CoopGame>>({

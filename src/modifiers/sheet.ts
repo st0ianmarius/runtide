@@ -143,6 +143,12 @@ export interface FoldTables<Host> {
   /** The host's stacks of a gate. */
   readonly stacks: ((host: Host, gate: number) => number) | undefined;
 
+  /**
+   * A number that changes whenever the host's gate stacks or held gates may have (an aura state's `changes`): a plain
+   * read keeps each stat's total until it moves. Without it, every read folds.
+   */
+  readonly revision: ((host: Host) => number) | undefined;
+
   /** The gates the host holds, in ascending order; without it a read checks every shared gate. */
   readonly held: ((host: Host) => readonly HeldGate[]) | undefined;
 
@@ -206,11 +212,22 @@ export class Sheet<Host> implements StatSheet {
   /** Which list the current walk folds, and how (the fold's `ADD`, `MUL`, `MIN` and mode bits); set like `read`. */
   how = 0;
 
+  /** Whether the current fold asked the host beyond its gates' stacks (a condition, a host value, a curve). */
+  readsHost = false;
+
+  /** Each stat's last plain total, kept while its stamp matches the host's revision. */
+  readonly totals: Float64Array;
+
+  /** The host revision each kept total was folded at; NaN for none. */
+  readonly stamps: Float64Array;
+
   readonly view: SheetView<Host>;
 
   constructor(tables: FoldTables<Host>, resolve: Resolve<Host>) {
     this.tables = tables;
     this.lists = tables.sourceIds.map(() => []);
+    this.totals = new Float64Array(tables.base.length);
+    this.stamps = new Float64Array(tables.base.length).fill(Number.NaN);
     this.view = new SheetView(this, resolve);
   }
 }

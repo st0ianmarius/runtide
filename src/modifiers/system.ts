@@ -42,6 +42,14 @@ export interface ModifierSystemOptions<Host, S extends string, C extends string,
    * reports above 0.
    */
   readonly held?: (host: Host) => readonly HeldGate[];
+
+  /**
+   * A number that changes whenever the host's stacks or held gates may have (`auraRevision`: an aura state's
+   * `changes`). With it, a read with a host and no scope, sources or what-if keeps each stat's total until the number
+   * moves or the sheet's lists change, unless the fold asked a condition, a host value or a curve. Without it, every
+   * read folds.
+   */
+  readonly revision?: (host: Host) => number;
 }
 
 /**
@@ -136,6 +144,7 @@ const tablesOf = <Host, S extends string, C extends string, V extends string, Sr
     derivations: stats.derivations,
     stacks: options.stacks,
     held: options.held,
+    revision: options.revision,
     shared: new SharedLists<Host>(),
     testOf: boundTests({ conditions: options.conditions, values: options.values }),
     reads: options.values?.defs.map((def) => def?.read ?? (() => 0)) ?? [],
@@ -149,15 +158,46 @@ const tablesOf = <Host, S extends string, C extends string, V extends string, Sr
 
 /** Folds a built sheet's stat for a read. */
 const foldFor = <Host>(sheet: Sheet<Host>, stat: StatId, read: FoldRead<Host> | undefined): number => {
+  const revision = revisionOf(sheet, read);
+
+  if (sheet.stamps[stat] === revision) {
+    return sheet.totals[stat] ?? 0;
+  }
+
   const previous = sheet.view.read;
+  const readsHost = sheet.readsHost;
 
   sheet.view.read = read;
+  sheet.readsHost = false;
 
   const value = foldStat(sheet, stat);
 
+  if (!sheet.readsHost && !Number.isNaN(revision)) {
+    sheet.totals[stat] = value;
+    sheet.stamps[stat] = revision;
+  }
+
   sheet.view.read = previous;
+  sheet.readsHost ||= readsHost;
 
   return value;
+};
+
+/** The host revision a read may keep totals at: NaN (never kept) without one, or for a scoped, partial or what-if read. */
+const revisionOf = <Host>(sheet: Sheet<Host>, read: FoldRead<Host> | undefined): number => {
+  const { revision } = sheet.tables;
+
+  if (
+    revision === undefined ||
+    read?.host === undefined ||
+    read.scope !== undefined ||
+    read.sources !== undefined ||
+    read.whatIf !== undefined
+  ) {
+    return Number.NaN;
+  }
+
+  return revision(read.host);
 };
 
 /** Explains a built sheet's stat for a read. */
@@ -210,6 +250,7 @@ export const createModifierSystem = <
     if (own.isDirty || own.sharedRevision !== tables.shared.revision) {
       caches.build(own, tables.shared.revision);
       own.sharedRevision = tables.shared.revision;
+      own.stamps.fill(Number.NaN);
     }
 
     return own;

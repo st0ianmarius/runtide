@@ -50,5 +50,11 @@ export const liveStacks = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number
     return entry.test === undefined && entry.valueKind !== FROM_HOST ? stacks : 0;
   }
 
-  return entry.test === undefined || entry.test(host, entry.testArg) ? stacks : 0;
+  if (entry.test === undefined) {
+    return stacks;
+  }
+
+  sheet.readsHost = true;
+
+  return entry.test(host, entry.testArg) ? stacks : 0;
 };

@@ -1,6 +1,7 @@
 import { createAiSystem, defineTimers } from '../src/ai/index.ts';
 import {
   auraGates,
+  auraRevision,
   auraStacks,
   createAuraSystem,
   defineAura,
@@ -163,7 +164,8 @@ const MODIFIERS = createModifierSystem({
   stats: STATS,
   sources: SOURCES,
   stacks: auraStacks,
-  held: auraGates
+  held: auraGates,
+  revision: auraRevision
 });
 
 const AURA_SYSTEM = createAuraSystem<BenchGame>({

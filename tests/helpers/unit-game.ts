@@ -4,6 +4,7 @@ import {
   type AuraDecision,
   auraGates,
   type AuraId,
+  auraRevision,
   auraStacks,
   type AuraSystem,
   createAuraSystem,
@@ -337,7 +338,8 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     stats: STATS,
     sources,
     stacks: auraStacks,
-    held: auraGates
+    held: auraGates,
+    revision: auraRevision
   });
 
   const late: {

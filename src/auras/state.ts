@@ -164,3 +164,10 @@ export const auraStacks = (bearer: AuraBearer, gate: number): number => setOf<Au
  * not what the registry defines.
  */
 export const auraGates = (bearer: AuraBearer): readonly ActiveAura[] => setOf<AuraTypes>(bearer).items;
+
+/**
+ * A bearer's aura revision: its state's `changes`, which moves on every application, change and removal. The revision
+ * a modifier system keeps plain stat totals by (`createModifierSystem({ …, revision: auraRevision })`), so a bearer
+ * whose auras did not change reads a kept total.
+ */
+export const auraRevision = (bearer: AuraBearer): number => setOf<AuraTypes>(bearer).changes;

@@ -54,6 +54,8 @@ export const entryValue = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number
   const host = sheet.view.read?.host;
 
   if (entry.valueKind === FROM_HOST && entry.read !== undefined && host !== undefined) {
+    sheet.readsHost = true;
+
     return entry.read(host, entry.readArg);
   }
 
@@ -191,6 +193,8 @@ const addDerived = <Host>(sheet: Sheet<Host>, stat: number, value: number): numb
     if (derivation?.kind === 'derives') {
       result += derivation.per * Math.max(0, derivedGain(sheet, derivation));
     } else if (derivation !== undefined) {
+      // A curve may read the bearer beyond its stats (a level table), so a converted stat is never kept.
+      sheet.readsHost = true;
       result += evaluateCurve(derivation.curve, foldStat(sheet, derivation.from), sheet.view);
     }
   }
