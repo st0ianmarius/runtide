@@ -260,7 +260,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     const view = (this.#view ??= new LedgerView<G>(this));
 
     view.ledger = ledger;
-    view.holder = area.handle;
 
     return view;
   };

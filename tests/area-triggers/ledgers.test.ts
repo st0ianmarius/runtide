@@ -146,7 +146,7 @@ describe('hit policies', () => {
   });
 });
 
-describe('pierce and claims', () => {
+describe('pierce', () => {
   it('lets a missile through as many different units as it pierces, in the order it reached them', () => {
     const game = makeSpellGame(
       {},
@@ -180,38 +180,10 @@ describe('pierce and claims', () => {
     assert.deepEqual(hits(game.log), ['hit 101,100']);
     assert.ok(game.log.includes('ended missile@1 spent'));
   });
-
-  it('keeps a claimed unit for its claimant within a cast, until the claimant ends', () => {
-    const game = makeSpellGame(
-      { throw: spell({ activation: { kind: 'trigger' }, release: () => [spawn<Game>('glaive')] }) },
-      {
-        areaTriggers: {
-          glaive: pool(
-            { policy: 'claim', scope: 'cast' },
-            { frame: (c) => (c.age === 0.25 ? [spawn<Game>('glaive')] : undefined) },
-          ),
-        },
-      },
-    );
-
-    const owner = game.unit(1);
-    const cast: AreaTriggerHandle[] = [];
-
-    game.place(game.unit(100), vec2(0, 0));
-    game.spells.cast(owner, game.id.throw);
-    game.areaTriggers.query({ owner }, cast);
-
-    const parent = cast[0] ?? NO_AREA_TRIGGER;
-
-    ticks(game, 2);
-    game.areaTriggers.despawn(parent);
-    ticks(game, 1);
-    assert.deepEqual(hits(game.log), ['hit 1 0.25: 100x1', 'hit 1 0.5: 100x1', 'hit 2 0.5: 100x1']);
-  });
 });
 
 describe('a ledger read by hooks', () => {
-  it('records, reserves and reports as its policy says, shared by a cast', () => {
+  it('records and reports as its policy says, shared by a cast', () => {
     const seen: string[] = [];
 
     const game = makeSpellGame(
@@ -221,7 +193,7 @@ describe('a ledger read by hooks', () => {
           spark: {
             shape: circle(1),
             lifetime: 5,
-            ledgers: { links: { policy: 'once', scope: 'cast' }, own: { policy: 'claim' } },
+            ledgers: { links: { policy: 'once', scope: 'cast' } },
 
             init: (c) => {
               const links = c.ledger('links');
@@ -247,10 +219,7 @@ describe('a ledger read by hooks', () => {
     game.areaTriggers.query({ owner }, cast);
 
     const handle = cast[0] ?? NO_AREA_TRIGGER;
-    const own = game.areaTriggers.get(handle)?.ledger('own');
 
-    assert.equal(own?.reserve(owner), true);
-    assert.equal(own?.isClaimed(owner), false);
     assert.throws(() => game.areaTriggers.get(handle)?.ledger('nothing'), /has no ledger nothing/);
     ticks(game, 1);
     assert.deepEqual(seen, ['first 1 0 true 1', 'child 0 1']);

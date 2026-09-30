@@ -229,8 +229,6 @@ export const recordHit = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit
   const count = hit.targets.length;
   let kept = 0;
 
-  ledger.holder = area.handle;
-
   for (let i = 0; i < count; i++) {
     const unit = hit.units[i];
     const share = unit === undefined ? 0 : recordIn(engine, ledger, engine.world.idOf(unit));

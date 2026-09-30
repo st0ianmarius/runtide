@@ -162,7 +162,7 @@ const checkPulse = <G extends AreaTriggerTypes>(name: string, pulses: AnyAreaTri
 const ledgerProblem = (
   spec: NonNullable<AnyAreaTriggerDef<AreaTriggerTypes>['ledgers']>[string],
 ): string | undefined => {
-  if (!isOneOf(spec.policy, ['once', 'repeat', 'rehit', 'claim']) || !isOneOf(spec.scope, ['self', 'cast'])) {
+  if (!isOneOf(spec.policy, ['once', 'repeat', 'rehit']) || !isOneOf(spec.scope, ['self', 'cast'])) {
     return 'has an unknown policy or scope.';
   }
 

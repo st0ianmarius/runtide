@@ -311,7 +311,7 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   /** Its lifetime ran out (the fling, the collapse, the dome's burst), before `onEnd`. */
   onExpire?(this: void, c: AreaTriggerContext<G, State>, out: ProcOut<G>): ProcReturn<G>;
 
-  /** It ended, whatever the reason: where shared claims are released. */
+  /** It ended, whatever the reason: where the game releases what it holds. */
   onEnd?(this: void, c: AreaTriggerContext<G, State>, reason: EndReason<G>, out: ProcOut<G>): ProcReturn<G>;
 }
 

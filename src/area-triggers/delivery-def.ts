@@ -6,8 +6,8 @@ import type { AreaFn, AreaTriggerContext } from './area-def.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 
 /**
- * A hit ledger as a hook sees it: who was hit, how often, and who holds a claim, under its kind's policy.
- * Shared per area trigger, per cast or per family, as its spec says.
+ * A hit ledger as a hook sees it: who was hit and how often, under its kind's policy. Shared per area trigger or
+ * per cast, as its spec says.
  */
 export interface AreaLedger<Unit> {
   /** How many different units it recorded. */
@@ -27,23 +27,17 @@ export interface AreaLedger<Unit> {
 
   /** Records a hit on the unit and returns its share, or records nothing and returns 0 when its policy refuses it. */
   readonly record: (unit: Unit) => number;
-
-  /** Claims the unit for this area trigger (a glaive's reservation); false when another member holds it. */
-  readonly reserve: (unit: Unit) => boolean;
-
-  /** Whether another member of the ledger holds a claim on the unit. */
-  readonly isClaimed: (unit: Unit) => boolean;
 }
 
 /**
  * A hit ledger's rules: `once` (each unit once: once-per-cast in the cast's scope),
- * `repeat` (every hit, a repeat taking `share`: repeat-share), `rehit` (again after `cooldown` seconds:
- * rehit-cooldown) or `claim` (a unit hit by one member is that member's alone until it ends); with an optional
+ * `repeat` (every hit, a repeat taking `share`: repeat-share), or `rehit` (again after `cooldown` seconds:
+ * rehit-cooldown); with an optional
  * `pierce` (different units) and `budget` (hits) after which it is spent.
  */
 export interface AreaLedgerSpec {
   /** Which hits it lets through. */
-  readonly policy: 'once' | 'repeat' | 'rehit' | 'claim';
+  readonly policy: 'once' | 'repeat' | 'rehit';
 
   /** Who shares it: each area trigger its own (`self`, the default), or every area trigger of its cast. */
   readonly scope?: 'self' | 'cast';
