@@ -1,12 +1,12 @@
 import { keyed } from './keyed-roll.ts';
-import { type Random, type SavableStream, savableStream } from './random.ts';
+import { checkSeed, type Random, type SavableStream, savableStream } from './random.ts';
 
 /** How one named stream draws: a sequential stream (call order matters) or keyed rolls (only the key matters). */
 export interface StreamSpec {
   /** `sequential` for a salted Mulberry32 stream, `keyed` for keyed rolls under the same salt. */
   readonly kind: 'sequential' | 'keyed';
 
-  /** The salt mixed with the run's seed: one salt per sequential name, so no two draw from one sequence. */
+  /** The salt mixed with the run's seed: one per name, so no two streams draw alike (nor two keyed names roll alike). */
   readonly salt: number;
 }
 
@@ -42,15 +42,18 @@ export const createStreamTable = <const Specs extends Readonly<Record<string, St
   const sequential = new Map<string, SavableStream>();
   const salts = new Map<number, string>();
 
+  checkSeed(seed, 'seed');
+
   for (const [name, spec] of Object.entries(specs)) {
+    const taken = salts.get(checkSeed(spec.salt, 'salt'));
+
+    if (taken !== undefined) {
+      throw new RangeError(`Streams ${taken} and ${name} share the salt ${spec.salt}: give each its own.`);
+    }
+
+    salts.set(spec.salt, name);
+
     if (spec.kind === 'sequential') {
-      const taken = salts.get(spec.salt);
-
-      if (taken !== undefined) {
-        throw new RangeError(`Streams ${taken} and ${name} share the salt ${spec.salt}: give each its own.`);
-      }
-
-      salts.set(spec.salt, name);
       sequential.set(name, savableStream(seed, spec.salt));
     }
   }

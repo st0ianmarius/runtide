@@ -38,7 +38,7 @@ export interface CastServices<G extends SpellTypes> {
   readonly applyFor: (cast: Cast<G>, proc: Proc<G>) => ProcOutcome;
 
   /** A draw source for a cast. */
-  readonly randomFor: (cast: Cast<G>, stream: G['stream'] | undefined) => Random;
+  readonly randomFor: (stream: G['stream'] | undefined, key: readonly number[]) => Random;
 
   /** Runs a cast's `target` hook again. */
   readonly retarget: (cast: Cast<G>) => unknown;
@@ -147,7 +147,8 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
 
   readonly apply = (proc: Proc<G>): ProcOutcome => this.#services.applyFor(this, proc);
 
-  readonly random = (stream?: G['stream']): Random => this.#services.randomFor(this, stream);
+  readonly random = (stream?: G['stream'], targetId = 0, index = 0): Random =>
+    this.#services.randomFor(stream, this.key(targetId, index));
 
   readonly key = (targetId = 0, index = 0): readonly number[] => {
     const key = this.#key;

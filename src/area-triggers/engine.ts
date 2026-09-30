@@ -300,10 +300,10 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     return view;
   };
 
-  readonly randomFor = (area: AreaTrigger<G>, stream: G['stream'] | undefined): Random =>
+  readonly randomFor = (stream: G['stream'] | undefined, key: readonly number[]): Random =>
     stream === undefined
       ? (this.#random ?? missing('random stream of its own'))
-      : (this.#streams ?? missing('named streams'))(stream, area.key());
+      : (this.#streams ?? missing('named streams'))(stream, key);
 
   /** Takes the reusable proc list of the next nesting level; give it back with `giveList`. */
   takeList(): ProcList<G> {

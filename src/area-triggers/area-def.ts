@@ -144,8 +144,12 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** Applies one proc now, as its owner's and credited to it, and returns what it did. */
   readonly apply: (proc: Proc<G>) => ProcOutcome;
 
-  /** A draw source: a named stream of the host's table (a keyed one keyed by `key()`), or the system's own. */
-  readonly random: (stream?: G['stream']) => Random;
+  /**
+   * A draw source: a named stream of the host's table, or the system's own without a name. A keyed stream is keyed by
+   * `key(targetId, index)`, so its draws depend on that key alone: pass each target's id (and an index for several
+   * rolls on one target), or every call rolls the same (a nova critting all or none).
+   */
+  readonly random: (stream?: G['stream'], targetId?: number, index?: number) => Random;
 
   /** Its keyed-roll key: `(spawnTick, id, kind, targetId, index)` in a reused array, read at once. */
   readonly key: (targetId?: number, index?: number) => readonly number[];

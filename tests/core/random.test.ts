@@ -44,12 +44,13 @@ describe('sequential streams', () => {
     );
   });
 
-  it('take seeds as 32-bit integers: negative, large and fractional seeds wrap', () => {
+  it('take seeds as 32-bit integers, signed or unsigned, and refuse any other', () => {
     assert.deepEqual(draws(stream(-7), 3), [0.43306733411736786, 0.32539576734416187, 0.5442695003002882]);
     assert.deepEqual(draws(stream(4_294_967_295), 3), [0.8964226141106337, 0.189478256739676, 0.7156526781618595]);
     assert.deepEqual(draws(stream(4_294_967_295), 3), draws(stream(-1), 3));
-    assert.deepEqual(draws(stream(2.9), 3), [0.7342509443406016, 0.32499843230471015, 0.28529605525545776]);
-    assert.deepEqual(draws(stream(2.9), 3), draws(stream(2), 3));
+    assert.throws(() => stream(2.9), /seed is a 32-bit integer/);
+    assert.throws(() => stream(1_760_000_000_000), /seed is a 32-bit integer/);
+    assert.throws(() => stream(1, 2 ** 40), /salt is a 32-bit integer/);
   });
 
   it('draw the same sequence for the same seed and salt, always in [0, 1)', () => {

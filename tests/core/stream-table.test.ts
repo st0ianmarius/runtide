@@ -27,6 +27,15 @@ describe('the host stream table', () => {
         }),
       /share the salt 3/
     );
+    assert.throws(
+      () =>
+        createStreamTable(1, {
+          crit: { kind: 'keyed', salt: 7 },
+          dodge: { kind: 'keyed', salt: 7 }
+        }),
+      /share the salt 7/
+    );
+    assert.throws(() => createStreamTable(1_760_000_000_000, {}), /seed is a 32-bit integer/);
   });
 
   it('saves and restores its sequential streams, which then draw on as before', () => {

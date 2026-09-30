@@ -554,6 +554,13 @@ describe('procs and keys', () => {
     });
 
     assert.deepEqual(game.areaTriggers.get(handle)?.key(7, 2), [3, 1, 0, 7, 2]);
+
+    const area = game.areaTriggers.get(handle);
+    const draw = (targetId?: number, index?: number): number | undefined => area?.random('crit', targetId, index)();
+
+    assert.equal(draw(7, 2), draw(7, 2));
+    assert.notEqual(draw(7), draw(8));
+    assert.notEqual(draw(7, 0), draw(7, 1));
   });
 
   it('spawns from a proc at a point or on a unit, and reports a refusal', () => {

@@ -44,7 +44,7 @@ export interface AreaServices<G extends AreaTriggerTypes> {
   readonly applyFor: (area: AreaTrigger<G>, proc: Proc<G>) => ProcOutcome;
 
   /** A draw source for an area trigger. */
-  readonly randomFor: (area: AreaTrigger<G>, stream: G['stream'] | undefined) => Random;
+  readonly randomFor: (stream: G['stream'] | undefined, key: readonly number[]) => Random;
 
   /** The reused view of one of an area trigger's ledgers. */
   readonly ledgerFor: (area: AreaTrigger<G>, name: string) => AreaLedger<G['bearer']>;
@@ -182,7 +182,8 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
 
   readonly apply = (proc: Proc<G>): ProcOutcome => this.#services.applyFor(this, proc);
 
-  readonly random = (stream?: G['stream']): Random => this.#services.randomFor(this, stream);
+  readonly random = (stream?: G['stream'], targetId = 0, index = 0): Random =>
+    this.#services.randomFor(stream, this.key(targetId, index));
 
   readonly key = (targetId = 0, index = 0): readonly number[] => {
     const key = this.#key;

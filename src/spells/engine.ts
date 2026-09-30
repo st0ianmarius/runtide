@@ -227,10 +227,10 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     }
   };
 
-  readonly randomFor = (cast: Cast<G>, stream: G['stream'] | undefined): Random =>
+  readonly randomFor = (stream: G['stream'] | undefined, key: readonly number[]): Random =>
     stream === undefined
       ? (this.#random ?? missing('the spells’ own random stream'))
-      : (this.#streams ?? missing('named streams'))(stream, cast.key());
+      : (this.#streams ?? missing('named streams'))(stream, key);
 
   readonly retarget = (cast: Cast<G>): unknown => this.registry.hooks.target[cast.spell]?.(cast, cast.input);
 

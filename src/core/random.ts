@@ -8,13 +8,25 @@ export type Random = () => number;
 export const UINT32_RANGE = 4_294_967_296;
 
 /**
+ * Throws unless a seed or salt is a 32-bit integer (signed or unsigned), which every stream and keyed roll takes
+ * whole: a wall-clock seed (`Date.now()`) would be cut to its low 32 bits by one and refused by the other mid-run.
+ */
+export const checkSeed = (value: number, what: string): number => {
+  if (!Number.isInteger(value) || value < -2_147_483_648 || value > 4_294_967_295) {
+    throw new RangeError(`A ${what} is a 32-bit integer; got ${value}.`);
+  }
+
+  return value;
+};
+
+/**
  * A sequential random stream: Mulberry32 seeded with the 32-bit `seed ^ salt` (so `stream(seed, salt)` and
  * `stream(seed ^ salt)` draw the same sequence), one 32-bit output per draw divided by 2³². Each system draws from its
  * own salt, so a roll added to one system never shifts another; within a stream, draws depend on call order. Integer
  * arithmetic only, so every platform draws the same values. The generator is frozen: its tests hold a literal table.
  */
 export const stream = (seed: number, salt = 0): Random => {
-  let state = seed ^ salt;
+  let state = checkSeed(seed, 'seed') ^ checkSeed(salt, 'salt');
 
   return () => {
     state = (state + 0x6d2b79f5) | 0;
@@ -41,7 +53,7 @@ export interface SavableStream {
 
 /** A sequential stream (`stream(seed, salt)`, draw for draw) whose state can be saved and restored. */
 export const savableStream = (seed: number, salt = 0): SavableStream => {
-  let state = seed ^ salt;
+  let state = checkSeed(seed, 'seed') ^ checkSeed(salt, 'salt');
 
   return Object.freeze({
     random: (): number => {

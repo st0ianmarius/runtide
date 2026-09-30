@@ -169,10 +169,11 @@ export interface SpellContext<
   readonly apply: (proc: Proc<G>) => ProcOutcome;
 
   /**
-   * A draw source: a named stream of the host's table (a keyed one keyed by `key()`), or the spells' own stream
-   * without a name.
+   * A draw source: a named stream of the host's table, or the spells' own without a name. A keyed stream is keyed by
+   * `key(targetId, index)`, so its draws depend on that key alone: pass each target's id (and an index for several
+   * rolls on one target), or every call rolls the same (a nova critting all or none).
    */
-  readonly random: (stream?: G['stream']) => Random;
+  readonly random: (stream?: G['stream'], targetId?: number, index?: number) => Random;
 
   /**
    * The cast's keyed-roll key: `(startTick, casterId, spellId, targetId, index)` in a reused array, read at
