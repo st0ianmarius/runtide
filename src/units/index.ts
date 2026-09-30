@@ -8,6 +8,7 @@
 export {
   type HealthPolicy,
   type SpawnUnit,
+  type UnitExtFactory,
   type UnitScripts,
   type UnitSystemBase,
   type UnitSystemOptions,

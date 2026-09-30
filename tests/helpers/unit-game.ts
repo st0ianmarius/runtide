@@ -182,6 +182,9 @@ export interface UnitGame extends ScriptTypes {
   readonly unitExt: {
     /** How many times a test marked the unit. */
     marks: number;
+
+    /** The template id and side it was made from. */
+    readonly made: string;
   };
 }
 
@@ -371,7 +374,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     states: UNIT_STATES,
     damage: () => damage,
     events: { bus, spawned: bus.kind.spawned, changed: bus.kind.changed, despawned: bus.kind.despawned },
-    createExt: () => ({ marks: 0 }),
+    createExt: (template, spawn) => ({ marks: 0, made: `${template}/${spawn.side}` }),
   });
 
   const damage: DamageSystem<UnitGame> = createDamageSystem<UnitGame>({

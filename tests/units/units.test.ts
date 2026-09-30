@@ -65,7 +65,7 @@ describe('spawning (§II.6 U1)', () => {
     assert.equal(units.byId(2), grunt);
     assert.equal(units.live(), 2);
     assert.equal(hero.loadout.size, 0);
-    assert.deepEqual(grunt.ext, { marks: 0 });
+    assert.deepEqual(grunt.ext, { marks: 0, made: `${game.id.grunt}/1` });
     assert.throws(() => units.spawn(game.id.grunt, { side: 1, id: 2 }), /entity id 2 is already a live unit/);
     assert.deepEqual(game.log, ['spawned 1 standing>standing', 'spawned 2 standing>standing']);
   });

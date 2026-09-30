@@ -91,16 +91,19 @@ export interface UnitSystemBase<G extends UnitTypes> {
   readonly events?: UnitEvents<G>;
 }
 
+/** Makes the game's fields of a new unit: its template tells a mob from a hero, its spawn holds what it was given. */
+export type UnitExtFactory<G extends UnitTypes> = (template: UnitId, spawn: SpawnUnit<G>) => G['unitExt'];
+
 /** The unit system's options: its base, and `createExt` exactly when the game's `unitExt` does not admit `undefined`. */
 export type UnitSystemOptions<G extends UnitTypes> = UnitSystemBase<G> &
   (undefined extends G['unitExt']
     ? {
-        /** Makes the game's fields of a unit; they stay `undefined` when absent. */
-        readonly createExt?: () => G['unitExt'];
+        /** Makes the game's fields of a unit, from its template and its spawn; they stay `undefined` when absent. */
+        readonly createExt?: UnitExtFactory<G>;
       }
     : {
-        /** Makes the game's fields of a unit. */
-        readonly createExt: () => G['unitExt'];
+        /** Makes the game's fields of a unit, from its template and its spawn (a mob's record, a hero's). */
+        readonly createExt: UnitExtFactory<G>;
       });
 
 /** What the unit system asks of the script system (`createScriptSystem` makes one). */
@@ -164,7 +167,7 @@ export class UnitEngine<G extends UnitTypes> {
 
   nextId = 1;
 
-  readonly #createExt: () => G['unitExt'];
+  readonly #createExt: UnitExtFactory<G>;
 
   /** Each template's compiled base list, shared by every unit spawned with its template's stats alone. */
   readonly #templateLists: (ModifierList | undefined)[] = [];
@@ -209,7 +212,7 @@ export class UnitEngine<G extends UnitTypes> {
       loadout: options.abilities?.createLoadout() ?? NO_LOADOUT,
       brain: options.ai?.createBrain() ?? NO_BRAIN,
       sheet: options.modifiers?.system.createSheet(),
-      ext: this.#createExt(),
+      ext: this.#createExt(template, spawn),
     });
 
     if (!isBearer<G>(unit)) {
@@ -332,8 +335,8 @@ const isBearer = <G extends UnitTypes>(unit: Unit<G>): unit is Unit<G> & G['bear
 const isNoExt = <G extends UnitTypes>(value: undefined): value is undefined & G['unitExt'] => value === undefined;
 
 /** The options' `createExt`, or a factory of `undefined` for a game whose `unitExt` admits it. */
-const extFactory = <G extends UnitTypes>(options: UnitSystemOptions<G>): (() => G['unitExt']) => {
-  const create: (() => G['unitExt']) | undefined = options.createExt;
+const extFactory = <G extends UnitTypes>(options: UnitSystemOptions<G>): UnitExtFactory<G> => {
+  const create: UnitExtFactory<G> | undefined = options.createExt;
 
   return (
     create ??
