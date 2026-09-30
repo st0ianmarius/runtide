@@ -6,7 +6,7 @@ import { type SearchParts, sweep } from './searches.ts';
 import { Selection } from './selection.ts';
 import { bySides, type ReactionRule, Selector, type TargetRule } from './selector.ts';
 import { StaticGeometry, type StaticShape } from './statics.ts';
-import { type UnitSpec, UnitTable } from './unit-table.ts';
+import { type UnitSpec, UnitTable, type WorldSlots } from './unit-table.ts';
 
 /** What a memory world is created with. */
 export interface MemoryWorldOptions<Unit = unknown> {
@@ -42,6 +42,9 @@ export interface MemoryWorldOptions<Unit = unknown> {
    * table of typed arrays, instead of by the unit object in a map: every position read and placement is cheaper.
    */
   readonly idOf?: (unit: Unit) => number;
+
+  /** Where each unit's slot is kept on the unit (`WorldSlots`): finding a unit is then one read, cheaper still. */
+  readonly slots?: WorldSlots<Unit>;
 }
 
 /**
@@ -103,7 +106,7 @@ class World<Unit> implements MemoryWorld<Unit> {
 
   constructor(options: MemoryWorldOptions<Unit>) {
     this.#statics = new StaticGeometry(options.statics ?? []);
-    this.#table = new UnitTable<Unit>(options.idOf);
+    this.#table = new UnitTable<Unit>(options.idOf, options.slots);
 
     const placement = new Placement(options.bounds, this.#statics);
 

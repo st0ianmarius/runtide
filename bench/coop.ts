@@ -135,7 +135,15 @@ const MODIFIERS = createModifierSystem({
 const WORLD = createMemoryWorld<Unit<CoopGame>>({
   bounds: { minX: -60, minZ: -60, maxX: 60, maxZ: 60 },
   dt: DT,
-  idOf: (unit) => unit.id
+  idOf: (unit) => unit.id,
+
+  slots: {
+    get: (unit) => unit.worldSlot,
+
+    set: (unit, slot) => {
+      unit.worldSlot = slot;
+    }
+  }
 });
 
 /** The blow every hero hit reuses, its target and amount set per hit. */

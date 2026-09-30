@@ -36,6 +36,19 @@ class Column {
 }
 
 /**
+ * Where a world keeps each unit's slot on the unit itself (a field the game gives it), so finding a unit's slot is one
+ * read, with no map or id table: `{ get: (unit) => unit.worldSlot, set: (unit, slot) => { unit.worldSlot = slot } }`.
+ * A unit not in the world reads -1; its field starts at -1.
+ */
+export interface WorldSlots<Unit> {
+  /** The slot a unit was given, or -1. */
+  readonly get: (unit: Unit) => number;
+
+  /** Keeps a unit's slot (-1 as it leaves). */
+  readonly set: (unit: Unit, slot: number) => void;
+}
+
+/**
  * The units of a memory world as struct-of-arrays columns by slot: positions now and at the start of the
  * tick, radii, sides and ids in typed arrays, the unit objects beside them, and a map from unit to slot. A removed
  * unit's slot is reused.
@@ -60,8 +73,11 @@ export class UnitTable<Unit> {
   readonly #byId = new IdSlots();
   #count = 0;
 
-  constructor(idOf?: (unit: Unit) => number) {
+  readonly #keep: WorldSlots<Unit> | undefined;
+
+  constructor(idOf?: (unit: Unit) => number, keep?: WorldSlots<Unit>) {
     this.#idOf = idOf;
+    this.#keep = keep;
   }
 
   /** How many slots exist, free ones included: every live slot is below it. */
@@ -121,6 +137,7 @@ export class UnitTable<Unit> {
 
     this.units[slot] = unit;
     this.#count += 1;
+    this.#keep?.set(unit, slot);
 
     if (this.#idOf === undefined) {
       this.#slots.set(unit, slot);
@@ -173,12 +190,21 @@ export class UnitTable<Unit> {
     this.#count -= 1;
     this.units[slot] = undefined;
     this.#free.push(slot);
+    this.#keep?.set(unit, -1);
 
     return slot;
   }
 
   /** A unit's slot, or -1 when it is not here. */
   find(unit: Unit): number {
+    const keep = this.#keep;
+
+    if (keep !== undefined) {
+      const kept = keep.get(unit);
+
+      return kept >= 0 && this.units[kept] === unit ? kept : -1;
+    }
+
     const idOf = this.#idOf;
 
     if (idOf === undefined) {

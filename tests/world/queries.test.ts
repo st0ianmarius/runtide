@@ -442,33 +442,62 @@ describe('a limit of one and a count (no sort they do not need)', () => {
   });
 });
 
+/** A unit that keeps the slot a world gives it. */
+interface Slotted {
+  readonly id: number;
+  slot: number;
+}
+
 describe('a world that finds units by their entity id', () => {
-  it('answers as one keyed by unit, through adds and removes, and refuses an id idOf does not give', () => {
+  it('answers as one keyed by unit, and so does one keeping slots on units, and refuses an id idOf does not give', () => {
     fc.assert(
       fc.property(fc.array(fc.tuple(fc.boolean(), fc.integer({ min: 0, max: 300 })), { maxLength: 400 }), (steps) => {
-        const byId = createMemoryWorld<{ readonly id: number }>({ bounds: BOUNDS, idOf: (unit) => unit.id });
-        const plain = createMemoryWorld<{ readonly id: number }>({ bounds: BOUNDS });
-        const units = new Map<number, { readonly id: number }>();
+        const byId = createMemoryWorld<Slotted>({ bounds: BOUNDS, idOf: (unit) => unit.id });
+        const plain = createMemoryWorld<Slotted>({ bounds: BOUNDS });
+
+        const kept = createMemoryWorld<Slotted>({
+          bounds: BOUNDS,
+
+          slots: {
+            get: (unit) => unit.slot,
+
+            set: (unit, slot) => {
+              unit.slot = slot;
+            }
+          }
+        });
+
+        const units = new Map<number, Slotted>();
 
         for (const [isAdd, id] of steps) {
-          const unit = units.get(id) ?? { id };
+          const unit = units.get(id) ?? { id, slot: -1 };
 
           units.set(id, unit);
 
           if (isAdd && !plain.has(unit)) {
             byId.add(unit, { id, at: vec2(id % 40, 0) });
             plain.add(unit, { id, at: vec2(id % 40, 0) });
+            kept.add(unit, { id, at: vec2(id % 40, 0) });
           } else if (!isAdd) {
-            assert.equal(byId.remove(unit), plain.remove(unit));
+            const removed = plain.remove(unit);
+
+            assert.equal(byId.remove(unit), removed);
+            assert.equal(kept.remove(unit), removed);
           }
         }
 
-        const a: ({ readonly id: number } | undefined)[] = [];
-        const b: ({ readonly id: number } | undefined)[] = [];
+        const a: (Slotted | undefined)[] = [];
+        const b: (Slotted | undefined)[] = [];
+        const c: (Slotted | undefined)[] = [];
 
-        assert.equal(byId.all({}, a), plain.all({}, b));
+        const count = plain.all({}, b);
+
+        assert.equal(byId.all({}, a), count);
+        assert.equal(kept.all({}, c), count);
         assert.deepEqual(a, b);
+        assert.deepEqual(c, b);
         assert.ok([...units.values()].every((unit) => byId.has(unit) === plain.has(unit)));
+        assert.ok([...units.values()].every((unit) => kept.has(unit) === plain.has(unit)));
       })
     );
 

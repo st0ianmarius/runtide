@@ -83,6 +83,12 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   isMoving = false;
 
   /**
+   * The slot a world keeps it at: what a memory world's `slots` reads and writes (`{ get: (unit) => unit.worldSlot, set:
+   * (unit, slot) => { unit.worldSlot = slot } }`); -1 outside one.
+   */
+  worldSlot = -1;
+
+  /**
    * The moves hooks asked for while one ran (a revive from a death's `onState`, a corpse despawn from a listener), made
    * in order once it is done, each checked again then.
    */
