@@ -61,7 +61,7 @@ const runEndHook = <G extends AreaTriggerTypes>(
  * Ends an area trigger: its landing and `onExpire` for an expiry, its end cue (none when the cue answers none),
  * `onEnd` with the reason; then it leaves the tick order and its kind's list, its owner aura comes
  * off when it was the last of its kind, the end event is raised, its cast is let go and its record goes back to the
- * pool. Ending one that is already ending does nothing.
+ * pool once no step, walk or hook holds records. Ending one that is already ending does nothing.
  */
 export const endArea = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -73,13 +73,19 @@ export const endArea = <G extends AreaTriggerTypes>(
   }
 
   area.isEnding = true;
-  runEndHook(engine, area, end.reason);
-  dropAreaAuras(engine, area);
-  closeLedgers(engine, area);
-  unlinkKind(engine, area);
-  engine.count(area.owner, [area.kind, -1]);
-  engine.holdOwnerAura(area, false);
-  engine.raise('ended', area, end.reason);
-  engine.spells.unretain(area.castHandle);
-  engine.free(area);
+  engine.hold();
+
+  try {
+    runEndHook(engine, area, end.reason);
+    dropAreaAuras(engine, area);
+    closeLedgers(engine, area);
+    unlinkKind(engine, area);
+    engine.count(area.owner, [area.kind, -1]);
+    engine.holdOwnerAura(area, false);
+    engine.raise('ended', area, end.reason);
+    engine.spells.unretain(area.castHandle);
+    engine.free(area);
+  } finally {
+    engine.unhold();
+  }
 };

@@ -36,6 +36,10 @@ const catchPulse = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit: Hit<
   return catchIn(engine, hit, shape);
 };
 
+/** Whether an area trigger still runs its frame: not ending, and not asked to end (`c.despawn`, spent). */
+const isRunning = <G extends AreaTriggerTypes>(area: AreaTrigger<G>): boolean =>
+  !area.isEnding && area.pending === undefined;
+
 /** One beat of a pulse for one area trigger: what it catches, recorded in its ledger and handed to `onPulse`. */
 const beat = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
   const pulse = engine.registry.get(area.kind).every?.[index];
@@ -62,7 +66,7 @@ const ownBeats = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
   const pulse = engine.registry.get(area.kind).every?.[index];
   let fired = 0;
 
-  while (pulse !== undefined && isRunOut(area.beats[index] ?? 0) && !area.isEnding) {
+  while (pulse !== undefined && isRunOut(area.beats[index] ?? 0) && isRunning(area)) {
     if (fired > 0 && pulse.catchUp === false) {
       area.beats[index] = secondsOf(pulse, area);
 
@@ -83,7 +87,7 @@ export const stepPulses = <G extends AreaTriggerTypes>(
 ): void => {
   const pulses = engine.registry.get(area.kind).every ?? NO_PULSES;
 
-  for (let index = 0; index < pulses.length && !area.isEnding; index++) {
+  for (let index = 0; index < pulses.length && isRunning(area); index++) {
     area.beats[index] = (area.beats[index] ?? 0) - dt;
     ownBeats(engine, area, index);
   }

@@ -132,8 +132,8 @@ const admitLimit = <G extends AreaTriggerTypes>(
     return false;
   }
 
-  for (let walk = engine.kindHeads[area.kind]; walk !== undefined; walk = walk.kindNext) {
-    if (walk.owner === area.owner && !walk.isEnding) {
+  for (let walk = engine.ownerOf(area.owner)?.heads[area.kind]; walk !== undefined; walk = walk.ownerNext) {
+    if (!walk.isEnding) {
       endArea(engine, walk, { reason: 'replaced' });
       break;
     }
@@ -201,12 +201,20 @@ export const spawnArea = <G extends AreaTriggerTypes>(
   const { handle } = area;
   const { now } = spec;
 
-  enter(engine, area, def);
+  engine.hold();
 
-  const live = engine.areaOf(handle);
+  try {
+    enter(engine, area, def);
 
-  if (now !== undefined && now > 0 && live !== undefined) {
-    stepArea(engine, live, now);
+    const live = engine.areaOf(handle);
+
+    if (live?.pending !== undefined) {
+      endArea(engine, live, { reason: live.pending });
+    } else if (now !== undefined && now > 0 && live !== undefined) {
+      stepArea(engine, live, now);
+    }
+  } finally {
+    engine.unhold();
   }
 
   return handle;

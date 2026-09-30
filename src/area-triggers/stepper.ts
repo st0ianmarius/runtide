@@ -123,6 +123,8 @@ export const stepSlot = <G extends AreaTriggerTypes>(
 
   let stepped = 0;
 
+  engine.hold();
+
   try {
     for (let i = 0; i < count; i++) {
       const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
@@ -134,6 +136,7 @@ export const stepSlot = <G extends AreaTriggerTypes>(
     }
   } finally {
     engine.handles.give(count);
+    engine.unhold();
   }
 
   return stepped;
@@ -155,6 +158,8 @@ export const endOwned = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, owne
   const count = snapshotOwned(owned, engine.registry.ids, handles);
   let ended = 0;
 
+  engine.hold();
+
   try {
     for (let i = 0; i < count; i++) {
       const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
@@ -166,6 +171,7 @@ export const endOwned = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, owne
     }
   } finally {
     engine.handles.give(count);
+    engine.unhold();
   }
 
   return ended;

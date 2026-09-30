@@ -412,6 +412,111 @@ describe('the owner aura, cues and events', () => {
   });
 });
 
+describe('ending during a hook', () => {
+  it('keeps a record out of the pool until its own hook returns, so a spawn there takes a fresh one', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          first: ending({
+            lifetime: 1,
+
+            every: [
+              {
+                seconds: 0.25,
+
+                onPulse: (c) => {
+                  game.areaTriggers.despawn(c.handle);
+
+                  return [spawn('second')];
+                }
+              }
+            ]
+          }),
+
+          second: ending({
+            lifetime: 10,
+
+            onEnd: (c, reason) => {
+              c.host.log.push(`second end ${reason} at ${c.age}`);
+
+              return undefined;
+            }
+          })
+        }
+      }
+    );
+
+    game.areaTriggers.spawn(game.areaId.first, { owner: game.unit(1), at: vec2(0, 0) });
+
+    for (let i = 0; i < 4; i++) {
+      game.step();
+      game.areaTriggers.step();
+    }
+
+    assert.equal(game.areaTriggers.pool.live, 1);
+    assert.ok(!game.log.some((line) => line.startsWith('second end')));
+  });
+
+  it('stops its pulses once a hook asks it to end, and ends a despawn from init before it runs', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          twice: ending({
+            every: [
+              {
+                seconds: 0.125,
+
+                onPulse: (c) => {
+                  c.host.log.push('first pulse');
+                  c.despawn();
+
+                  return undefined;
+                }
+              },
+              {
+                seconds: 0.125,
+
+                onPulse: (c) => {
+                  c.host.log.push('second pulse');
+
+                  return undefined;
+                }
+              }
+            ]
+          }),
+
+          stillborn: ending({
+            init: (c) => {
+              c.despawn();
+            },
+
+            frame: (c) => {
+              c.host.log.push('stillborn frame');
+
+              return undefined;
+            }
+          })
+        }
+      }
+    );
+
+    game.areaTriggers.spawn(game.areaId.twice, { owner: game.unit(1), at: vec2(0, 0) });
+    game.areaTriggers.spawn(game.areaId.stillborn, { owner: game.unit(1), at: vec2(0, 0), now: 0.125 });
+    game.step();
+    game.areaTriggers.step();
+
+    assert.deepEqual(linesOf(game.log), [
+      'end self',
+      'ended stillborn@1 self',
+      'first pulse',
+      'end self',
+      'ended twice@1 self'
+    ]);
+  });
+});
+
 describe('procs and keys', () => {
   it('runs its hooks’ procs as its owner’s, credited to its source, its cast current', () => {
     const seen: string[] = [];

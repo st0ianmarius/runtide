@@ -42,7 +42,7 @@ export interface AreaInterception {
  */
 export interface AreaQueries<G extends AreaTriggerTypes> {
   /** Writes the handles a query keeps into `out` from index 0; returns how many. */
-  readonly query: (query: AreaQuery<G>, out: AreaTriggerHandle[]) => number;
+  readonly query: (query: AreaQuery<G>, out: (AreaTriggerHandle | undefined)[]) => number;
 
   /** A live area trigger's context; `undefined` once it ended. */
   readonly get: (handle: AreaTriggerHandle) => AreaTriggerContext<G> | undefined;
@@ -126,17 +126,26 @@ export const despawnWhere = <G extends AreaTriggerTypes>(
   query: AreaQuery<G>,
   reason: EndReason<G>
 ): number => {
-  const handles: AreaTriggerHandle[] = [];
-  const count = engine.queries.query(query, handles);
+  const handles = engine.handles.take();
+  let count = 0;
   let ended = 0;
 
-  for (let i = 0; i < count; i++) {
-    const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
+  engine.hold();
 
-    if (area !== undefined) {
-      endArea(engine, area, { reason });
-      ended += 1;
+  try {
+    count = engine.queries.query(query, handles);
+
+    for (let i = 0; i < count; i++) {
+      const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
+
+      if (area !== undefined) {
+        endArea(engine, area, { reason });
+        ended += 1;
+      }
     }
+  } finally {
+    engine.handles.give(count);
+    engine.unhold();
   }
 
   return ended;
@@ -151,7 +160,7 @@ export class AreaQueryApi<G extends AreaTriggerTypes> implements AreaQueries<G> 
     this.#engine = engine;
   }
 
-  readonly query = (query: AreaQuery<G>, out: AreaTriggerHandle[]): number => {
+  readonly query = (query: AreaQuery<G>, out: (AreaTriggerHandle | undefined)[]): number => {
     const found = this.#engine.records.take();
     const count = collect(this.#engine, query, found);
 

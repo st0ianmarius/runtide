@@ -157,12 +157,13 @@ const shareIn = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: Ledg
 /**
  * Forgets the units a `rehit` ledger could hit again anyway (their cooldown ran) once it holds as many as its watermark,
  * then doubles the watermark over what is left, so a long-lived ledger (a missile orbiting through a horde) keeps a
- * bounded map. Its `distinct` count still counts them.
+ * bounded map. Its `distinct` count still counts them, and counts one again that it forgot and hits again. A ledger
+ * with a `pierce` never forgets: its pierce counts different units.
  */
 const prune = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: Ledger): void => {
   const { spec } = ledger;
 
-  if (spec.policy !== 'rehit' || ledger.last.size < ledger.watermark) {
+  if (spec.policy !== 'rehit' || spec.pierce !== undefined || ledger.last.size < ledger.watermark) {
     return;
   }
 

@@ -226,6 +226,34 @@ describe('a ledger read by hooks', () => {
     assert.deepEqual(seen, ['first 1 0 true 1', 'child 0 1']);
   });
 
+  it('keeps two views apart: each records into its own ledger', () => {
+    const seen: string[] = [];
+
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          pair: {
+            shape: circle(1),
+            lifetime: 1,
+            ledgers: { chain: { policy: 'once' }, splash: { policy: 'once' } },
+
+            init: (c) => {
+              const chain = c.ledger('chain');
+              const splash = c.ledger('splash');
+
+              chain.record(c.owner);
+              seen.push(`chain ${chain.distinct} splash ${splash.distinct}`);
+            }
+          }
+        }
+      }
+    );
+
+    game.areaTriggers.spawn(game.areaId.pair, { owner: game.unit(1), at: vec2(0, 0) });
+    assert.deepEqual(seen, ['chain 1 splash 0']);
+  });
+
   it('goes back to the pool with the last area trigger that shares it', () => {
     const game = makeSpellGame({}, { areaTriggers: { pool: pool({ policy: 'once' }, { lifetime: 0.25 }) } });
 

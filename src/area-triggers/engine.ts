@@ -17,7 +17,7 @@ import { type AreaEngineParts, AreaPlace, missing, OwnerAuraApplication } from '
 import type { AreaTriggerEvent, AreaTriggerEvents } from './events.ts';
 import { Catcher } from './hits.ts';
 import { type AreaTriggerHandle, toAreaTriggerHandle } from './ids.ts';
-import { LedgerBook, LedgerView } from './ledgers.ts';
+import { type Ledger, LedgerBook, LedgerView } from './ledgers.ts';
 import { OwnerAreas } from './order.ts';
 import { AreaQueryApi } from './queries.ts';
 
@@ -82,10 +82,16 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   readonly #lists: ProcList<G>[] = [];
   readonly #place = new AreaPlace();
   #depth = 0;
+  #holds = 0;
   #nextId = 1;
+
+  /** Ended records waiting for every hook on them to return before they go back to the pool. */
+  readonly #retired: AreaTrigger<G>[] = [];
   #pending: G['bearer'] | undefined = undefined;
   #application: OwnerAuraApplication | undefined = undefined;
-  #view: LedgerView<G> | undefined = undefined;
+
+  /** A view per pooled ledger, so two views a hook holds stay apart. */
+  readonly #views = new Map<Ledger, LedgerView<G>>();
 
   constructor(parts: AreaEngineParts<G>) {
     const kinds = parts.registry.size;
@@ -212,8 +218,44 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     }
   }
 
-  /** Puts an ended area trigger's record back: its state, the game's fields, its references. */
+  /**
+   * Holds ended records out of the pool until the matching `unhold`: a walk, a step or a hook that ends an area
+   * trigger (its own or another's) never sees the record taken by a spawn before it returns. Calls nest.
+   */
+  hold(): void {
+    this.#holds += 1;
+  }
+
+  /** Lets go of a `hold`; the outermost puts every record that ended meanwhile back into the pool. */
+  unhold(): void {
+    this.#holds -= 1;
+
+    if (this.#holds > 0) {
+      return;
+    }
+
+    const retired = this.#retired;
+
+    for (const area of retired) {
+      this.#release(area);
+    }
+
+    retired.length = 0;
+  }
+
+  /** Puts an ended area trigger's record back, at once or as the outermost hold lets go. */
   free(area: AreaTrigger<G>): void {
+    area.isEnding = true;
+
+    if (this.#holds > 0) {
+      this.#retired.push(area);
+    } else {
+      this.#release(area);
+    }
+  }
+
+  /** Clears a record (its state, the game's fields, its references) and gives it to the pool. */
+  #release(area: AreaTrigger<G>): void {
     this.#resetExt?.(area.ext);
     area.cast = undefined;
     area.state = undefined;
@@ -247,9 +289,13 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
       throw new RangeError(`Area trigger ${this.registry.name(area.kind)} has no ledger ${name}.`);
     }
 
-    const view = (this.#view ??= new LedgerView<G>(this));
+    let view = this.#views.get(ledger);
 
-    view.ledger = ledger;
+    if (view === undefined) {
+      view = new LedgerView<G>(this);
+      view.ledger = ledger;
+      this.#views.set(ledger, view);
+    }
 
     return view;
   };
