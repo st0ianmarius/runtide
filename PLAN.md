@@ -334,7 +334,7 @@ Each is summarised by what it must offer; Part II has the full model.
 
 - **Core.** Random: sequential salted streams (`stream(seed, salt)`, Mulberry32 on `seed ^ salt`) and keyed rolls (`roll(seed, salt, ...key)`), with `int`, `pick`, `weighted` and `shuffle` on both. Time: a fixed-step `SimClock` (`tick`, `dt`, `time = tick × dt`), as many as the game runs (a world clock, a motion clock), stamps (`stampAt`, `isDue(stamp)`, `remaining(stamp)`), and the countdowns pausable and rescalable timers keep (`countDown`, `isRunOut`), which snap to zero below `1e-6`, so a countdown and a stamp of the same length (`stepsUntil`: `⌈(seconds − 1e-6) / dt⌉`) end on the step the seconds say; `Registry<Def>` assigning branded numeric ids by key order (append-only, tombstones for retired entries, `id` / `name` / `get` lookups, order checks), built into dense arrays, typed hot-field columns, per-hook dispatch tables and bitsets (§I.5.4); pools with generational handles; scratch buffers; a typed `Bus` with payload reuse, `hears(kind)` short-circuiting and a configurable nesting cap.
 - **Math.** Shapes (`circle`, `ring`, `cone`, `lane`, `polygon`, `point`) with `covers(shape, point, radius)`; `sweep(from, to, radius)` against circles; angle helpers (`wrap`, `turnToward`).
-- **Modifiers.** `defineStats` with flat and multiplier stats, ratings that convert through curves, a curve library (linear, rating, hyperbolic, haste, avoidance, stacking, table; §II.3.14), scaled values with LoL-style ratios (§II.3.13), `Modifier` (`add | mul | min`, `when`, `scope`), pluggable `Condition` evaluators, ordered sources, `resolve` / `fold`, derived stats following `total − base`, caps, `explainModifier` returning structured data (stat id, op, value, condition) for the client to phrase.
+- **Modifiers.** `defineStats` with flat and multiplier stats, ratings that convert through curves, a curve library of general shapes (linear, rating, hyperbolic, stacking, table) plus custom curves whose parameters the framework evaluates (§II.3.14), scaled values with LoL-style ratios (§II.3.13), `Modifier` (`add | mul | min`, `when`, `scope`), pluggable `Condition` evaluators, ordered sources, `resolve` / `fold`, derived stats following `total − base`, caps, `explainModifier` returning structured data (stat id, op, value, condition) for the client to phrase.
 - **Conditions.** The game's condition tests (`defineConditions`, each flaggable `mirrorSafe`, and `world` for one that asks the world) and value kinds (`defineValues`), and one condition language over them that modifiers, triggers, targeting and AI read: a game test (`{ is, arg }`), a comparison of a value kind with a threshold (`{ value, op, than, epsilon }`), and `all`, `any`, `not`; compiled at load (`compileCondition`: names checked, world tests moved last), bound once (`bindCondition`, `conditionTest`), explained as its compiled data, and checked mirror-safe (`isMirrorSafe`, and `checkPredicted` for predicted auras).
 - **Every system below is widened by the coverage catalogue of §II.6, whose entries name the phase they land in; the catalogue is the checklist.**
 - **Auras.** `AuraDef` on any bearer (`AuraBearer`: `auras`, `clocks`, `rev`); stacking, built in or the game's own; clocks the game names (`world`, `motion`, `global`), each with its step, each bearer counting its own steps on each, which aura stamps count against; `periodic` returning procs; `value` with `merge: 'max' | 'add' | 'replace'` and `keepWhenDepleted` (absorbs); tags, `blockedBy`, `removes`; `fold` position; `predicted`; lifecycle hooks and events (`applied`, `refreshed`, `expired`, `removed`, `stateEntered`); application policy (`onIncomingAura`); periodic beats on their aura's clock and their own slot; instance payloads; `removedOn`, `boundToSource`; damage hooks (`onIncomingDamage`, `onLethal`); lifecycle events and lifecycle cue ids; `view()` for the wire. No `status`, name, icon or colour: the client's aura table, keyed by `AuraId`, draws the tile.
@@ -873,18 +873,23 @@ A game can have both kinds of stat, as League of Legends does, and a spell scale
 - **Multiplier stats** are percentages around a neutral value: swarm's `damage` (1 = neutral, 1.3 = +30%), critical damage (1.75), cooldown reduction, damage taken. A spell takes a share of their bonus: "scales with 110% of the damage bonus", "crits for 100% of critical damage".
 - **Curves** turn a flat stat into an effect that is not linear: ability haste shortens a cooldown by `100 / (100 + haste)`, so 100 haste halves it and it never reaches zero. A spell may take a share of the stat before the curve: "50% of ability haste" on a spell is `100 / (100 + 0.5 × haste)`.
 
-The stat table declares the kind, and the curve where there is one:
+The stat table declares the kind, and the curve where there is one. Haste is the game's own curve, registered by name:
 
 ```ts
-const STATS = defineStats({
-  attackDamage: { base: 60, kind: 'flat' },
-  abilityPower: { base: 0, kind: 'flat' },
-  abilityHaste: { base: 0, kind: 'flat', curve: 'haste' }, // 100 / (100 + x) on whatever it shortens
-  maxHealth: { base: 600, kind: 'flat' },
-  critChance: { base: 0, kind: 'flat', max: 1 }, // a chance is a flat stat on 0..1
-  damage: { base: 1, kind: 'multiplier' }, // swarm's damage bonus
-  critDamage: { base: 1.75, kind: 'multiplier' }
-});
+const CURVES = defineCurves({ haste: customCurve((x) => 100 / (100 + x)) });
+
+const STATS = defineStats(
+  {
+    attackDamage: { base: 60, kind: 'flat' },
+    abilityPower: { base: 0, kind: 'flat' },
+    abilityHaste: { base: 0, kind: 'flat', curve: 'haste' }, // 100 / (100 + x) on whatever it shortens
+    maxHealth: { base: 600, kind: 'flat' },
+    critChance: { base: 0, kind: 'flat', max: 1 }, // a chance is a flat stat on 0..1
+    damage: { base: 1, kind: 'multiplier' }, // swarm's damage bonus
+    critDamage: { base: 1.75, kind: 'multiplier' }
+  },
+  { curves: CURVES }
+);
 ```
 
 A **scaled value** is any number on a spell, aura, area trigger or unit template, written as data instead of a function:
@@ -912,7 +917,7 @@ A value with `from: 'target'` terms snapshots its caster part at the cast and ke
 ```ts
 export const piercingLight = defineSpell({
   tags: ['ability', 'physical'],
-  activation: button({ cooldown: scaled(12, haste(0.5)) }), // 12 s × 100 / (100 + 0.5 × ability haste)
+  activation: button({ cooldown: scaled(12, curveOf('haste', 0.5)) }), // 12 s × 100 / (100 + 0.5 × ability haste)
   stats: {
     damage: scaled(
       ranks(60, 95, 130),
@@ -935,13 +940,13 @@ export const piercingLight = defineSpell({
 - **Previews.** Evaluated at any rank with no world (M6). Target terms show as their ratio.
 - **Checks when the registry is built.** An `amp` term must name a multiplier stat and an `add` term a flat one; `of: 'bonus'` needs a base; a per-rank list must match the spell's ranks. A mistake fails at load, not in play.
 - **Speed.** Scaled values compile into flat term arrays (stat id, coefficient, op) when the registry is built. Each evaluation is one loop over stats already folded for the cast, with no allocation (§I.5.4).
-- **Escape hatches.** `stats(ctx)` can still be a function for a number no formula covers. A game registers its own curves (`defineCurves({ haste, diminishing })`), and custom term sources through the stat host (§I.5.6).
+- **Escape hatches.** `stats(ctx)` can still be a function for a number no formula covers. A game registers its own curves (`defineCurves({ haste: customCurve(…) })`), and custom term sources through the stat host (§I.5.6).
 
 **In swarm:** the weapons' rank tables (`(27 + r × 10) × legendary`) become `ranks(...)` bases, and `damage` and `critDamage` become outgoing multipliers with the default share of 1. Every golden stays bit-exact, because a share of 1 reads the stat as it is and the order of the multiplications does not change. Flat stats and ratios are there when the game wants them, with no framework change.
 
 ### II.3.14 Mitigation, ratings and diminishing returns
 
-Armor, resistances, hit, dodge and penetration work as they do in WoW and League of Legends. A defender's rating becomes a reduction or a chance through a curve with diminishing returns, and the curve can read the attacker: their level, their penetration, their hit rating. The framework ships the well-known curves and the pipeline stages, and the game declares which stats feed them.
+Armor, resistances, hit, dodge and penetration work as they do in WoW and League of Legends. A defender's rating becomes a reduction or a chance through a curve with diminishing returns, and the curve can read the attacker: their level, their penetration, their hit rating. The framework ships general curve shapes and the pipeline stages; a game writes its own formulas (LoL's ability haste, WoW's avoidance) as custom curves and declares which stats feed them.
 
 **Curves** are pure, deterministic functions from a number to an effect. They are shared by scaling (§II.3.13), mitigation, ratings and the roll table:
 
@@ -950,12 +955,11 @@ Armor, resistances, hit, dodge and penetration work as they do in WoW and League
 | `linear(per)`                        | `x × per`                                                                                      | flat conversions, swarm's creature `damageReduction`                                          |
 | `rating(per)`                        | `x / per / 100`, with `per` the rating for 1%                                                  | WoW combat ratings: hit, crit, haste, expertise                                               |
 | `hyperbolic({ k, cap?, negative? })` | `x / (x + k)`; below zero `'zero'`, or `'amplify'` as `2 − k / (k − x)` as a damage multiplier | LoL armor and magic resist (`k: 100`), WoW armor (`k` from the attacker's level), swarm armor |
-| `hasteCurve()`                       | `100 / (100 + x)` on a duration (`haste(coef)` is the scaled-value term that applies it)       | LoL ability haste (§II.3.13)                                                                  |
-| `avoidance({ per, cap, k })`         | `1 / (1 / cap + k / p)`, with `p = x / per / 100` before diminishing returns                   | WoW's diminishing returns on dodge, parry and block from ratings                              |
 | `stacking(rate)`                     | `1 − (1 − rate)^x` for `x` equal instances; unequal rates `1 − Π (1 − rᵢ)` fold as `mul`s      | multiplicative stacking: tenacity, slow resistance, several % penetrations                    |
 | `table(points)`                      | piecewise linear over `[x, y]` points                                                          | rating-per-percent by level, level-difference tables                                          |
+| `customCurve(map, params?)`          | the game's `map(x, values)`, each named parameter evaluated first and passed by value          | a game's own formula: LoL ability haste, WoW's diminishing returns on avoidance               |
 
-Every parameter of a curve (`k`, `cap`, `per`) can be a scaled value (§II.3.13), so it can read either side of the hit. WoW's armor constant, `400 + 85 × attacker level`, is `k: scaled(400, add('level', 85, { from: 'caster' }))`. In the pipeline, `caster` is the attacker and `target` the defender.
+Every parameter of a curve (`k`, `cap`, `per`, and a custom curve's named ones) can be a scaled value (§II.3.13), so it can read either side of the hit. A custom curve's function receives only numbers, never stat views, so snapshots and target checks see every stat it depends on through its parameters. WoW's armor constant, `400 + 85 × attacker level`, is `k: scaled(400, add('level', 85, { from: 'caster' }))`. In the pipeline, `caster` is the attacker and `target` the defender.
 
 **Ratings** are flat stats that convert into a percentage stat through a curve, extending derived stats (M1). WoW's hit rating becomes hit chance at so much rating per 1% at the bearer's level (`byLevel(table)` reads the bearer's `level` stat through `table`); dodge rating becomes a dodge percentage, then goes through diminishing returns:
 
@@ -972,7 +976,12 @@ const STATS = defineStats({
     kind: 'flat',
     converts: {
       to: 'dodgeChance',
-      curve: avoidance({ per: byLevel(RATING.dodge), cap: 0.6563, k: 0.956 })
+      // The game's own: 1 / (1 / cap + k / p), p = x / per / 100
+      curve: customCurve((x, { per, cap, k }) => (x <= 0 ? 0 : 1 / (1 / cap + (k * per * 100) / x)), {
+        per: byLevel(RATING.dodge),
+        cap: 0.6563,
+        k: 0.956
+      })
     }
   },
   armor: { base: 0, kind: 'flat' },
@@ -1352,6 +1361,6 @@ The world and its plumbing, which the framework reaches only through host interf
 11. **The wave director's split: decided by the escape-hatch rule.** The pickers and the budgets are the framework's (F17), and world scripts run the events (F21); the director itself (roster, opening burst, elite schedule, group clock, calm gaps, concurrency classes, curves) stays swarm's code as a game-owned step.
 12. **Units live in the framework: decided** (templates, traits, lifecycle, spawning), since control rules, rewards and the pipelines all read them; leaving them in the game would keep its `kind` branches.
 13. **Stat scaling: decided, both kinds, League of Legends style** (§II.3.13). Flat stats (attack damage, ability haste) and multiplier stats (damage bonus, critical damage) live in one table; spells scale with any of them by a ratio, and multiplier stats by a share of their bonus. Evaluation order is fixed, and a share of 1 reads the stat unchanged, so swarm stays bit-exact.
-14. **Mitigation and ratings: decided, WoW and League of Legends style** (§II.3.14). One curve library (hyperbolic armor, haste, avoidance, stacking, rating tables) whose parameters can read the attacker (level, penetration, hit); mitigation and outcome rows are the game's data, so misses, dodges, parries and resistances are built now instead of deferred. Swarm's armor is `hyperbolic` with its own constant and stays bit-exact.
+14. **Mitigation and ratings: decided, WoW and League of Legends style** (§II.3.14). One curve library of general shapes (hyperbolic armor, stacking, rating tables) plus custom curves for a game's own formulas (haste, avoidance), whose parameters can read the attacker (level, penetration, hit); mitigation and outcome rows are the game's data, so misses, dodges, parries and resistances are built now instead of deferred. Swarm's armor is `hyperbolic` with its own constant and stays bit-exact.
 15. **Threat and aggro: decided, not built.** Targeting stays on target policies (F17); combat maths stays on the curves (§II.3.13, §II.3.14). Aggro, if a game ever wants it, is a target policy on the escape hatches.
 16. **Generic first, swarm on the hatches: decided** (§I.9 decision 7). This guide maps swarm onto the framework; it does not shape the framework around swarm. Each swarm rule it names that the framework's defaults do not give (the add-only gain, sequential draws on the main stream, its revision counter, its tick interleaving) lands in swarm's code on a hatch, and the framework's part is the hatch and its generic tests. A phase that finds a swarm behaviour no hatch can express adds a generic hatch, never a swarm mode.
