@@ -96,7 +96,7 @@ export interface AiSystem<G extends AiTypes> {
   readonly first: (
     caster: G['bearer'],
     spells: readonly SpellId[],
-    options?: Pick<PickOptions<G>, 'input' | 'allows'>
+    options?: Pick<PickOptions<G>, 'input' | 'inputOf' | 'allows'>
   ) => SpellId | undefined;
 
   /** The entity id a unit focuses (a tether's target, a sticky target); −1 for none. */

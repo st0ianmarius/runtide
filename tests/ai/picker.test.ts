@@ -59,6 +59,20 @@ describe('the weighted picker', () => {
     assert.equal(ai.pick(beast, [], { random: fixed(0.3) }), undefined);
   });
 
+  it('checks each candidate with its own input when the game gives inputOf', () => {
+    const { ai, beast, pool, weight, slam, bolt, nova } = picking();
+    const asked: SpellId[] = [];
+
+    const inputOf = (_unit: unknown, spell: SpellId): undefined => {
+      asked.push(spell);
+
+      return undefined;
+    };
+
+    assert.equal(ai.pick(beast, pool, { random: fixed(0), weight, inputOf }), slam);
+    assert.deepEqual(asked, [slam, bolt, nova]);
+  });
+
   it('finds the first spell of an ordered list that would start (a reaction)', () => {
     const { ai, beast, gate, slam, nova } = picking();
 

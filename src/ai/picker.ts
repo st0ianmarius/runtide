@@ -1,5 +1,5 @@
 import type { Random } from '../core/index.ts';
-import type { SpellId, SpellSystem } from '../spells/index.ts';
+import type { CastOptions, SpellId, SpellSystem } from '../spells/index.ts';
 import type { AiTypes } from './ai-types.ts';
 
 /**
@@ -12,6 +12,12 @@ export interface PickOptions<G extends AiTypes> {
 
   /** What each candidate is checked with (`spells.check`): its target, an aim. None when absent. */
   readonly input?: G['input'];
+
+  /**
+   * What one candidate is checked with, in place of `input`: a heal aimed at the weakest ally beside a strike at the
+   * focus, weighed in one pick. The game casts the picked spell with the same input.
+   */
+  readonly inputOf?: (caster: G['bearer'], spell: SpellId) => G['input'] | undefined;
 
   /**
    * A spell's weight for this caster now (distance, hugged, clumped: the game's reading, or its own per-spell
@@ -30,6 +36,7 @@ export interface PickOptions<G extends AiTypes> {
  */
 export class Picker<G extends AiTypes> {
   readonly #spells: SpellSystem<G>;
+  readonly #check = new CheckOptions<G>();
   #weights = new Float64Array(8);
 
   constructor(spells: SpellSystem<G>) {
@@ -55,7 +62,7 @@ export class Picker<G extends AiTypes> {
   first(
     caster: G['bearer'],
     spells: readonly SpellId[],
-    options: Pick<PickOptions<G>, 'input' | 'allows'> = {}
+    options: Pick<PickOptions<G>, 'input' | 'inputOf' | 'allows'> = {}
   ): SpellId | undefined {
     for (const spell of spells) {
       if (options.allows?.(caster, spell) !== false && this.#fits(caster, spell, options)) {
@@ -91,10 +98,23 @@ export class Picker<G extends AiTypes> {
     return weights;
   }
 
-  /** Whether a spell would start now. */
-  #fits(caster: G['bearer'], spell: SpellId, options: Pick<PickOptions<G>, 'input'>): boolean {
-    return this.#spells.check(caster, spell, options.input === undefined ? undefined : options) === undefined;
+  /** Whether a spell would start now, checked with its input. */
+  #fits(caster: G['bearer'], spell: SpellId, options: Pick<PickOptions<G>, 'input' | 'inputOf'>): boolean {
+    const check = this.#check;
+
+    check.input = options.inputOf === undefined ? options.input : options.inputOf(caster, spell);
+
+    try {
+      return this.#spells.check(caster, spell, check) === undefined;
+    } finally {
+      check.input = undefined;
+    }
   }
+}
+
+/** The options a candidate is checked with, reused: its input alone. */
+class CheckOptions<G extends AiTypes> implements CastOptions<G> {
+  input: G['input'] | undefined = undefined;
 }
 
 /** The spell whose share of the weights a point on `[0, total)` falls in; `undefined` for a total of 0. */
