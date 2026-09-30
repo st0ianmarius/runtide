@@ -5,11 +5,8 @@ import type { AiTypes, TimerId } from './ai-types.ts';
 import { Brain, brainOf } from './brain.ts';
 import { MAX_TIMERS } from './timers.ts';
 
-/** The most brains one system holds at once: each is a slot of a wheel entry. */
+/** The most brains one system holds at once: a wheel entry is `slot × MAX_TIMERS + timer`, a small integer. */
 const SLOT_SPAN = 2 ** 20;
-
-/** Generations wrap here, so an entry stays a safe integer. */
-const GENERATION_SPAN = 2 ** 20;
 
 /** No timer: the entry's timer field. */
 const NONE = Number.NaN;
@@ -182,14 +179,17 @@ export class Scheduler<G extends AiTypes> {
     return brain;
   }
 
-  /** The owner of a due entry, its timer cleared so it may start again; `undefined` for a stale entry. */
+  /**
+   * The owner of a due entry, its timer cleared so it may start again; `undefined` for a stale entry: one whose timer
+   * was stopped, held, or started again for a later tick since (a timer started again for the same tick leaves two
+   * entries, and the second finds it cleared).
+   */
   #claim(entry: number): G['bearer'] | undefined {
     const timer = entry % MAX_TIMERS;
-    const slot = Math.floor(entry / MAX_TIMERS) % SLOT_SPAN;
-    const generation = Math.floor(entry / (MAX_TIMERS * SLOT_SPAN));
+    const slot = (entry - timer) / MAX_TIMERS;
     const brain = this.#brains[slot];
 
-    if (brain === undefined || (brain.generations[timer] ?? 0) % GENERATION_SPAN !== generation) {
+    if (brain === undefined || !((brain.due[timer] ?? NONE) <= this.#clock.tick)) {
       return undefined;
     }
 
@@ -202,16 +202,13 @@ export class Scheduler<G extends AiTypes> {
   #schedule(brain: Brain, timer: number, seconds: number): void {
     const { tick, dt } = this.#clock;
     const at = tick + stepsUntil(seconds, dt);
-    const generation = (brain.generations[timer] ?? 0) % GENERATION_SPAN;
-
     brain.due[timer] = at;
-    this.#wheel.schedule(at, (generation * SLOT_SPAN + brain.slot) * MAX_TIMERS + timer);
+    this.#wheel.schedule(at, brain.slot * MAX_TIMERS + timer);
   }
 
   /** Takes a timer off the wheel: its entry goes stale. */
   #stop(brain: Brain, timer: number): void {
     brain.due[timer] = NONE;
-    brain.generations[timer] = (brain.generations[timer] ?? 0) + 1;
   }
 
   /** A brain is held: each running timer keeps what it has left, off the wheel. */

@@ -18,9 +18,6 @@ export class Brain implements BrainState {
   /** The seconds each timer had left when its brain was held; NaN for none. */
   readonly left: Float64Array;
 
-  /** Each timer's generation, raised whenever its entry on the wheel goes stale. */
-  readonly generations: Uint32Array;
-
   /** The bits of the reasons holding its timers (`ai.hold`); 0 when they count. */
   holds = 0;
 
@@ -30,7 +27,6 @@ export class Brain implements BrainState {
     this.slot = slot;
     this.due = new Float64Array(timers).fill(Number.NaN);
     this.left = new Float64Array(timers).fill(Number.NaN);
-    this.generations = new Uint32Array(timers);
   }
 }
 

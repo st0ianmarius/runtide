@@ -93,6 +93,24 @@ describe('named timers (EventMap)', () => {
     assert.deepEqual(fired, []);
   });
 
+  it('fire once for a timer started again for the same tick, and not early for a reused brain’s later start', () => {
+    const { ai, units, id, a, fired, tick } = timed();
+
+    for (let i = 0; i < 40; i++) {
+      ai.start(a, TIMERS.id.pick, 0.5);
+    }
+
+    tick(2);
+    ai.start(a, TIMERS.id.raise, 0.25);
+    units.despawn(a);
+
+    const c = units.spawn(id.grunt, { side: 1 });
+
+    ai.start(c, TIMERS.id.raise, 0.5);
+    tick(2);
+    assert.deepEqual(fired, ['pick@1@2', 'raise@3@4']);
+  });
+
   it('are the setTimer and cancelTimer procs, by name', () => {
     const { procs, ai, a } = timed();
 
