@@ -16,7 +16,7 @@ export type QuerySide = 'foes' | 'allies' | 'attackable' | 'all';
  * One key a query orders its results by, ascending: `near` and `far` by distance from the query's point (its `from`),
  * `id` by entity id, or the game's own score of a unit (lowest first). Ties always fall to the lower entity id.
  */
-export type QueryOrder<Unit> = 'near' | 'far' | 'id' | ((unit: Unit) => number);
+export type QueryOrder<Unit> = 'near' | 'far' | 'id' | 'none' | ((unit: Unit) => number);
 
 /** Something a query can ask whether a unit belongs to: a `Set`, or any set of the game's. */
 export interface UnitSet<Unit> {
@@ -59,7 +59,11 @@ export interface QueryOptions<Unit> {
   /** The point `near` and `far` measure from, where the query has none of its own. */
   readonly from?: Vec2;
 
-  /** The order of the results, one key or several compared in turn; entity id when absent. */
+  /**
+   * The order of the results, one key or several compared in turn; entity id when absent. `none` skips ordering: the
+   * world's own order, the same for the same world but not by id, for a reader whose result ignores order (a crowd's
+   * separation push summed over its neighbours), which then pays no sort.
+   */
   readonly order?: QueryOrder<Unit> | readonly QueryOrder<Unit>[];
 
   /** The most results kept; all by default. */

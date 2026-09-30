@@ -48,6 +48,12 @@ describe('inside: the units a shape covers', () => {
 
     assert.deepEqual(names(out, world.inside(circle(2), {}, out)), ['m1', 'm3', 'm4']);
 
+    const unordered: (Mob | undefined)[] = [];
+    const count = world.inside(circle(2), { order: 'none' }, unordered);
+
+    assert.deepEqual(names(unordered, count).toSorted(), ['m1', 'm3', 'm4']);
+    assert.equal(world.inside(circle(2), { order: 'none', limit: 2 }, unordered), 2);
+
     for (const limit of [-1, 1.5, Number.NaN]) {
       assert.throws(() => world.inside(circle(2), { limit }, out), /limit is a whole number from 0/);
     }

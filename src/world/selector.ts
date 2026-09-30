@@ -106,6 +106,10 @@ export class Selector<Unit> {
     const kept = this.gather(selection);
     const { options } = selection;
 
+    if ((options.order ?? selection.order) === 'none') {
+      return this.#unordered(kept, options.limit);
+    }
+
     if (kept > 1 && options.limit === 1) {
       this.#first(selection, kept);
 
@@ -310,6 +314,17 @@ export class Selector<Unit> {
   }
 
   /** Orders the kept entries into `#order` (their slots) and `#contacts` by the selection's keys. */
+  /** Keeps the gathered entries in the world's own order: each entry becomes its slot; returns how many. */
+  #unordered(kept: number, limit: number | undefined): number {
+    const count = Math.min(kept, limit ?? kept);
+
+    for (let i = 0; i < count; i++) {
+      this.#order[i] = this.#kept[i] ?? -1;
+    }
+
+    return count;
+  }
+
   #sort(selection: Selection<Unit>, kept: number): void {
     const keys = this.#readKeys(selection, kept);
 
@@ -370,6 +385,11 @@ export class Selector<Unit> {
 
     if (key === 'contact') {
       return this.#contacts[i] ?? 0;
+    }
+
+    // `none` among other keys orders nothing.
+    if (key === 'none') {
+      return 0;
     }
 
     const d = hypot((table.x[slot] ?? 0) - this.#fromX, (table.z[slot] ?? 0) - this.#fromZ);
