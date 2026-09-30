@@ -46,7 +46,8 @@ export class Placement {
   /**
    * Moves a body of `radius` along a segment until it touches static geometry or would leave the bounds (inset by its
    * radius), and says where it stopped and the normal of what it touched (for a slide along a wall, a ricochet). A
-   * body that starts overlapping a shape and moves away from it goes free.
+   * body that starts overlapping a shape, or outside the bounds, and moves away or along goes free, so a slide along
+   * the returned normal never sticks.
    */
   readonly moveBody = (segment: readonly [Vec2, Vec2], radius: number): BodyMove => {
     const [from, to] = segment;
@@ -54,6 +55,10 @@ export class Placement {
     const exit = this.#boundsExit(segment, radius);
     const share = Math.min(contact ?? 1, exit);
     const position = { x: from.x + (to.x - from.x) * share, z: from.z + (to.z - from.z) * share };
+
+    if (exit < 1 && exit <= (contact ?? 1)) {
+      this.#keepIn(position, [from, radius]);
+    }
 
     if (contact === undefined && exit >= 1) {
       return { position, hit: false, share };
@@ -69,6 +74,26 @@ export class Placement {
       normal: { ...(normal ?? this.#boundsNormal(position, radius)) }
     };
   };
+
+  /**
+   * Keeps a body stopped by the bounds inside them (inset by its radius), on each axis it started inside on: the stop's
+   * share can round a hair past the bound, which the next move would find it outside of.
+   */
+  #keepIn(position: { x: number; z: number }, [from, radius]: readonly [Vec2, number]): void {
+    const { bounds } = this;
+    const minX = bounds.minX + radius;
+    const maxX = bounds.maxX - radius;
+    const minZ = bounds.minZ + radius;
+    const maxZ = bounds.maxZ - radius;
+
+    if (from.x >= minX && from.x <= maxX) {
+      position.x = Math.min(maxX, Math.max(minX, position.x));
+    }
+
+    if (from.z >= minZ && from.z <= maxZ) {
+      position.z = Math.min(maxZ, Math.max(minZ, position.z));
+    }
+  }
 
   /** The inward normal of the bound a body at `p` presses against: the nearest one. */
   #boundsNormal(p: Vec2, radius: number): Vec2 {
@@ -141,10 +166,17 @@ export class Placement {
   }
 }
 
-/** The share at which a move along one axis leaves `[low, high]`: 0 when it starts outside, 1 if never. */
+/**
+ * The share at which a move along one axis leaves `[low, high]`, 1 if never. One that starts outside (a rounding past a
+ * stop, a spawn off the map) goes free while it heads back in or along, and stops at once heading further out.
+ */
 const axisExit = ([p, q]: readonly [number, number], [low, high]: readonly [number, number]): number => {
-  if (p < low || p > high) {
-    return 0;
+  if (p < low) {
+    return q < p ? 0 : 1;
+  }
+
+  if (p > high) {
+    return q > p ? 0 : 1;
   }
 
   if (q < low) {

@@ -72,6 +72,38 @@ describe('moveBody: a body swept against static geometry', () => {
     assert.deepEqual([deeper.hit, deeper.share], [true, 0]);
   });
 
+  it('never sticks a body that slides along what stopped it: a bound, a pillar or a wall', () => {
+    const boxed = createMemoryWorld<string>({ bounds: { minX: 0, minZ: 0, maxX: 10, maxZ: 10 } });
+
+    const walled = createMemoryWorld<string>({
+      bounds: { minX: -50, minZ: -50, maxX: 50, maxZ: 50 },
+      statics: [circle(2, vec2(0, 0)), polygon([vec2(-10, 20), vec2(10, 20), vec2(10, 21), vec2(-10, 21)])]
+    });
+
+    for (let i = 0; i < 500; i++) {
+      const radius = 0.37 + (i % 7) * 0.1;
+
+      const stop = boxed.moveBody(
+        [vec2(Math.max(0.1 + ((i * 0.00731) % 9), radius), 5), vec2(10.3 + ((i * 0.0137) % 5), 5.1)],
+        radius
+      );
+
+      assert.ok(boxed.moveBody([stop.position, vec2(stop.position.x, 6)], radius).share > 0);
+
+      const angle = (i / 500) * Math.PI * 2;
+      const pillar = walled.moveBody([vec2(Math.sin(angle) * 8, Math.cos(angle) * 8), vec2(0, 0)], 0.5);
+      const normal = pillar.normal ?? vec2(0, 0);
+      const along = vec2(pillar.position.x - normal.z, pillar.position.z + normal.x);
+
+      assert.ok(walled.moveBody([pillar.position, along], 0.5).share > 0.01);
+
+      const from = vec2(-5 + i * 0.013, 16.7 - i * 0.0017);
+      const wall = walled.moveBody([from, vec2(from.x + 0.3, 23)], 0.5);
+
+      assert.ok(walled.moveBody([wall.position, vec2(wall.position.x + 1, wall.position.z)], 0.5).share > 0.01);
+    }
+  });
+
   it('reads new static geometry once it is put in', () => {
     const doors = createMemoryWorld<object>({ bounds: BOUNDS, statics: STATICS });
 

@@ -8,11 +8,15 @@ import {
   type Circle,
   covers,
   emptyBox,
+  hypot,
   inPolygon,
   pathIntervals,
   type Polygon,
   type Vec2
 } from '../math/index.ts';
+
+/** How far short of 0, relative to the lengths, a move's step out of a shape still counts as along it. */
+const ALONG = 1e-9;
 
 /** A piece of static geometry: a wall, a pillar, a zone that never moves. */
 export type StaticShape = Circle | Polygon;
@@ -161,13 +165,20 @@ export class StaticGeometry {
     return count > 1 ? this.#times[2] : undefined;
   }
 
-  /** Whether a move from inside a shape heads away from it: its step along the way out from the shape's nearest point. */
+  /**
+   * Whether a move from touching a shape heads away from it or along it: its step along the way out from the shape's
+   * nearest point, a rounding short of 0 counting as along (a slide on the normal `moveBody` returned).
+   */
   #isLeaving(shape: StaticShape, [from, to]: readonly [Vec2, Vec2]): boolean {
     const near = shape.kind === 'circle' ? shape.at : nearestOnEdges(from, shape.points, this.#near);
 
     const sign = shape.kind === 'polygon' && inPolygon(from, shape.points) ? -1 : 1;
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    const ox = from.x - near.x;
+    const oz = from.z - near.z;
 
-    return ((to.x - from.x) * (from.x - near.x) + (to.z - from.z) * (from.z - near.z)) * sign > 0;
+    return (dx * ox + dz * oz) * sign > -ALONG * hypot(dx, dz) * hypot(ox, oz);
   }
 
   /** The box a body of `radius` sweeps along a segment. */
