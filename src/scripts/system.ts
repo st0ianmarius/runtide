@@ -91,20 +91,8 @@ export interface ScriptSystem<G extends ScriptTypes> {
   /** A behaviour's state on a unit (a view, a debug panel); `undefined` when its script does not list it. */
   readonly stateOf: <State>(unit: G['bearer'], behaviour: Behaviour<G, State>) => State | undefined;
 
-  /**
-   * A behaviour's shared state, for the game's own reads (a director's rules, a placement reservation);
-   * `undefined` when no script lists it.
-   */
-  readonly sharedOf: <Shared>(behaviour: Behaviour<G, unknown, Shared>) => Shared | undefined;
-
   /** How many units run a script now (a director's overlap rules): kept on attach and detach. */
   readonly count: (script: ScriptId) => number;
-
-  /**
-   * Writes the units running a script into `out` from index 0, in a deterministic order (not spawn order once one
-   * has left), and returns how many.
-   */
-  readonly instances: (script: ScriptId, out: G['bearer'][]) => number;
 }
 
 /** A script system: a class for fast properties, its functions arrow fields so they work detached. */
@@ -115,8 +103,8 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
   readonly #options: ScriptSystemOptions<G>;
   readonly #records: ScriptRecord<G>[] = [];
 
-  /** The units running each script, by script id. */
-  readonly #instances: G['bearer'][][];
+  /** How many units run each script, by script id. */
+  readonly #counts: Uint32Array;
   readonly #free: number[] = [];
   readonly #runner: ScriptRunner<G>;
   #fallback: ((unit: G['bearer'], timer: TimerId) => void) | undefined = undefined;
@@ -125,7 +113,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     this.#options = options;
     this.registry = options.registry;
     this.#runner = new ScriptRunner<G>(options);
-    this.#instances = options.registry.scripts.map(() => []);
+    this.#counts = new Uint32Array(options.registry.scripts.length);
 
     const records = this.#records;
     const free = this.#free;
@@ -185,23 +173,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     return isStateOf(behaviour, state) ? state : undefined;
   };
 
-  readonly sharedOf = <Shared>(behaviour: Behaviour<G, unknown, Shared>): Shared | undefined => {
-    const shared: unknown = this.#runner.sharedOf(anyOf(behaviour));
-
-    return isSharedOf(behaviour, shared) ? shared : undefined;
-  };
-
-  readonly count = (script: ScriptId): number => this.#instances[script]?.length ?? 0;
-
-  readonly instances = (script: ScriptId, out: G['bearer'][]): number => {
-    const list = this.#instances[script] ?? [];
-
-    for (let i = 0; i < list.length; i++) {
-      out[i] = list[i] ?? missingUnit();
-    }
-
-    return list.length;
-  };
+  readonly count = (script: ScriptId): number => this.#counts[script] ?? 0;
 
   /** Marks a due timer on its unit's record, or hands it to the fallback. */
   readonly #mark = (unit: G['bearer'], timer: TimerId): void => {
@@ -242,10 +214,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
       record.states[index] = behaviour.state?.(unit);
     }
 
-    const list = this.#instances[script] ?? noScript(script);
-
-    record.instance = list.length;
-    list.push(unit);
+    this.#counts[script] = (this.#counts[script] ?? 0) + 1;
 
     return slot;
   };
@@ -271,26 +240,8 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     record.isLive = false;
     record.dueCount = 0;
     record.states.fill(undefined);
-    this.#leave(record);
+    this.#counts[record.script] = (this.#counts[record.script] ?? 1) - 1;
     this.#free.push(slot);
-  };
-
-  /** Takes a record's unit out of its script's instances, moving the last one into its place. */
-  readonly #leave = (record: ScriptRecord<G>): void => {
-    const list = this.#instances[record.script] ?? noScript(record.script);
-    const last = list.pop();
-
-    if (last !== undefined && last !== record.unit) {
-      list[record.instance] = last;
-
-      const moved = this.#records[last.scriptSlot];
-
-      if (moved !== undefined) {
-        moved.instance = record.instance;
-      }
-    }
-
-    record.instance = -1;
   };
 
   /** Subscribes to each bound event some script handles; throws for a handled event with no binding. */
@@ -323,19 +274,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
 }
 
 /** A behaviour as the registry lists it. */
-const anyOf = <G extends ScriptTypes, State, Shared>(behaviour: Behaviour<G, State, Shared>): AnyBehaviour<G> =>
-  behaviour;
-
-/** Whether a shared state belongs to a behaviour: always, since the runner made each behaviour's own. */
-const isSharedOf = <G extends ScriptTypes, Shared>(
-  _behaviour: Behaviour<G, unknown, Shared>,
-  _shared: unknown,
-): _shared is Shared => true;
-
-/** A unit missing from an instance list within its length: the list keeps none. */
-const missingUnit = (): never => {
-  throw new Error('A script instance list lost a unit.');
-};
+const anyOf = <G extends ScriptTypes, State>(behaviour: Behaviour<G, State>): AnyBehaviour<G> => behaviour;
 
 /** Whether a state belongs to a behaviour: always, since the record holds each behaviour's own. */
 const isStateOf = <G extends ScriptTypes, State>(_behaviour: Behaviour<G, State>, _state: unknown): _state is State =>

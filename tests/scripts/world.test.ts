@@ -15,18 +15,11 @@ const TEMPLATES = {
 } satisfies Record<string, UnitDef<UnitGame>>;
 
 /**
- * A Blood Horde: a warning, then three unbound rogues; it ends once none is left, and counts its occurrences in
- * shared state.
+ * A Blood Horde: a warning, then three unbound rogues; it ends once none is left.
  */
 const horde = behaviour({
-  shared: () => ({ occurrences: 0 }),
   state: () => ({ isActive: false }),
-
-  spawn: (ctx) => {
-    ctx.shared.occurrences += 1;
-
-    return [setTimer<UnitGame>('raise', 0.5)];
-  },
+  spawn: () => [setTimer<UnitGame>('raise', 0.5)],
 
   timer: (ctx) => {
     ctx.state.isActive = true;
@@ -129,26 +122,14 @@ describe('world scripts: scripts on bodiless units', () => {
     );
   });
 
-  it('keep shared state across instances and scripts listing the same behaviour, read by the game', () => {
-    const game = world();
-
-    game.units.despawn(game.start('bloodHorde'));
-    game.start('bloodHorde');
-    game.start('hordeAgain');
-    assert.deepEqual(game.scripts.sharedOf(horde), { occurrences: 3 });
-    assert.equal(game.scripts.sharedOf(behaviour({ shared: () => 1 })), undefined);
-  });
-
-  it('count and list the units running a script, kept as they come and go', () => {
+  it('count the units running a script, kept as they come and go', () => {
     const game = world();
     const [a, b, c] = [game.start('bloodHorde'), game.start('bloodHorde'), game.start('march')];
-    const out: UnitGame['bearer'][] = [];
     const { id } = SCRIPTS;
 
     assert.deepEqual([game.scripts.count(id.bloodHorde), game.scripts.count(id.march)], [2, 1]);
     game.units.despawn(a);
-    assert.equal(game.scripts.instances(id.bloodHorde, out), 1);
-    assert.deepEqual(out.slice(0, 1), [b]);
+    assert.equal(game.scripts.count(id.bloodHorde), 1);
     game.units.despawn(b);
     game.units.despawn(c);
     assert.deepEqual(

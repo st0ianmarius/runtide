@@ -52,7 +52,7 @@ const having = <G extends ScriptTypes>(
 
 /** Throws unless every handler a behaviour declares is a function. */
 const checkBehaviour = <G extends ScriptTypes>(behaviour: AnyBehaviour<G>, where: string): void => {
-  for (const key of ['state', 'shared', 'spawn', 'tick', 'timer'] as const) {
+  for (const key of ['state', 'spawn', 'tick', 'timer'] as const) {
     if (behaviour[key] !== undefined && typeof behaviour[key] !== 'function') {
       throw new TypeError(`${where}: its ${key} is not a function.`);
     }

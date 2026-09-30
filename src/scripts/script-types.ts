@@ -25,18 +25,12 @@ export type ScriptReturn<G extends ScriptTypes> = readonly (Proc<G> | undefined)
  * What every handler receives: its unit, its behaviour's own state on that unit, the host, and a way to run procs
  * now. It is reused, so a handler reads it while it runs and never keeps it.
  */
-export interface ScriptCtx<G extends ScriptTypes, State = unknown, Shared = unknown> {
+export interface ScriptCtx<G extends ScriptTypes, State = unknown> {
   /** The unit whose script runs. */
   readonly unit: G['bearer'];
 
   /** This behaviour's state on the unit (`Behaviour.state`); `undefined` for a behaviour with none. */
   readonly state: State;
-
-  /**
-   * This behaviour's state shared by every unit running it, kept across instances (`Behaviour.shared`): an event's
-   * occurrence count, a horde's spell budget. `undefined` for a behaviour with none.
-   */
-  readonly shared: Shared;
 
   /** The game's host: its world, its policies, its random streams. */
   readonly host: G['host'];
@@ -46,9 +40,9 @@ export interface ScriptCtx<G extends ScriptTypes, State = unknown, Shared = unkn
 }
 
 /** A handler of one moment; declared as a method so a handler over a narrower state still fits. */
-type Handler<G extends ScriptTypes, State, Shared, Args extends unknown[]> = {
+type Handler<G extends ScriptTypes, State, Args extends unknown[]> = {
   /** The handler. */
-  bivarianceHack(ctx: ScriptCtx<G, State, Shared>, ...args: Args): ScriptReturn<G>;
+  bivarianceHack(ctx: ScriptCtx<G, State>, ...args: Args): ScriptReturn<G>;
 }['bivarianceHack'];
 
 /**
@@ -57,33 +51,27 @@ type Handler<G extends ScriptTypes, State, Shared, Args extends unknown[]> = {
  * the game's behaviours. The framework calls `spawn` once, `tick` in the unit's step, `timer` as the unit's timers come
  * due (delivered in its step), and `on[event]` as a bound game event reaches the unit.
  */
-export interface Behaviour<G extends ScriptTypes, State = unknown, Shared = unknown> {
+export interface Behaviour<G extends ScriptTypes, State = unknown> {
   /** Makes its state on a unit, as the unit spawns. */
   state?(this: void, unit: G['bearer']): State;
 
-  /**
-   * Makes its shared state, once per script system: every unit running it reads the same one, and it
-   * outlives them all (Inferno's occurrence count across a run).
-   */
-  shared?(this: void): Shared;
-
   /** The unit spawned (after its `spawned` event). */
-  spawn?(this: void, ctx: ScriptCtx<G, State, Shared>): ScriptReturn<G>;
+  spawn?(this: void, ctx: ScriptCtx<G, State>): ScriptReturn<G>;
 
   /** The unit's step (`scripts.step`): only behaviours that need per-tick work declare it. */
-  tick?(this: void, ctx: ScriptCtx<G, State, Shared>): ScriptReturn<G>;
+  tick?(this: void, ctx: ScriptCtx<G, State>): ScriptReturn<G>;
 
   /** One of the unit's timers came due (F17), delivered in its step, in due order. */
-  timer?(this: void, ctx: ScriptCtx<G, State, Shared>, timer: TimerId): ScriptReturn<G>;
+  timer?(this: void, ctx: ScriptCtx<G, State>, timer: TimerId): ScriptReturn<G>;
 
   /** Bound game events reaching the unit, by name. */
   readonly on?: {
-    readonly [Event in ScriptEventName<G>]?: Handler<G, State, Shared, [payload: G['scriptEvents'][Event]]>;
+    readonly [Event in ScriptEventName<G>]?: Handler<G, State, [payload: G['scriptEvents'][Event]]>;
   };
 }
 
 /** A handler of any event, whatever its payload and state: how the system holds and calls them. */
-export type AnyEventHandler<G extends ScriptTypes> = Handler<G, unknown, unknown, [payload: unknown]>;
+export type AnyEventHandler<G extends ScriptTypes> = Handler<G, unknown, [payload: unknown]>;
 
 /** Any behaviour of a game, whatever its state: what a script lists. */
 export type AnyBehaviour<G extends ScriptTypes> = Behaviour<G>;
@@ -94,5 +82,5 @@ export type AnyBehaviour<G extends ScriptTypes> = Behaviour<G>;
  */
 export const defineBehaviour =
   <G extends ScriptTypes>() =>
-  <State = undefined, Shared = undefined>(behaviour: Behaviour<G, State, Shared>): Behaviour<G, State, Shared> =>
+  <State = undefined>(behaviour: Behaviour<G, State>): Behaviour<G, State> =>
     behaviour;
