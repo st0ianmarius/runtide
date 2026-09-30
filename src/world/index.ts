@@ -27,4 +27,5 @@ export type {
 
 export type { ReactionRule, TargetRule } from './selector.ts';
 export type { StaticShape } from './statics.ts';
+export { Trail } from './trail.ts';
 export type { UnitSpec } from './unit-table.ts';
