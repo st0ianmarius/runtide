@@ -6,13 +6,50 @@ import type { AreaAura } from './delivery-def.ts';
 import type { AreaEngine } from './engine.ts';
 import { catchIn } from './hits.ts';
 
-/** The units inside one of an area trigger's auras: this frame's and the last frame's, swapped each frame. */
-export class AuraInside<Unit> {
-  /** The units inside as of the last frame. */
-  inside = new Set<Unit>();
+/**
+ * The units inside one of an area trigger's auras as of its last frame, in entity id order with their ids, and the
+ * spare lists the next frame is written to before they swap: a frame compares its catch (in id order too) with them,
+ * so it allocates nothing and touches only the units that entered or left.
+ */
+export class AuraInside<G extends AreaTriggerTypes> {
+  /** The area trigger record whose aura this is (records are pooled, so it outlives any one instance). */
+  readonly area: AreaTrigger<G>;
 
-  /** The units caught this frame, filled then swapped in. */
-  next = new Set<Unit>();
+  /** The aura's index in its kind's `auras`. */
+  readonly index: number;
+
+  /** The units inside, valid up to `count`. */
+  units: (G['bearer'] | undefined)[] = [];
+
+  /** Their entity ids, ascending. */
+  ids: number[] = [];
+
+  /** How many are inside. */
+  count = 0;
+
+  /** The lists this frame's units are written to. */
+  nextUnits: (G['bearer'] | undefined)[] = [];
+  nextIds: number[] = [];
+
+  constructor(area: AreaTrigger<G>, index: number) {
+    this.area = area;
+    this.index = index;
+  }
+
+  /** Makes this frame's lists the current ones, `count` long, and lets go of the old ones' units. */
+  swap(count: number): void {
+    const { units, ids } = this;
+
+    for (let i = 0; i < this.count; i++) {
+      units[i] = undefined;
+    }
+
+    this.units = this.nextUnits;
+    this.ids = this.nextIds;
+    this.nextUnits = units;
+    this.nextIds = ids;
+    this.count = count;
+  }
 }
 
 /** The application an area aura lands with, reused. */
@@ -37,11 +74,14 @@ export class AuraHolds<Unit> {
   readonly #holds = new Map<Unit, Map<number, number>>();
   #application: AreaAuraApplication | undefined = undefined;
 
-  /** The reused application, set for an area aura. */
+  /**
+   * The reused application, set for an area aura: its own length as a unit enters, or the linger (a refresh to it) as
+   * the last hold leaves.
+   */
   applicationFor(
     aura: AuraId,
-    spec: Pick<AreaAura<AreaTriggerTypes>, 'mode' | 'linger' | 'stacks' | 'value'>,
-    source: number,
+    spec: Pick<AreaAura<AreaTriggerTypes>, 'stacks' | 'value'>,
+    [source, duration]: readonly [number, number | undefined],
   ): AreaAuraApplication {
     const application = (this.#application ??= new AreaAuraApplication(aura));
 
@@ -49,8 +89,8 @@ export class AuraHolds<Unit> {
     application.stacks = spec.stacks;
     application.value = spec.value;
     application.source = source;
-    application.duration = spec.mode === 'refresh' ? spec.linger : undefined;
-    application.stacking = spec.mode === 'refresh' ? 'refresh' : undefined;
+    application.duration = duration;
+    application.stacking = duration === undefined ? undefined : 'refresh';
 
     return application;
   }
@@ -92,72 +132,91 @@ export class AuraHolds<Unit> {
   }
 }
 
-/** A unit enters an enter-exit area aura: the first hold puts the aura on. */
-const enter = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  [area, index]: readonly [AreaTrigger<G>, number],
-  unit: G['bearer'],
-): void => {
+/** A unit enters an area aura: the first hold puts the aura on, for the aura's own length. */
+const enter = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraInside<G>, unit: G['bearer']): void => {
+  const { area, index } = inside;
   const spec = engine.registry.get(area.kind).auras?.[index];
   const aura = engine.areaAuras[area.kind]?.[index];
 
   if (spec !== undefined && aura !== undefined && engine.auraHolds.take(unit, aura)) {
-    engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, area.source));
+    engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, [area.source, undefined]));
   }
 };
 
-/** A unit leaves an enter-exit area aura: the last hold takes the aura off. */
+/** A unit leaves an area aura (none for an empty slot): the last hold takes the aura off, or leaves it its linger. */
 const leave = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
-  [area, index]: readonly [AreaTrigger<G>, number],
-  unit: G['bearer'],
+  inside: AuraInside<G>,
+  unit: G['bearer'] | undefined,
 ): void => {
+  const { area, index } = inside;
+  const spec = engine.registry.get(area.kind).auras?.[index];
   const aura = engine.areaAuras[area.kind]?.[index];
 
-  if (aura !== undefined && engine.auraHolds.drop(unit, aura)) {
+  if (unit === undefined || spec === undefined || aura === undefined || !engine.auraHolds.drop(unit, aura)) {
+    return;
+  }
+
+  if (spec.linger === undefined) {
     engine.auras.remove(unit, aura);
+  } else if (engine.auras.has(unit, aura)) {
+    engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, [area.source, spec.linger]));
   }
 };
 
-/** Runs one area aura for a frame: the units caught now enter, the ones gone leave, or every one caught is topped up. */
+/**
+ * Walks this frame's catch (in id order) against the units inside as of the last frame (in id order too): a unit
+ * only in the catch enters, one only inside leaves, and this frame's units are written to the spare lists.
+ */
+const compare = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  inside: AuraInside<G>,
+  targets: readonly G['bearer'][],
+): void => {
+  const { units, ids, nextUnits, nextIds } = inside;
+  let i = 0;
+
+  for (let j = 0; j < targets.length; j++) {
+    const unit = targets[j];
+
+    if (unit === undefined) {
+      continue;
+    }
+
+    const id = engine.world.idOf(unit);
+
+    while (i < inside.count && (ids[i] ?? 0) < id) {
+      leave(engine, inside, units[i]);
+      i += 1;
+    }
+
+    if (i < inside.count && ids[i] === id) {
+      i += 1;
+    } else {
+      enter(engine, inside, unit);
+    }
+
+    nextUnits[j] = unit;
+    nextIds[j] = id;
+  }
+
+  for (; i < inside.count; i++) {
+    leave(engine, inside, units[i]);
+  }
+
+  inside.swap(targets.length);
+};
+
+/** Runs one area aura for a frame: the units caught now enter, the ones gone leave. */
 const stepAura = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
   const spec = engine.registry.get(area.kind).auras?.[index];
-  const aura = engine.areaAuras[area.kind]?.[index];
   const hit = engine.catcher.take(area, spec, undefined);
 
   try {
-    if (spec === undefined || aura === undefined) {
-      return;
+    if (spec !== undefined) {
+      catchIn(engine, hit, area.shape);
+      compare(engine, area.insideOf(index), hit.targets);
     }
-
-    catchIn(engine, hit, area.shape);
-
-    if (spec.mode === 'refresh') {
-      for (const unit of hit.targets) {
-        engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, area.source));
-      }
-
-      return;
-    }
-
-    const sets = area.insideOf(index);
-
-    for (const unit of hit.targets) {
-      sets.next.add(unit);
-
-      if (!sets.inside.has(unit)) {
-        enter(engine, [area, index], unit);
-      }
-    }
-
-    for (const unit of sets.inside) {
-      if (!sets.next.has(unit)) {
-        leave(engine, [area, index], unit);
-      }
-    }
-
-    [sets.inside, sets.next] = [sets.next, sets.inside];
-    sets.next.clear();
   } finally {
     engine.catcher.give(hit);
   }
@@ -177,13 +236,12 @@ export const dropAreaAuras = <G extends AreaTriggerTypes>(engine: AreaEngine<G>,
   const count = engine.registry.get(area.kind).auras?.length ?? 0;
 
   for (let index = 0; index < count; index++) {
-    const sets = area.insideOf(index);
+    const inside = area.insideOf(index);
 
-    for (const unit of sets.inside) {
-      leave(engine, [area, index], unit);
+    for (let i = 0; i < inside.count; i++) {
+      leave(engine, inside, inside.units[i]);
     }
 
-    sets.inside.clear();
-    sets.next.clear();
+    inside.swap(0);
   }
 };

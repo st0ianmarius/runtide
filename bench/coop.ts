@@ -219,7 +219,7 @@ const KINDS: Readonly<Record<'field' | 'nova' | 'bolt' | 'pool', AnyAreaTriggerD
     shape: circle(5),
     lifetime: 'owner',
     anchor: 'owner',
-    auras: [{ aura: 'chill', mode: 'enter-exit' }],
+    auras: [{ aura: 'chill' }],
   },
   nova: {
     shape: circle(4),

@@ -140,7 +140,7 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   readonly #pulsePlacers: ShapePlacer[] = [];
 
   /** The units inside each of its auras, by aura index, made on first use. */
-  readonly #insides: AuraInside<G['bearer']>[] = [];
+  readonly #insides: AuraInside<G>[] = [];
 
   readonly #services: AreaServices<G>;
   readonly #key = [0, 0, 0, 0, 0];
@@ -208,8 +208,8 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   }
 
   /** The units inside one of its auras. */
-  insideOf(index: number): AuraInside<G['bearer']> {
-    return (this.#insides[index] ??= new AuraInside<G['bearer']>());
+  insideOf(index: number): AuraInside<G> {
+    return (this.#insides[index] ??= new AuraInside<G>(this, index));
   }
 
   /** Moves it to a point: where it spawns, or its owner's position for an owner-anchored one. */

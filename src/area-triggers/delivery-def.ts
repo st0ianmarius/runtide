@@ -115,19 +115,16 @@ export interface AreaPulse<G extends AreaTriggerTypes, State = unknown> extends 
 }
 
 /**
- * An aura an area trigger keeps on the units in its shape: `enter-exit` puts it on as a unit
- * enters and takes it off as it leaves (overlapping area triggers counted, so the last one left takes it off);
- * `refresh` tops it up to `linger` seconds every frame the unit is inside (its own clock counts from there), so it
- * lingers after the unit leaves. The units are caught as the area trigger's `auras` part runs, in its shape.
+ * An aura an area trigger keeps on the units in its shape: put on as a unit enters, for the aura's own length, and
+ * taken off as it leaves (overlapping area triggers counted, so the last one left takes it off), or left with `linger`
+ * seconds, so it lingers after the unit leaves. The units are caught as the area trigger's `auras` part runs, in its
+ * shape, and only the units that entered or left since the last frame are touched.
  */
 export interface AreaAura<G extends AreaTriggerTypes, State = unknown> extends Omit<AreaCatch<G, State>, 'ledger'> {
   /** The aura: its name in data, its id in code. */
   readonly aura: G['auraName'] | AuraId;
 
-  /** How it is kept: on entry and exit (the default), or refreshed while inside. */
-  readonly mode?: 'enter-exit' | 'refresh';
-
-  /** The seconds each refresh tops it up to, under `refresh`. */
+  /** The seconds it is left with as the last area trigger holding it lets a unit go; taken off at once when absent. */
   readonly linger?: number;
 
   /** The stacks each application adds. */

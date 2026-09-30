@@ -196,13 +196,11 @@ const checkLedgers = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrig
   }
 };
 
-/** Checks its area auras: a mode, a linger for a refresh, whole stacks. */
+/** Checks its area auras: a linger of seconds, whole stacks. */
 const checkAuras = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTriggerDef<G>): void => {
   for (const [index, spec] of (def.auras ?? []).entries()) {
-    const isRefresh = spec.mode === 'refresh';
-
-    if (!isOneOf(spec.mode, ['enter-exit', 'refresh']) || (isRefresh && !isSoundSeconds(spec.linger))) {
-      fail(name, `its aura ${index} is kept on enter and exit, or refreshed with a linger of seconds above 0.`);
+    if (spec.linger !== undefined && !isSoundSeconds(spec.linger)) {
+      fail(name, `its aura ${index} lingers for seconds above 0.`);
     }
 
     if (spec.stacks !== undefined && !(Number.isInteger(spec.stacks) && spec.stacks >= 1)) {

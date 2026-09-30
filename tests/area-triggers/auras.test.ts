@@ -92,30 +92,50 @@ describe('area auras on enter and exit', () => {
   });
 });
 
-describe('area auras refreshed while inside', () => {
-  it('tops its aura up to the linger every frame inside, so it lingers after the unit leaves', () => {
-    const game = fieldGame({ aura: 'soothed', mode: 'refresh', linger: 0.75, stacks: 1 });
+describe('area auras that linger', () => {
+  it('are left with their linger as a unit leaves, and back to their own length as it comes back', () => {
+    const game = fieldGame({ aura: 'chilled', linger: 0.75, stacks: 1 });
     const foe = game.unit(100);
 
     game.place(foe, vec2(0, 0));
     game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
     ticks(game, 4, [foe]);
-    assert.equal(game.auras.find(foe, game.auraId.soothed)?.stacks, 1);
+    assert.equal(game.auras.find(foe, game.auraId.chilled)?.stacks, 1);
+    assert.equal(game.auras.remaining(foe, game.auraId.chilled), Infinity);
     game.place(foe, vec2(10, 0));
     ticks(game, 1, [foe]);
-    assert.equal(game.auras.has(foe, game.auraId.soothed), true);
+    assert.equal(game.auras.remaining(foe, game.auraId.chilled), 0.5, 'its linger, less the step it left on');
     ticks(game, 1, [foe]);
-    assert.equal(game.auras.has(foe, game.auraId.soothed), false);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), true);
+    game.place(foe, vec2(0, 0));
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.remaining(foe, game.auraId.chilled), Infinity);
+    game.place(foe, vec2(10, 0));
+    ticks(game, 4, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false);
+  });
+
+  it('leave a unit alone whose aura something else took off while it was inside', () => {
+    const game = fieldGame({ aura: 'chilled', linger: 0.75 });
+    const foe = game.unit(100);
+
+    game.place(foe, vec2(0, 0));
+    game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 1, [foe]);
+    game.auras.remove(foe, game.auraId.chilled);
+    game.place(foe, vec2(10, 0));
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false);
   });
 });
 
 describe('area aura checks at load', () => {
-  it('refuse a refresh without a linger, a bad mode, stacks below 1, and an unknown aura', () => {
+  it('refuse a linger that is not seconds above 0, stacks below 1, and an unknown aura', () => {
     const refuse = (spec: AreaAura<Game>, message: RegExp): void => {
       assert.throws(() => defineAreaTriggers<Game, 'bad'>({ bad: field(spec) }, { tags: AREA_TAGS }), message);
     };
 
-    refuse({ aura: 'chilled', mode: 'refresh' }, /refreshed with a linger/);
+    refuse({ aura: 'chilled', linger: 0 }, /lingers for seconds above 0/);
     refuse({ aura: 'chilled', stacks: 0 }, /a whole number of stacks/);
     assert.throws(() => makeSpellGame({}, { areaTriggers: { bad: field({ aura: 'nothing' }) } }), /area aura nothing/);
   });
