@@ -193,7 +193,7 @@ const checkLedgers = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrig
   }
 };
 
-/** Checks its area auras: a linger of seconds, whole stacks. */
+/** Checks its area auras: a linger of seconds, whole stacks, a check period of seconds. */
 const checkAuras = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTriggerDef<G>): void => {
   for (const [index, spec] of (def.auras ?? []).entries()) {
     if (spec.linger !== undefined && !isSoundSeconds(spec.linger)) {
@@ -202,6 +202,10 @@ const checkAuras = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
 
     if (spec.stacks !== undefined && !(Number.isInteger(spec.stacks) && spec.stacks >= 1)) {
       fail(name, `its aura ${index} adds a whole number of stacks from 1.`);
+    }
+
+    if (spec.every !== undefined && !isSoundSeconds(spec.every)) {
+      fail(name, `its aura ${index} checks every so many seconds above 0.`);
     }
   }
 };

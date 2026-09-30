@@ -38,6 +38,9 @@ export class AuraInside<G extends AreaTriggerTypes> {
   cursor = 0;
   at = 0;
 
+  /** The seconds until its next catch, for an aura that checks every so often; 0 or less when due. */
+  wait = 0;
+
   constructor(area: AreaTrigger<G>, index: number) {
     this.area = area;
     this.index = index;
@@ -56,6 +59,12 @@ export class AuraInside<G extends AreaTriggerTypes> {
     this.nextUnits = units;
     this.nextIds = ids;
     this.count = count;
+  }
+
+  /** Lets go of every unit as its area trigger ends, so its pooled record starts over. */
+  clear(): void {
+    this.swap(0);
+    this.wait = 0;
   }
 }
 
@@ -216,7 +225,7 @@ const compare = <G extends AreaTriggerTypes>(
       leave(engine, inside, nextUnits[k]);
     }
 
-    inside.swap(0);
+    inside.clear();
 
     return;
   }
@@ -261,9 +270,33 @@ const walkTo = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraI
   }
 };
 
+/** What a wait may be over and still be due: float leftovers of summed frames. */
+const CATCH_EPSILON = 1e-9;
+
+/** Counts a periodic aura's wait down by a frame; true when it catches now, its next catch `every` on. */
+const isDue = <G extends AreaTriggerTypes>(
+  inside: AuraInside<G>,
+  [every, frameTime]: readonly [number, number]
+): boolean => {
+  const isDueNow = inside.wait <= CATCH_EPSILON;
+
+  if (isDueNow) {
+    inside.wait += every;
+  }
+
+  inside.wait -= frameTime;
+
+  return isDueNow;
+};
+
 /** Runs one area aura for a frame: the units caught now enter, the ones gone leave. */
 const stepAura = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
   const spec = engine.registry.get(area.kind).auras?.[index];
+
+  if (spec?.every !== undefined && !isDue(area.insideOf(index), [spec.every, area.frameTime])) {
+    return;
+  }
+
   const hit = engine.catcher.take(area, spec, undefined);
 
   try {
@@ -301,6 +334,6 @@ export const dropAreaAuras = <G extends AreaTriggerTypes>(engine: AreaEngine<G>,
       leave(engine, inside, inside.units[i]);
     }
 
-    inside.swap(0);
+    inside.clear();
   }
 };

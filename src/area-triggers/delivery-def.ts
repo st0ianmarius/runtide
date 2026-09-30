@@ -132,6 +132,12 @@ export interface AreaAura<G extends AreaTriggerTypes, State = unknown> extends O
 
   /** The value each application carries. */
   readonly value?: number;
+
+  /**
+   * How often it catches and compares, in seconds: a unit's entry or exit is noticed up to this late, and the frames
+   * between cost nothing (a slowing field in a crowd). Every frame when absent.
+   */
+  readonly every?: number;
 }
 
 /** A part of an area trigger's frame, in the order `order` runs them. */

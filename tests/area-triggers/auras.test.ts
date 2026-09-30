@@ -106,6 +106,24 @@ describe('area auras on enter and exit', () => {
     assert.equal(game.auras.has(other, game.auraId.chilled), false);
   });
 
+  it('catches every so often when it checks every so many seconds, noticing an entry up to that late', () => {
+    const game = fieldGame({ aura: 'chilled', every: 0.5 });
+    const foe = game.unit(100);
+
+    game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+    game.place(foe, vec2(10, 0));
+    ticks(game, 1, []);
+    game.place(foe, vec2(1, 0));
+    ticks(game, 1, []);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false);
+    ticks(game, 1, []);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), true);
+    assert.throws(
+      () => defineAreaTriggers<Game, 'bad'>({ bad: field({ aura: 'chilled', every: 0 }) }),
+      /checks every so many seconds above 0/
+    );
+  });
+
   it('keeps the aura while a unit is still inside another field, and takes it off as it leaves the last', () => {
     const game = fieldGame({ aura: 'chilled' });
     const foe = game.unit(100);
