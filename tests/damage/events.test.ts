@@ -13,6 +13,8 @@ const AURAS = {
   scorched: aura({ duration: 3 }),
   gorged: aura({ duration: 3 }),
   soothed: aura({ duration: 3 }),
+  hexed: aura({ duration: 3 }),
+  seared: aura({ duration: 3 }),
 
   listener: aura({
     duration: 'infinite',
@@ -28,10 +30,15 @@ const AURAS = {
       },
       { on: 'taken', when: [{ filter: 'damageKind', arg: 'fire' }], do: [applyAura<Game>('scorched')] },
       { on: 'kill', do: [applyAura<Game>('gorged')] },
+      { on: 'kill', when: [{ filter: 'spell', arg: 'hexfire' }], do: [applyAura<Game>('hexed')] },
+      { on: 'dealt', when: [{ filter: 'spell', arg: 4 }], do: [applyAura<Game>('seared')] },
       { on: 'healed', when: [{ filter: 'minAmount', arg: 5 }], do: [applyAura<Game>('soothed')] },
     ],
   }),
 } as const;
+
+/** The spell names the `spell` filters resolve through. */
+const SPELLS = { id: { hexfire: 7, sear: 4 } };
 
 /** A game whose units answer the damage events with their `listener` aura's triggers. */
 const makeTriggerGame = (overrides: DamageOverrides = {}) => {
@@ -43,11 +50,11 @@ const makeTriggerGame = (overrides: DamageOverrides = {}) => {
     procs: game.procs,
     bus,
     events: {
-      dealt: damageTriggerEvent(bus.kind.dealt, { about: 'attacker', kinds: KINDS }),
+      dealt: damageTriggerEvent(bus.kind.dealt, { about: 'attacker', kinds: KINDS, spells: SPELLS }),
       taken: damageTriggerEvent(bus.kind.taken, { about: 'target', kinds: KINDS }),
       healed: healTriggerEvent(bus.kind.healed, 'target'),
       death: deathTriggerEvent(bus.kind.death, 'unit'),
-      kill: deathTriggerEvent(bus.kind.kill, 'killer'),
+      kill: deathTriggerEvent(bus.kind.kill, 'killer', SPELLS),
     },
   });
 
@@ -113,5 +120,15 @@ describe('the damage trigger events', () => {
     assert.equal(game.auras.has(killer, game.id.soothed), false);
     game.damage.heal({ target: killer, amount: 5 });
     assert.equal(game.auras.has(killer, game.id.soothed), true);
+  });
+
+  it('filter a blow and a kill by the spell they came from, by name or id', () => {
+    const game = makeTriggerGame();
+    const [target, killer, other] = [game.listening(1), game.listening(2), game.unit(3)];
+
+    game.damage.hit({ target: other, attacker: killer, amount: 500, spell: 4 });
+    assert.deepEqual([game.auras.has(killer, game.id.seared), game.auras.has(killer, game.id.hexed)], [true, false]);
+    game.damage.hit({ target, attacker: killer, amount: 500, spell: 7 });
+    assert.equal(game.auras.has(killer, game.id.hexed), true);
   });
 });

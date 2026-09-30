@@ -36,6 +36,7 @@ export {
   deathTriggerEvent,
   type HealEvent,
   healTriggerEvent,
+  type SpellNames,
 } from './events.ts';
 
 export type { MitigationExplanation, MitigationRowExplanation } from './explain.ts';

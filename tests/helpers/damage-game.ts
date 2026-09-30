@@ -73,7 +73,7 @@ export interface Game extends DamageTypes, TriggerTypes {
   readonly event: 'dealt' | 'taken' | 'healed' | 'death' | 'kill';
 
   /** The damage trigger events' filters. */
-  readonly filter: 'crit' | 'status' | 'damageKind' | 'minAmount';
+  readonly filter: 'crit' | 'status' | 'damageKind' | 'minAmount' | 'spell';
 
   /** The test stats. */
   readonly stat: StatName;

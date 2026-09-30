@@ -114,11 +114,36 @@ const kindCode =
     return id;
   };
 
+/** The names of the game's spells, which a `spell` filter resolves a name through (a spell registry is one). */
+export interface SpellNames {
+  /** Each spell's id, by name. */
+  readonly id: Readonly<Record<string, number | undefined>>;
+}
+
+/**
+ * A `spell` filter over what a payload names as its spell (the id a spell system hands over): by id, or by name
+ * through the game's spells.
+ */
+const spellFilter = <Payload>(spellOf: (event: Payload) => unknown, spells: SpellNames | undefined) => ({
+  test: (event: Payload, id: number) => spellOf(event) === id,
+
+  resolve: (name: string): number => {
+    const id = spells?.id[name];
+
+    if (id === undefined) {
+      throw new RangeError(`unknown spell ${name}.`);
+    }
+
+    return id;
+  },
+});
+
 /**
  * A damage event kind as a trigger event: about the blow's `attacker` (for `dealt`) or its `target` (for `taken`), with
  * the filters `crit` (a critical blow), `status` (by name: `blocked`, `absorbed`, `landed`, `avoided`), `damageKind`
- * (by name), `outcome` (an outcome row by name: `dodge`, `block`, `crit`; needs the roll table), `minAmount` (at least
- * the argument reached health). A trigger names them in `when`.
+ * (by name), `outcome` (an outcome row by name: `dodge`, `block`, `crit`; needs the roll table), `spell` (the spell it
+ * came from, by id, or by name given the spells), `minAmount` (at least the argument reached health). A trigger names
+ * them in `when`.
  */
 export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<DamageEvent<G>>,
@@ -131,6 +156,9 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
 
     /** The game's roll table, which the `outcome` filter names; the filter refuses every name when absent. */
     readonly rolls?: RollTable;
+
+    /** The game's spells, which the `spell` filter names; it takes ids alone when absent. */
+    readonly spells?: SpellNames;
   },
 ): TriggerEvent<G> => {
   const resolveKind = kindCode(spec.kinds);
@@ -154,6 +182,8 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
 
         resolve: outcomeCode(spec.rolls),
       },
+
+      spell: spellFilter((event: DamageEvent<G>) => event.blow?.spell, spec.spells),
     }),
   });
 };
@@ -171,13 +201,17 @@ export const healTriggerEvent = <G extends DamageTypes & TriggerTypes>(
     }),
   });
 
-/** A death or kill event kind as a trigger event, about the unit that died or its killer; no filters. */
+/**
+ * A death or kill event kind as a trigger event, about the unit that died or its killer, with the filter `spell` (the
+ * spell whose blow killed: by id, or by name given the spells): "when a Hexfire kill…".
+ */
 export const deathTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<DeathEvent<G>>,
   about: 'unit' | 'killer',
+  spells?: SpellNames,
 ): TriggerEvent<G> =>
   Object.freeze({
     kind,
     unit: (event: DeathEvent<G>) => (about === 'killer' ? event.death?.killer : event.death?.unit),
-    filters: Object.freeze({}),
+    filters: Object.freeze({ spell: spellFilter((event: DeathEvent<G>) => event.death?.spell, spells) }),
   });
