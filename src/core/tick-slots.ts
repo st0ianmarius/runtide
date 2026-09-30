@@ -15,7 +15,7 @@ export type TickSlotDef = Readonly<Record<never, never>>;
  */
 export const defineTickSlots = <const Name extends string>(
   names: readonly Name[],
-): Registry<'tickSlots', Extract<Name, string>, DefOf<Readonly<Record<Name, TickSlotDef>>>, never, never> =>
+): Registry<'tickSlots', Extract<Name, string>, DefOf<Readonly<Record<Name, TickSlotDef>>>, never> =>
   createRegistry(
     recordOf(names, (): TickSlotDef => ({})),
     { kind: 'tickSlots' },

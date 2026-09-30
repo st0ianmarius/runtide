@@ -4,16 +4,10 @@ import type { UnitTagTable } from './tags.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
 /**
- * A unit's traits (§II.6 U2): what the framework's pipelines read about it instead of its id or class. They replace a
- * game's `heavyKind`, `isObjective` and immovable lists.
+ * A unit's traits (§II.6 U2): what the framework's own pipelines read about it instead of its id or class (the force
+ * pipeline, the death pipeline). What only a game's rules read (a heavy body, an objective) is a class tag.
  */
 export interface UnitTraits {
-  /** A heavy body (the world's pushing, a game's rules). */
-  readonly heavy?: boolean;
-
-  /** An objective: a side of its own, which the game's targeting and kill accounting leave out. */
-  readonly objective?: boolean;
-
   /** Never moved by a force. */
   readonly immovable?: boolean;
 
@@ -37,7 +31,7 @@ export interface UnitTraits {
 }
 
 /**
- * A unit template (§II.6 U1): its base stats, class tags, traits, auto-attack spell and reward numbers, as data. A
+ * A unit template (§II.6 U1): its base stats, class tags, traits, auto-attack spell and the game's own data. A
  * spawned unit snapshots its template's stats (with the spawn's own on top), so a later change to the template does
  * not reach it.
  */
@@ -61,8 +55,8 @@ export interface UnitDef<G extends UnitTypes = UnitTypes> {
   /** Its script, by name (§I.7.1 F19): the behaviours every unit of it runs; none when absent. */
   readonly script?: G['scriptName'];
 
-  /** Its reward and kill-accounting numbers (souls, experience), which the game's death steps read. */
-  readonly rewards?: Readonly<Record<string, number>>;
+  /** The game's own data (§I.5.6 hatch 4: rewards, a roster's rules), typed by the game; the framework never reads it. */
+  readonly data?: G['unitData'];
 }
 
 /** Fixes a unit template's types; returns it unchanged. */
@@ -71,30 +65,23 @@ export const defineUnit =
   (def: UnitDef<G>): UnitDef<G> =>
     def;
 
-/** Trait bit: heavy. */
-export const HEAVY = 1;
-
-/** Trait bit: an objective. */
-export const OBJECTIVE = 2;
-
 /** Trait bit: immovable. */
-export const IMMOVABLE = 4;
+export const IMMOVABLE = 1;
 
 /** Trait bit: inert. */
-export const INERT = 8;
+export const INERT = 2;
 
 /** Trait bit: never pulled. */
-export const PULL_IMMUNE = 16;
+export const PULL_IMMUNE = 4;
 
 /** Trait bit: holds its ground while casting. */
-export const HOLDS_GROUND = 32;
+export const HOLDS_GROUND = 8;
 
 /** The game's unit templates, compiled (§I.5.4): ids by key order, base stat vectors, trait bits and tag bitsets. */
 export interface UnitRegistry<G extends UnitTypes = UnitTypes, Name extends string = string> extends Registry<
   'units',
   Name,
   UnitDef<G>,
-  never,
   never
 > {
   /** The stat table the base vectors are laid out over. */
@@ -130,8 +117,6 @@ export interface UnitRegistryOptions<G extends UnitTypes> {
 
 /** Each flag trait and its bit. */
 const TRAIT_BITS: readonly (readonly [Exclude<keyof UnitTraits, 'knockResist'>, number])[] = [
-  ['heavy', HEAVY],
-  ['objective', OBJECTIVE],
   ['immovable', IMMOVABLE],
   ['inert', INERT],
   ['pullImmune', PULL_IMMUNE],

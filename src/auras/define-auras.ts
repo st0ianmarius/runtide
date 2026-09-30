@@ -80,8 +80,7 @@ export interface AuraRegistry<G extends AuraTypes = AuraTypes, Name extends stri
   'auras',
   Name,
   AuraDef<G>,
-  AuraColumn,
-  never
+  AuraColumn
 > {
   /** The dispatch table of every aura hook. */
   readonly hooks: AuraHookTables<G>;

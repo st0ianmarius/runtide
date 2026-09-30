@@ -121,13 +121,7 @@ type StatColumn = 'base' | 'neutral' | 'min' | 'max' | 'isMultiplier';
  * `min` and `max` as `Float64Array`, `isMultiplier` as `Uint8Array`), the derived terms of every stat, and the curve
  * table its stats and scaled values name curves in.
  */
-export interface StatTable<Name extends string = string> extends Registry<
-  'stats',
-  Name,
-  StatDef<Name>,
-  StatColumn,
-  never
-> {
+export interface StatTable<Name extends string = string> extends Registry<'stats', Name, StatDef<Name>, StatColumn> {
   /** What compiling scaled values and curves reads (`compileScaled`, `compileCurve`). */
   readonly index: StatIndex;
 
@@ -156,7 +150,7 @@ const checkDef = (name: string, def: StatDef): void => {
 };
 
 /** Builds the stat index over a registry of stats and a curve table. */
-const indexOf = (stats: Registry<'stats', string, StatDef, StatColumn, never>, curves: CurveTable): StatIndex => {
+const indexOf = (stats: Registry<'stats', string, StatDef, StatColumn>, curves: CurveTable): StatIndex => {
   const ids = new Map(stats.ids.map((id) => [stats.name(id), id]));
   const curveIds = new Map(curves.ids.map((id) => [curves.name(id), id]));
 
@@ -188,10 +182,7 @@ const linked = (index: StatIndex, owner: string, name: string): StatId => {
 };
 
 /** The derived terms of every stat, compiled: each stat's `derives`, then each conversion into it in id order. */
-const buildDerivations = (
-  stats: Registry<'stats', string, StatDef, StatColumn, never>,
-  index: StatIndex,
-): Derivation[][] => {
+const buildDerivations = (stats: Registry<'stats', string, StatDef, StatColumn>, index: StatIndex): Derivation[][] => {
   const out: Derivation[][] = stats.names.map(() => []);
 
   for (const id of stats.ids) {

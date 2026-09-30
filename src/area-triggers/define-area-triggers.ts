@@ -7,7 +7,6 @@ import {
   TOMBSTONE,
   type Tombstone,
 } from '../core/index.ts';
-import { recordOf } from '../core/records.ts';
 import { checkAreaTrigger } from './area-checks.ts';
 import type { AnyAreaTriggerDef } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
@@ -29,17 +28,8 @@ const LIFETIME_KINDS = ['seconds', 'owner', 'spent', 'function'] as const;
 /** The expiry modes, in the order of their codes in the `expiry` column. */
 const EXPIRY_MODES = ['after', 'before', 'clip'] as const;
 
-/** The hooks every area trigger registry builds dispatch tables and `has` bitsets for (§I.5.4). */
-export const AREA_TRIGGER_HOOKS = [
-  'state',
-  'init',
-  'move',
-  'frame',
-  'onContact',
-  'onLand',
-  'onExpire',
-  'onEnd',
-] as const;
+/** The hooks every area trigger registry builds dispatch tables for (§I.5.4). */
+const AREA_TRIGGER_HOOKS = ['state', 'init', 'move', 'frame', 'onContact', 'onLand', 'onExpire', 'onEnd'] as const;
 
 /** The name of one hook an area trigger registry dispatches. */
 export type AreaTriggerHookName = (typeof AREA_TRIGGER_HOOKS)[number];
@@ -58,18 +48,15 @@ export type AreaTriggerHookTables<G extends AreaTriggerTypes> = {
 
 /**
  * The game's area trigger registry (`defineAreaTriggers`): ids by key order (the pinned kind order they tick in,
- * §II.6.1 rule 1), the definitions, typed columns, a dispatch table and `has` bitset per hook (§I.5.4), and each
+ * §II.6.1 rule 1), the definitions, typed columns, a dispatch table per hook (§I.5.4), and each
  * kind's tags as a bitset.
  */
 export interface AreaTriggerRegistry<
   G extends AreaTriggerTypes = AreaTriggerTypes,
   Name extends string = string,
-> extends Registry<'areaTriggers', Name, AnyAreaTriggerDef<G>, AreaTriggerColumn, never> {
+> extends Registry<'areaTriggers', Name, AnyAreaTriggerDef<G>, AreaTriggerColumn> {
   /** The dispatch table of every area trigger hook. */
   readonly hooks: AreaTriggerHookTables<G>;
-
-  /** The ids that have each hook. */
-  readonly has: Readonly<Record<AreaTriggerHookName, Bitset>>;
 
   /** The game's area trigger tags. */
   readonly tags: AreaTagTable<G['areaTag']>;
@@ -187,14 +174,6 @@ const buildHooks = <G extends AreaTriggerTypes>(
   onEnd: tableOf(slots, 'onEnd'),
 });
 
-/** The `has` bitset of every hook. */
-const buildHas = <G extends AreaTriggerTypes>(
-  slots: readonly (AnyAreaTriggerDef<G> | undefined)[],
-): Readonly<Record<AreaTriggerHookName, Bitset>> =>
-  recordOf(AREA_TRIGGER_HOOKS, (hook) =>
-    createBitset(slots.flatMap((def, index) => (def?.[hook] === undefined ? [] : [index]))),
-  );
-
 /** The table of no area trigger tags, for a game that declares none. */
 const NO_TAGS: AreaTagTable = createRegistry({}, { kind: 'areaTags' });
 
@@ -242,7 +221,6 @@ export const defineAreaTriggers = <G extends AreaTriggerTypes, const Name extend
 
     columns: buildColumns(slots),
     hooks: buildHooks(slots),
-    has: buildHas(slots),
     tags,
     tagSets: Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => tagIds[tag] ?? 0)))),
     replication: Object.freeze(slots.map((def, id) => compileReplication(base.names[id] ?? '?', def))),

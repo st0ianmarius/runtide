@@ -20,9 +20,6 @@ export const BIND_STANDING = 2;
 /** Binding bit: it waits while its owner is down, rather than ending. */
 export const BIND_SUSPEND = 4;
 
-/** Binding bit: its bound ends fire no end cue. */
-export const BIND_SILENT = 8;
-
 /** Whether a unit is in the world, as the host says (true when it cannot tell). */
 const isPresent = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, unit: G['bearer']): boolean =>
   engine.host.isPresent?.(unit) ?? true;
@@ -42,10 +39,8 @@ const checkOwner = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
     return true;
   }
 
-  const isSilent = (bits & BIND_SILENT) !== 0;
-
   if (!isPresent(engine, area.owner)) {
-    endArea(engine, area, { reason: 'source-gone', isSilent });
+    endArea(engine, area, { reason: 'source-gone' });
 
     return false;
   }
@@ -62,7 +57,7 @@ const checkOwner = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
     return false;
   }
 
-  endArea(engine, area, { reason: area.isOwnerLifetime ? 'source-gone' : 'bound', isSilent });
+  endArea(engine, area, { reason: area.isOwnerLifetime ? 'source-gone' : 'bound' });
 
   return false;
 };
@@ -87,7 +82,7 @@ const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
   const { bound } = engine.registry.get(area.kind);
 
   if (bound?.when !== undefined && !bound.when(area)) {
-    endArea(engine, area, { reason: 'bound', isSilent: bound.cue === 'silent' });
+    endArea(engine, area, { reason: 'bound' });
 
     return false;
   }

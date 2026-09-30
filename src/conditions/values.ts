@@ -33,7 +33,6 @@ export type ValueTable<Name extends string = string, Host = never> = Registry<
   'values',
   Extract<Name, string>,
   ValueDef<Host>,
-  never,
   never
 >;
 

@@ -5,13 +5,7 @@ import { recordOf } from '../core/records.ts';
 export type AreaTagDef = Readonly<Record<never, never>>;
 
 /** The game's area trigger tags: dense ids, so an area trigger kind's tags are a bitset (§I.5.4). */
-export type AreaTagTable<Name extends string = string> = Registry<
-  'areaTags',
-  Extract<Name, string>,
-  AreaTagDef,
-  never,
-  never
->;
+export type AreaTagTable<Name extends string = string> = Registry<'areaTags', Extract<Name, string>, AreaTagDef, never>;
 
 /**
  * Declares the game's area trigger tags (`defineAreaTags(['dome', 'pool'])`): what `coveredBy`, the area trigger

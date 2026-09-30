@@ -22,12 +22,10 @@ const spells = () =>
     },
     {
       kind: 'spells',
-      normalize: (def) => ({ windup: 0, tags: [], onHit: undefined, release: undefined, ...def }),
       columns: {
         windup: { type: 'f64', of: (def) => def.windup ?? 0 },
         cooldown: { type: 'u8', of: (def) => def.cooldown },
       },
-      hooks: ['onHit', 'release'],
     },
   );
 
@@ -42,12 +40,12 @@ describe('registry ids and lookups', () => {
     assert.equal(registry.kind, 'spells');
   });
 
-  it('looks up names and normalised definitions by id', () => {
+  it('looks up names and definitions by id, each definition as given', () => {
     const registry = spells();
 
     assert.equal(registry.name(registry.id.blast), 'blast');
     assert.equal(registry.get(registry.id.spark).windup, 0.4);
-    assert.deepEqual(registry.get(registry.id.frostNova).tags, []);
+    assert.equal(registry.get(registry.id.frostNova).tags, undefined);
     assert.equal(registry.defs[1], registry.get(registry.id.blast));
   });
 
@@ -60,21 +58,15 @@ describe('registry ids and lookups', () => {
     assert.throws(() => registry.isRetired(larger.id.d), RangeError);
   });
 
-  it('normalises every definition into one shape with every optional field present', () => {
-    for (const def of spells().defs) {
-      assert.deepEqual(Object.keys(def ?? {}), ['windup', 'tags', 'onHit', 'release', 'cooldown']);
-    }
-  });
-
   it('refuses names that look like indexes, which key order would move', () => {
     assert.throws(() => createRegistry({ a: {}, 7: {} }), RangeError);
   });
 });
 
 describe('registry freezing', () => {
-  it('deep-freezes each definition and its normalised copy', () => {
+  it('deep-freezes each definition', () => {
     const def = { cooldown: 1, tags: ['a'], nested: { r: 2 } };
-    const registry = createRegistry({ def }, { normalize: (d) => ({ ...d }) });
+    const registry = createRegistry({ def });
 
     assert.equal(Object.isFrozen(def), true);
     assert.equal(Object.isFrozen(def.tags), true);
@@ -110,7 +102,6 @@ describe('registry freezing', () => {
     assert.equal(Object.isFrozen(registry), true);
     assert.equal(Object.isFrozen(registry.id), true);
     assert.equal(Object.isFrozen(registry.defs), true);
-    assert.equal(Object.isFrozen(registry.hooks.onHit), true);
   });
 });
 
@@ -122,35 +113,6 @@ describe('registry tables', () => {
     assert.ok(columns.cooldown instanceof Uint8Array);
     assert.deepEqual([...columns.windup], [0, 1.2, 0.4]);
     assert.deepEqual([...columns.cooldown], [8, 5, 1]);
-  });
-
-  it('builds a dispatch table and a has bitset per hook', () => {
-    const registry = spells();
-
-    assert.deepEqual(
-      registry.hooks.onHit.map((hook) => typeof hook),
-      ['function', 'undefined', 'function'],
-    );
-    assert.deepEqual(registry.has.onHit.toArray(), [0, 2]);
-    assert.deepEqual(registry.has.release.toArray(), [1]);
-    assert.equal(registry.has.release.has(registry.id.frostNova), false);
-  });
-
-  it('calls hooks detached, with no this', () => {
-    const registry = spells();
-    const { onHit } = registry.get(registry.id.frostNova);
-    const tabled = registry.hooks.onHit[registry.id.spark];
-
-    assert.equal(onHit?.(3, 4), 12);
-    assert.equal(tabled?.(3, 0), 4);
-  });
-
-  it('refuses a hook field that holds data', () => {
-    const bad: { onHit?: () => void } = {};
-
-    Reflect.set(bad, 'onHit', 3);
-
-    assert.throws(() => createRegistry({ bad }, { hooks: ['onHit'] }), TypeError);
   });
 });
 

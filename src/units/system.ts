@@ -9,7 +9,6 @@ import { moveTo, raiseSpawned } from './lifecycle.ts';
 import { createUnitProcKinds } from './proc-kinds.ts';
 import type { UnitProcKinds } from './procs.ts';
 import { attachScript, creditOf, joinOwner } from './summons.ts';
-import { HEAVY, OBJECTIVE } from './unit-def.ts';
 import type { UnitRegistry } from './unit-def.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
@@ -76,12 +75,6 @@ export interface UnitSystem<G extends UnitTypes> {
   /** Whether a unit has a class tag. */
   readonly hasTag: (unit: G['bearer'], tag: G['unitTag']) => boolean;
 
-  /** Whether a unit's template is an objective (a side of its own for targeting and kill accounting). */
-  readonly isObjective: (unit: G['bearer']) => boolean;
-
-  /** Whether a unit's template is heavy. */
-  readonly isHeavy: (unit: G['bearer']) => boolean;
-
   /** A unit's stats (§II.6 M9): its sheet folded with it as the host, or its own bases without a modifier system. */
   readonly statsOf: (unit: G['bearer']) => StatView;
 
@@ -127,7 +120,6 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
   const engine = new UnitEngine<G>(options);
   const { registry } = engine;
   const states = options.states;
-  const traitsOf = (unit: G['bearer']): number => registry.traits[unitOf<G>(unit).template] ?? 0;
 
   const isStanding = (unit: G['bearer']): boolean => unitOf<G>(unit).lifecycle === 'standing';
 
@@ -190,8 +182,6 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
       return id !== undefined && unitOf<G>(unit).tags.has(id);
     },
 
-    isObjective: (unit) => (traitsOf(unit) & OBJECTIVE) !== 0,
-    isHeavy: (unit) => (traitsOf(unit) & HEAVY) !== 0,
     syncStates: (unit) => syncStates(engine, unit),
     statsOf: (unit) => engine.statsOf(unit),
     autoAttackOf: (unit) => engine.autoAttacks[unitOf<G>(unit).template],

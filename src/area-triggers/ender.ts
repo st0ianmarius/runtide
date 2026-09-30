@@ -48,7 +48,7 @@ const runEndHook = <G extends AreaTriggerTypes>(
       list.clear();
     }
 
-    engine.fire(area, area.isSilent ? undefined : engine.registry.get(area.kind).cues?.end?.(area, reason));
+    engine.fire(area, engine.registry.get(area.kind).cues?.end?.(area, reason));
 
     if (onEnd !== undefined) {
       engine.run(area, onEnd(area, reason, list), list);
@@ -59,7 +59,7 @@ const runEndHook = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Ends an area trigger (§II.6 W1): its landing and `onExpire` for an expiry, its end cue unless the end is silent,
+ * Ends an area trigger (§II.6 W1): its landing and `onExpire` for an expiry, its end cue (none when the cue answers none),
  * `onEnd` with the reason; then it leaves its shared clocks, the tick order and its kind's list, its owner aura comes
  * off when it was the last of its kind, the end event is raised, its cast is let go and its record goes back to the
  * pool. Ending one that is already ending does nothing.
@@ -67,14 +67,13 @@ const runEndHook = <G extends AreaTriggerTypes>(
 export const endArea = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  end: { readonly reason: EndReason; readonly isSilent?: boolean },
+  end: { readonly reason: EndReason },
 ): void => {
   if (area.isEnding) {
     return;
   }
 
   area.isEnding = true;
-  area.isSilent = end.isSilent === true;
   runEndHook(engine, area, end.reason);
   leavePulses(engine, area);
   dropAreaAuras(engine, area);

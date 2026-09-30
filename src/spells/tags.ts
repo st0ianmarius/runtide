@@ -9,7 +9,6 @@ export type SpellTagTable<Name extends string = string> = Registry<
   'spellTags',
   Extract<Name, string>,
   SpellTagDef,
-  never,
   never
 >;
 

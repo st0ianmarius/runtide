@@ -4,7 +4,7 @@ import type { AreaTriggerTypes } from './area-types.ts';
 import { casterSpellOf } from './caster.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import { AreaEngine } from './engine.ts';
-import { BIND_PRESENT, BIND_SILENT, BIND_STANDING, BIND_SUSPEND } from './stepper.ts';
+import { BIND_PRESENT, BIND_STANDING, BIND_SUSPEND } from './stepper.ts';
 import type { AreaTriggerSystemOptions } from './system-options.ts';
 
 /** Whether `undefined` is the game's `areaExt`: true exactly when the options could leave `createExt` out. */
@@ -106,10 +106,7 @@ const bindingOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G> | undef
   }
 
   return (
-    BIND_PRESENT |
-    (bound.owner === 'standing' ? BIND_STANDING : 0) |
-    (bound.whileDown === 'suspend' ? BIND_SUSPEND : 0) |
-    (bound.cue === 'silent' ? BIND_SILENT : 0)
+    BIND_PRESENT | (bound.owner === 'standing' ? BIND_STANDING : 0) | (bound.whileDown === 'suspend' ? BIND_SUSPEND : 0)
   );
 };
 

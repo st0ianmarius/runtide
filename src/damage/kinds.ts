@@ -33,7 +33,6 @@ export type DamageKindTable<Name extends string = string> = Registry<
   'damageKinds',
   Extract<Name, string>,
   DamageKindDef,
-  never,
   never
 >;
 

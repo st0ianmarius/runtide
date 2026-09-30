@@ -1,15 +1,6 @@
-import type { Bitset } from './bitset.ts';
 import { type Id, toId } from './ids.ts';
 import { deepFreeze, recordOf } from './records.ts';
-import {
-  buildColumns,
-  buildHookBits,
-  buildHookTables,
-  type Column,
-  type ColumnSpec,
-  type HookKey,
-  type HookTables,
-} from './registry-tables.ts';
+import { buildColumns, type Column, type ColumnSpec } from './registry-tables.ts';
 
 /** The marker of a retired definition: it keeps its slot, and so every later id, but can no longer be used. */
 export interface Tombstone {
@@ -31,7 +22,7 @@ const isLive = <Def extends object>(entry: object): entry is Def => entry !== TO
 export type DefOf<Defs> = Exclude<Defs[keyof Defs], Tombstone>;
 
 /** What a registry is built with, beyond its definitions. */
-export interface RegistryOptions<Kind extends string, Def, Columns extends string, Hooks extends HookKey<Def>> {
+export interface RegistryOptions<Kind extends string, Def, Columns extends string> {
   /** The registry's kind, which brands its ids (`Id<'spells'>`) and names it in error messages. */
   readonly kind?: Kind;
 
@@ -41,17 +32,8 @@ export interface RegistryOptions<Kind extends string, Def, Columns extends strin
    */
   readonly order?: readonly string[];
 
-  /**
-   * Normalises a definition into the kind's one object shape, every optional field present (§I.5.4). It must return a
-   * new object; the definition itself is never changed.
-   */
-  readonly normalize?: (def: Def) => Def;
-
   /** Typed hot-field columns to build, by column name. */
   readonly columns?: Readonly<Record<Columns, ColumnSpec<Def>>>;
-
-  /** The hooks to build dispatch tables and `has` bitsets for. */
-  readonly hooks?: readonly Hooks[];
 
   /** Whether to deep-freeze every definition, to catch mutation; true by default, off in a production build. */
   readonly freeze?: boolean;
@@ -59,9 +41,10 @@ export interface RegistryOptions<Kind extends string, Def, Columns extends strin
 
 /**
  * An ordered registry of plain-object definitions (§I.5.2, §I.5.4). Each name gets a dense id, its position; lookups
- * by id are array reads. Append-only: a retired entry keeps its slot as a tombstone.
+ * by id are array reads. Append-only: a retired entry keeps its slot as a tombstone. A system that dispatches hooks
+ * builds its own typed tables over `defs` (its definitions are typed by the game, which the core cannot see through).
  */
-export interface Registry<Kind extends string, Name extends string, Def, Columns extends string, Hooks extends string> {
+export interface Registry<Kind extends string, Name extends string, Def, Columns extends string> {
   /** The registry's kind, as passed in its options (`registry` when none was), for messages and tools. */
   readonly kind: string;
 
@@ -74,7 +57,7 @@ export interface Registry<Kind extends string, Name extends string, Def, Columns
   /** The name of every slot, in id order. */
   readonly names: readonly string[];
 
-  /** The normalised definition of every slot, in id order; `undefined` for a tombstone. */
+  /** The definition of every slot, in id order; `undefined` for a tombstone. */
   readonly defs: readonly (Def | undefined)[];
 
   /** The ids of the live (not retired) entries, in order. */
@@ -83,7 +66,7 @@ export interface Registry<Kind extends string, Name extends string, Def, Columns
   /** The name an id was registered under: a developer string for code, logs and validation, never for players. */
   readonly name: (id: Id<Kind>) => string;
 
-  /** The normalised definition of a live id. Throws for a tombstone or an id outside the registry. */
+  /** The definition of a live id. Throws for a tombstone or an id outside the registry. */
   readonly get: (id: Id<Kind>) => Def;
 
   /** Whether an id's slot is a tombstone. Throws for an id outside the registry. */
@@ -91,12 +74,6 @@ export interface Registry<Kind extends string, Name extends string, Def, Columns
 
   /** The typed hot-field columns, each indexed by id. */
   readonly columns: Readonly<Record<Columns, Column>>;
-
-  /** The dispatch table of each named hook, indexed by id. */
-  readonly hooks: HookTables<Def, Extract<Hooks, HookKey<Def>>>;
-
-  /** The bitset of ids that have each named hook. */
-  readonly has: Readonly<Record<Hooks, Bitset>>;
 }
 
 /** An integer-like key, which object key order would move ahead of the others. */
@@ -124,11 +101,11 @@ const resolveOrder = (keys: readonly string[], order: readonly string[] | undefi
   return [...order];
 };
 
-/** Builds the dense slots: each live definition frozen (when asked) and normalised; `undefined` for a tombstone. */
-const buildSlots = <Def extends object, Hooks extends HookKey<Def>>(
+/** Builds the dense slots: each live definition, frozen when asked; `undefined` for a tombstone. */
+const buildSlots = <Def extends object>(
   names: readonly string[],
   lookup: (name: string) => object | undefined,
-  options: RegistryOptions<string, Def, string, Hooks>,
+  options: RegistryOptions<string, Def, string>,
 ): (Def | undefined)[] =>
   names.map((name) => {
     const def = lookup(name);
@@ -137,14 +114,11 @@ const buildSlots = <Def extends object, Hooks extends HookKey<Def>>(
       return undefined;
     }
 
-    const normalised = options.normalize?.(def) ?? def;
-
     if (options.freeze ?? true) {
       deepFreeze(def);
-      deepFreeze(normalised);
     }
 
-    return normalised;
+    return def;
   });
 
 /** The lookups over the dense slots, which check every id they are handed. */
@@ -179,18 +153,17 @@ const createLookups = <Kind extends string, Def>(
 
 /**
  * Creates a registry from `{ name: def, … }` (§I.5.2): each name gets a dense id by key order (or by the pinned
- * `order`), `TOMBSTONE` keeps a retired slot, and the definitions are normalised, frozen in development, and copied
- * into typed columns, hook dispatch tables and `has` bitsets. Hooks are stored as given and may be called detached.
+ * `order`), `TOMBSTONE` keeps a retired slot, and the definitions are frozen in development and copied into typed
+ * columns.
  */
 export const createRegistry = <
   Defs extends Readonly<Record<string, object>>,
   Kind extends string = string,
   Columns extends string = never,
-  Hooks extends HookKey<DefOf<Defs>> = never,
 >(
   defs: Defs,
-  options: RegistryOptions<Kind, DefOf<Defs>, Columns, Hooks> = {},
-): Registry<Kind, Extract<keyof Defs, string>, DefOf<Defs>, Columns, Hooks> => {
+  options: RegistryOptions<Kind, DefOf<Defs>, Columns> = {},
+): Registry<Kind, Extract<keyof Defs, string>, DefOf<Defs>, Columns> => {
   type Def = DefOf<Defs>;
   type Name = Extract<keyof Defs, string>;
 
@@ -200,12 +173,7 @@ export const createRegistry = <
   const known = new Set<string>(keys);
   const isName = (name: string): name is Name => known.has(name);
 
-  const slots = Object.freeze(
-    buildSlots<Def, Hooks>(names, (name) => (isName(name) ? defs[name] : undefined), options),
-  );
-
-  const hookNames = options.hooks ?? [];
-  const hooks = buildHookTables<Def, Hooks>(slots, hookNames);
+  const slots = Object.freeze(buildSlots<Def>(names, (name) => (isName(name) ? defs[name] : undefined), options));
 
   return Object.freeze({
     kind,
@@ -219,8 +187,6 @@ export const createRegistry = <
       slots,
       options.columns ?? recordOf<Columns, ColumnSpec<Def>>([], () => ({ type: 'u8', of: () => 0 })),
     ),
-    hooks,
-    has: buildHookBits(hooks, hookNames),
   });
 };
 

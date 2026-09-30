@@ -80,15 +80,14 @@ describe('the spell registry (§I.5.2, §I.5.4)', () => {
     assert.ok(Number.isNaN(registry.columns.windup[0]));
   });
 
-  it('builds a dispatch table and a has bitset per hook', () => {
+  it('builds a dispatch table per hook', () => {
     const registry = SPELLS();
 
     assert.equal(registry.hooks.release[3], release);
     assert.equal(registry.hooks.target[0], undefined);
-    assert.equal(registry.has.target.has(1), true);
-    assert.equal(registry.has.target.has(0), false);
+    assert.notEqual(registry.hooks.target[1], undefined);
     assert.deepEqual(
-      [0, 1, 3].filter((id) => registry.has.onHit.has(id)),
+      [0, 1, 3].filter((id) => registry.hooks.onHit[id] !== undefined),
       [3],
     );
   });

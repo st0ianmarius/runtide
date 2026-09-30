@@ -75,6 +75,9 @@ export interface UnitTypes extends AbilityTypes, AiTypes, DamageTypes {
   /** The game's own fields on a unit (§I.5.6 hatch 4), made by the system's `createExt`. */
   readonly unitExt: unknown;
 
+  /** The game's own data on a unit template (`UnitDef.data`: rewards, a roster's rules). */
+  readonly unitData: unknown;
+
   /** The names of the game's scripts (`warden`, `hordeCaster`, `inferno`), which templates and spawns name. */
   readonly scriptName: string;
 }

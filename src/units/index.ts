@@ -39,11 +39,9 @@ export { Unit, type UnitParts } from './unit.ts';
 export {
   defineUnit,
   defineUnits,
-  HEAVY,
   HOLDS_GROUND,
   IMMOVABLE,
   INERT,
-  OBJECTIVE,
   PULL_IMMUNE,
   type UnitDef,
   type UnitRegistry,

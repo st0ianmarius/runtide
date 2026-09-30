@@ -5,13 +5,7 @@ import { recordOf } from '../core/records.ts';
 export type AuraTagDef = Readonly<Record<never, never>>;
 
 /** The game's aura tags: dense ids, so a bearer's tags, immunities and cleanses are bitsets (§I.5.4). */
-export type AuraTagTable<Name extends string = string> = Registry<
-  'auraTags',
-  Extract<Name, string>,
-  AuraTagDef,
-  never,
-  never
->;
+export type AuraTagTable<Name extends string = string> = Registry<'auraTags', Extract<Name, string>, AuraTagDef, never>;
 
 /**
  * Declares the game's aura tags (`defineAuraTags(['stunned', 'rooted', 'magic'])`): what active auras say about their

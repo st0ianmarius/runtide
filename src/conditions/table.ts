@@ -46,7 +46,6 @@ export type ConditionTable<Name extends string = string, Host = never> = Registr
   'conditions',
   Extract<Name, string>,
   ConditionDef<Host>,
-  never,
   never
 >;
 

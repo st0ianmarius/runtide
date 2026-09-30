@@ -7,7 +7,6 @@ import {
   TOMBSTONE,
   type Tombstone,
 } from '../core/index.ts';
-import { recordOf } from '../core/records.ts';
 import type { StatTable } from '../modifiers/index.ts';
 import { type ActivationRegistry, CORE_ACTIVATIONS, defineActivations } from './activation.ts';
 import { constantOf, planOf } from './cast-plan.ts';
@@ -29,8 +28,8 @@ export const STATS_FUNCTION = 4;
 /** Flag bit: the caster holds an aura while it casts. */
 const CAST_AURA = 8;
 
-/** The hooks every spell registry builds dispatch tables and `has` bitsets for (§I.5.4). */
-export const SPELL_HOOKS = ['state', 'canCast', 'target', 'begin', 'release', 'onHit', 'onEnd'] as const;
+/** The hooks every spell registry builds dispatch tables for (§I.5.4). */
+const SPELL_HOOKS = ['state', 'canCast', 'target', 'begin', 'release', 'onHit', 'onEnd'] as const;
 
 /** The name of one hook a spell registry dispatches. */
 export type SpellHookName = (typeof SPELL_HOOKS)[number];
@@ -47,21 +46,17 @@ export type SpellHookTables<G extends SpellTypes> = {
 };
 
 /**
- * The game's spell registry (`defineSpells`): ids by key order, the definitions, typed columns, a dispatch table and
- * `has` bitset per hook (§I.5.4), each spell's tags as a bitset, its compiled stats table and its outgoing shares.
+ * The game's spell registry (`defineSpells`): ids by key order, the definitions, typed columns, a dispatch table per
+ * hook (§I.5.4), each spell's tags as a bitset, its compiled stats table and its outgoing shares.
  */
 export interface SpellRegistry<G extends SpellTypes = SpellTypes, Name extends string = string> extends Registry<
   'spells',
   Name,
   AnySpellDef<G>,
-  SpellColumn,
-  never
+  SpellColumn
 > {
   /** The dispatch table of every spell hook. */
   readonly hooks: SpellHookTables<G>;
-
-  /** The ids that have each hook. */
-  readonly has: Readonly<Record<SpellHookName, Bitset>>;
 
   /** The activation kinds its spells use. */
   readonly activations: ActivationRegistry<G>;
@@ -167,14 +162,6 @@ const buildHooks = <G extends SpellTypes>(slots: readonly (AnySpellDef<G> | unde
   onEnd: tableOf(slots, 'onEnd'),
 });
 
-/** The `has` bitset of every hook. */
-const buildHas = <G extends SpellTypes>(
-  slots: readonly (AnySpellDef<G> | undefined)[],
-): Readonly<Record<SpellHookName, Bitset>> =>
-  recordOf(SPELL_HOOKS, (hook) =>
-    createBitset(slots.flatMap((def, index) => (def?.[hook] === undefined ? [] : [index]))),
-  );
-
 /** Each spell's tags as a bitset. */
 const buildTagSets = <G extends SpellTypes>(
   slots: readonly (AnySpellDef<G> | undefined)[],
@@ -238,7 +225,6 @@ export const defineSpells = <G extends SpellTypes, const Name extends string>(
 
     columns,
     hooks: buildHooks(slots),
-    has: buildHas(slots),
     activations,
     tags,
     stats: options.stats,

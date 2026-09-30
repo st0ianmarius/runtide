@@ -288,7 +288,7 @@ export const checkCurve = (curve: Curve): void => {
 };
 
 /** A game's named curves: a registry of curve definitions, each checked when the table is built. */
-export type CurveTable<Name extends string = string> = Registry<'curves', Extract<Name, string>, Curve, never, never>;
+export type CurveTable<Name extends string = string> = Registry<'curves', Extract<Name, string>, Curve, never>;
 
 /** Accepts a curve object or a bare function, the latter as a custom curve. */
 const toCurve = (def: Curve | ((x: number) => number)): Curve => (typeof def === 'function' ? customCurve(def) : def);

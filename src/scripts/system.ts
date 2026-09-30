@@ -1,7 +1,7 @@
 import type { AiSystem, TimerId } from '../ai/index.ts';
 import type { EventKind } from '../core/index.ts';
 import type { ProcSystem } from '../procs/index.ts';
-import type { UnitScripts, UnitSystem } from '../units/index.ts';
+import type { UnitScripts } from '../units/index.ts';
 import type { ScriptRegistry } from './define-scripts.ts';
 import { ScriptRecord } from './record.ts';
 import { noScript, ScriptRunner } from './runner.ts';
@@ -34,9 +34,6 @@ export type ScriptEventBindings<G extends ScriptTypes> = {
 export interface ScriptSystemOptions<G extends ScriptTypes> {
   /** The game's scripts (`defineScripts`). */
   readonly registry: ScriptRegistry<G>;
-
-  /** The unit system, whose templates name the scripts. */
-  readonly units: UnitSystem<G>;
 
   /** The AI system, whose timers `collect` gathers onto their units. */
   readonly ai: AiSystem<G>;
@@ -345,7 +342,7 @@ const isStateOf = <G extends ScriptTypes, State>(_behaviour: Behaviour<G, State>
   true;
 
 /**
- * Creates the script system (§I.7.1 F19): `createScriptSystem({ registry: SCRIPTS, units, ai, procs, bus, host, events:
+ * Creates the script system (§I.7.1 F19): `createScriptSystem({ registry: SCRIPTS, ai, procs, bus, host, events:
  * { damaged: { kind: bus.kind.taken, unitOf: (e) => e.blow?.target } } })`, then `createUnitSystem({ …, scripts: () =>
  * scripts.forUnits })`. Throws for a handled event that is not bound.
  */

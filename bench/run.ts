@@ -59,9 +59,12 @@ const SPELLS = createRegistry(
   {
     kind: 'spells',
     columns: { cooldown: { type: 'f64', of: (def) => def.cooldown } },
-    hooks: ['onHit'],
   },
 );
+
+/** The spells' `onHit` dispatch table and `has` bitset, as a system builds its own over a registry's definitions. */
+const ON_HIT = SPELLS.defs.map((def) => def?.onHit);
+const HAS_ON_HIT = createBitset(ON_HIT.flatMap((hook, id) => (hook === undefined ? [] : [id])));
 
 const IDS: readonly Id<'spells'>[] = SPELLS.ids;
 const TAGS = createBitset(Array.from({ length: 64 }, (_unused, index) => index * 3));
@@ -259,8 +262,8 @@ bench
     for (let i = 0; i < BATCH; i++) {
       const id = i & 255;
 
-      if (SPELLS.has.onHit.has(id)) {
-        sink += SPELLS.hooks.onHit[id]?.() ?? 0;
+      if (HAS_ON_HIT.has(id)) {
+        sink += ON_HIT[id]?.() ?? 0;
       }
     }
   })

@@ -56,7 +56,6 @@ export type MitigationTable<S extends string = string, K extends string = string
   'mitigation',
   string,
   MitigationRowDef<S, K>,
-  never,
   never
 >;
 

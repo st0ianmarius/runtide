@@ -248,7 +248,6 @@ const picker = behaviour({
 
 const SCRIPTS = createScriptSystem<BenchGame>({
   registry: defineScripts<BenchGame, 'idle' | 'picker'>({ idle: [idle], picker: [picker] }),
-  units: UNITS,
   ai: AI,
   procs: () => late.procs ?? missing(),
   bus: { on: () => () => undefined },

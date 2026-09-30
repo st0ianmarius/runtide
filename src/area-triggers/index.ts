@@ -35,7 +35,6 @@ export type {
 export type { AreaTagId, AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 
 export {
-  AREA_TRIGGER_HOOKS,
   type AreaTriggerColumn,
   type AreaTriggerHookName,
   type AreaTriggerHookTables,

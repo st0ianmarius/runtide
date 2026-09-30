@@ -204,7 +204,6 @@ describe('scripts (§I.7.1 F19)', () => {
       () =>
         createScriptSystem<UnitGame>({
           registry: defineScripts<UnitGame, 'dancer'>({ dancer: [dance] }),
-          units: game.units,
           ai: game.ai,
           procs: game.procs,
           bus: { on: () => () => undefined },

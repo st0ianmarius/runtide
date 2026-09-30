@@ -140,9 +140,6 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   /** Whether it is ending or ended: nothing runs for it again. */
   isEnding = false;
 
-  /** Whether its end fires no end cue. */
-  isSilent = false;
-
   /** Whether it lives while its owner does (its lifetime is `owner`). */
   isOwnerLifetime = false;
 

@@ -412,7 +412,6 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
 
   const scripts = createScriptSystem<UnitGame>({
     registry: options.scripts ?? defineScripts<UnitGame, never>({}),
-    units,
     ai,
     procs,
     bus,

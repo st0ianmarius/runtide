@@ -11,7 +11,7 @@ export interface SlotDef {
 export const MAX_SLOTS = 31;
 
 /** The game's slots, in the order a press fires them: dense ids, one bit each in a press mask. */
-export type SlotTable<Name extends string = string> = Registry<'slots', Extract<Name, string>, SlotDef, never, never>;
+export type SlotTable<Name extends string = string> = Registry<'slots', Extract<Name, string>, SlotDef, never>;
 
 /**
  * Declares the game's slots (§I.6 Abilities, §II.6 S4) in the order one press fires them, each with the aura its

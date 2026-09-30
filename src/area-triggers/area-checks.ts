@@ -86,8 +86,8 @@ const checkBound = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
     fail(name, "it suspends while its owner is down only with a bound owner of 'standing'.");
   }
 
-  if (!isOneOf(bound.cue, ['fade', 'silent']) || (bound.when !== undefined && typeof bound.when !== 'function')) {
-    fail(name, "its bound's cue is 'fade' or 'silent', and when a function.");
+  if (bound.when !== undefined && typeof bound.when !== 'function') {
+    fail(name, "its bound's when is a function.");
   }
 };
 
@@ -105,8 +105,8 @@ const checkLimit = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
     fail(name, 'its limit per owner is a whole number from 1, or a function.');
   }
 
-  if (!isOneOf(limit.replace, ['oldest', 'silent', 'refuse'])) {
-    fail(name, "its limit replaces 'oldest', 'silent' or 'refuse'.");
+  if (!isOneOf(limit.replace, ['oldest', 'refuse'])) {
+    fail(name, "its limit replaces 'oldest' or 'refuse'.");
   }
 };
 

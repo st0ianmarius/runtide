@@ -1,5 +1,5 @@
 import type { Random } from '../core/index.ts';
-import type { SpellId, SpellSystem } from '../spells/index.ts';
+import { type Activation, isAi, type SpellId, type SpellSystem } from '../spells/index.ts';
 import type { AiTypes } from './ai-types.ts';
 import { brainOf } from './brain.ts';
 
@@ -27,12 +27,9 @@ export interface PickOptions<G extends AiTypes> {
   readonly repeat?: 'avoid' | 'allow';
 }
 
-/** An activation's own weight: an `ai` or `event` activation's `weight`, else 1. */
-const ownWeight = (activation: object): number => {
-  const weight: unknown = Reflect.get(activation, 'weight');
-
-  return typeof weight === 'number' ? weight : 1;
-};
+/** An activation's own weight: an `ai` activation's `weight`, else 1. */
+const ownWeight = <G extends AiTypes>(activation: Activation<G>): number =>
+  isAi(activation) ? (activation.weight ?? 1) : 1;
 
 /**
  * The one weighted anti-repeat picker (§I.7.1 F17, §II.6 C3): over a pool of spells, each fitting one (a weight above

@@ -121,8 +121,8 @@ describe('bounds (§II.6 W1)', () => {
     assert.deepEqual(linesOf(game.log), ['end source-gone', 'ended ward@1 source-gone']);
   });
 
-  it('ends as bound when its standing-bound owner goes down, with no end cue when silent', () => {
-    const { game, down, tick } = boundGame({ owner: 'standing', cue: 'silent' });
+  it('ends as bound when its standing-bound owner goes down', () => {
+    const { game, down, tick } = boundGame({ owner: 'standing' });
 
     down.add(1);
     tick();
@@ -166,14 +166,14 @@ describe('bounds (§II.6 W1)', () => {
 
 describe('limits (§II.3.4, §II.6 W5)', () => {
   /** A game with a pool limited per owner under a replace rule. */
-  const limitGame = (replace: 'oldest' | 'silent' | 'refuse') =>
+  const limitGame = (replace: 'oldest' | 'refuse', quietOn?: 'replaced') =>
     makeSpellGame(
       {},
       {
         areaTriggers: {
           pool: ending({
             limit: { perOwner: (c) => c.rank + 1, replace },
-            cues: { end: () => ({ cue: CUES.id.flash }) },
+            cues: { end: (_c, reason) => (reason === quietOn ? undefined : { cue: CUES.id.flash }) },
           }),
         },
       },
@@ -195,8 +195,8 @@ describe('limits (§II.3.4, §II.6 W5)', () => {
     assert.deepEqual(linesOf(game.log), ['end replaced', 'ended pool@1 replaced']);
   });
 
-  it('replaces silently, or refuses the new one', () => {
-    const silent = limitGame('silent');
+  it('replaces silently when its end cue answers none for the reason, or refuses the new one', () => {
+    const silent = limitGame('oldest', 'replaced');
     const owner = silent.unit(1);
 
     for (let i = 0; i < 3; i++) {

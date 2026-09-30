@@ -52,8 +52,7 @@ export interface CueRegistry<Table extends CueTable = CueTable> extends Registry
   'cues',
   Extract<keyof Table, string>,
   CueDef,
-  CueColumn,
-  never
+  CueColumn
 > {
   /** The id of every cue, by name, carrying the name in its type so a spec's params are checked. */
   readonly id: { readonly [Name in Extract<keyof Table, string>]: CueIdOf<Name> };

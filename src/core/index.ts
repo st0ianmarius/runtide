@@ -1,6 +1,6 @@
 /**
  * The deterministic core (§I.6): random streams and keyed rolls, the fixed-step clock with countdown rules, stamps and the
- * timing wheel, ordered registries with their dense tables, bitsets, pools, scratch lists, the event bus and scope.
+ * timing wheel, ordered registries with their dense tables, bitsets, pools, scratch lists and the event bus.
  */
 
 export { type Bitset, createBitset } from './bitset.ts';
@@ -35,8 +35,7 @@ export {
   type Tombstone,
 } from './registry.ts';
 
-export type { AnyHook, Column, ColumnSpec, ColumnType, HookKey, HookTables } from './registry-tables.ts';
-export { createScope, type Scope, type ScopeFrame } from './scope.ts';
+export type { Column, ColumnSpec, ColumnType } from './registry-tables.ts';
 export { createScratch, type Scratch } from './scratch.ts';
 export { createStreamTable, type StreamSpec, type StreamTable } from './stream-table.ts';
 export { defineTickSlots, type TickSlotDef, type TickSlotId } from './tick-slots.ts';

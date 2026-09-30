@@ -1,12 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import {
-  type AnyAreaTriggerDef,
-  AREA_TRIGGER_HOOKS,
-  defineAreaTrigger,
-  defineAreaTriggers,
-} from '../../src/area-triggers/index.ts';
+import { type AnyAreaTriggerDef, defineAreaTrigger, defineAreaTriggers } from '../../src/area-triggers/index.ts';
 import { defineTickSlots, TOMBSTONE } from '../../src/core/index.ts';
 import { circle, lane } from '../../src/math/index.ts';
 import { AREA_TAGS, type Game } from '../helpers/spell-game.ts';
@@ -67,13 +62,24 @@ describe('the area trigger registry (§I.5.2, §I.5.4)', () => {
     assert.deepEqual([...columns.limit], [3, 0, 0, Number.NaN]);
   });
 
-  it('builds a dispatch table and a has bitset per hook, and the tag bitsets', () => {
+  it('builds a dispatch table per hook, and the tag bitsets', () => {
     const registry = KINDS();
 
-    assert.deepEqual(Object.keys(registry.hooks), [...AREA_TRIGGER_HOOKS]);
+    assert.deepEqual(Object.keys(registry.hooks), [
+      'state',
+      'init',
+      'move',
+      'frame',
+      'onContact',
+      'onLand',
+      'onExpire',
+      'onEnd',
+    ]);
     assert.equal(registry.hooks.frame[registry.id.wave], registry.get(registry.id.wave).frame);
-    assert.deepEqual(registry.has.frame.toArray(), [1]);
-    assert.deepEqual(registry.has.onEnd.toArray(), [3]);
+    assert.deepEqual(
+      registry.hooks.onEnd.flatMap((hook, id) => (hook === undefined ? [] : [id])),
+      [3],
+    );
     assert.deepEqual(registry.tagSets[registry.id.pool]?.toArray(), [AREA_TAGS.id.pool]);
     assert.deepEqual(registry.tagSets[registry.id.shield]?.toArray(), [AREA_TAGS.id.dome]);
   });

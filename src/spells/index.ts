@@ -20,7 +20,7 @@ export {
   type CoreActivation,
   defineActivationKind,
   defineActivations,
-  type EventActivation,
+  isAi,
   isButton,
   type PassiveActivation,
   type TimelineDefaults,
@@ -32,7 +32,6 @@ export type { CompiledStats } from './compile-stats.ts';
 
 export {
   defineSpells,
-  SPELL_HOOKS,
   type SpellColumn,
   type SpellHookName,
   type SpellHookTables,

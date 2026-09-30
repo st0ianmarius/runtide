@@ -179,9 +179,6 @@ export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
 
   /** A condition it lives under (the granting spell still owned): false ends it as `bound`. */
   when?(this: void, c: AreaTriggerContext<G, State>): boolean;
-
-  /** Whether a bound end fires its end cue (`fade`, the default) or not (`silent`). */
-  readonly cue?: 'fade' | 'silent';
 }
 
 /** How many of a kind one owner may have at once, and what a spawn past it does (§II.3.4, §II.6 W5). */
@@ -190,10 +187,10 @@ export interface AreaLimit<G extends AreaTriggerTypes, State = unknown> {
   readonly perOwner: number | AreaFn<G, State, number>;
 
   /**
-   * What a spawn past the limit does: end the oldest as `replaced` (`oldest`, the default, its end cue fired), end it
-   * silently (`silent`), or refuse the new one (`refuse`).
+   * What a spawn past the limit does: end the oldest as `replaced` (`oldest`, the default), or refuse the new one
+   * (`refuse`). An end the game wants silent is its end cue answering none for the reason (`cues.end`).
    */
-  readonly replace?: 'oldest' | 'silent' | 'refuse';
+  readonly replace?: 'oldest' | 'refuse';
 }
 
 /** The cues an area trigger fires at its moments, at its position, credited to its owner. */

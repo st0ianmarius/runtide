@@ -140,7 +140,10 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
   travel?(this: void, ctx: MirrorCtx<G>): void;
 }
 
-/** A `passive` activation: owning the spell is what casts it (an aura or area trigger held while owned, F20). */
+/**
+ * A `passive` activation: the game casts it as a unit gains it and again after a revive, so its aura or area trigger
+ * is held while the unit has it (F20).
+ */
 export interface PassiveActivation {
   /** The discriminant. */
   readonly kind: 'passive';
@@ -169,39 +172,19 @@ export interface AiActivation {
   /** Seconds the caster stays busy after the release, when the timeline declares no recovery. */
   readonly recover?: number;
 
-  /** Seconds before the same caster may pick it again (the picker's, F17). */
-  readonly cooldown?: number;
-
   /** The farthest its target may be as the cast starts (its reach's range, §I.7.1 F16). */
   readonly range?: number;
 
   /** Whether a clear line to its target is needed as the cast starts (its reach's sight). */
   readonly sight?: boolean;
 
-  /** What the cast holds of a shared budget while it winds up (the budget policies', F17). */
-  readonly budget?: number;
-
-  /** The pick weight, as a number (the picker's, F17). */
-  readonly weight?: number;
-}
-
-/** An `event` activation: the world's director pulls it (a map event). Its rules are the game's director's. */
-export interface EventActivation {
-  /** The discriminant. */
-  readonly kind: 'event';
-
-  /** The pick weight, as a number. */
+  /** The pick weight, as a number: the picker's default for the spell, 1 when absent (F17). */
   readonly weight?: number;
 }
 
 /** The framework's activation kinds, as a union. */
 export type CoreActivation<G extends SpellTypes = SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
-  | AutoActivation<G, Source>
-  | ButtonActivation<G>
-  | PassiveActivation
-  | TriggerActivation
-  | AiActivation
-  | EventActivation;
+  AutoActivation<G, Source> | ButtonActivation<G> | PassiveActivation | TriggerActivation | AiActivation;
 
 /** One activation (§II.3.2): a core kind or one of the game's; `Source` types the stats an `auto` interval reads. */
 export type Activation<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
@@ -266,6 +249,10 @@ const AUTO: ActivationKindDef<AutoActivation, never> = {
   },
 };
 
+/** Whether an activation is the framework's `ai` kind. */
+export const isAi = <G extends SpellTypes>(activation: Activation<G>): activation is AiActivation =>
+  activation.kind === 'ai' && Object.hasOwn(activation, 'windup');
+
 /** Whether an activation is the framework's `button` kind. */
 export const isButton = <G extends SpellTypes>(activation: Activation<G>): activation is ButtonActivation<G> =>
   activation.kind === 'button';
@@ -294,9 +281,10 @@ const BUTTON: ActivationKindDef<ButtonActivation, never> = {
 /** The `ai` kind: its windup, lock and recovery are the timeline's defaults, its range and sight the reach's. */
 const AI: ActivationKindDef<AiActivation, never> = {
   check: (activation) =>
-    [activation.windup, activation.lock, activation.recover, activation.cooldown].every(isSeconds)
+    [activation.windup, activation.lock, activation.recover].every(isSeconds) &&
+    (activation.weight === undefined || (Number.isFinite(activation.weight) && activation.weight >= 0))
       ? undefined
-      : 'an ai activation takes seconds from 0.',
+      : 'an ai activation takes seconds from 0 and a weight from 0.',
 
   timeline: (activation) => ({
     windup: activation.windup,
@@ -313,9 +301,9 @@ const PLAIN: ActivationKindDef<ActivationShape, never> = {};
 /**
  * The framework's activation kinds (§II.3.2), typed over no game (`never`) since none has a gate, so they register
  * into any game's activation registry: `auto` (the attack clock, `spells.stepAuto`), `button` (abilities,
- * `abilities.tryActivate`), `passive` (owning it, F20), `trigger` (cast by procs and triggers), `ai` (a creature's brain, F17) and
- * `event` (the world's director). A game registers them with its own: `defineActivations({ ...CORE_ACTIVATIONS,
- * totem: TOTEM })`.
+ * `abilities.tryActivate`), `passive` (cast by the game as a unit gains it), `trigger` (cast by procs and triggers) and
+ * `ai` (a creature's brain, F17). A game registers them with its own (a director's `event`, a `totem`):
+ * `defineActivations({ ...CORE_ACTIVATIONS, totem: TOTEM })`.
  */
 export const CORE_ACTIVATIONS: {
   readonly auto: ActivationKindDef<AutoActivation, never>;
@@ -323,15 +311,13 @@ export const CORE_ACTIVATIONS: {
   readonly passive: ActivationKindDef<PassiveActivation, never>;
   readonly trigger: ActivationKindDef<TriggerActivation, never>;
   readonly ai: ActivationKindDef<AiActivation, never>;
-  readonly event: ActivationKindDef<EventActivation, never>;
-} = Object.freeze({ auto: AUTO, button: BUTTON, passive: PLAIN, trigger: PLAIN, ai: AI, event: PLAIN });
+} = Object.freeze({ auto: AUTO, button: BUTTON, passive: PLAIN, trigger: PLAIN, ai: AI });
 
 /** A registry of activation kinds: ids by key order, each kind's definition, typed by the game's spell types. */
 export type ActivationRegistry<G extends SpellTypes = SpellTypes> = Registry<
   'activations',
   string,
   ActivationKindDef<ActivationShape, G>,
-  never,
   never
 >;
 

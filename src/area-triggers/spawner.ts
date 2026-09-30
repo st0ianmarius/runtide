@@ -105,7 +105,6 @@ const fill = <G extends AreaTriggerTypes>(
   area.steppedTick = engine.clock.tick;
   area.age = 0;
   area.isSuspended = false;
-  area.isSilent = false;
   area.parent = parent?.handle ?? NO_AREA_TRIGGER;
   area.slot = registry.columns.slot[area.kind] ?? 0;
   area.listKind = area.kind;
@@ -139,7 +138,7 @@ const admitLimit = <G extends AreaTriggerTypes>(
 
   for (let walk = engine.kindHeads[area.kind]; walk !== undefined; walk = walk.kindNext) {
     if (walk.owner === area.owner && !walk.isEnding) {
-      endArea(engine, walk, { reason: 'replaced', isSilent: limit.replace === 'silent' });
+      endArea(engine, walk, { reason: 'replaced' });
       break;
     }
   }

@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { defineUnits, HEAVY, INERT, OBJECTIVE, type UnitDef } from '../../src/units/index.ts';
+import { defineUnits, IMMOVABLE, INERT, type UnitDef } from '../../src/units/index.ts';
 import { AURA_TAGS, auraId, makeUnitGame, STATS, UNIT_TAGS, type UnitGame } from '../helpers/unit-game.ts';
 
 /** The test templates: a hero with no auto-attack, a grunt, an elite, a boss, a wall and a totem. */
 const TEMPLATES = {
   hero: { stats: { maxHealth: 200 } },
-  grunt: { stats: { speed: 4 }, tags: ['horde'], autoAttack: 'swing', rewards: { souls: 1 } },
-  elite: { tags: ['elite'], traits: { heavy: true, knockResist: { factor: 0.5, cap: 1.5 } } },
+  grunt: { stats: { speed: 4 }, tags: ['horde'], autoAttack: 'swing', data: { souls: 1 } },
+  elite: { tags: ['elite'], traits: { knockResist: { factor: 0.5, cap: 1.5 } } },
   boss: { tags: ['boss'], traits: { pullImmune: true, holdsGround: true } },
-  wall: { tags: ['objective'], traits: { objective: true, immovable: true, inert: true } },
+  wall: { tags: ['objective'], traits: { immovable: true, inert: true } },
 } satisfies Record<string, UnitDef<UnitGame>>;
 
 describe('unit templates (§II.6 U1, U2)', () => {
@@ -21,8 +21,9 @@ describe('unit templates (§II.6 U1, U2)', () => {
     assert.equal(units.bases[id.hero]?.[STATS.id.maxHealth], 200);
     assert.equal(units.bases[id.grunt]?.[STATS.id.maxHealth], 100);
     assert.equal(units.bases[id.grunt]?.[STATS.id.speed], 4);
-    assert.equal(units.traits[id.elite], HEAVY);
-    assert.equal(units.traits[id.wall], OBJECTIVE | 4 | INERT);
+    assert.equal(units.traits[id.elite], 0);
+    assert.equal(units.traits[id.wall], IMMOVABLE | INERT);
+    assert.deepEqual(units.get(id.grunt).data, { souls: 1 });
     assert.deepEqual([units.knockFactor[id.elite], units.knockCap[id.elite]], [0.5, 1.5]);
     assert.equal(units.knockCap[id.grunt], Infinity);
     assert.equal(units.tagSets[id.boss]?.has(UNIT_TAGS.id.boss), true);
@@ -67,15 +68,6 @@ describe('spawning (§II.6 U1)', () => {
     assert.deepEqual(grunt.ext, { marks: 0 });
     assert.throws(() => units.spawn(game.id.grunt, { side: 1, id: 2 }), /entity id 2 is already a live unit/);
     assert.deepEqual(game.log, ['spawned 1 standing>standing', 'spawned 2 standing>standing']);
-  });
-
-  it('reads the traits: objective, heavy', () => {
-    const game = makeUnitGame(TEMPLATES);
-    const wall = game.units.spawn(game.id.wall, { side: 1 });
-    const elite = game.units.spawn(game.id.elite, { side: 1 });
-
-    assert.deepEqual([game.units.isObjective(wall), game.units.isHeavy(wall)], [true, false]);
-    assert.deepEqual([game.units.isObjective(elite), game.units.isHeavy(elite)], [false, true]);
   });
 });
 

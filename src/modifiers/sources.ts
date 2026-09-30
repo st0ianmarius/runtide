@@ -8,13 +8,7 @@ export type SourceId = Id<'sources'>;
 export type SourceDef = Readonly<Record<never, never>>;
 
 /** The game's modifier sources, in fold order. */
-export type SourceTable<Name extends string = string> = Registry<
-  'sources',
-  Extract<Name, string>,
-  SourceDef,
-  never,
-  never
->;
+export type SourceTable<Name extends string = string> = Registry<'sources', Extract<Name, string>, SourceDef, never>;
 
 /** The most sources a game can declare: a fold's source filter is one 32-bit mask. */
 export const MAX_SOURCES = 32;
