@@ -1,4 +1,4 @@
-import type { AuraItem } from './active-aura.ts';
+import type { ActiveAura, AuraItem } from './active-aura.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { CHANGES } from './compile.ts';
 import { PREDICTED } from './define-auras.ts';
@@ -15,7 +15,7 @@ const REMOVED = CHANGES.indexOf('removed');
  * server's bearer had taken on each clock when they were taken (`AuraState.clocks`), which the views' end stamps count
  * against.
  */
-export interface AuraSeed {
+export interface AuraSeed<G extends AuraTypes = AuraTypes> {
   /** The views (`auras.view(bearer, out, { for: 'owner' })` on the server). */
   readonly views: readonly AuraView[];
 
@@ -27,6 +27,12 @@ export interface AuraSeed {
 
   /** The serials the server's bearer had handed out (`AuraState.serials`), which the mirror's count goes on from. */
   readonly serials: number;
+
+  /**
+   * Fills a seeded aura's game fields (its `ext`, reset) from what the game sent beside view `index`: a dash's
+   * direction its `onLand` kept, which no view carries. Nothing is restored when absent.
+   */
+  readonly restore?: (aura: ActiveAura<G>, index: number) => void;
 }
 
 /**
@@ -45,8 +51,8 @@ const setSeededClock = <G extends AuraTypes>(
 /** Puts one predicted aura back on a mirror from its view: a silent state dispatches no beats, so none is due. */
 const seedOne = <G extends AuraTypes>(
   engine: AuraEngine<G>,
-  [set, view]: readonly [AuraSet<G>, AuraView],
-  seed: AuraSeed
+  [set, view, index]: readonly [AuraSet<G>, AuraView, number],
+  seed: AuraSeed<G>
 ): void => {
   const item = engine.acquire(view.aura);
 
@@ -57,6 +63,7 @@ const seedOne = <G extends AuraTypes>(
   item.nextBeat = Number.POSITIVE_INFINITY;
   setSeededClock([set, item, view], seed.clocks[item.clock] ?? 0);
   engine.insert(set, item);
+  seed.restore?.(item, index);
 };
 
 /**
@@ -67,7 +74,11 @@ const seedOne = <G extends AuraTypes>(
  * none due. Only a silent state (a mirror's, `createState({ isSilent: true })`) may be seeded, so nothing is raised.
  * Returns how many auras it seeded.
  */
-export const seedAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], seed: AuraSeed): number => {
+export const seedAuras = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  seed: AuraSeed<G>
+): number => {
   const set = setOf<G>(bearer);
 
   if (!set.isSilent) {
@@ -88,7 +99,7 @@ export const seedAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
       const view = seed.views[i];
 
       if (view !== undefined && ((engine.flags[view.aura] ?? 0) & PREDICTED) !== 0) {
-        seedOne(engine, [set, view], seed);
+        seedOne(engine, [set, view, i], seed);
         seeded += 1;
       }
     }
@@ -103,7 +114,10 @@ export const seedAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
   return seeded;
 };
 
-/** Whether a mirror's predicted aura is what a view would seed: the same aura, serial, stacks, value, source and end. */
+/**
+ * Whether a mirror's predicted aura is what a view would seed: the same aura, serial, stacks, value, source, duration
+ * and end.
+ */
 const isSeededAs = <G extends AuraTypes>(
   [set, item, view]: readonly [AuraSet<G>, AuraItem<G>, AuraView],
   serverNow: number
@@ -116,6 +130,7 @@ const isSeededAs = <G extends AuraTypes>(
     item.stacks === view.stacks &&
     item.value === view.value &&
     item.source === view.source &&
+    item.duration === view.duration &&
     item.end === end
   );
 };
@@ -125,7 +140,7 @@ const isPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, aura: number): 
   ((engine.flags[aura] ?? 0) & PREDICTED) !== 0;
 
 /** The index of the first view of a predicted aura at or after `at`, or `count` for none. */
-const nextPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, seed: AuraSeed, at: number): number => {
+const nextPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, seed: AuraSeed<G>, at: number): number => {
   const count = seed.count ?? seed.views.length;
   let index = at;
 
@@ -144,7 +159,7 @@ const nextPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, seed: AuraSee
 export const matchesSeed = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  seed: AuraSeed
+  seed: AuraSeed<G>
 ): boolean => {
   const set = setOf<G>(bearer);
   const count = seed.count ?? seed.views.length;

@@ -160,6 +160,6 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
   clampTimeLeft: (bearer: G['bearer'], tag: AuraTagId, seconds: number) =>
     changeTimeLeft(engine, [bearer, tag], { factor: 1, cap: seconds }),
 
-  seed: (bearer: G['bearer'], seed: AuraSeed) => seedAuras(engine, bearer, seed),
-  matchesSeed: (bearer: G['bearer'], seed: AuraSeed) => matchesSeed(engine, bearer, seed)
+  seed: (bearer: G['bearer'], seed: AuraSeed<G>) => seedAuras(engine, bearer, seed),
+  matchesSeed: (bearer: G['bearer'], seed: AuraSeed<G>) => matchesSeed(engine, bearer, seed)
 });

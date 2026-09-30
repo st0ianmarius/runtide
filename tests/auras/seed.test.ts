@@ -144,6 +144,23 @@ describe('seeding a prediction mirror', () => {
     );
   });
 
+  it('lets the game restore a seeded aura’s own fields from what it sent beside the views', () => {
+    const { auras, id, server, mirror } = setUp();
+    const sent = [7];
+
+    auras.apply(server, id.dash);
+    auras.seed(mirror, {
+      views: viewsOf(auras, server, { for: 'owner' }),
+      clocks: server.auras.clocks,
+      serials: server.auras.serials,
+
+      restore: (aura, index) => {
+        aura.ext.snapshot = sent[index] ?? 0;
+      }
+    });
+    assert.equal(auras.find(mirror, id.dash)?.ext.snapshot, 7);
+  });
+
   it('seeds only the first count views when given one', () => {
     const { auras, id, server, mirror } = setUp();
     const out: AuraView[] = [];
