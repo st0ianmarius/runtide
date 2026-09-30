@@ -129,7 +129,7 @@ const indexOf = (stats: Registry<'stats', string, StatDef, StatColumn>, curves: 
       const id = curveIds.get(name);
 
       return id === undefined ? undefined : { id, curve: curves.get(id) };
-    },
+    }
   };
 };
 
@@ -159,7 +159,7 @@ const buildDerivations = (stats: Registry<'stats', string, StatDef, StatColumn>,
       out[id]?.push({
         kind: 'derives',
         from: linked(index, stats.name(id), derives.from),
-        per: derives.per,
+        per: derives.per
       });
     }
   }
@@ -214,7 +214,7 @@ export const defineStats = <const Defs extends Readonly<Record<string, StatDef<E
   options: {
     /** The game's curve table, which stats and scaled values name curves in. */
     readonly curves?: CurveTable;
-  } = {},
+  } = {}
 ): StatTable<Extract<keyof Defs, string>> => {
   type Name = Extract<keyof Defs, string>;
 
@@ -232,8 +232,8 @@ export const defineStats = <const Defs extends Readonly<Record<string, StatDef<E
       neutral: { type: 'f64', of: (def) => def.neutral ?? (def.kind === 'multiplier' ? 1 : 0) },
       min: { type: 'f64', of: (def) => def.min ?? -Infinity },
       max: { type: 'f64', of: (def) => def.max ?? Infinity },
-      isMultiplier: { type: 'u8', of: (def) => (def.kind === 'multiplier' ? 1 : 0) },
-    },
+      isMultiplier: { type: 'u8', of: (def) => (def.kind === 'multiplier' ? 1 : 0) }
+    }
   });
 
   const index = indexOf(registry, curves);
@@ -254,6 +254,6 @@ export const defineStats = <const Defs extends Readonly<Record<string, StatDef<E
     ...registry,
     index,
     curves,
-    derivations: Object.freeze(derivations.map((list) => Object.freeze(list))),
+    derivations: Object.freeze(derivations.map((list) => Object.freeze(list)))
   });
 };

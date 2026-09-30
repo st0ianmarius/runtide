@@ -195,7 +195,7 @@ const running = <G extends SpellTypes>(engine: SpellEngine<G>, handle: CastHandl
 export const setPause = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   handle: CastHandle,
-  change: { readonly bits: number; readonly isOn: boolean },
+  change: { readonly bits: number; readonly isOn: boolean }
 ): boolean => {
   const cast = running(engine, handle);
 
@@ -228,7 +228,7 @@ export const cancelCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle:
 export const delayCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   handle: CastHandle,
-  seconds: number,
+  seconds: number
 ): boolean => {
   if (!Number.isFinite(seconds)) {
     throw new RangeError(`A cast is delayed by a finite number of seconds; got ${seconds}.`);
@@ -256,11 +256,11 @@ export const delayCast = <G extends SpellTypes>(
 export const finishCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   handle: CastHandle,
-  outcome: Exclude<CastOutcome<G>, 'cancelled'>,
+  outcome: Exclude<CastOutcome<G>, 'cancelled'>
 ): boolean => {
   if (outcome === 'cancelled' || !engine.registry.outcomes.includes(outcome)) {
     throw new RangeError(
-      `A cast cannot finish as ${outcome}: name the game's outcomes in the spell registry's outcomes.`,
+      `A cast cannot finish as ${outcome}: name the game's outcomes in the spell registry's outcomes.`
     );
   }
 
@@ -281,10 +281,12 @@ export const finishCast = <G extends SpellTypes>(
 const answer = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   handle: CastHandle,
-  change: { readonly reason: G['interrupt']; readonly isOn: boolean; readonly bits: number },
+  change: { readonly reason: G['interrupt']; readonly isOn: boolean; readonly bits: number }
 ): number => {
   const cast = running(engine, handle);
+
   const answers = cast === undefined ? undefined : engine.registry.get(cast.spell).timeline?.interrupts;
+
   const reply = answers?.[change.reason];
 
   if (reply === 'cancel' && change.isOn) {
@@ -302,7 +304,7 @@ const answer = <G extends SpellTypes>(
 export const interruptCaster = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  change: { readonly reason: G['interrupt']; readonly isOn: boolean },
+  change: { readonly reason: G['interrupt']; readonly isOn: boolean }
 ): number => {
   const record = recordOf(caster);
   const { count } = record;
@@ -319,7 +321,11 @@ export const interruptCaster = <G extends SpellTypes>(
 
   try {
     for (let i = 0; i < count; i++) {
-      answered += answer(engine, handles[i] ?? NO_CAST, { reason: change.reason, isOn: change.isOn, bits });
+      answered += answer(engine, handles[i] ?? NO_CAST, {
+        reason: change.reason,
+        isOn: change.isOn,
+        bits
+      });
     }
   } finally {
     engine.giveHandles(handles, count);
@@ -354,7 +360,7 @@ export const cancelCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caste
 export const isCasting = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  spell: SpellId | undefined,
+  spell: SpellId | undefined
 ): boolean => {
   const record = recordOf(caster);
 

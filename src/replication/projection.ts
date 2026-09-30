@@ -46,7 +46,7 @@ class ProjectionRead<Host> implements FoldRead<Host> {
  */
 export const defineProjection = <Host, S extends string, C extends string, V extends string, Src extends string>(
   modifiers: ModifierSystem<Host, S, C, V, Src>,
-  spec: ProjectionSpec<NoInfer<S>, NoInfer<Extract<Src, string>>>,
+  spec: ProjectionSpec<NoInfer<S>, NoInfer<Extract<Src, string>>>
 ): StatProjection<Host> => {
   const stats = spec.stats.map((name) => {
     const id = modifiers.stats.index.idOf(name);
@@ -59,6 +59,7 @@ export const defineProjection = <Host, S extends string, C extends string, V ext
   });
 
   const sources = spec.sources === undefined ? undefined : sourceMask(modifiers.sources, spec.sources);
+
   const read = new ProjectionRead<Host>(sources);
 
   return Object.freeze({
@@ -79,6 +80,6 @@ export const defineProjection = <Host, S extends string, C extends string, V ext
       read.host = undefined;
 
       return out;
-    },
+    }
   });
 };

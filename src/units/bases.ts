@@ -116,7 +116,7 @@ export class UnitBases<G extends UnitTypes> {
     const tableBase = this.#options.registry.stats.columns.base;
 
     const names: readonly G['stat'][] = this.#options.registry.stats.names.filter(
-      (name): name is G['stat'] => name.length >= 0,
+      (name): name is G['stat'] => name.length >= 0
     );
 
     return Array.from(base).flatMap((value, stat) => {

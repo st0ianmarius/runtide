@@ -56,7 +56,7 @@ const reachLack = <G extends SpellTypes>(options: SpellSystemOptions<G>, reach: 
 /** Checks at load that spells with reach rules have a host that places casters, and a world when they test it. */
 const checkReach = <G extends SpellTypes>(
   options: SpellSystemOptions<G>,
-  plans: readonly (CastPlan<G> | undefined)[],
+  plans: readonly (CastPlan<G> | undefined)[]
 ): void => {
   for (const [id, plan] of plans.entries()) {
     const lack = plan?.reach === undefined ? undefined : reachLack(options, plan.reach);
@@ -76,7 +76,7 @@ const MAX_INTERRUPTS = 30;
  */
 const interruptBitsOf = <G extends SpellTypes>(
   registry: SpellRegistry<G>,
-  declared: readonly string[],
+  declared: readonly string[]
 ): ReadonlyMap<string, number> => {
   const names = new Set([...declared, ...registry.defs.flatMap((def) => Object.keys(def?.timeline?.interrupts ?? {}))]);
 
@@ -90,7 +90,7 @@ const interruptBitsOf = <G extends SpellTypes>(
 /** A spell's pause mask: the bits of the interrupts its timeline answers by pausing. */
 const pauseMaskOf = <G extends SpellTypes>(
   def: AnySpellDef<G> | undefined,
-  bits: ReadonlyMap<string, number>,
+  bits: ReadonlyMap<string, number>
 ): number => {
   let mask = 0;
 
@@ -117,7 +117,7 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     auras: options.auras,
     cooldowns: new Cooldowns(
       options.auras,
-      registry.defs.map((def, id) => compileCooldowns(options.auras, def, registry.names[id] ?? '')),
+      registry.defs.map((def, id) => compileCooldowns(options.auras, def, registry.names[id] ?? ''))
     ),
     procs: options.procs,
     clock: options.clock,
@@ -134,7 +134,7 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     pauseMasks: Int32Array.from(registry.defs, (def) => pauseMaskOf(def, interruptBits)),
     slots: options.slots?.size ?? 1,
     createExt: extFactory(options),
-    resetExt: options.resetExt,
+    resetExt: options.resetExt
   });
 };
 

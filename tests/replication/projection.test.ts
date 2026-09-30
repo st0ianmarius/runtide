@@ -9,7 +9,7 @@ const setUp = () => {
   const stats = defineStats({
     speed: { base: 6, kind: 'flat' },
     armor: { base: 0, kind: 'flat' },
-    damage: { base: 1, kind: 'multiplier' },
+    damage: { base: 1, kind: 'multiplier' }
   });
 
   const sources = defineSources(['gear', 'motion']);

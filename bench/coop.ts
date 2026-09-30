@@ -4,7 +4,7 @@ import {
   type AreaTriggerProcs,
   type AreaTriggerTypes,
   createAreaTriggerSystem,
-  defineAreaTriggers,
+  defineAreaTriggers
 } from '../src/area-triggers/index.ts';
 import {
   auraGates,
@@ -12,7 +12,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../src/auras/index.ts';
 import { createClock, stream } from '../src/core/index.ts';
 import {
@@ -22,7 +22,7 @@ import {
   damage,
   type DamageProcs,
   defineDamageKinds,
-  type Force,
+  type Force
 } from '../src/damage/index.ts';
 import { circle, hypot } from '../src/math/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul } from '../src/modifiers/index.ts';
@@ -35,7 +35,7 @@ import {
   defineUnitStates,
   defineUnitTags,
   type Unit,
-  type UnitProcs,
+  type UnitProcs
 } from '../src/units/index.ts';
 import { createMemoryWorld } from '../src/world/index.ts';
 
@@ -109,7 +109,7 @@ const WALK = 3.5 * DT;
 const STATS = defineStats({
   maxHealth: { base: 100, kind: 'flat' },
   speed: { base: 1, kind: 'flat' },
-  power: { base: 10, kind: 'flat' },
+  power: { base: 10, kind: 'flat' }
 });
 
 const TAGS = defineAuraTags(['stun', 'chill']);
@@ -117,13 +117,23 @@ const aura = defineAura<CoopGame>;
 
 const AURAS = defineAuras<CoopGame, 'haste' | 'chill'>({
   haste: aura({ duration: 'infinite', modifiers: [mul('speed', 1.1)] }),
-  chill: aura({ duration: 'infinite', tags: ['chill'], modifiers: [mul('speed', 0.6)] }),
+  chill: aura({ duration: 'infinite', tags: ['chill'], modifiers: [mul('speed', 0.6)] })
 });
 
 const CLOCK = createClock({ dt: DT });
 const SOURCES = defineSources(['base', 'auras']);
-const MODIFIERS = createModifierSystem({ stats: STATS, sources: SOURCES, stacks: auraStacks, held: auraGates });
-const WORLD = createMemoryWorld<Unit<CoopGame>>({ bounds: { minX: -60, minZ: -60, maxX: 60, maxZ: 60 }, dt: DT });
+
+const MODIFIERS = createModifierSystem({
+  stats: STATS,
+  sources: SOURCES,
+  stacks: auraStacks,
+  held: auraGates
+});
+
+const WORLD = createMemoryWorld<Unit<CoopGame>>({
+  bounds: { minX: -60, minZ: -60, maxX: 60, maxZ: 60 },
+  dt: DT
+});
 
 /** The blow every hero hit reuses, its target and amount set per hit. */
 type ReusedBlow = { -readonly [K in keyof BlowSpec<CoopGame>]: BlowSpec<CoopGame>[K] };
@@ -146,7 +156,7 @@ const AURA_SYSTEM = createAuraSystem<CoopGame>({
   states: ['dead', 'despawned'],
   modifiers: MODIFIERS,
   fold: 'auras',
-  host: { run: (procs, ctx) => late.procs?.runAura(procs, ctx) },
+  host: { run: (procs, ctx) => late.procs?.runAura(procs, ctx) }
 });
 
 /** Each unit's hero (the one it walks to) and its distance to it this tick, by entity id. */
@@ -157,8 +167,8 @@ const SPELL_DEFS = defineSpells<CoopGame, 'swing'>({
   swing: {
     activation: { kind: 'auto', interval: 1, ready: (caster) => (GAP[caster.id] ?? 0) <= REACH },
     target: (ctx) => heroes[CHASES[ctx.caster.id] ?? 0],
-    release: () => late.swing,
-  },
+    release: () => late.swing
+  }
 });
 
 const SPELLS = createSpellSystem<CoopGame>({
@@ -166,17 +176,21 @@ const SPELLS = createSpellSystem<CoopGame>({
   auras: AURA_SYSTEM,
   procs: () => late.procs ?? missing(),
   clock: CLOCK,
-  host: {},
+  host: {}
 });
 
-const AI = createAiSystem<CoopGame>({ spells: SPELLS, clock: CLOCK, timers: defineTimers(['pick']) });
+const AI = createAiSystem<CoopGame>({
+  spells: SPELLS,
+  clock: CLOCK,
+  timers: defineTimers(['pick'])
+});
 
 const TEMPLATES = defineUnits<CoopGame, 'grunt' | 'hero'>(
   {
     grunt: { stats: { maxHealth: 40 }, tags: ['horde'], autoAttack: 'swing' },
-    hero: { stats: { maxHealth: 1e12, speed: 1.2 }, tags: ['hero'] },
+    hero: { stats: { maxHealth: 1e12, speed: 1.2 }, tags: ['hero'] }
   },
-  { stats: STATS, tags: defineUnitTags(['horde', 'hero']) },
+  { stats: STATS, tags: defineUnitTags(['horde', 'hero']) }
 );
 
 const UNITS = createUnitSystem<CoopGame>({
@@ -186,14 +200,16 @@ const UNITS = createUnitSystem<CoopGame>({
   spells: SPELLS,
   modifiers: { system: MODIFIERS, base: 'base' },
   health: { stat: 'maxHealth' },
-  states: defineUnitStates(TAGS, { stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' } }),
+  states: defineUnitStates(TAGS, {
+    stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' }
+  })
 });
 
 const DAMAGE = createDamageSystem<CoopGame>({
   auras: AURA_SYSTEM,
   kinds: defineDamageKinds({ physical: {} }),
   stats: STATS,
-  host: { ...UNITS.damageHost, run: (procs, ctx) => late.procs?.runAura(procs, ctx) },
+  host: { ...UNITS.damageHost, run: (procs, ctx) => late.procs?.runAura(procs, ctx) }
 });
 
 /** Hits every unit a delivery caught for an amount, as a hero's area spell does. */
@@ -219,13 +235,13 @@ const KINDS: Readonly<Record<'field' | 'nova' | 'bolt' | 'pool', AnyAreaTriggerD
     shape: circle(5),
     lifetime: 'owner',
     anchor: 'owner',
-    auras: [{ aura: 'chill' }],
+    auras: [{ aura: 'chill' }]
   },
   nova: {
     shape: circle(4),
     lifetime: 'owner',
     anchor: 'owner',
-    every: [{ seconds: 0.5, onPulse: hitAll(6) }],
+    every: [{ seconds: 0.5, onPulse: hitAll(6) }]
   },
   bolt: {
     shape: circle(0.4),
@@ -238,9 +254,9 @@ const KINDS: Readonly<Record<'field' | 'nova' | 'bolt' | 'pool', AnyAreaTriggerD
       c.position.z += Math.cos(c.heading) * 20 * dt;
     },
 
-    onContact: hitAll(10),
+    onContact: hitAll(10)
   },
-  pool: { shape: circle(3), lifetime: 4, every: [{ seconds: 0.5, onPulse: hitAll(4) }] },
+  pool: { shape: circle(3), lifetime: 4, every: [{ seconds: 0.5, onPulse: hitAll(4) }] }
 };
 
 const AREA_KINDS = defineAreaTriggers<CoopGame, 'field' | 'nova' | 'bolt' | 'pool'>(KINDS);
@@ -252,7 +268,7 @@ const AREAS = createAreaTriggerSystem<CoopGame>({
   procs: () => late.procs ?? missing(),
   world: WORLD,
   clock: CLOCK,
-  host: { idOf: (unit) => unit.id },
+  host: { idOf: (unit) => unit.id }
 });
 
 late.procs = createProcSystem<CoopGame>({
@@ -262,10 +278,10 @@ late.procs = createProcSystem<CoopGame>({
     ...SPELLS.procKinds,
     ...UNITS.procKinds,
     ...AI.procKinds,
-    ...AREAS.procKinds,
+    ...AREAS.procKinds
   }),
   auras: AURA_SYSTEM,
-  host: { idOf: (unit) => unit.id },
+  host: { idOf: (unit) => unit.id }
 });
 
 /** The draw spawn points and headings take. */
@@ -280,7 +296,7 @@ const mobs: Unit<CoopGame>[] = [];
 
 /** Each wave's variant of the grunt: every mob of a wave shares its scaled bases. */
 const WAVES = [{ maxHealth: 40 }, { maxHealth: 55, power: 12 }, { maxHealth: 70, power: 14 }].map((stats) =>
-  UNITS.variant(TEMPLATES.id.grunt, stats),
+  UNITS.variant(TEMPLATES.id.grunt, stats)
 );
 
 /** A point reused for every placement, and the two positions a step reads. */
@@ -423,10 +439,10 @@ const tick = (): void => {
 /** What the co-op game did so far: the area triggers live and the mobs in reach of their hero now. */
 export const coopStats = (): { readonly live: number; readonly inReach: number } => ({
   live: AREAS.pool.live,
-  inReach: mobs.filter((mob) => (GAP[mob.id] ?? 0) <= REACH).length,
+  inReach: mobs.filter((mob) => (GAP[mob.id] ?? 0) <= REACH).length
 });
 
 /** The co-op benchmark task, and how many operations each call of its function is. */
 export const COOP_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['co-op: 350 mobs on 4 heroes, 60 Hz, fields + AoE (tick)', tick, 1],
+  ['co-op: 350 mobs on 4 heroes, 60 Hz, fields + AoE (tick)', tick, 1]
 ];

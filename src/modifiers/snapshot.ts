@@ -58,7 +58,7 @@ class Snapshot implements ScaledSnapshot, ScaledContext {
 export const snapshotScaled = (
   value: CompiledScaled,
   ctx: Pick<ScaledContext, 'caster' | 'rank'>,
-  into?: ScaledSnapshot,
+  into?: ScaledSnapshot
 ): ScaledSnapshot => {
   const snapshot = into instanceof Snapshot && into.value === value ? into : new Snapshot(value);
 

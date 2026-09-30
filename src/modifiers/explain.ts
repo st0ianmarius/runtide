@@ -125,7 +125,7 @@ const contribution = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, stacks: numb
     gate: entry.gate < 0 ? undefined : entry.gate,
     modifier: explainModifier(entry.modifier, Math.max(1, stacks)),
     stacks,
-    value,
+    value
   };
 };
 
@@ -135,7 +135,12 @@ const derivedOf = <Host>(sheet: Sheet<Host>, stat: StatId): DerivedContribution[
     if (derivation.kind === 'derives') {
       const input = derivedGain(sheet, derivation);
 
-      return { kind: 'derives', from: derivation.from, input, value: derivation.per * Math.max(0, input) };
+      return {
+        kind: 'derives',
+        from: derivation.from,
+        input,
+        value: derivation.per * Math.max(0, input)
+      };
     }
 
     const input = sheet.view.total(derivation.from);
@@ -144,7 +149,7 @@ const derivedOf = <Host>(sheet: Sheet<Host>, stat: StatId): DerivedContribution[
       kind: 'converts',
       from: derivation.from,
       input,
-      value: evaluateCurve(derivation.curve, input, sheet.view),
+      value: evaluateCurve(derivation.curve, input, sheet.view)
     };
   });
 
@@ -180,10 +185,13 @@ export const explainSheetStat = <Host>(sheet: Sheet<Host>, stat: StatId): StatEx
     adds: contributions(sheet, entriesInOrder(sheet, stat, 'adds')),
     derived: derivedOf(sheet, stat),
     muls: contributions(sheet, entriesInOrder(sheet, stat, 'muls')),
-    mins: contributions(sheet, entriesInOrder(sheet, stat, 'mins')),
+    mins: contributions(sheet, entriesInOrder(sheet, stat, 'mins'))
   };
 
-  const clamp = { min: sheet.tables.min[stat] ?? -Infinity, max: sheet.tables.max[stat] ?? Infinity };
+  const clamp = {
+    min: sheet.tables.min[stat] ?? -Infinity,
+    max: sheet.tables.max[stat] ?? Infinity
+  };
 
   return { kind: 'stat', stat, ...parts, clamp, total: clampStat(sheet, stat, totalOf(parts)) };
 };

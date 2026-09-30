@@ -13,7 +13,7 @@ import type {
   RemoveAuraProc,
   RemoveByTagProc,
   RunProc,
-  TimeLeftProc,
+  TimeLeftProc
 } from './proc-data.ts';
 import type { ProcDetail, ProcResolver } from './proc-kind.ts';
 import {
@@ -24,7 +24,7 @@ import {
   procOutcome,
   type ProcOutcome,
   type ProcTarget,
-  type ProcTypes,
+  type ProcTypes
 } from './proc-types.ts';
 
 /** The framework's proc kinds' data, by name. */
@@ -79,7 +79,7 @@ export interface CoreProcKind<Kind extends CoreProcName> {
     this: void,
     proc: CoreProcMap<G>[Kind],
     ctx: ProcContext<G>,
-    target: G['bearer'] | undefined,
+    target: G['bearer'] | undefined
   ): ProcOutcome | undefined;
 
   /** The proc with its names resolved. */
@@ -127,7 +127,7 @@ const applyAuraKind: CoreProcKind<'applyAura'> = {
       value: undefined,
       source: undefined,
       stacking: undefined,
-      payload: undefined,
+      payload: undefined
     });
 
     application.aura = aura;
@@ -148,9 +148,9 @@ const applyAuraKind: CoreProcKind<'applyAura'> = {
       aura: resolve.aura(proc.aura),
       duration: proc.duration,
       stacks: proc.stacks,
-      value: proc.value,
-    }),
-  }),
+      value: proc.value
+    })
+  })
 };
 
 /** Removes every instance of an aura; `skipped` when there was none. */
@@ -161,12 +161,12 @@ const removeAuraKind: CoreProcKind<'removeAura'> = {
     target !== undefined && ctx.auras.remove(target, frameOf(ctx).resolve.aura(proc.aura)) ? PROC_LANDED : PROC_SKIPPED,
 
   prepare: (proc, resolve) => ({ ...proc, aura: resolve.aura(proc.aura) }),
-  explain: (proc, resolve) => ({ values: { aura: resolve.aura(proc.aura) } }),
+  explain: (proc, resolve) => ({ values: { aura: resolve.aura(proc.aura) } })
 };
 
 /** The outcomes of a cleanse that removed a few auras, made once so a cleanse allocates nothing. */
 const CLEANSED: readonly ProcOutcome[] = Array.from({ length: 17 }, (_unused, amount) =>
-  procOutcome('landed', { amount }),
+  procOutcome('landed', { amount })
 );
 
 /** A cleanse; its amount is how many auras went, `skipped` when none did. */
@@ -180,7 +180,7 @@ const removeByTagKind: CoreProcKind<'removeByTag'> = {
   },
 
   prepare: (proc, resolve) => ({ ...proc, tag: resolve.tag(proc.tag) }),
-  explain: (proc, resolve) => ({ values: { tag: resolve.tag(proc.tag) } }),
+  explain: (proc, resolve) => ({ values: { tag: resolve.tag(proc.tag) } })
 };
 
 /** Throws unless a time change's factor and cap are numbers from 0. */
@@ -200,7 +200,9 @@ const timeLeftKind: CoreProcKind<'timeLeft'> = {
     }
 
     const tag = frameOf(ctx).resolve.tag(proc.tag);
+
     const scaled = proc.factor === undefined ? 0 : ctx.auras.scaleTimeLeft(target, tag, proc.factor);
+
     const clamped = proc.max === undefined ? 0 : ctx.auras.clampTimeLeft(target, tag, proc.max);
     const changed = Math.max(scaled, clamped);
 
@@ -217,9 +219,9 @@ const timeLeftKind: CoreProcKind<'timeLeft'> = {
     values: {
       tag: resolve.tag(proc.tag),
       ...(proc.factor === undefined ? {} : { factor: proc.factor }),
-      ...(proc.max === undefined ? {} : { max: proc.max }),
-    },
-  }),
+      ...(proc.max === undefined ? {} : { max: proc.max })
+    }
+  })
 };
 
 /** Hands out a resource through `host.grant`. */
@@ -241,7 +243,10 @@ const grantKind: CoreProcKind<'grant'> = {
   },
 
   prepare: (proc, resolve) => ({ ...proc, resource: resolve.resource(proc.resource) }),
-  explain: (proc, resolve) => ({ values: { resource: resolve.resource(proc.resource), amount: proc.amount } }),
+
+  explain: (proc, resolve) => ({
+    values: { resource: resolve.resource(proc.resource), amount: proc.amount }
+  })
 };
 
 /** Fills and raises an event on the procs' bus; `skipped`, filling nothing, when nothing hears it. */
@@ -265,7 +270,7 @@ const eventKind: CoreProcKind<'event'> = {
     return PROC_LANDED;
   },
 
-  explain: (proc) => ({ values: { event: proc.event } }),
+  explain: (proc) => ({ values: { event: proc.event } })
 };
 
 /** Applies its procs in order, in the same list. */
@@ -277,7 +282,7 @@ const groupKind: CoreProcKind<'group'> = {
   },
 
   prepare: (proc, resolve) => ({ ...proc, procs: resolve.procs(proc.procs) }),
-  explain: (proc) => ({ procs: proc.procs }),
+  explain: (proc) => ({ procs: proc.procs })
 };
 
 /** Applies the procs its function decides now, in the same list. */
@@ -286,7 +291,7 @@ const andThenKind: CoreProcKind<'andThen'> = {
     applyEach(ctx, proc.fn(ctx));
 
     return PROC_LANDED;
-  },
+  }
 };
 
 /** Draws one candidate now, then applies the procs decided for it, in the same list; `skipped` with none. */
@@ -301,7 +306,7 @@ const pickOneKind: CoreProcKind<'pickOne'> = {
     applyEach(ctx, proc.onPick(ctx, pick(ctx.random(proc.stream), candidates)));
 
     return PROC_LANDED;
-  },
+  }
 };
 
 /** Runs the game's code, counted under its hatch name. */
@@ -317,7 +322,7 @@ const runKind: CoreProcKind<'run'> = {
     resolve.hatch(proc.hatch);
 
     return proc;
-  },
+  }
 };
 
 /**
@@ -337,5 +342,5 @@ export const CORE_PROCS: { readonly [Kind in CoreProcName]: CoreProcKind<Kind> }
   pickOne: pickOneKind,
   run: runKind,
   cue: CUE_KIND,
-  timeLeft: timeLeftKind,
+  timeLeft: timeLeftKind
 });

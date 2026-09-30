@@ -36,7 +36,7 @@ const hasOf = <G extends AuraTypes>(engine: AuraEngine<G>, hook: CollectedHook<G
 export const collectIn = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  at: { readonly hook: CollectedHook<G>; readonly out: (ActiveAura<G> | undefined)[] },
+  at: { readonly hook: CollectedHook<G>; readonly out: (ActiveAura<G> | undefined)[] }
 ): number => {
   const { items } = setOf<G>(bearer);
   const has = hasOf(engine, at.hook);

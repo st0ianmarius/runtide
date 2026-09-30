@@ -5,7 +5,7 @@ import {
   type ConditionTable,
   conditionTest,
   type ConditionTest,
-  type ValueTable,
+  type ValueTable
 } from '../conditions/index.ts';
 import { toId } from '../core/ids.ts';
 import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
@@ -123,7 +123,11 @@ const refuse = (message: string): never => {
 /** A filter's argument resolved: a number as is, a name through the filter's resolver. */
 const filterArg = <G extends TriggerTypes, Host>(
   input: CompileInput<G, Host>,
-  at: { readonly name: string; readonly arg: number | string | undefined; readonly spec: TriggerFilterSpec<G> },
+  at: {
+    readonly name: string;
+    readonly arg: number | string | undefined;
+    readonly spec: TriggerFilterSpec<G>;
+  }
 ): number => {
   if (typeof at.arg !== 'string') {
     return at.arg ?? 0;
@@ -149,16 +153,28 @@ const anySpec = <G extends TriggerTypes, Host>(input: CompileInput<G, Host>, nam
 const compileCheck = <G extends TriggerTypes, Host>(
   input: CompileInput<G, Host>,
   at: { readonly event: TriggerEvent<G>; readonly filters: readonly string[] },
-  entry: TriggerCondition<G>,
+  entry: TriggerCondition<G>
 ): TriggerCheck<G, Host> => {
   if ('filter' in entry) {
     const spec = at.event.filters[entry.filter];
-    const arg = filterArg(input, { name: entry.filter, arg: entry.arg, spec: spec ?? anySpec(input, entry.filter) });
 
-    return { filter: at.filters.indexOf(entry.filter), spec, condition: undefined, test: undefined, arg };
+    const arg = filterArg(input, {
+      name: entry.filter,
+      arg: entry.arg,
+      spec: spec ?? anySpec(input, entry.filter)
+    });
+
+    return {
+      filter: at.filters.indexOf(entry.filter),
+      spec,
+      condition: undefined,
+      test: undefined,
+      arg
+    };
   }
 
   const conditions = input.conditions ?? refuse('tests a condition, but the system has no conditions.');
+
   const tables = { conditions: conditions.table, values: conditions.values };
   const condition = compileCondition(tables, entry, 'when');
   const { test, arg } = conditionTest(tables, condition);
@@ -224,7 +240,7 @@ interface TriggerAt {
 const compileOne = <G extends TriggerTypes, Host>(
   input: CompileInput<G, Host>,
   at: TriggerAt,
-  raw: unknown,
+  raw: unknown
 ): CompiledTrigger<G, Host> => {
   const def = isTriggerDef<G>(raw) ? raw : refuse('is not a trigger (it needs on and do).');
   const event = input.events[def.on] ?? refuse(`answers ${def.on}, which is not a trigger event.`);
@@ -241,19 +257,19 @@ const compileOne = <G extends TriggerTypes, Host>(
     icd: def.icd ?? 0,
     cooldown: def.icd === undefined ? undefined : cooldownOf(input, at),
     checks: (def.when ?? []).map((entry) => compileCheck(input, { event, filters: at.filters }, entry)),
-    procs: input.procs.prepare(def.do, `Trigger ${triggerName(at.auraName, at.index)}`),
+    procs: input.procs.prepare(def.do, `Trigger ${triggerName(at.auraName, at.index)}`)
   };
 };
 
 /** Every filter name the events carry, in declaration order. */
 const filterNames = <G extends TriggerTypes>(events: CompileInput<G, unknown>['events']): readonly string[] => [
-  ...new Set(Object.values(events).flatMap((event) => Object.keys(event?.filters ?? {}))),
+  ...new Set(Object.values(events).flatMap((event) => Object.keys(event?.filters ?? {})))
 ];
 
 /** Compiles every trigger of every aura, collecting every error before throwing them together. */
 const compileAll = <G extends TriggerTypes, Host>(
   input: CompileInput<G, Host>,
-  filters: readonly string[],
+  filters: readonly string[]
 ): CompiledTrigger<G, Host>[] => {
   const { registry } = input.auras;
   const triggers: CompiledTrigger<G, Host>[] = [];
@@ -286,7 +302,7 @@ const compileAll = <G extends TriggerTypes, Host>(
 
 /** Groups triggers by event kind, then by aura id. */
 const byEventOf = <G extends TriggerTypes, Host>(
-  triggers: readonly CompiledTrigger<G, Host>[],
+  triggers: readonly CompiledTrigger<G, Host>[]
 ): CompiledTrigger<G, Host>[][][] => {
   const byEvent: CompiledTrigger<G, Host>[][][] = [];
 
@@ -302,16 +318,16 @@ const byEventOf = <G extends TriggerTypes, Host>(
 /** The aura ids that have a trigger for each event kind, all or `party` ones only. */
 const answersOf = <G extends TriggerTypes, Host>(
   byEvent: readonly (readonly (readonly CompiledTrigger<G, Host>[] | undefined)[] | undefined)[],
-  isPartyOnly: boolean,
+  isPartyOnly: boolean
 ): (Bitset | undefined)[] =>
   Array.from(byEvent, (byAura) =>
     byAura === undefined
       ? undefined
       : createBitset(
           byAura.flatMap((list, aura) =>
-            list?.some((trigger) => !isPartyOnly || trigger.isParty) === true ? [aura] : [],
-          ),
-        ),
+            list?.some((trigger) => !isPartyOnly || trigger.isParty) === true ? [aura] : []
+          )
+        )
   );
 
 /**
@@ -335,6 +351,6 @@ export const compileTriggers = <G extends TriggerTypes, Host>(input: CompileInpu
     answers: answersOf(byEvent, false),
     partyAnswers: answersOf(byEvent, true),
     byAura,
-    filters,
+    filters
   };
 };

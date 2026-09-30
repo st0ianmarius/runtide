@@ -72,7 +72,7 @@ export const BLOW_STATUSES: readonly BlowStatus[] = Object.freeze([
   'blocked',
   'absorbed',
   'landed',
-  'avoided',
+  'avoided'
 ]);
 
 /** Resolves a status name to its code. */
@@ -135,7 +135,7 @@ const spellFilter = <Payload>(spellOf: (event: Payload) => unknown, spells: Spel
     }
 
     return id;
-  },
+  }
 });
 
 /**
@@ -160,33 +160,40 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
 
     /** The game's spells, which the `spell` filter names; it takes ids alone when absent. */
     readonly spells?: SpellNames;
-  },
+  }
 ): TriggerEvent<G> => {
   const resolveKind = kindCode(spec.kinds);
 
   return Object.freeze({
     kind,
+
     unit: (event: DamageEvent<G>) => (spec.about === 'attacker' ? event.blow?.attacker : event.blow?.target),
+
     other: (event: DamageEvent<G>) => (spec.about === 'attacker' ? event.blow?.target : event.blow?.attacker),
 
     filters: Object.freeze({
       crit: { test: (event: DamageEvent<G>) => event.blow?.isCrit === true },
       status: {
         test: (event: DamageEvent<G>, code: number) => event.blow?.status === BLOW_STATUSES[code],
-        resolve: statusCode,
+        resolve: statusCode
       },
-      damageKind: { test: (event: DamageEvent<G>, id: number) => event.blow?.kind === id, resolve: resolveKind },
-      minAmount: { test: (event: DamageEvent<G>, least: number) => (event.blow?.amount ?? 0) >= least },
+      damageKind: {
+        test: (event: DamageEvent<G>, id: number) => event.blow?.kind === id,
+        resolve: resolveKind
+      },
+      minAmount: {
+        test: (event: DamageEvent<G>, least: number) => (event.blow?.amount ?? 0) >= least
+      },
 
       outcome: {
         test: (event: DamageEvent<G>, code: number) =>
           event.blow?.outcome !== undefined && event.blow.outcome === spec.rolls?.names[code],
 
-        resolve: outcomeCode(spec.rolls),
+        resolve: outcomeCode(spec.rolls)
       },
 
-      spell: spellFilter((event: DamageEvent<G>) => event.blow?.spell, spec.spells),
-    }),
+      spell: spellFilter((event: DamageEvent<G>) => event.blow?.spell, spec.spells)
+    })
   });
 };
 
@@ -196,7 +203,7 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
  */
 export const healTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<HealEvent<G>>,
-  about: 'target' | 'healer',
+  about: 'target' | 'healer'
 ): TriggerEvent<G> =>
   Object.freeze({
     kind,
@@ -214,8 +221,10 @@ export const healTriggerEvent = <G extends DamageTypes & TriggerTypes>(
     other: (event: HealEvent<G>) => (about === 'healer' ? event.heal?.target : event.heal?.healer),
 
     filters: Object.freeze({
-      minAmount: { test: (event: HealEvent<G>, least: number) => (event.heal?.amount ?? 0) >= least },
-    }),
+      minAmount: {
+        test: (event: HealEvent<G>, least: number) => (event.heal?.amount ?? 0) >= least
+      }
+    })
   });
 
 /**
@@ -226,11 +235,13 @@ export const healTriggerEvent = <G extends DamageTypes & TriggerTypes>(
 export const deathTriggerEvent = <G extends DamageTypes & TriggerTypes>(
   kind: EventKind<DeathEvent<G>>,
   about: 'unit' | 'killer',
-  spells?: SpellNames,
+  spells?: SpellNames
 ): TriggerEvent<G> =>
   Object.freeze({
     kind,
     unit: (event: DeathEvent<G>) => (about === 'killer' ? event.death?.killer : event.death?.unit),
     other: (event: DeathEvent<G>) => (about === 'killer' ? event.death?.unit : event.death?.killer),
-    filters: Object.freeze({ spell: spellFilter((event: DeathEvent<G>) => event.death?.spell, spells) }),
+    filters: Object.freeze({
+      spell: spellFilter((event: DeathEvent<G>) => event.death?.spell, spells)
+    })
   });

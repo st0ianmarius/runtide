@@ -11,7 +11,7 @@ import type { AuraRegistry } from './define-auras.ts';
 export const auraCue = <G extends AuraTypes>(
   auras: AuraRegistry<G>,
   aura: AuraId,
-  change: AuraChange,
+  change: AuraChange
 ): CueId | undefined => auras.defs[aura]?.cues?.[change];
 
 /**

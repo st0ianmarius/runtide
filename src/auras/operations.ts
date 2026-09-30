@@ -16,7 +16,7 @@ import {
   removeByTag,
   sourceGone,
   spendStacks,
-  spendValue,
+  spendValue
 } from './remove.ts';
 import { type AuraSeed, seedAuras } from './seed.ts';
 import { setOf } from './state.ts';
@@ -65,10 +65,13 @@ type Queries<G extends AuraTypes> = Pick<
 /** The operations that change a bearer's auras. */
 export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operations<G> => ({
   apply: (bearer: G['bearer'], aura: AuraId | AuraApplication<G>) => applyAura(engine, bearer, aura),
+
   remove: (bearer: G['bearer'], aura: AuraId) => removeAura(engine, bearer, aura),
   removeByTag: (bearer: G['bearer'], tag: AuraTagId) => removeByTag(engine, bearer, tag),
   dispel: (bearer: G['bearer'], spec: Dispel<G>) => dispel(engine, bearer, spec),
+
   refresh: (bearer: G['bearer'], id: AuraId, seconds?: number) => refreshAura(engine, bearer, { id, seconds }),
+
   spendStacks: (bearer: G['bearer'], id: AuraId, count: number) => spendStacks(engine, bearer, { id, count }),
 
   spendValue: (bearer: G['bearer'], aura: AuraId | ActiveAura, amount: number) =>
@@ -79,7 +82,7 @@ export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operat
   enterState: (bearer: G['bearer'], state: G['state']) => enterState(engine, bearer, state),
   hasState: (state: string): state is G['state'] => engine.tables.stateNames.includes(state),
   sourceGone: (bearer: G['bearer'], source: number) => sourceGone(engine, bearer, source),
-  release: (bearer: G['bearer']) => releaseAll(engine, bearer),
+  release: (bearer: G['bearer']) => releaseAll(engine, bearer)
 });
 
 /** The first instance of an aura on a bearer. */
@@ -123,7 +126,9 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
     setOf<G>(bearer).items.reduce((sum, item) => (item.id === id ? sum + item.stacks : sum), 0),
 
   remaining: (bearer: G['bearer'], id: AuraId) => remainingIn(engine, bearer, id),
+
   remainingOf: (bearer: G['bearer'], aura: ActiveAura) => engine.remainingOf(setOf<G>(bearer), aura),
+
   hasTag: (bearer: G['bearer'], tag: AuraTagId) => setOf<G>(bearer).tags.has(tag),
   lengthOf: (id: AuraId, bearer: G['bearer']) => engine.lengthOf(id, bearer),
 
@@ -146,6 +151,7 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
   },
 
   view: (bearer: G['bearer'], out: AuraView[], options?: ViewOptions) => viewAuras(engine, [bearer, out], options),
+
   isPredicted: (aura: AuraId) => ((engine.flags[aura] ?? 0) & PREDICTED) !== 0,
 
   scaleTimeLeft: (bearer: G['bearer'], tag: AuraTagId, factor: number) =>
@@ -154,5 +160,5 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
   clampTimeLeft: (bearer: G['bearer'], tag: AuraTagId, seconds: number) =>
     changeTimeLeft(engine, [bearer, tag], { factor: 1, cap: seconds }),
 
-  seed: (bearer: G['bearer'], seed: AuraSeed) => seedAuras(engine, bearer, seed),
+  seed: (bearer: G['bearer'], seed: AuraSeed) => seedAuras(engine, bearer, seed)
 });

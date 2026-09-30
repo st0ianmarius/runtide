@@ -13,7 +13,7 @@ const defs = {
   shell: aura({ duration: 4, stacking: 'highest', merge: 'max', keepWhenDepleted: true }),
   well: aura({ duration: 5, stacking: () => undefined, merge: 'add' }),
   mark: aura({ duration: 2, perSource: true, merge: 'replace', tags: ['stun'] }),
-  purge: aura({ duration: 1, removes: ['poison', 'magic'] }),
+  purge: aura({ duration: 1, removes: ['poison', 'magic'] })
 };
 
 type Name = keyof typeof defs;
@@ -39,11 +39,15 @@ const step: fc.Arbitrary<Step> = fc.oneof(
     name: names,
     stacks: fc.integer({ min: -2, max: 9 }),
     value: fc.integer({ min: 0, max: 50 }),
-    source: fc.integer({ min: 1, max: 3 }),
+    source: fc.integer({ min: 1, max: 3 })
   }),
   fc.record({ kind: fc.constant('tick' as const), count: fc.integer({ min: 1, max: 12 }) }),
   fc.record({ kind: fc.constant('remove' as const), name: names }),
-  fc.record({ kind: fc.constant('spend' as const), name: names, amount: fc.integer({ min: 0, max: 60 }) }),
+  fc.record({
+    kind: fc.constant('spend' as const),
+    name: names,
+    amount: fc.integer({ min: 0, max: 60 })
+  })
 );
 
 describe('stacking and merge invariants (fast-check)', () => {
@@ -55,7 +59,12 @@ describe('stacking and merge invariants (fast-check)', () => {
 
         for (const s of steps) {
           if (s.kind === 'apply') {
-            auras.apply(u, { aura: id[s.name], stacks: s.stacks, value: s.value, source: s.source });
+            auras.apply(u, {
+              aura: id[s.name],
+              stacks: s.stacks,
+              value: s.value,
+              source: s.source
+            });
           } else if (s.kind === 'tick') {
             run(u, s.count);
           } else if (s.kind === 'remove') {
@@ -85,7 +94,7 @@ describe('stacking and merge invariants (fast-check)', () => {
           assert.ok(u.auras.tags.equals(tags));
           assert.equal(auras.pool.live, list.length);
         }
-      }),
+      })
     );
   });
 
@@ -104,10 +113,10 @@ describe('stacking and merge invariants (fast-check)', () => {
         assert.equal(auras.find(u, id.shell)?.value, Math.max(...values));
         assert.equal(
           auras.find(u, id.well)?.value,
-          values.reduce((sum, value) => sum + value, 0),
+          values.reduce((sum, value) => sum + value, 0)
         );
         assert.equal(auras.find(u, id.mark)?.value, values.at(-1));
-      }),
+      })
     );
   });
 
@@ -126,7 +135,7 @@ describe('stacking and merge invariants (fast-check)', () => {
 
         assert.equal(spent + (auras.find(u, id.shell)?.value ?? 0), start);
         assert.equal(auras.has(u, id.shell), true, 'an absorb that keeps its clock stays at 0');
-      }),
+      })
     );
   });
 });

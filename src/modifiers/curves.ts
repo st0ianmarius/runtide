@@ -126,10 +126,16 @@ export type Curve<S extends string = string> =
 export type CurveRef<S extends string = string> = Curve<S> | string;
 
 /** `x × per`. */
-export const linear = <const S extends string = never>(per: CurveParam<S>): LinearCurve<S> => ({ kind: 'linear', per });
+export const linear = <const S extends string = never>(per: CurveParam<S>): LinearCurve<S> => ({
+  kind: 'linear',
+  per
+});
 
 /** `x / per / 100`, with `per` the rating for 1% (a number, a scaled value or `byLevel(points)`). */
-export const rating = <const S extends string = never>(per: CurveParam<S>): RatingCurve<S> => ({ kind: 'rating', per });
+export const rating = <const S extends string = never>(per: CurveParam<S>): RatingCurve<S> => ({
+  kind: 'rating',
+  per
+});
 
 /** `x / (x + k)` capped at `cap`; `negative` defaults to `'zero'`. */
 export const hyperbolic = <const S extends string = never>(options: {
@@ -145,7 +151,7 @@ export const hyperbolic = <const S extends string = never>(options: {
   kind: 'hyperbolic',
   k: options.k,
   cap: options.cap,
-  negative: options.negative ?? 'zero',
+  negative: options.negative ?? 'zero'
 });
 
 /** `100 / (100 + x)`. Named `hasteCurve` because `haste(coef)` is the scaled-value helper that applies it. */
@@ -166,11 +172,14 @@ export const avoidance = <const S extends string = never>(options: {
 /** `1 − (1 − rate)^x`. */
 export const stacking = <const S extends string = never>(rate: CurveParam<S>): StackingCurve<S> => ({
   kind: 'stacking',
-  rate,
+  rate
 });
 
 /** Piecewise linear over `[x, y]` points. */
-export const table = (points: readonly (readonly [number, number])[]): TableCurve => ({ kind: 'table', points });
+export const table = (points: readonly (readonly [number, number])[]): TableCurve => ({
+  kind: 'table',
+  points
+});
 
 /** A game's own curve from a pure function. */
 const customCurve = (map: (x: number) => number): CustomCurve => ({ kind: 'custom', map });
@@ -184,8 +193,13 @@ export const byLevel = <const S extends string = 'level'>(
 
     /** Whose stat it reads; the caster by default. */
     readonly from?: 'caster' | 'target';
-  } = {},
-): Lookup<S | 'level'> => ({ kind: 'lookup', stat: options.stat ?? 'level', from: options.from ?? 'caster', points });
+  } = {}
+): Lookup<S | 'level'> => ({
+  kind: 'lookup',
+  stat: options.stat ?? 'level',
+  from: options.from ?? 'caster',
+  points
+});
 
 /** The allowed range of a numeric parameter, for the load-time check. */
 interface Range {
@@ -298,7 +312,7 @@ const toCurve = (def: Curve | ((x: number) => number)): Curve => (typeof def ===
  * game's own. Stats and scaled values name them (`curve: 'haste'`). Parameters are range-checked here.
  */
 export const defineCurves = <const Name extends string>(
-  defs: Readonly<Record<Name, Curve | ((x: number) => number)>>,
+  defs: Readonly<Record<Name, Curve | ((x: number) => number)>>
 ): CurveTable<Name> => {
   const names = Object.keys(defs).filter((key): key is Name => Object.hasOwn(defs, key));
   const curves = recordOf(names, (name) => toCurve(defs[name]));

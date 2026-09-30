@@ -16,7 +16,7 @@ export interface CompiledStats {
 
 /** Whether a spell's stats are a table of scaled values (else a function, or none). */
 export const isStatsTable = <G extends SpellTypes>(
-  stats: StatsSource<G> | undefined,
+  stats: StatsSource<G> | undefined
 ): stats is Readonly<Record<string, Scaled<G['stat']>>> => typeof stats === 'object';
 
 /** A constant compiled without a stat table: its base only, the same at every rank. */
@@ -32,7 +32,7 @@ const constantValue = (value: number, what: string): CompiledScaled => {
     terms: Object.freeze([]),
     curve: undefined,
     hasTarget: false,
-    casterStats: Object.freeze([]),
+    casterStats: Object.freeze([])
   });
 };
 
@@ -43,7 +43,7 @@ const compileEntry = <G extends SpellTypes>(
     readonly stats: StatTable<G['stat']> | undefined;
     readonly ranks: number;
     readonly what: string;
-  },
+  }
 ): CompiledScaled => {
   if (typeof value === 'number') {
     return constantValue(value, parts.what);
@@ -60,7 +60,7 @@ const compileEntry = <G extends SpellTypes>(
 export const compileStats = <G extends SpellTypes>(
   name: string,
   def: AnySpellDef<G>,
-  stats: StatTable<G['stat']> | undefined,
+  stats: StatTable<G['stat']> | undefined
 ): CompiledStats | undefined => {
   const table = def.stats;
 
@@ -74,8 +74,8 @@ export const compileStats = <G extends SpellTypes>(
   return Object.freeze({
     keys: Object.freeze(keys),
     values: Object.freeze(
-      keys.map((key) => compileEntry<G>(table[key] ?? 0, { stats, ranks, what: `Spell ${name}, ${key}` })),
-    ),
+      keys.map((key) => compileEntry<G>(table[key] ?? 0, { stats, ranks, what: `Spell ${name}, ${key}` }))
+    )
   });
 };
 
@@ -86,7 +86,7 @@ export const compileStats = <G extends SpellTypes>(
 export const compileShares = <G extends SpellTypes>(
   name: string,
   def: AnySpellDef<G>,
-  stats: StatTable<G['stat']> | undefined,
+  stats: StatTable<G['stat']> | undefined
 ): Float64Array | undefined => {
   const { scaling } = def;
 

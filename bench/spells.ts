@@ -7,7 +7,7 @@ import {
   createProcSystem,
   grant,
   type Proc,
-  type ProcOrigin,
+  type ProcOrigin
 } from '../src/procs/index.ts';
 import {
   after,
@@ -18,7 +18,7 @@ import {
   defineSpells,
   type SpellCaster,
   type SpellProcs,
-  type SpellTypes,
+  type SpellTypes
 } from '../src/spells/index.ts';
 
 /** A bench caster: an entity id, its auras and its casts. */
@@ -125,7 +125,7 @@ const STATS = defineStats({ power: { base: 10, kind: 'flat' } });
 /** The view every bench caster reads. */
 const VIEW: StatView = {
   total: (stat) => STATS.columns.base[stat] ?? 0,
-  base: (stat) => STATS.columns.base[stat] ?? 0,
+  base: (stat) => STATS.columns.base[stat] ?? 0
 };
 
 /** How many resources the bench granted, so no call is optimised away. */
@@ -140,8 +140,8 @@ const spell = defineSpell<BenchGame>();
 const ARSENAL = Object.fromEntries(
   Array.from({ length: 19 }, (_unused, i) => [
     `weapon${i}`,
-    spell({ activation: { kind: 'auto', interval: 60 }, release: () => GRANT }),
-  ]),
+    spell({ activation: { kind: 'auto', interval: 60 }, release: () => GRANT })
+  ])
 );
 
 /**
@@ -157,13 +157,13 @@ const SPELLS = defineSpells<BenchGame, string>(
       activation: { kind: 'auto', interval: 1 },
       stats: { power: scaled(10, add('power', 1)) },
       target: () => undefined,
-      release: () => GRANT,
+      release: () => GRANT
     }),
     swing: spell({
       activation: { kind: 'auto', interval: 1, ready: () => false },
       stats: { power: scaled(10, add('power', 1)) },
       target: () => undefined,
-      release: () => GRANT,
+      release: () => GRANT
     }),
     strike: spell({
       activation: { kind: 'auto', interval: 3 },
@@ -172,17 +172,17 @@ const SPELLS = defineSpells<BenchGame, string>(
         windup: { seconds: 0.5 },
         channel: { seconds: 2, every: 0.5, tick: () => GRANT },
         recover: { seconds: 0.25 },
-        interrupts: { stun: 'pause' },
+        interrupts: { stun: 'pause' }
       },
-      release: () => GRANT,
+      release: () => GRANT
     }),
     bolt: spell({
       activation: { kind: 'trigger' },
       stats: { power: scaled(10, add('power', 1)), radius: 3 },
-      release: () => GRANT,
-    }),
+      release: () => GRANT
+    })
   },
-  { stats: STATS },
+  { stats: STATS }
 );
 
 const CLOCK = createClock({ dt: 1 / 30 });
@@ -190,7 +190,7 @@ const CLOCK = createClock({ dt: 1 / 30 });
 const AURAS = createAuraSystem<BenchGame>({
   registry: defineAuras<BenchGame, never>({}),
   tags: defineAuraTags(['ward']),
-  clocks: { world: CLOCK },
+  clocks: { world: CLOCK }
 });
 
 const HOST = {
@@ -199,7 +199,7 @@ const HOST = {
 
   grant: (_unit: Unit, _resource: number, amount: number) => {
     spellCounter.granted += amount;
-  },
+  }
 };
 
 const late: { procs?: ReturnType<typeof createProcSystem<BenchGame>> } = {};
@@ -209,14 +209,14 @@ const SYSTEM = createSpellSystem<BenchGame>({
   auras: AURAS,
   procs: () => late.procs ?? missing(),
   clock: CLOCK,
-  host: HOST,
+  host: HOST
 });
 
 const PROCS = createProcSystem<BenchGame>({
   kinds: createProcRegistry<BenchGame>({ ...CORE_PROCS, ...SYSTEM.procKinds }),
   auras: AURAS,
   host: HOST,
-  resources: ['focus'],
+  resources: ['focus']
 });
 
 late.procs = PROCS;
@@ -227,7 +227,11 @@ function missing(): never {
 }
 
 /** Makes a caster. */
-const casterOf = (id: number): Unit => ({ id, auras: AURAS.createState(), casts: SYSTEM.createCasterState() });
+const casterOf = (id: number): Unit => ({
+  id,
+  auras: AURAS.createState(),
+  casts: SYSTEM.createCasterState()
+});
 
 /** The id of a bench spell. */
 const spellId = (name: string) => SPELLS.id[name] ?? missing();
@@ -287,7 +291,7 @@ const DELAYED: readonly AfterProc<BenchGame>[] = Object.freeze([after<BenchGame>
 
 /** A thousand delayed grants, all due on the next tick. */
 const THOUSAND: readonly AfterProc<BenchGame>[] = Object.freeze(
-  Array.from({ length: 1000 }, () => after<BenchGame>(0, GRANT)),
+  Array.from({ length: 1000 }, () => after<BenchGame>(0, GRANT))
 );
 
 /** Schedules one delayed list and lands it on the next tick. */
@@ -312,7 +316,7 @@ const castBolt = (): void => {
 /** How many casts the horde has in flight, and how many records it made: what the baseline reports beside the times. */
 export const spellHordeStats = (): { readonly inFlight: number; readonly created: number } => ({
   inFlight: HORDE.reduce((count, unit) => count + unit.casts.count, 0),
-  created: SYSTEM.pool.created,
+  created: SYSTEM.pool.created
 });
 
 /** 2,000 walking mobs each with a swing out of reach, polling (`lunge`) or waiting on `ready` (`swing`). */
@@ -323,7 +327,7 @@ const [POLLERS, WAITERS] = ['lunge', 'swing'].map((name, which) =>
     SYSTEM.arm(unit, spellId(name));
 
     return unit;
-  }),
+  })
 );
 
 /** One tick of a crowd's auto step. */
@@ -358,5 +362,5 @@ export const SPELL_TASKS: readonly (readonly [string, () => void, number])[] = [
   ['spells: 2,000 mobs, swing out of reach, waiting on ready (tick)', waitTick, 1000],
   ['spells: instant cast, table stats + release', castBolt, 1],
   ['spells: after(0), scheduled + landed (per list)', delayOne, 1],
-  ['spells: 1,000 after(0) landing on one tick (tick)', delayThousand, 1000],
+  ['spells: 1,000 after(0) landing on one tick (tick)', delayThousand, 1000]
 ];

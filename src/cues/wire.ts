@@ -180,7 +180,7 @@ export const createByteReader = (bytes: Uint8Array): CueReader => {
       return value;
     },
 
-    remaining: () => bytes.length - at,
+    remaining: () => bytes.length - at
   };
 };
 
@@ -234,6 +234,6 @@ export const createNumberReader = (values: readonly number[]): CueReader => {
     int: () => whole(next(), -Number.MAX_SAFE_INTEGER),
     f32: () => Math.fround(next()),
 
-    remaining: () => values.length - at,
+    remaining: () => values.length - at
   };
 };

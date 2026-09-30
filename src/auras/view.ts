@@ -68,7 +68,7 @@ const newView = (): AuraView => ({
   remaining: 0,
   end: 0,
   clock: 0,
-  source: 0,
+  source: 0
 });
 
 /**
@@ -79,7 +79,7 @@ const newView = (): AuraView => ({
 export const viewAuras = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   [bearer, out]: readonly [G['bearer'], AuraView[]],
-  options: ViewOptions = {},
+  options: ViewOptions = {}
 ): number => {
   const set = setOf<G>(bearer);
   let count = 0;

@@ -13,7 +13,7 @@ const AURA_KINDS: Readonly<Record<string, CombatEntryKind | undefined>> = {
   applied: 'auraApplied',
   refreshed: 'auraRefreshed',
   expired: 'auraExpired',
-  removed: 'auraRemoved',
+  removed: 'auraRemoved'
 };
 
 /** What the recorders write through: the entry being built, and the log's id reads. */
@@ -37,7 +37,7 @@ export interface Recording<Unit, Spell> {
 /** Records a blow: `damage`, or `immune` for one its target's ignore stage ignored. */
 export const recordBlow = <Unit, Spell>(
   recording: Recording<Unit, Spell>,
-  blow: BlowView<Unit, Spell> | undefined,
+  blow: BlowView<Unit, Spell> | undefined
 ): void => {
   if (blow === undefined) {
     return;
@@ -68,7 +68,7 @@ export const recordBlow = <Unit, Spell>(
 /** Records a heal. */
 export const recordHeal = <Unit, Spell>(
   recording: Recording<Unit, Spell>,
-  heal: HealView<Unit, Spell> | undefined,
+  heal: HealView<Unit, Spell> | undefined
 ): void => {
   if (heal === undefined) {
     return;
@@ -91,7 +91,7 @@ export const recordHeal = <Unit, Spell>(
 /** Records a death. */
 export const recordDeath = <Unit, Spell>(
   recording: Recording<Unit, Spell>,
-  death: DeathView<Unit, Spell> | undefined,
+  death: DeathView<Unit, Spell> | undefined
 ): void => {
   if (death === undefined) {
     return;

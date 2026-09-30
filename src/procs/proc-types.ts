@@ -73,13 +73,25 @@ export interface ProcOutcome {
 }
 
 /** An outcome of a proc that did not go off. */
-export const PROC_SKIPPED: ProcOutcome = Object.freeze({ status: 'skipped', amount: 0, hasKilled: false });
+export const PROC_SKIPPED: ProcOutcome = Object.freeze({
+  status: 'skipped',
+  amount: 0,
+  hasKilled: false
+});
 
 /** An outcome of a proc that landed and counts nothing. */
-export const PROC_LANDED: ProcOutcome = Object.freeze({ status: 'landed', amount: 0, hasKilled: false });
+export const PROC_LANDED: ProcOutcome = Object.freeze({
+  status: 'landed',
+  amount: 0,
+  hasKilled: false
+});
 
 /** An outcome of a proc its target turned away. */
-export const PROC_REFUSED: ProcOutcome = Object.freeze({ status: 'refused', amount: 0, hasKilled: false });
+export const PROC_REFUSED: ProcOutcome = Object.freeze({
+  status: 'refused',
+  amount: 0,
+  hasKilled: false
+});
 
 /** Builds an outcome, for a proc kind that reports an amount or a kill; the constants cover the rest. */
 export const procOutcome = (
@@ -90,7 +102,7 @@ export const procOutcome = (
 
     /** Whether it killed its target. */
     readonly hasKilled?: boolean;
-  } = {},
+  } = {}
 ): ProcOutcome => Object.freeze({ status, amount: options.amount ?? 0, hasKilled: options.hasKilled ?? false });
 
 /**

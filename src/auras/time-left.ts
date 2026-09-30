@@ -21,7 +21,7 @@ export interface TimeChange {
 const setTimeLeft = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   [set, item]: readonly [AuraSet<G>, AuraItem<G>],
-  seconds: number,
+  seconds: number
 ): void => {
   item.end = (set.clocks[item.clock] ?? 0) + engine.stepsFor(item, seconds);
   set.noteEnd(item);
@@ -35,7 +35,7 @@ const setTimeLeft = <G extends AuraTypes>(
 export const changeTimeLeft = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   [bearer, tag]: readonly [G['bearer'], AuraTagId],
-  change: TimeChange,
+  change: TimeChange
 ): number => {
   if (!(change.factor >= 0) || !(change.cap >= 0)) {
     throw new RangeError(`A time change takes a factor and a cap from 0; got ${change.factor} and ${change.cap}.`);

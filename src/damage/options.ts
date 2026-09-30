@@ -59,7 +59,7 @@ export type HealStage<G extends DamageTypes> = (heal: HealState<G>, damage: Dama
 /** A game's own force stage: it reads and changes the force, and may cancel it (`ignored`). */
 export type ForceStage<G extends DamageTypes> = (
   force: ForceState<G>,
-  damage: DamageSystem<G>,
+  damage: DamageSystem<G>
 ) => 'ignored' | undefined;
 
 /** One step of the death pipeline's reward slots: the game's own code, such as a loot roll. */

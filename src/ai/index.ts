@@ -17,7 +17,7 @@ export {
   setFocus,
   type SetFocusProc,
   setTimer,
-  type SetTimerProc,
+  type SetTimerProc
 } from './procs.ts';
 
 export { type AiSystem, type AiSystemOptions, createAiSystem } from './system.ts';

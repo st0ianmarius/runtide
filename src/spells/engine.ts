@@ -166,7 +166,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     this.#resetExt = parts.resetExt;
     this.delayed = new DelayedProcs<G>(this, parts.slots);
     this.pool = createPool({
-      create: () => new Cast<G>(this, this.#pending ?? missing('a caster'), parts.createExt()),
+      create: () => new Cast<G>(this, this.#pending ?? missing('a caster'), parts.createExt())
     });
   }
 

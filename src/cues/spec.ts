@@ -159,7 +159,7 @@ const suits = (def: CueParamDef, value: unknown): boolean => {
 export const checkCueSpec = (
   registry: CueRegistry,
   spec: Pick<CueSpec, 'cue' | 'params' | 'key'>,
-  what: string,
+  what: string
 ): void => {
   const def = registry.schemas[spec.cue] === undefined ? undefined : registry.get(spec.cue);
 

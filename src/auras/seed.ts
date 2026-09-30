@@ -35,7 +35,7 @@ export interface AuraSeed {
  */
 const setSeededClock = <G extends AuraTypes>(
   [set, item, view]: readonly [AuraSet<G>, AuraItem<G>, AuraView],
-  serverNow: number,
+  serverNow: number
 ): void => {
   item.duration = view.duration;
   item.end = Number.isFinite(view.remaining)
@@ -48,7 +48,7 @@ const setSeededClock = <G extends AuraTypes>(
 const seedOne = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   [set, view]: readonly [AuraSet<G>, AuraView],
-  seed: AuraSeed,
+  seed: AuraSeed
 ): void => {
   const item = engine.acquire(view.aura);
 

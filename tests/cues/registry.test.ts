@@ -7,7 +7,10 @@ import { invalid } from '../helpers/trigger-game.ts';
 
 /** A neutral cue table: one cue per anchor, params of every kind, and a retired slot. */
 const TABLE = {
-  struck: defineCue({ anchor: 'entity', params: { amount: { kind: 'int' }, heavy: { kind: 'uint8' } } }),
+  struck: defineCue({
+    anchor: 'entity',
+    params: { amount: { kind: 'int' }, heavy: { kind: 'uint8' } }
+  }),
   retired: TOMBSTONE,
   flare: defineCue({
     anchor: 'target',
@@ -19,11 +22,11 @@ const TABLE = {
       trail: { kind: 'vec2[]', scale: 10 },
       glow: { kind: 'f32', default: 0.5 },
       spell: { kind: 'id' },
-      mark: { kind: 'entity' },
-    },
+      mark: { kind: 'entity' }
+    }
   }),
   gong: defineCue({ anchor: 'world' }),
-  step: defineCue({ anchor: 'self', audience: 'owner', isPredicted: true }),
+  step: defineCue({ anchor: 'self', audience: 'owner', isPredicted: true })
 } as const;
 
 /** One cue definition to refuse, alone in a registry. */
@@ -73,8 +76,8 @@ describe('defineCues', () => {
         ['trail', 6, 4, 10],
         ['glow', 0, 6, 1],
         ['spell', 8, 7, 1],
-        ['mark', 7, 8, 1],
-      ],
+        ['mark', 7, 8, 1]
+      ]
     );
     assert.deepEqual(Array.from(schema?.defaults ?? []), [0, 1.5, 0.25, -1, 0, 0, 0.5, 0, -1]);
     assert.deepEqual(Array.from(schema?.wireDefaults ?? []), [0, 150, 5, -20, 0, 0, 0.5, 0, -1]);
@@ -94,7 +97,7 @@ describe('defineCues', () => {
     assert.throws(refused(invalid(TABLE.gong, { audience: 'guild' })), /Cue bad: unknown audience guild/);
     assert.throws(
       refused({ anchor: 'self', params: { word: invalid({ kind: 'int' }, { kind: 'text' }) } }),
-      /Cue bad: word has no known kind/,
+      /Cue bad: word has no known kind/
     );
 
     const params = Object.fromEntries(Array.from({ length: 31 }, (_unused, i) => [`p${i}`, { kind: 'int' as const }]));
@@ -131,7 +134,7 @@ describe('defineCues', () => {
     assert.throws(refused({ anchor: 'entity', isPredicted: true }), /predicted cue cannot be anchored to an entity/);
     assert.throws(
       refused({ anchor: 'self', isPredicted: true, params: { who: { kind: 'entity' } } }),
-      /predicted cue cannot carry the entity param who/,
+      /predicted cue cannot carry the entity param who/
     );
   });
 });

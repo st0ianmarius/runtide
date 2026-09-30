@@ -17,7 +17,7 @@ const CORE_ORDER = [
   'pickOne',
   'run',
   'cue',
-  'timeLeft',
+  'timeLeft'
 ];
 
 describe('the proc registry', () => {
@@ -63,11 +63,11 @@ describe('the escape report', () => {
       procKinds: ['strike'],
       runs: [
         { hatch: 'mark', count: 2 },
-        { hatch: 'coil.detect', count: 0 },
+        { hatch: 'coil.detect', count: 0 }
       ],
       stages: [],
       activationKinds: [],
-      queryExtensions: [],
+      queryExtensions: []
     });
   });
 
@@ -76,7 +76,7 @@ describe('the escape report', () => {
 
     const world = createMemoryWorld({ bounds: { minX: 0, minZ: 0, maxX: 1, maxZ: 1 } }, () => ({
       squareClear: () => true,
-      passage: () => undefined,
+      passage: () => undefined
     }));
 
     assert.deepEqual(escapeReport({ procs, world }).queryExtensions, ['squareClear', 'passage']);
@@ -94,8 +94,8 @@ describe('explainProc', () => {
         procs: [
           { kind: 'applyAura', aura: 'mark', to: 'eventUnit', duration: 3 },
           { kind: 'strike', amount: 40 },
-          { kind: 'grant', resource: 'shards', amount: 2, to: 'party' },
-        ],
+          { kind: 'grant', resource: 'shards', amount: 2, to: 'party' }
+        ]
       }),
       {
         kind: 'proc',
@@ -104,11 +104,25 @@ describe('explainProc', () => {
         to: 'none',
         values: {},
         procs: [
-          { kind: 'proc', proc: 0, chance: 1, to: 'eventUnit', values: { aura: id.mark, duration: 3 }, procs: [] },
+          {
+            kind: 'proc',
+            proc: 0,
+            chance: 1,
+            to: 'eventUnit',
+            values: { aura: id.mark, duration: 3 },
+            procs: []
+          },
           { kind: 'proc', proc: 11, chance: 1, to: 'target', values: { amount: 40 }, procs: [] },
-          { kind: 'proc', proc: 3, chance: 1, to: 'party', values: { resource: 1, amount: 2 }, procs: [] },
-        ],
-      },
+          {
+            kind: 'proc',
+            proc: 3,
+            chance: 1,
+            to: 'party',
+            values: { resource: 1, amount: 2 },
+            procs: []
+          }
+        ]
+      }
     );
   });
 });

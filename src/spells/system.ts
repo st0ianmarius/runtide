@@ -11,7 +11,7 @@ import {
   type CastRequest,
   MutableRequest,
   NO_OPTIONS,
-  Report,
+  Report
 } from './cast-request.ts';
 import { CasterRecord, type CasterState, recordOf } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
@@ -35,7 +35,7 @@ import {
   MANUAL_PAUSE,
   setPause,
   stepCaster,
-  unholdCast,
+  unholdCast
 } from './stepper.ts';
 import type { SpellSystemOptions } from './system-options.ts';
 import { type CastView, viewCast } from './view.ts';
@@ -56,7 +56,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     this.#engine = engine;
     this.registry = engine.registry;
     this.#cooldownAuras = engine.registry.ids.map((id) =>
-      Object.freeze(engine.cooldowns.of(id).map((cooldown) => cooldown.aura)),
+      Object.freeze(engine.cooldowns.of(id).map((cooldown) => cooldown.aura))
     );
 
     this.pool = {
@@ -66,7 +66,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
       get live() {
         return engine.pool.live;
-      },
+      }
     };
     this.delayed = {
       get pending() {
@@ -75,7 +75,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
       get created() {
         return engine.delayed.created;
-      },
+      }
     };
     this.procKinds = createSpellProcKinds({ engine, cast: this.cast });
     this.gameActivations = gameActivationsOf(engine.registry.activations);

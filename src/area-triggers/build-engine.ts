@@ -32,7 +32,7 @@ const extFactory = <G extends AreaTriggerTypes>(options: AreaTriggerSystemOption
 const ownerAuraOf = <G extends AreaTriggerTypes>(
   auras: AuraSystem<G>,
   def: AnyAreaTriggerDef<G> | undefined,
-  name: string,
+  name: string
 ): AuraId | undefined => {
   const aura = def?.ownerAura;
 
@@ -49,7 +49,7 @@ const ownerAuraOf = <G extends AreaTriggerTypes>(
 
   if (auras.registry.get(id).duration !== 'infinite') {
     throw new RangeError(
-      `Area trigger ${name}: its owner aura lasts while the kind lives, so its duration is 'infinite'.`,
+      `Area trigger ${name}: its owner aura lasts while the kind lives, so its duration is 'infinite'.`
     );
   }
 
@@ -60,7 +60,7 @@ const ownerAuraOf = <G extends AreaTriggerTypes>(
 const areaAurasOf = <G extends AreaTriggerTypes>(
   auras: AuraSystem<G>,
   def: AnyAreaTriggerDef<G> | undefined,
-  name: string,
+  name: string
 ): readonly AuraId[] | undefined => {
   const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
 
@@ -78,7 +78,7 @@ const areaAurasOf = <G extends AreaTriggerTypes>(
 /** The kinds each slot steps, in kind order; throws for a kind whose slot the game did not declare. */
 const slotKindsOf = <G extends AreaTriggerTypes>(
   registry: AreaTriggerRegistry<G>,
-  slots: number,
+  slots: number
 ): readonly (readonly number[])[] => {
   const kinds: number[][] = Array.from({ length: slots }, () => []);
 
@@ -127,6 +127,6 @@ export const areaEngineOf = <G extends AreaTriggerTypes>(options: AreaTriggerSys
     slotKinds: slotKindsOf(registry, options.slots?.size ?? 1),
     areaAuras: registry.defs.map((def, id) => areaAurasOf(options.auras, def, registry.names[id] ?? '')),
     createExt: extFactory(options),
-    resetExt: options.resetExt,
+    resetExt: options.resetExt
   });
 };

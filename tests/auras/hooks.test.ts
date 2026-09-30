@@ -13,8 +13,8 @@ describe('game fields and landing', () => {
 
         onLand: (ctx, application) => {
           ctx.aura.ext.snapshot = Math.max(ctx.aura.ext.snapshot, application.payload ?? 0);
-        },
-      }),
+        }
+      })
     });
 
     const u = unit();
@@ -41,10 +41,10 @@ describe('game fields and landing', () => {
             seen.push(ctx.stats?.total(table.id.armor) ?? 0);
 
             return undefined;
-          },
-        }),
+          }
+        })
       },
-      { host: { statsOf: () => stats } },
+      { host: { statsOf: () => stats } }
     );
 
     auras.apply(unit(), id.haste);
@@ -58,12 +58,16 @@ describe('damage hook declarations', () => {
       shield: aura({
         duration: 10,
         value: 50,
-        onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow) }),
+        onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow) })
       }),
 
       plain: aura({ duration: 10 }),
-      guard: aura({ duration: 10, onIncomingDamage: () => ({ scale: 0.5 }), onIgnore: (_ctx, blow) => blow < 1 }),
-      escape: aura({ duration: 10, onLethal: () => ({ prevent: true, procs: ['heal'] }) }),
+      guard: aura({
+        duration: 10,
+        onIncomingDamage: () => ({ scale: 0.5 }),
+        onIgnore: (_ctx, blow) => blow < 1
+      }),
+      escape: aura({ duration: 10, onLethal: () => ({ prevent: true, procs: ['heal'] }) })
     });
 
     const u = unit();
@@ -76,18 +80,18 @@ describe('damage hook declarations', () => {
     assert.equal(auras.collect(u, 'onIncomingDamage', out), 2);
     assert.deepEqual(
       out.map((a) => a?.id),
-      [id.shield, id.guard],
+      [id.shield, id.guard]
     );
     assert.deepEqual(
       out.map((a) =>
-        a === undefined ? undefined : auras.registry.get(a.id).onIncomingDamage?.(auras.context(u, a), 80),
+        a === undefined ? undefined : auras.registry.get(a.id).onIncomingDamage?.(auras.context(u, a), 80)
       ),
-      [{ absorb: 50 }, { scale: 0.5 }],
+      [{ absorb: 50 }, { scale: 0.5 }]
     );
     assert.equal(auras.collect(u, 'onLethal', out), 1);
     assert.deepEqual(
       out.map((a) => a?.id),
-      [id.escape, undefined],
+      [id.escape, undefined]
     );
     assert.equal(auras.registry.has.onIgnore.has(id.guard), true);
   });

@@ -6,7 +6,7 @@ import {
   auraStacks,
   createAuraSystem,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../src/auras/index.ts';
 import { defineConditions } from '../src/conditions/index.ts';
 import {
@@ -17,7 +17,7 @@ import {
   type Id,
   roll,
   rollKey,
-  stream,
+  stream
 } from '../src/core/index.ts';
 import {
   add,
@@ -33,7 +33,7 @@ import {
   plus,
   ranks,
   scaled,
-  snapshotScaled,
+  snapshotScaled
 } from '../src/modifiers/index.ts';
 import { ABILITY_TASKS, abilityCounter } from './abilities.ts';
 import { AREA_TASKS, areaCounter, areaStats } from './area-triggers.ts';
@@ -53,13 +53,13 @@ const SPELLS = createRegistry(
   Object.fromEntries(
     Array.from({ length: 256 }, (_unused, index) => [
       `spell${index}`,
-      { cooldown: index % 17, onHit: index % 2 === 0 ? (): number => index : undefined },
-    ]),
+      { cooldown: index % 17, onHit: index % 2 === 0 ? (): number => index : undefined }
+    ])
   ),
   {
     kind: 'spells',
-    columns: { cooldown: { type: 'f64', of: (def) => def.cooldown } },
-  },
+    columns: { cooldown: { type: 'f64', of: (def) => def.cooldown } }
+  }
 );
 
 /** The spells' `onHit` dispatch table and `has` bitset, as a system builds its own over a registry's definitions. */
@@ -88,17 +88,20 @@ const STATS = defineStats({
   abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
   maxHealth: { base: 600, kind: 'flat' },
   damage: { base: 1, kind: 'multiplier' },
-  moveSpeed: { base: 0, kind: 'flat', min: 0 },
+  moveSpeed: { base: 0, kind: 'flat', min: 0 }
 });
 
 const SOURCES = defineSources(['race', 'gear', 'banner', 'talents', 'auras', 'stance']);
-const CONDITIONS = defineConditions({ healthBelow: (bearer: Bearer, share) => bearer.hp < 100 * share });
+
+const CONDITIONS = defineConditions({
+  healthBelow: (bearer: Bearer, share) => bearer.hp < 100 * share
+});
 
 const MODIFIERS = createModifierSystem({
   stats: STATS,
   sources: SOURCES,
   conditions: CONDITIONS,
-  stacks: (bearer: Bearer, gate) => bearer.stacks[gate] ?? 0,
+  stacks: (bearer: Bearer, gate) => bearer.stacks[gate] ?? 0
 });
 
 const SHEET = MODIFIERS.createSheet();
@@ -110,10 +113,10 @@ MODIFIERS.setSource(SHEET, SOURCES.id.gear, [MODIFIERS.compile([mul('damage', 1.
 MODIFIERS.setSource(SHEET, SOURCES.id.talents, [MODIFIERS.compile([plus('damage', 0.25), mul('moveSpeed', 1.1)])]);
 MODIFIERS.share(SOURCES.id.auras, [
   MODIFIERS.compile([mul('damage', 1.2), mul('moveSpeed', 1.3)], { gate: 0 }),
-  MODIFIERS.compile([mul('damage', 1.05)], { gate: 2 }),
+  MODIFIERS.compile([mul('damage', 1.05)], { gate: 2 })
 ]);
 MODIFIERS.setSource(SHEET, SOURCES.id.stance, [
-  MODIFIERS.compile([mul('damage', 1.5, { when: { is: 'healthBelow', arg: 0.4 } }), mul('moveSpeed', 1.2)]),
+  MODIFIERS.compile([mul('damage', 1.5, { when: { is: 'healthBelow', arg: 0.4 } }), mul('moveSpeed', 1.2)])
 ]);
 
 const CASTER = MODIFIERS.view(SHEET, READ);
@@ -126,9 +129,9 @@ const DAMAGE = compileScaled(
     add('attackDamage', 1.2),
     add('abilityPower', 0.5),
     add('maxHealth', 0.08, { from: 'target' }),
-    amp('damage', 1.1),
+    amp('damage', 1.1)
   ),
-  { ranks: 3 },
+  { ranks: 3 }
 );
 
 const COOLDOWN = compileScaled(STATS, scaled(12, haste(0.5)));
@@ -139,7 +142,7 @@ const SNAPSHOT = snapshotScaled(DAMAGE, { caster: CASTER, rank: 2 });
 const AURA_STATS = defineStats({
   damage: { base: 1, kind: 'multiplier' },
   armor: { base: 0, kind: 'flat' },
-  moveSpeed: { base: 6, kind: 'flat' },
+  moveSpeed: { base: 6, kind: 'flat' }
 });
 
 const AURA_SOURCES = defineSources(['base', 'auras']);
@@ -148,16 +151,21 @@ const AURA_MODIFIERS = createModifierSystem({
   stats: AURA_STATS,
   sources: AURA_SOURCES,
   stacks: auraStacks,
-  held: auraGates,
+  held: auraGates
 });
 
 const AURAS = defineAuras({
-  might: { duration: 8, stacking: 'stack', maxStacks: 5, modifiers: [plus('armor', 10), mul('damage', 1.05)] },
+  might: {
+    duration: 8,
+    stacking: 'stack',
+    maxStacks: 5,
+    modifiers: [plus('armor', 10), mul('damage', 1.05)]
+  },
   fury: { duration: 6, modifiers: [mul('damage', 1.2)] },
   haste: { duration: 4, stacking: 'highest', modifiers: [mul('moveSpeed', 1.3)] },
   dot: { duration: 'infinite', periodic: { every: 0.5, onBeat: () => BEAT } },
   ward: { duration: 'infinite', value: 50, tags: ['guarded'] },
-  slow: { duration: 'infinite', modifiers: [mul('moveSpeed', 0.7)] },
+  slow: { duration: 'infinite', modifiers: [mul('moveSpeed', 0.7)] }
 });
 
 const BEAT: readonly string[] = ['burn'];
@@ -172,8 +180,8 @@ const AURA_SYSTEM = createAuraSystem({
   host: {
     run: (procs) => {
       sink += procs.length;
-    },
-  },
+    }
+  }
 });
 
 const AURA_BEARER: AuraBearer = { auras: AURA_SYSTEM.createState() };
@@ -185,16 +193,19 @@ const CATALOGUE_MODIFIERS = createModifierSystem({
   stats: AURA_STATS,
   sources: AURA_SOURCES,
   stacks: auraStacks,
-  held: auraGates,
+  held: auraGates
 });
 
 const CATALOGUE = defineAuras(
   Object.fromEntries(
     Array.from({ length: 120 }, (_unused, i) => [
       `a${i}`,
-      { duration: 'infinite' as const, modifiers: [mul('moveSpeed', 1 + i / 1000), plus('armor', 1)] },
-    ]),
-  ),
+      {
+        duration: 'infinite' as const,
+        modifiers: [mul('moveSpeed', 1 + i / 1000), plus('armor', 1)]
+      }
+    ])
+  )
 );
 
 const CATALOGUE_SYSTEM = createAuraSystem({
@@ -203,7 +214,7 @@ const CATALOGUE_SYSTEM = createAuraSystem({
   clocks: { world: createClock({ dt: 1 / 60 }) },
   modifiers: CATALOGUE_MODIFIERS,
   fold: 'auras',
-  host: { run: () => undefined },
+  host: { run: () => undefined }
 });
 
 const CATALOGUE_BEARER: AuraBearer = { auras: CATALOGUE_SYSTEM.createState() };
@@ -243,7 +254,7 @@ const PASSIVES: AuraBearer[] = Array.from({ length: 2000 }, () => {
 /** Operations per call of each task, where it is not `BATCH`. */
 const BATCHES = new Map([
   ['aura tick, 2,000 bearers x 3 auras (per tick)', 1],
-  ['aura tick, 2,000 bearers x 2 auras, nothing due (per tick)', 1],
+  ['aura tick, 2,000 bearers x 2 auras, nothing due (per tick)', 1]
 ]);
 
 const bench = new Bench({ time: 400, warmup: true });
@@ -365,7 +376,7 @@ for (const [name, task, blows] of [
   ...AREA_TASKS,
   ...ABILITY_TASKS,
   ...LOG_TASKS,
-  ...UNIT_TASKS,
+  ...UNIT_TASKS
 ]) {
   const calls = Math.max(1, BATCH / blows);
 
@@ -437,6 +448,7 @@ const party = coopStats();
 const rows = [...bench.tasks, ...last.tasks, ...coop.tasks].map((task) => {
   const { result } = task;
   const batch = BATCHES.get(task.name) ?? BATCH;
+
   const nanoseconds = result.state === 'completed' ? (result.latency.mean * 1e6) / batch : Number.NaN;
 
   return `${task.name.padEnd(48)} ${nanoseconds.toFixed(1).padStart(8)} ns/op`;
@@ -447,5 +459,5 @@ process.stdout.write(
     `one cue tick is ${CUE_TICK_BYTES} bytes; ${horde.inFlight} of 2,000 casters have a spell in flight, ` +
     `${horde.created} cast records made; ${areas.live} area triggers live, ${areas.created} records made; ` +
     `${whole.inReach} of the whole game's mobs in reach, ${whole.swings} swings landed; ` +
-    `${party.inReach} of the co-op game's mobs in reach, ${party.live} area triggers live)\n`,
+    `${party.inReach} of the co-op game's mobs in reach, ${party.live} area triggers live)\n`
 );

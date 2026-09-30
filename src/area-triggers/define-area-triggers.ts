@@ -5,7 +5,7 @@ import {
   createRegistry,
   type Registry,
   TOMBSTONE,
-  type Tombstone,
+  type Tombstone
 } from '../core/index.ts';
 import { checkAreaTrigger } from './area-checks.ts';
 import type { AnyAreaTriggerDef, EndReason } from './area-def.ts';
@@ -48,7 +48,7 @@ export type AreaTriggerHookTables<G extends AreaTriggerTypes> = {
  */
 export interface AreaTriggerRegistry<
   G extends AreaTriggerTypes = AreaTriggerTypes,
-  Name extends string = string,
+  Name extends string = string
 > extends Registry<'areaTriggers', Name, AnyAreaTriggerDef<G>, AreaTriggerColumn> {
   /** The dispatch table of every area trigger hook. */
   readonly hooks: AreaTriggerHookTables<G>;
@@ -108,7 +108,7 @@ const isDef = <G extends AreaTriggerTypes>(entry: AnyAreaTriggerDef<G> | Tombsto
 
 /** The definition of a registry entry, or `undefined` for a tombstone or a missing name. */
 const liveDef = <G extends AreaTriggerTypes>(
-  entry: AnyAreaTriggerDef<G> | Tombstone | undefined,
+  entry: AnyAreaTriggerDef<G> | Tombstone | undefined
 ): AnyAreaTriggerDef<G> | undefined => (entry !== undefined && isDef(entry) ? entry : undefined);
 
 /** The flag bits of a definition. */
@@ -148,7 +148,7 @@ const limitOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G>): number 
 const columnOf = <G extends AreaTriggerTypes, C extends Column>(
   column: C,
   slots: readonly (AnyAreaTriggerDef<G> | undefined)[],
-  of: (def: AnyAreaTriggerDef<G>) => number,
+  of: (def: AnyAreaTriggerDef<G>) => number
 ): C => {
   for (const [index, def] of slots.entries()) {
     column[index] = def === undefined ? 0 : of(def);
@@ -159,7 +159,7 @@ const columnOf = <G extends AreaTriggerTypes, C extends Column>(
 
 /** The typed hot-field columns. */
 const buildColumns = <G extends AreaTriggerTypes>(
-  slots: readonly (AnyAreaTriggerDef<G> | undefined)[],
+  slots: readonly (AnyAreaTriggerDef<G> | undefined)[]
 ): Record<AreaTriggerColumn, Column> => {
   const size = slots.length;
 
@@ -168,19 +168,19 @@ const buildColumns = <G extends AreaTriggerTypes>(
     flags: columnOf(new Uint8Array(size), slots, flagsOf),
     lifetime: columnOf(new Float64Array(size), slots, secondsOf),
     lifetimeKind: columnOf(new Uint8Array(size), slots, lifetimeKindOf),
-    limit: columnOf(new Float64Array(size), slots, limitOf),
+    limit: columnOf(new Float64Array(size), slots, limitOf)
   };
 };
 
 /** The dispatch table of one hook. */
 const tableOf = <G extends AreaTriggerTypes, Hook extends AreaTriggerHookName>(
   slots: readonly (AnyAreaTriggerDef<G> | undefined)[],
-  hook: Hook,
+  hook: Hook
 ): readonly (AnyAreaTriggerDef<G>[Hook] | undefined)[] => Object.freeze(slots.map((def) => def?.[hook]));
 
 /** The dispatch tables of every hook. */
 const buildHooks = <G extends AreaTriggerTypes>(
-  slots: readonly (AnyAreaTriggerDef<G> | undefined)[],
+  slots: readonly (AnyAreaTriggerDef<G> | undefined)[]
 ): AreaTriggerHookTables<G> => ({
   state: tableOf(slots, 'state'),
   init: tableOf(slots, 'init'),
@@ -189,7 +189,7 @@ const buildHooks = <G extends AreaTriggerTypes>(
   onContact: tableOf(slots, 'onContact'),
   onLand: tableOf(slots, 'onLand'),
   onExpire: tableOf(slots, 'onExpire'),
-  onEnd: tableOf(slots, 'onEnd'),
+  onEnd: tableOf(slots, 'onEnd')
 });
 
 /** The table of no area trigger tags, for a game that declares none. */
@@ -203,7 +203,7 @@ const NO_TAGS: AreaTagTable = createRegistry({}, { kind: 'areaTags' });
  */
 export const defineAreaTriggers = <G extends AreaTriggerTypes, const Name extends string>(
   defs: Readonly<Record<Name, AnyAreaTriggerDef<G> | Tombstone>>,
-  options: AreaTriggerRegistryOptions<G> = {},
+  options: AreaTriggerRegistryOptions<G> = {}
 ): AreaTriggerRegistry<G, Name> => {
   const tags = options.tags ?? NO_TAGS;
   const byName = new Map(Object.entries<AnyAreaTriggerDef<G> | Tombstone>(defs));
@@ -221,7 +221,7 @@ export const defineAreaTriggers = <G extends AreaTriggerTypes, const Name extend
   const base = createRegistry<Readonly<Record<string, object>>, 'areaTriggers'>(defs, {
     kind: 'areaTriggers',
     ...(order === undefined ? {} : { order }),
-    ...(freeze === undefined ? {} : { freeze }),
+    ...(freeze === undefined ? {} : { freeze })
   });
 
   const slots = Object.freeze(base.names.map((name) => liveDef(byName.get(name))));
@@ -244,6 +244,6 @@ export const defineAreaTriggers = <G extends AreaTriggerTypes, const Name extend
     tagSets: Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => tagIds[tag] ?? 0)))),
     replication: Object.freeze(slots.map((def, id) => compileReplication(base.names[id] ?? '?', def))),
     endReasons,
-    reasonCodes: Object.freeze(Object.fromEntries(endReasons.map((reason, code) => [reason, code]))),
+    reasonCodes: Object.freeze(Object.fromEntries(endReasons.map((reason, code) => [reason, code])))
   });
 };

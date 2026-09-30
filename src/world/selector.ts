@@ -210,6 +210,7 @@ export class Selector<Unit> {
     }
 
     const side = this.#table.side[slot] ?? 0;
+
     const reaction = this.#reaction === undefined ? bySides(ofSide, side) : this.#reaction(ofSide, side);
 
     const keep = options.side ?? 'all';

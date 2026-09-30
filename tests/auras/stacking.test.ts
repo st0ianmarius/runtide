@@ -18,8 +18,8 @@ const defs = {
     maxStacks: 4,
 
     stacking: (ctx, incoming) =>
-      incoming.seconds > incoming.remaining ? { seconds: incoming.seconds, stacks: ctx.aura.stacks + 1 } : undefined,
-  }),
+      incoming.seconds > incoming.remaining ? { seconds: incoming.seconds, stacks: ctx.aura.stacks + 1 } : undefined
+  })
 };
 
 describe('stacking rules (a re-application on the instance already there)', () => {
@@ -30,7 +30,11 @@ describe('stacking rules (a re-application on the instance already there)', () =
     assert.deepEqual(auras.apply(u, id.renew), { applied: true, fresh: true, changed: true });
     run(u, 8);
     assert.equal(auras.remaining(u, id.renew), 3);
-    assert.deepEqual(auras.apply(u, { aura: id.renew, duration: 1 }), { applied: true, fresh: false, changed: true });
+    assert.deepEqual(auras.apply(u, { aura: id.renew, duration: 1 }), {
+      applied: true,
+      fresh: false,
+      changed: true
+    });
     assert.equal(auras.remaining(u, id.renew), 1);
     assert.equal(u.auras.list.length, 1);
   });
@@ -80,7 +84,11 @@ describe('stacking rules (a re-application on the instance already there)', () =
 
     const changes = u.auras.changes;
 
-    assert.deepEqual(auras.apply(u, { aura: id.chill, duration: 1 }), { applied: true, fresh: false, changed: false });
+    assert.deepEqual(auras.apply(u, { aura: id.chill, duration: 1 }), {
+      applied: true,
+      fresh: false,
+      changed: false
+    });
     assert.equal(u.auras.changes, changes);
     assert.equal(auras.remaining(u, id.chill), 1.5);
     assert.deepEqual(auras.apply(u, { aura: id.chill, duration: 1.5 }).changed, false, 'the same end changes nothing');
@@ -94,7 +102,11 @@ describe('stacking rules (a re-application on the instance already there)', () =
 
     auras.apply(u, id.ward);
     run(u, 8);
-    assert.deepEqual(auras.apply(u, { aura: id.ward, value: 5 }), { applied: true, fresh: false, changed: true });
+    assert.deepEqual(auras.apply(u, { aura: id.ward, value: 5 }), {
+      applied: true,
+      fresh: false,
+      changed: true
+    });
     assert.equal(auras.remaining(u, id.ward), 9);
     assert.equal(auras.find(u, id.ward)?.value, 25);
   });
@@ -110,11 +122,11 @@ describe('stacking rules (a re-application on the instance already there)', () =
     auras.apply(u, { aura: id.echo, source: 3 });
     assert.deepEqual(
       u.auras.list.map((a) => a.source),
-      [2, 3],
+      [2, 3]
     );
     assert.deepEqual(
       u.auras.list.map((a) => a.serial),
-      [2, 3],
+      [2, 3]
     );
     assert.equal(auras.remaining(u, id.echo), 3, 'the longest instance');
     run(u, 24);
@@ -130,7 +142,7 @@ describe('stacking rules (a re-application on the instance already there)', () =
     auras.apply(u, { aura: id.echo, source: 3 });
     assert.deepEqual(
       u.auras.list.map((a) => a.source),
-      [2, 3],
+      [2, 3]
     );
   });
 
@@ -147,8 +159,8 @@ describe('stacking rules (a re-application on the instance already there)', () =
       u.auras.list.map((a) => [a.source, auras.remainingOf(u, a)]),
       [
         [7, 6],
-        [9, 6],
-      ],
+        [9, 6]
+      ]
     );
   });
 
@@ -174,7 +186,7 @@ describe('stacking rules (a re-application on the instance already there)', () =
     assert.deepEqual(auras.apply(u, { aura: id.halving, duration: 2 }), {
       applied: true,
       fresh: false,
-      changed: false,
+      changed: false
     });
     assert.equal(auras.apply(u, id.halving).changed, true);
     assert.equal(auras.stacks(u, id.halving), 2);
@@ -197,7 +209,7 @@ describe('stacking rules (a re-application on the instance already there)', () =
   it('keeps the list in registry order, then application order, whatever the order of application', () => {
     const orders = [
       ['mark', 'renew', 'echo', 'chill', 'echo'],
-      ['echo', 'chill', 'mark', 'echo', 'renew'],
+      ['echo', 'chill', 'mark', 'echo', 'renew']
     ] as const;
 
     const lists = orders.map((order) => {
@@ -216,11 +228,11 @@ describe('stacking rules (a re-application on the instance already there)', () =
       [3, 0],
       [5, 2],
       [5, 3],
-      [6, 1],
+      [6, 1]
     ]);
     assert.deepEqual(
       lists[1]?.map(([auraId]) => auraId),
-      [0, 3, 5, 5, 6],
+      [0, 3, 5, 5, 6]
     );
   });
 });

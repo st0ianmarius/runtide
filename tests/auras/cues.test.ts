@@ -12,14 +12,14 @@ const CUES = defineCues({
   fade: defineCue({ anchor: 'entity' }),
   burst: defineCue({ anchor: 'target' }),
   gong: defineCue({ anchor: 'world' }),
-  gone: TOMBSTONE,
+  gone: TOMBSTONE
 });
 
 describe('aura lifecycle cues', () => {
   it('reads the cue an aura declares for a change, and none for the others', () => {
     const auras = defineAuras({
       ward: aura({ duration: 2, cues: { applied: CUES.id.glow, expired: CUES.id.fade } }),
-      old: TOMBSTONE,
+      old: TOMBSTONE
     });
 
     assert.equal(auraCue(auras, auras.id.ward, 'applied'), CUES.id.glow);
@@ -31,8 +31,11 @@ describe('aura lifecycle cues', () => {
   it('checks every declared cue at load: live, and sitting on the bearer', () => {
     const on = (cue: CueId) => () => {
       checkAuraCues(
-        defineAuras({ ok: aura({ cues: { applied: CUES.id.glow } }), ward: aura({ cues: { removed: cue } }) }),
-        CUES,
+        defineAuras({
+          ok: aura({ cues: { applied: CUES.id.glow } }),
+          ward: aura({ cues: { removed: cue } })
+        }),
+        CUES
       );
     };
 
@@ -45,11 +48,16 @@ describe('aura lifecycle cues', () => {
 
   it('lets a local game play them from the aura events, in the order the changes happened', () => {
     const out = createCueBuffer(CUES);
-    const game = makeGame({ ward: aura({ duration: 2, cues: { applied: CUES.id.glow, removed: CUES.id.fade } }) });
+
+    const game = makeGame({
+      ward: aura({ duration: 2, cues: { applied: CUES.id.glow, removed: CUES.id.fade } })
+    });
+
     const unit = game.unit(4);
 
     game.bus.on(game.bus.kind.aura, (event) => {
       const cue = event.aura === undefined ? undefined : auraCue(game.registry, event.aura.id, event.change);
+
       const id = event.bearer?.id ?? -1;
 
       if (cue !== undefined) {
@@ -65,8 +73,8 @@ describe('aura lifecycle cues', () => {
       out.events.slice(0, out.count).map((event) => [CUES.name(event.cue), event.owner, event.entity]),
       [
         ['glow', 4, 4],
-        ['fade', 4, 4],
-      ],
+        ['fade', 4, 4]
+      ]
     );
   });
 });

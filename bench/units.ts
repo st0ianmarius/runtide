@@ -5,7 +5,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../src/auras/index.ts';
 import { createClock, stream } from '../src/core/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul } from '../src/modifiers/index.ts';
@@ -15,7 +15,7 @@ import {
   defineBehaviour,
   defineScripts,
   type ScriptSystem,
-  type ScriptTypes,
+  type ScriptTypes
 } from '../src/scripts/index.ts';
 import { createSpellSystem, defineSpells, type SpellId, type SpellProcs } from '../src/spells/index.ts';
 import { createUnitSystem, defineUnits, defineUnitStates, defineUnitTags, type Unit } from '../src/units/index.ts';
@@ -146,26 +146,32 @@ export const unitCounter = { seen: 0 };
 const STATS = defineStats({
   maxHealth: { base: 100, kind: 'flat' },
   speed: { base: 5, kind: 'flat' },
-  power: { base: 10, kind: 'flat' },
+  power: { base: 10, kind: 'flat' }
 });
 
 const TAGS = defineAuraTags(['stun', 'root']);
 const aura = defineAura<BenchGame>;
 
 const AURAS = defineAuras<BenchGame, 'haste'>({
-  haste: aura({ duration: 'infinite', modifiers: [mul('speed', 1.5)] }),
+  haste: aura({ duration: 'infinite', modifiers: [mul('speed', 1.5)] })
 });
 
 const CLOCK = createClock({ dt: 1 / 30 });
 const SOURCES = defineSources(['base', 'auras']);
-const MODIFIERS = createModifierSystem({ stats: STATS, sources: SOURCES, stacks: auraStacks, held: auraGates });
+
+const MODIFIERS = createModifierSystem({
+  stats: STATS,
+  sources: SOURCES,
+  stacks: auraStacks,
+  held: auraGates
+});
 
 const AURA_SYSTEM = createAuraSystem<BenchGame>({
   registry: AURAS,
   tags: TAGS,
   clocks: { world: CLOCK },
   modifiers: MODIFIERS,
-  fold: 'auras',
+  fold: 'auras'
 });
 
 const late: { procs?: ReturnType<typeof createProcSystem<BenchGame>> } = {};
@@ -180,7 +186,7 @@ const POOL_DEFS = defineSpells<BenchGame, 'a' | 'b' | 'c' | 'd'>({
   a: { activation: { kind: 'trigger' }, release: () => undefined },
   b: { activation: { kind: 'trigger' }, release: () => undefined },
   c: { activation: { kind: 'trigger' }, release: () => undefined },
-  d: { activation: { kind: 'trigger' }, release: () => undefined },
+  d: { activation: { kind: 'trigger' }, release: () => undefined }
 });
 
 const SPELLS = createSpellSystem<BenchGame>({
@@ -188,22 +194,22 @@ const SPELLS = createSpellSystem<BenchGame>({
   auras: AURA_SYSTEM,
   procs: () => late.procs ?? missing(),
   clock: CLOCK,
-  host: {},
+  host: {}
 });
 
 late.procs = createProcSystem<BenchGame>({
   kinds: createProcRegistry<BenchGame>({ ...CORE_PROCS, ...SPELLS.procKinds }),
   auras: AURA_SYSTEM,
-  host: {},
+  host: {}
 });
 
 const TEMPLATES = defineUnits<BenchGame, 'grunt' | 'idler' | 'thinker'>(
   {
     grunt: { stats: { speed: 4, maxHealth: 60 }, tags: ['horde'] },
     idler: { tags: ['horde'], script: 'idle' },
-    thinker: { tags: ['horde'], script: 'picker' },
+    thinker: { tags: ['horde'], script: 'picker' }
   },
-  { stats: STATS, tags: defineUnitTags(['horde']) },
+  { stats: STATS, tags: defineUnitTags(['horde']) }
 );
 
 const TIMERS = defineTimers(['pick']);
@@ -221,8 +227,8 @@ const UNITS = createUnitSystem<BenchGame>({
   health: { stat: 'maxHealth' },
   states: defineUnitStates(TAGS, {
     stunned: { tags: ['stun'], blocks: ['act', 'move'] },
-    rooted: { tags: ['root'], blocks: ['move'] },
-  }),
+    rooted: { tags: ['root'], blocks: ['move'] }
+  })
 });
 
 const behaviour = defineBehaviour<BenchGame>();
@@ -243,7 +249,7 @@ const picker = behaviour({
     AI.start(ctx.unit, TIMERS.id.pick, 1 + 2 * DRAW());
 
     return undefined;
-  },
+  }
 });
 
 const SCRIPTS = createScriptSystem<BenchGame>({
@@ -251,7 +257,7 @@ const SCRIPTS = createScriptSystem<BenchGame>({
   ai: AI,
   procs: () => late.procs ?? missing(),
   bus: { on: () => () => undefined },
-  host: {},
+  host: {}
 });
 
 hold.scripts = SCRIPTS;
@@ -280,7 +286,12 @@ const crowd = (kind: 'plain' | 'idle' | 'thinker'): readonly Unit<BenchGame>[] =
     return made;
   }
 
-  const template = { plain: TEMPLATES.id.grunt, idle: TEMPLATES.id.idler, thinker: TEMPLATES.id.thinker }[kind];
+  const template = {
+    plain: TEMPLATES.id.grunt,
+    idle: TEMPLATES.id.idler,
+    thinker: TEMPLATES.id.thinker
+  }[kind];
+
   const units = Array.from({ length: 2000 }, () => UNITS.spawn(template, { side: 1 }));
 
   CROWDS.set(kind, units);
@@ -320,7 +331,7 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
       unitCounter.seen += unit.health > 0 ? 1 : 0;
       UNITS.despawn(unit);
     },
-    1,
+    1
   ],
   [
     'scripts: step 2,000 unscripted grunts (tick)',
@@ -331,7 +342,7 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
         SCRIPTS.step(unit);
       }
     },
-    1,
+    1
   ],
   [
     'scripts: step 2,000 scripted units, nothing due (tick)',
@@ -342,7 +353,7 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
         SCRIPTS.step(unit);
       }
     },
-    1,
+    1
   ],
   [
     'scripts: collect + step 2,000 thinkers, a pick every 1–3 s (tick)',
@@ -356,7 +367,7 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
         SCRIPTS.step(unit);
       }
     },
-    1,
+    1
   ],
   [
     'ai: 2,000 brains, a pick timer each every 1–3 s (tick)',
@@ -365,27 +376,27 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
       CLOCK.step();
       unitCounter.seen += AI.step(firePick);
     },
-    1,
+    1
   ],
   [
     'ai: a weighted pick of 4 spells (checked)',
     () => {
       unitCounter.seen += AI.pick(GRUNT, POOL, PICK) ?? 0;
     },
-    1,
+    1
   ],
   [
     'units: canAct + canMove',
     () => {
       unitCounter.seen += UNITS.canAct(GRUNT) && UNITS.canMove(GRUNT) ? 1 : 0;
     },
-    1,
+    1
   ],
   [
     'units: a folded stat (an aura modifier)',
     () => {
       unitCounter.seen += UNITS.statsOf(GRUNT).total(STATS.id.speed) > 0 ? 1 : 0;
     },
-    1,
-  ],
+    1
+  ]
 ];

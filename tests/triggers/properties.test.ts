@@ -11,17 +11,17 @@ const defs = {
     duration: 9,
     triggers: [
       { on: 'hit', do: [mark('alpha.0')] },
-      { on: 'hit', hears: 'party', do: [mark('alpha.1')] },
-    ],
+      { on: 'hit', hears: 'party', do: [mark('alpha.1')] }
+    ]
   }),
   beta: aura({ duration: 9, triggers: [{ on: 'hit', hears: 'party', do: [mark('beta.0')] }] }),
   gamma: aura({
     duration: 9,
     triggers: [
       { on: 'hit', do: [mark('gamma.0')] },
-      { on: 'hit', do: [mark('gamma.1')] },
-    ],
-  }),
+      { on: 'hit', do: [mark('gamma.1')] }
+    ]
+  })
 } as const;
 
 type Name = keyof typeof defs;
@@ -30,19 +30,22 @@ type Name = keyof typeof defs;
 const TRIGGERS: Readonly<Record<Name, readonly (readonly [string, boolean])[]>> = {
   alpha: [
     ['alpha.0', false],
-    ['alpha.1', true],
+    ['alpha.1', true]
   ],
   beta: [['beta.0', true]],
   gamma: [
     ['gamma.0', false],
-    ['gamma.1', false],
-  ],
+    ['gamma.1', false]
+  ]
 };
 
 const ORDER: readonly Name[] = ['alpha', 'beta', 'gamma'];
 
 /** A party: each member's auras, applied in any order. */
-const party = fc.array(fc.uniqueArray(fc.constantFrom<Name>(...ORDER)), { minLength: 1, maxLength: 4 });
+const party = fc.array(fc.uniqueArray(fc.constantFrom<Name>(...ORDER)), {
+  minLength: 1,
+  maxLength: 4
+});
 
 describe('dispatch invariants (fast-check)', () => {
   it('fire the owner triggers in aura then authored order, then the other members party triggers in order', () => {
@@ -80,7 +83,7 @@ describe('dispatch invariants (fast-check)', () => {
 
         game.hit(units[about] ?? game.unit(99));
         assert.deepEqual(game.log, expected);
-      }),
+      })
     );
   });
 
@@ -99,11 +102,11 @@ describe('dispatch invariants (fast-check)', () => {
                 triggers: odds.map((chance) => ({
                   on: 'hit' as const,
                   do: [mark('luck')],
-                  ...(chance === undefined ? {} : { chance }),
-                })),
-              }),
+                  ...(chance === undefined ? {} : { chance })
+                }))
+              })
             },
-            { triggers: { random } },
+            { triggers: { random } }
           );
 
           const u = game.unit(1);
@@ -115,8 +118,8 @@ describe('dispatch invariants (fast-check)', () => {
           }
 
           assert.equal(random.count(), hits * odds.filter((chance) => chance !== undefined && chance < 1).length);
-        },
-      ),
+        }
+      )
     );
   });
 });

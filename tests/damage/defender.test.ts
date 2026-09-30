@@ -12,10 +12,10 @@ const PENETRATING = defineMitigation({
     kinds: ['physical'],
     rating: 'armor',
     penetration: [percent('armorPen'), flat('lethality')],
-    curve: hyperbolic({ k: 100, negative: 'amplify' }),
+    curve: hyperbolic({ k: 100, negative: 'amplify' })
   },
 
-  taken: { kinds: 'all', multiplier: 'taken' },
+  taken: { kinds: 'all', multiplier: 'taken' }
 });
 
 describe('the block stage', () => {
@@ -71,10 +71,10 @@ describe('a game stage reading the blow’s own fields', () => {
               blow.amount += (blow.ext?.crushing ?? 0) * blow.target.maxHp;
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     const target = unit(1);
@@ -85,7 +85,10 @@ describe('a game stage reading the blow’s own fields', () => {
 
     assert.equal(damage.hit({ target, amount: 10, ext: { crushing: 0.1 }, kind: damage.kinds.id.fire }).amount, 15);
     assert.equal(damage.hit({ target, amount: 10, kind: damage.kinds.id.fire }).amount, 5);
-    procs.run([hitProc<Game>(10, { damageKind: 'fire', ext: { crushing: 0.1 } })], { self: target, target });
+    procs.run([hitProc<Game>(10, { damageKind: 'fire', ext: { crushing: 0.1 } })], {
+      self: target,
+      target
+    });
     assert.equal(target.hp, 200 - 15 - 5 - 15);
   });
 });
@@ -141,7 +144,7 @@ describe('the mitigation rows', () => {
 
   it('read a curve that gives nothing below zero as no reduction', () => {
     const zero = defineMitigation({
-      armor: { kinds: 'all', rating: 'armor', curve: hyperbolic({ k: 120, negative: 'zero' }) },
+      armor: { kinds: 'all', rating: 'armor', curve: hyperbolic({ k: 120, negative: 'zero' }) }
     });
 
     const { damage, unit, set } = makeDamageGame({}, { mitigation: zero });
@@ -176,10 +179,24 @@ describe('the mitigation rows', () => {
     assert.deepEqual(damage.explainMitigation(target, { attacker }), {
       kind: damage.kinds.id.physical,
       rows: [
-        { row: 'armor', kind: 'rating', value: 120, penetrated: 100, isAmplifying: false, factor: 0.5 },
-        { row: 'taken', kind: 'multiplier', value: 1.1, penetrated: 1.1, isAmplifying: false, factor: 1.1 },
+        {
+          row: 'armor',
+          kind: 'rating',
+          value: 120,
+          penetrated: 100,
+          isAmplifying: false,
+          factor: 0.5
+        },
+        {
+          row: 'taken',
+          kind: 'multiplier',
+          value: 1.1,
+          penetrated: 1.1,
+          isAmplifying: false,
+          factor: 1.1
+        }
       ],
-      factor: 0.5 * 1.1,
+      factor: 0.5 * 1.1
     });
     assert.deepEqual(damage.explainMitigation(target, { kind: damage.kinds.id.fire }).rows.length, 1);
   });
@@ -190,21 +207,28 @@ describe('the mitigation rows', () => {
 
     assert.throws(
       () => makeDamageGame({}, only({ a: { kinds: ['physical'], multiplier: 'taken' } })),
-      /fire is covered by no/,
+      /fire is covered by no/
     );
     assert.throws(() => makeDamageGame({}, only({ a: { kinds: 'all', rating: 'armor' } })), /not both/);
     assert.throws(
       () =>
         makeDamageGame(
           {},
-          only({ a: { kinds: 'all', rating: 'armor', curve: linear(1), penetration: [percent('lethality')] } }),
+          only({
+            a: {
+              kinds: 'all',
+              rating: 'armor',
+              curve: linear(1),
+              penetration: [percent('lethality')]
+            }
+          })
         ),
-      /lethality must be a multiplier stat/,
+      /lethality must be a multiplier stat/
     );
     assert.throws(() => makeDamageGame({}, only({ a: { kinds: ['ice'], multiplier: 'taken' } })), /no damage kind ice/);
     assert.throws(
       () => makeDamageGame({}, only({ a: { kinds: 'all', multiplier: 'taken', penetration: [flat('armor')] } })),
-      /needs a rating/,
+      /needs a rating/
     );
   });
 });

@@ -75,12 +75,16 @@ const slotFor = (order: Building, [name, at]: readonly [string, StagePosition]):
 /** A stage's position with a group's name put as its first stage (before) or its last (after). */
 const ungrouped = <Run>(
   def: StageDef<Run>,
-  groups: Readonly<Record<string, readonly string[]>> | undefined,
+  groups: Readonly<Record<string, readonly string[]>> | undefined
 ): StageDef<Run> => {
   const before = def.before === undefined ? undefined : (groups?.[def.before]?.[0] ?? def.before);
   const after = def.after === undefined ? undefined : (groups?.[def.after]?.at(-1) ?? def.after);
 
-  return { ...def, ...(before === undefined ? {} : { before }), ...(after === undefined ? {} : { after }) };
+  return {
+    ...def,
+    ...(before === undefined ? {} : { before }),
+    ...(after === undefined ? {} : { after })
+  };
 };
 
 /** Checks one game stage's definition against the order built so far. */
@@ -135,7 +139,7 @@ export const compileStageOrder = <Run>(spec: {
 
   const game = Object.entries(spec.game ?? {}).map(([name, def]): [string, StageDef<Run>] => [
     name,
-    ungrouped(def, spec.groups),
+    ungrouped(def, spec.groups)
   ]);
 
   for (const [name, def] of game) {
@@ -151,6 +155,6 @@ export const compileStageOrder = <Run>(spec: {
     names: Object.freeze(order.names),
     runs: Object.freeze(runs),
     afterFrom: order.names.indexOf(spec.boundary) + 1,
-    game: Object.freeze(game.map(([name]) => name)),
+    game: Object.freeze(game.map(([name]) => name))
   });
 };

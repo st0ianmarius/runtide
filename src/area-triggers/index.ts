@@ -15,7 +15,7 @@ export {
   defineAreaTrigger,
   type EndReason,
   type Lifetime,
-  type Position,
+  type Position
 } from './area-def.ts';
 
 export type { AreaTriggerHost } from './area-host.ts';
@@ -28,7 +28,7 @@ export type {
   AreaLedger,
   AreaLedgerSpec,
   AreaPhase,
-  AreaPulse,
+  AreaPulse
 } from './delivery-def.ts';
 
 export type { AreaTagId, AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
@@ -39,7 +39,7 @@ export {
   type AreaTriggerHookTables,
   type AreaTriggerRegistry,
   type AreaTriggerRegistryOptions,
-  defineAreaTriggers,
+  defineAreaTriggers
 } from './define-area-triggers.ts';
 
 export {
@@ -47,7 +47,7 @@ export {
   areaTriggerEvent,
   type AreaTriggerEvents,
   createAreaTriggerEvent,
-  END_REASONS,
+  END_REASONS
 } from './events.ts';
 
 export { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
@@ -58,7 +58,7 @@ export {
   despawnOwned,
   type DespawnOwnedProc,
   spawn,
-  type SpawnProc,
+  type SpawnProc
 } from './procs.ts';
 
 export type { AreaInterception, AreaQueries, AreaQuery, CoverQuery } from './queries.ts';
@@ -67,7 +67,7 @@ export {
   type AreaReplica,
   type AreaReplication,
   type AreaReplicationSpec,
-  type CompiledReplication,
+  type CompiledReplication
 } from './replication.ts';
 
 export type { SpawnSpec } from './spawner.ts';

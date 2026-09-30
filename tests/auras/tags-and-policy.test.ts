@@ -14,9 +14,15 @@ const defs = {
   brand: aura({ duration: 8, boundToSource: true }),
   mark: aura({ duration: 8 }),
   rend: aura({ duration: 5, stacking: 'stack', maxStacks: 5 }),
-  shell: aura({ duration: 10, value: 30, stacking: 'highest', merge: 'max', keepWhenDepleted: true }),
+  shell: aura({
+    duration: 10,
+    value: 30,
+    stacking: 'highest',
+    merge: 'max',
+    keepWhenDepleted: true
+  }),
   barrier: aura({ duration: 10, value: 30 }),
-  slow: aura({ duration: 4, tags: ['stun'] }),
+  slow: aura({ duration: 4, tags: ['stun'] })
 };
 
 describe('tags, immunities and cleanses', () => {
@@ -66,7 +72,7 @@ describe('tags, immunities and cleanses', () => {
     const { auras, registry, unit } = makeGame({
       venom: aura({ duration: 5, tags: ['poison'], onRemoved: onRemoved('venom') }),
       curse: aura({ duration: 5, tags: ['magic'], onRemoved: onRemoved('curse') }),
-      sweep: aura({ duration: 1, removes: ['magic', 'poison'] }),
+      sweep: aura({ duration: 1, removes: ['magic', 'poison'] })
     });
 
     const u = unit();
@@ -155,18 +161,25 @@ describe("the host's application policy", () => {
             if (application.aura === id.stun) {
               const duration = 0.75 * auras.lengthOf(application.aura, bearer);
 
-              return { apply: { ...application, duration }, after: [{ aura: id.ward, duration: 2 * duration }] };
+              return {
+                apply: { ...application, duration },
+                after: [{ aura: id.ward, duration: 2 * duration }]
+              };
             }
 
             return undefined;
-          },
-        },
-      },
+          }
+        }
+      }
     );
 
     const [boss, elite, immune] = [unit(2), unit(3), unit(9)];
 
-    assert.deepEqual(auras.apply(immune, id.stun), { applied: false, fresh: false, changed: false });
+    assert.deepEqual(auras.apply(immune, id.stun), {
+      applied: false,
+      fresh: false,
+      changed: false
+    });
     auras.apply(boss, id.stun);
     auras.apply(elite, id.stun);
     assert.deepEqual([auras.has(boss, id.stun), auras.has(boss, id.slow)], [false, true]);

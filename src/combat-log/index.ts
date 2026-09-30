@@ -11,7 +11,7 @@ export {
   type CombatLogBus,
   type CombatLogListener,
   type CombatLogOptions,
-  createCombatLog,
+  createCombatLog
 } from './log.ts';
 
 export { createDamageMeter, type DamageMeter, type MeterRow } from './meter.ts';
@@ -28,5 +28,5 @@ export type {
   HealPayload,
   HealView,
   SpellEventView,
-  SpellLogEvents,
+  SpellLogEvents
 } from './views.ts';

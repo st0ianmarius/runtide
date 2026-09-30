@@ -110,7 +110,7 @@ const custom = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'],
     seconds,
     stacks: addedStacks(at.application),
     remaining: engine.remainingOf(set, item),
-    maxStacks,
+    maxStacks
   };
 
   const context = engine.events.take(bearer, item);

@@ -45,7 +45,7 @@ export const watchStats = <Host>(
 
     /** Hears each change. */
     readonly onChange: (change: Readonly<StatChange>) => void;
-  },
+  }
 ): StatWatch<Host> => {
   const last = new WeakMap<StatSheet, Float64Array>();
   const stats = [...options.stats];
@@ -75,7 +75,7 @@ export const watchStats = <Host>(
       }
 
       last.set(sheet, values);
-    },
+    }
   };
 };
 

@@ -42,7 +42,7 @@ export interface ButtonExplanation {
 /** Explains a button spell; `undefined` for a spell that is not a button. */
 export const explainButton = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
-  spell: SpellId,
+  spell: SpellId
 ): ButtonExplanation | undefined => {
   const button = engine.buttons[spell];
 
@@ -57,6 +57,6 @@ export const explainButton = <G extends AbilityTypes>(
     requires: button.requires,
     blockedBy: button.blockedBy,
     resets: button.resets,
-    applies: button.applies,
+    applies: button.applies
   };
 };

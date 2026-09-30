@@ -124,7 +124,7 @@ export const any = <C extends string, V extends string = never>(
 
 /** `not(a)`: it does not hold. */
 export const not = <C extends string, V extends string = never>(
-  condition: ConditionExpr<C, V>,
+  condition: ConditionExpr<C, V>
 ): NotCondition<C, V> => ({
-  not: condition,
+  not: condition
 });

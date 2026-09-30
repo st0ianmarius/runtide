@@ -23,7 +23,7 @@ const ending = (def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<G
     return undefined;
   },
 
-  ...def,
+  ...def
 });
 
 /** The lines a game logged, without the spawn lines. */
@@ -60,10 +60,10 @@ describe('ending', () => {
               reasons.push(reason);
 
               return undefined;
-            },
-          }),
-        },
-      },
+            }
+          })
+        }
+      }
     );
 
     const owner = game.unit(1);
@@ -78,7 +78,11 @@ describe('ending', () => {
 
   it('ends from outside with a reason, once; a stale handle then does nothing', () => {
     const game = makeSpellGame({}, { areaTriggers: { pool: ending() } });
-    const handle = game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
+
+    const handle = game.areaTriggers.spawn(game.areaId.pool, {
+      owner: game.unit(1),
+      at: vec2(0, 0)
+    });
 
     assert.equal(game.areaTriggers.despawn(handle, 'bound'), true);
     assert.equal(game.areaTriggers.despawn(handle), false);
@@ -91,7 +95,7 @@ describe('bounds', () => {
   /** A game whose host says who is present, and a bound made over who is down. */
   const boundGame = (
     boundOf: (down: ReadonlySet<number>) => AnyAreaTriggerDef<Game>['bound'],
-    lifetime: AnyAreaTriggerDef<Game>['lifetime'] = 5,
+    lifetime: AnyAreaTriggerDef<Game>['lifetime'] = 5
   ) => {
     const down = new Set<number>();
     const bound = boundOf(down);
@@ -102,9 +106,9 @@ describe('bounds', () => {
         areaTriggers: {
           ward: ending({ lifetime, ...(bound === undefined ? {} : { bound }) }),
           shot: ending({ lifetime: 5 }),
-          halo: ending({ lifetime: 5, anchor: 'owner' }),
-        },
-      },
+          halo: ending({ lifetime: 5, anchor: 'owner' })
+        }
+      }
     );
 
     const owner = game.unit(1);
@@ -129,7 +133,7 @@ describe('bounds', () => {
       'end source-gone',
       'ended ward@1 source-gone',
       'end source-gone',
-      'ended halo@1 source-gone',
+      'ended halo@1 source-gone'
     ]);
     assert.notEqual(game.areaTriggers.get(shot), undefined);
     assert.equal(game.areaTriggers.get(halo), undefined);
@@ -145,7 +149,9 @@ describe('bounds', () => {
   });
 
   it('waits while its suspendWhile holds (its owner down), its clock and frames held, then runs on', () => {
-    const { game, down, handle, tick } = boundGame((isDown) => ({ suspendWhile: (c) => isDown.has(c.owner.id) }));
+    const { game, down, handle, tick } = boundGame((isDown) => ({
+      suspendWhile: (c) => isDown.has(c.owner.id)
+    }));
 
     tick();
     down.add(1);
@@ -190,12 +196,13 @@ describe('sides', () => {
             every: [
               {
                 seconds: 0.25,
-                onPulse: (c, hit) => void c.host.log.push(`pulse ${hit.targets.map((unit) => unit.id).join(',')}`),
-              },
-            ],
-          }),
-        },
-      },
+
+                onPulse: (c, hit) => void c.host.log.push(`pulse ${hit.targets.map((unit) => unit.id).join(',')}`)
+              }
+            ]
+          })
+        }
+      }
     );
 
     const director = game.unit(50);
@@ -208,7 +215,7 @@ describe('sides', () => {
     game.areaTriggers.step();
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('pulse')),
-      ['pulse 101'],
+      ['pulse 101']
     );
   });
 });
@@ -222,10 +229,10 @@ describe('limits', () => {
         areaTriggers: {
           pool: ending({
             limit: { perOwner: (c) => c.rank + 1, replace },
-            cues: { end: (_c, reason) => (reason === quietOn ? undefined : { cue: CUES.id.flash }) },
-          }),
-        },
-      },
+            cues: { end: (_c, reason) => (reason === quietOn ? undefined : { cue: CUES.id.flash }) }
+          })
+        }
+      }
     );
 
   it('ends the owner’s oldest as replaced, firing its end cue, and counts per owner', () => {
@@ -261,7 +268,7 @@ describe('limits', () => {
     refusing.areaTriggers.spawn(refusing.areaId.pool, { owner: refused, at: vec2(0, 0) });
     assert.equal(
       refusing.areaTriggers.spawn(refusing.areaId.pool, { owner: refused, at: vec2(0, 0) }),
-      NO_AREA_TRIGGER,
+      NO_AREA_TRIGGER
     );
     assert.equal(refusing.areaTriggers.pool.live, 2);
   });
@@ -271,13 +278,13 @@ describe('place and shape', () => {
   it('places its shape at its position, turned to its heading', () => {
     const game = makeSpellGame(
       {},
-      { areaTriggers: { wave: ending({ shape: lane({ length: 4, width: 2, dir: 0 }) }) } },
+      { areaTriggers: { wave: ending({ shape: lane({ length: 4, width: 2, dir: 0 }) }) } }
     );
 
     const handle = game.areaTriggers.spawn(game.areaId.wave, {
       owner: game.unit(1),
       at: vec2(10, 10),
-      heading: Math.PI / 2,
+      heading: Math.PI / 2
     });
 
     const shape = game.areaTriggers.get(handle)?.shape;
@@ -295,11 +302,11 @@ describe('place and shape', () => {
           missile: ending({
             move: (c, dt) => {
               c.position.x += 8 * dt;
-            },
+            }
           }),
-          aura: ending({ anchor: 'owner' }),
-        },
-      },
+          aura: ending({ anchor: 'owner' })
+        }
+      }
     );
 
     const owner = game.unit(1);
@@ -323,8 +330,8 @@ describe('the owner aura, cues and events', () => {
       {},
       {
         auras: { tending: aura({ duration: 'infinite' }) },
-        areaTriggers: { grove: ending({ ownerAura: 'tending' }) },
-      },
+        areaTriggers: { grove: ending({ ownerAura: 'tending' }) }
+      }
     );
 
     const owner = game.unit(1);
@@ -345,24 +352,28 @@ describe('the owner aura, cues and events', () => {
           {},
           {
             auras: { short: aura({ duration: 2 }) },
-            areaTriggers: { grove: ending({ ownerAura: 'short' }) },
-          },
+            areaTriggers: { grove: ending({ ownerAura: 'short' }) }
+          }
         ),
-      /its owner aura lasts while the kind lives/,
+      /its owner aura lasts while the kind lives/
     );
   });
 
   it('fires its cues at its position with its entity id, credited to its owner', () => {
     const game = makeSpellGame(
       {},
-      { areaTriggers: { pool: ending({ lifetime: 0.25, cues: { spawn: () => ({ cue: CUES.id.zone }) } }) } },
+      {
+        areaTriggers: {
+          pool: ending({ lifetime: 0.25, cues: { spawn: () => ({ cue: CUES.id.zone }) } })
+        }
+      }
     );
 
     game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(3), at: vec2(4, 5) });
     assert.equal(game.cues.count, 1);
     assert.deepEqual(
       { ...game.cues.events[0], params: undefined },
-      { ...game.cues.events[0], owner: 3, entity: 1, x: 4, z: 5, params: undefined },
+      { ...game.cues.events[0], owner: 3, entity: 1, x: 4, z: 5, params: undefined }
     );
   });
 
@@ -378,15 +389,15 @@ describe('the owner aura, cues and events', () => {
                 on: 'areaEnded',
                 when: [
                   { filter: 'kind', arg: 'tempest' },
-                  { filter: 'reason', arg: 'expired' },
+                  { filter: 'reason', arg: 'expired' }
                 ],
-                do: [mark('chain')],
-              },
-            ],
-          }),
+                do: [mark('chain')]
+              }
+            ]
+          })
         },
-        areaTriggers: { tempest: ending({ lifetime: 0.25 }), pool: ending({ lifetime: 0.25 }) },
-      },
+        areaTriggers: { tempest: ending({ lifetime: 0.25 }), pool: ending({ lifetime: 0.25 }) }
+      }
     );
 
     const owner = game.unit(1);
@@ -413,11 +424,11 @@ describe('procs and keys', () => {
             frame: (c) => [
               run<Game>('look', (ctx) => {
                 seen.push(`${ctx.self.id} ${ctx.source} ${c.apply(mark('applied')).status}`);
-              }),
-            ],
-          }),
-        },
-      },
+              })
+            ]
+          })
+        }
+      }
     );
 
     game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(2), at: vec2(0, 0), source: 9 });
@@ -432,7 +443,10 @@ describe('procs and keys', () => {
 
     game.step(3);
 
-    const handle = game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
+    const handle = game.areaTriggers.spawn(game.areaId.pool, {
+      owner: game.unit(1),
+      at: vec2(0, 0)
+    });
 
     assert.deepEqual(game.areaTriggers.get(handle)?.key(7, 2), [3, 1, 0, 7, 2]);
   });
@@ -447,7 +461,7 @@ describe('procs and keys', () => {
     assert.throws(() => game.procs.prepare([spawn<Game>('nothing')], 'Test list'), /unknown area trigger kind nothing/);
     assert.deepEqual(
       game.areaTriggers.get(game.areaTriggers.spawn(game.areaId.pool, { owner: other, at: vec2(0, 0) }))?.position,
-      { x: 0, z: 0 },
+      { x: 0, z: 0 }
     );
   });
 

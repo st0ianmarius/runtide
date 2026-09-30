@@ -33,7 +33,7 @@ export {
   ring,
   type Shape,
   type Union,
-  union,
+  union
 } from './shapes.ts';
 
 export { sweepCircle } from './sweep.ts';
@@ -54,5 +54,5 @@ export {
   scale,
   sub,
   type Vec2,
-  vec2,
+  vec2
 } from './vec2.ts';

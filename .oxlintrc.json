@@ -17,8 +17,8 @@
     "import/first": "error",
     "import/no-commonjs": "error",
     "sort-imports": ["error", { "ignoreCase": true, "ignoreDeclarationSort": true }],
-    "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }],
-    "max-lines": ["error", { "max": 400 }],
+    "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }],
+    "max-lines": ["error", { "max": 450 }],
     "complexity": ["error", 12],
     "max-depth": ["error", 3],
     "max-params": ["error", 3],
@@ -84,13 +84,27 @@
 
     "no-restricted-imports": [
       "error",
-      { "patterns": [{ "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages." }] }
+      {
+        "patterns": [{ "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages." }]
+      }
     ],
     "no-restricted-properties": [
       "error",
-      { "object": "Math", "property": "random", "message": "Deterministic: randomness comes from the host." },
-      { "object": "Date", "property": "now", "message": "Deterministic: time comes from the host." },
-      { "object": "performance", "property": "now", "message": "Deterministic: time comes from the host." },
+      {
+        "object": "Math",
+        "property": "random",
+        "message": "Deterministic: randomness comes from the host."
+      },
+      {
+        "object": "Date",
+        "property": "now",
+        "message": "Deterministic: time comes from the host."
+      },
+      {
+        "object": "performance",
+        "property": "now",
+        "message": "Deterministic: time comes from the host."
+      },
       {
         "object": "crypto",
         "property": "getRandomValues",
@@ -197,30 +211,75 @@
           "error",
           {
             "patterns": [
-              { "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages." },
-              { "regex": "^\\.\\.?/(.*/)?(tests|bench)(/|$)", "message": "src/ never imports tests or benchmarks." }
+              {
+                "regex": "^(@swarm/|swarm(/|$))",
+                "message": "Never swarm or any of its packages."
+              },
+              {
+                "regex": "^\\.\\.?/(.*/)?(tests|bench)(/|$)",
+                "message": "src/ never imports tests or benchmarks."
+              }
             ]
           }
         ],
         "no-restricted-globals": [
           "error",
-          { "name": "Buffer", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "__dirname", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "__filename", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          {
+            "name": "Buffer",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "__dirname",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "__filename",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
           {
             "name": "clearImmediate",
             "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
           },
-          { "name": "document", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "exports", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "global", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "module", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "process", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "require", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "setImmediate", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "setInterval", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "setTimeout", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
-          { "name": "window", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." }
+          {
+            "name": "document",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "exports",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "global",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "module",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "process",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "require",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "setImmediate",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "setInterval",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "setTimeout",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          },
+          {
+            "name": "window",
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
+          }
         ]
       }
     },

@@ -100,18 +100,18 @@ export interface SpellProcKinds<G extends SpellTypes> {
 /** A `rescaleClocks` proc: `rescaleClocks(0.5, { tag: 'attack' })` halves what is left of the attack clocks. */
 export const rescaleClocks = <G extends SpellTypes = SpellTypes>(
   factor: number,
-  options: ChanceOption & Omit<RescaleClocksProc<G>, 'kind' | 'factor' | 'chance'> = {},
+  options: ChanceOption & Omit<RescaleClocksProc<G>, 'kind' | 'factor' | 'chance'> = {}
 ): RescaleClocksProc<G> => ({ ...options, kind: 'rescaleClocks', factor });
 
 /** A `castSpell` proc: `castSpell('stab')`, `castSpell('nova', { to: 'eventUnit', rank: 2 })`. */
 export const castSpell = <G extends SpellTypes = SpellTypes>(
   spell: G['spellName'] | SpellId,
-  options: Omit<CastSpellProc<G>, 'kind' | 'spell'> = {},
+  options: Omit<CastSpellProc<G>, 'kind' | 'spell'> = {}
 ): CastSpellProc<G> => ({ ...options, kind: 'castSpell', spell });
 
 /** An `after` proc: `after(0.5, [damage(…)], { from: 'due' })`. */
 export const after = <G extends SpellTypes = SpellTypes>(
   seconds: number,
   procs: readonly Proc<G>[],
-  options: ChanceOption & Pick<AfterProc<G>, 'from' | 'slot' | 'bound'> = {},
+  options: ChanceOption & Pick<AfterProc<G>, 'from' | 'slot' | 'bound'> = {}
 ): AfterProc<G> => ({ ...options, kind: 'after', seconds, procs });

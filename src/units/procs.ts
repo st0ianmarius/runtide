@@ -120,21 +120,21 @@ export interface UnitProcKinds<G extends UnitTypes> {
 
 /** A `revive` proc: `revive()`, `revive({ health: 30, to: 'eventUnit' })`. */
 export const revive = <G extends UnitTypes = UnitTypes>(
-  options: ChanceOption & Omit<ReviveProc<G>, 'kind' | 'chance'> = {},
+  options: ChanceOption & Omit<ReviveProc<G>, 'kind' | 'chance'> = {}
 ): ReviveProc<G> => ({ ...options, kind: 'revive' });
 
 /** A `summon` proc: `summon('skeleton', { count: 3, atOf: (ctx) => ringAround(ctx.self) })`. */
 export const summon = <G extends UnitTypes = UnitTypes>(
   unit: G['unitName'] | UnitId,
-  options: ChanceOption & Omit<SummonProc<G>, 'kind' | 'unit' | 'chance'> = {},
+  options: ChanceOption & Omit<SummonProc<G>, 'kind' | 'unit' | 'chance'> = {}
 ): SummonProc<G> => ({ ...options, kind: 'summon', unit });
 
 /** A `despawn` proc: `despawn({ to: 'self', reason: 'expired' })`. */
 export const despawn = <G extends UnitTypes = UnitTypes>(
-  options: ChanceOption & Omit<DespawnProc<G>, 'kind' | 'chance'> = {},
+  options: ChanceOption & Omit<DespawnProc<G>, 'kind' | 'chance'> = {}
 ): DespawnProc<G> => ({ ...options, kind: 'despawn' });
 
 /** A `despawnSummons` proc: `despawnSummons({ unit: 'skeleton' })`. */
 export const despawnSummons = <G extends UnitTypes = UnitTypes>(
-  options: ChanceOption & Omit<DespawnSummonsProc<G>, 'kind' | 'chance'> = {},
+  options: ChanceOption & Omit<DespawnSummonsProc<G>, 'kind' | 'chance'> = {}
 ): DespawnSummonsProc<G> => ({ ...options, kind: 'despawnSummons' });

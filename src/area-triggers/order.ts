@@ -36,7 +36,7 @@ export class OwnerAreas<G extends AreaTriggerTypes> {
 const linkOwner = <G extends AreaTriggerTypes>(
   owned: OwnerAreas<G>,
   area: AreaTrigger<G>,
-  before: AreaTrigger<G> | undefined,
+  before: AreaTrigger<G> | undefined
 ): void => {
   const { kind } = area;
   const next = before === undefined ? owned.heads[kind] : before.ownerNext;

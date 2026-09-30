@@ -10,7 +10,7 @@ import {
   type ProcHost,
   type ProcOutcome,
   type ProcTarget,
-  type ProcTypes,
+  type ProcTypes
 } from './proc-types.ts';
 import type { ProcRegistry } from './registry.ts';
 

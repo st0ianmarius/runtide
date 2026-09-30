@@ -26,7 +26,7 @@ export const autoNext = (report: CastReport, interval: number): number => {
 const nextOf = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  [spell, activation, report]: readonly [SpellId, AutoActivation<G>, Report<G>],
+  [spell, activation, report]: readonly [SpellId, AutoActivation<G>, Report<G>]
 ): number => {
   const next = activation.next?.(report, report.interval, caster) ?? autoNext(report, report.interval);
 
@@ -55,7 +55,7 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
 const countClock = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  index: number,
+  index: number
 ): AutoActivation<G> | undefined => {
   const record = recordOf(caster);
   const left = countDown(record.clocks[index] ?? 0, engine.clock.dt);
@@ -83,7 +83,7 @@ const countClock = <G extends SpellTypes>(
 export const stepAutoClocks = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  cast: (caster: G['bearer'], spell: SpellId) => Report<G>,
+  cast: (caster: G['bearer'], spell: SpellId) => Report<G>
 ): void => {
   const record = recordOf(caster);
   let index = 0;
@@ -139,7 +139,7 @@ export const setAutoClock = (caster: SpellCaster, [spell, seconds]: readonly [Sp
 export const armAuto = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  at: { readonly spell: SpellId; readonly seconds: number },
+  at: { readonly spell: SpellId; readonly seconds: number }
 ): boolean => {
   autoOf(engine, at.spell);
 
@@ -167,7 +167,7 @@ const inScope = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId, s
 const rescaleAuto = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  [factor, scope]: readonly [number, number],
+  [factor, scope]: readonly [number, number]
 ): number => {
   const { autos, clocks } = recordOf(caster);
   let rescaled = 0;
@@ -193,7 +193,7 @@ const rescaleAuto = <G extends SpellTypes>(
 export const rescaleClocks = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  rescale: ClockScale,
+  rescale: ClockScale
 ): number => {
   const { factor } = rescale;
 

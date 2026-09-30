@@ -11,12 +11,16 @@ const TEMPLATES = {
   grunt: { stats: { speed: 4 }, tags: ['horde'], autoAttack: 'swing', data: { souls: 1 } },
   elite: { tags: ['elite'] },
   boss: { tags: ['boss'] },
-  wall: { tags: ['objective'] },
+  wall: { tags: ['objective'] }
 } satisfies Record<string, UnitDef<UnitGame>>;
 
 describe('unit templates', () => {
   it('lay out base stats and class tags at load', () => {
-    const units = defineUnits<UnitGame, keyof typeof TEMPLATES>(TEMPLATES, { stats: STATS, tags: UNIT_TAGS });
+    const units = defineUnits<UnitGame, keyof typeof TEMPLATES>(TEMPLATES, {
+      stats: STATS,
+      tags: UNIT_TAGS
+    });
+
     const { id } = units;
 
     assert.equal(units.bases[id.hero]?.[STATS.id.maxHealth], 200);
@@ -55,7 +59,7 @@ describe('spawning', () => {
     assert.equal(units.autoAttackOf(grunt), game.spellId.swing);
     assert.deepEqual(
       [game.spells.arm(grunt, game.spellId.swing), game.spells.arm(hero, game.spellId.swing)],
-      [false, true],
+      [false, true]
     );
     assert.equal(units.hasTag(grunt, 'horde'), true);
     assert.equal(units.byId(2), grunt);
@@ -75,7 +79,7 @@ describe('variants', () => {
 
     const [a, b] = [
       units.spawn(game.id.grunt, { side: 1, variant: wave }),
-      units.spawn(game.id.grunt, { side: 1, variant: wave }),
+      units.spawn(game.id.grunt, { side: 1, variant: wave })
     ];
 
     assert.deepEqual([a.health, b.health, units.statsOf(b).total(STATS.id.speed)], [150, 150, 5]);
@@ -91,7 +95,7 @@ describe('variants', () => {
     assert.throws(() => units.spawn(game.id.elite, { side: 1, variant: wave }), /units.variant made for its template/);
     assert.throws(
       () => units.spawn(game.id.grunt, { side: 1, variant: wave, stats: { speed: 2 } }),
-      /in place of its own stats/,
+      /in place of its own stats/
     );
     const odd = {};
 
@@ -158,7 +162,7 @@ describe('the lifecycle', () => {
       'changed 1 dead>alive',
       'changed 1 alive>dead',
       'changed 1 dead>alive',
-      'despawned 1 alive>despawned',
+      'despawned 1 alive>despawned'
     ]);
   });
 });

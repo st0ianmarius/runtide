@@ -7,7 +7,7 @@ import {
   type AreaTriggerHandle,
   defineAreaTriggers,
   NO_AREA_TRIGGER,
-  spawn,
+  spawn
 } from '../../src/area-triggers/index.ts';
 import { circle, vec2 } from '../../src/math/index.ts';
 import { AREA_TAGS, type Game, makeSpellGame, spell } from '../helpers/spell-game.ts';
@@ -38,10 +38,10 @@ const pool = (ledger: AreaLedgerSpec, def: Partial<AnyAreaTriggerDef<Game>> = {}
         }
 
         return undefined;
-      },
-    },
+      }
+    }
   ],
-  ...def,
+  ...def
 });
 
 /** A game's lines that start with `hit`. */
@@ -62,10 +62,11 @@ describe('hit policies', () => {
       {
         twin: spell({
           activation: { kind: 'trigger' },
-          release: () => [spawn<Game>('pool', { at: vec2(0, 0) }), spawn<Game>('pool', { at: vec2(1, 0) })],
-        }),
+
+          release: () => [spawn<Game>('pool', { at: vec2(0, 0) }), spawn<Game>('pool', { at: vec2(1, 0) })]
+        })
       },
-      { areaTriggers: { pool: pool({ policy: 'once', scope: 'cast' }) } },
+      { areaTriggers: { pool: pool({ policy: 'once', scope: 'cast' }) } }
     );
 
     const owner = game.unit(1);
@@ -116,13 +117,13 @@ describe('hit policies', () => {
                     counts.push(hit.targets.length);
 
                     return undefined;
-                  },
-                },
-              ],
-            },
-          ),
-        },
-      },
+                  }
+                }
+              ]
+            }
+          )
+        }
+      }
     );
 
     for (let i = 0; i < 70; i++) {
@@ -166,10 +167,10 @@ describe('pierce', () => {
               c.host.log.push(`hit ${hit.targets.map((unit) => unit.id).join(',')}`);
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     game.place(game.unit(100), vec2(3, 0));
@@ -206,10 +207,10 @@ describe('a ledger read by hooks', () => {
               }
             },
 
-            frame: (c) => (c.age === 0.25 ? [spawn<Game>('spark')] : undefined),
-          },
-        },
-      },
+            frame: (c) => (c.age === 0.25 ? [spawn<Game>('spark')] : undefined)
+          }
+        }
+      }
     );
 
     const owner = game.unit(1);
@@ -227,6 +228,7 @@ describe('a ledger read by hooks', () => {
 
   it('goes back to the pool with the last area trigger that shares it', () => {
     const game = makeSpellGame({}, { areaTriggers: { pool: pool({ policy: 'once' }, { lifetime: 0.25 }) } });
+
     const handles: AreaTriggerHandle[] = [];
 
     for (let i = 0; i < 3; i++) {
@@ -237,7 +239,7 @@ describe('a ledger read by hooks', () => {
     ticks(game, 1);
     assert.deepEqual(
       handles.map((handle) => game.areaTriggers.isLive(handle)),
-      [false, false, false],
+      [false, false, false]
     );
     assert.equal(game.areaTriggers.pool.ledgers, 0);
   });

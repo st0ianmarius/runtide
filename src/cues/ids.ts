@@ -37,5 +37,5 @@ export const toCueParam = (slot: number): CueParam => slot as CueParam;
 
 /** Re-types a registry's ids as ids that carry their names. Only the cue registry calls it. */
 export const namedCueIds = <Name extends string>(
-  ids: Readonly<Record<Name, CueId>>,
+  ids: Readonly<Record<Name, CueId>>
 ): { readonly [Key in Name]: CueIdOf<Key> } => ids as { readonly [Key in Name]: CueIdOf<Key> };

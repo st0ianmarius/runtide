@@ -222,7 +222,7 @@ What that means in practice:
 export const frostNova = defineSpell({
   activation: { kind: 'button' },
   release: (ctx) => [areaHit(ctx.caster, 4)],
-  onHit: (_ctx, { targets }) => targets.map((t) => applyAura(t, 'frozen', { duration: 2 })),
+  onHit: (_ctx, { targets }) => targets.map((t) => applyAura(t, 'frozen', { duration: 2 }))
 });
 
 // Shared behaviour: a factory, not a base class
@@ -233,14 +233,14 @@ const telegraphedSpell = (spec: { windup: number; shape: (aim: Aim) => Shape }) 
       windup: spec.windup,
       recover: 0.25,
       cooldown: 5,
-      range: 22,
+      range: 22
     },
     begin: (_ctx, aim: Aim) => [telegraph(spec.shape(aim), { delay: spec.windup })],
-    release: () => [], // the telegraph lands by itself
+    release: () => [] // the telegraph lands by itself
   });
 export const blast = telegraphedSpell({
   windup: 1.2,
-  shape: (aim) => circle(1.5, aim.point),
+  shape: (aim) => circle(1.5, aim.point)
 });
 
 export const SPELLS = createRegistry({ frostNova, blast }); // SPELLS.id.frostNova === 0, SPELLS.id.blast === 1
@@ -532,9 +532,9 @@ export const tempest = defineSpell({
     cast: (ctx, spawned) => ({
       cue: 'tempest.cast',
       at: spawned,
-      radius: ctx.stats.radius,
-    }),
-  },
+      radius: ctx.stats.radius
+    })
+  }
 });
 ```
 
@@ -785,7 +785,10 @@ interface Behaviour<G, State> {
   on?: { [event in G['scriptEvents']]?: (ctx, payload) => Proc[] }; // the game's own bus events, bound by name
 }
 
-const SCRIPTS = defineScripts<Game>({ hordeCaster: [picking], warden: [picking, wardenPhases, raise, soulfire] });
+const SCRIPTS = defineScripts<Game>({
+  hordeCaster: [picking],
+  warden: [picking, wardenPhases, raise, soulfire]
+});
 
 const scripts = createScriptSystem<Game>({
   registry: SCRIPTS,
@@ -797,8 +800,11 @@ const scripts = createScriptSystem<Game>({
   events: {
     damaged: { kind: bus.kind.taken, unitOf: (e) => e.blow?.target },
     castEnd: { kind: bus.kind.spellEnd, unitOf: (e) => e.cast?.caster },
-    summonDied: { kind: bus.kind.unitChanged, unitOf: (e) => (e.to === 'dead' ? e.unit?.owner : undefined) },
-  },
+    summonDied: {
+      kind: bus.kind.unitChanged,
+      unitOf: (e) => (e.to === 'dead' ? e.unit?.owner : undefined)
+    }
+  }
 });
 
 // each tick: scripts.collect(), then in the game's per-unit loop scripts.step(unit)
@@ -836,19 +842,19 @@ const wardenPhases = behaviour({
       if (next <= ctx.state.phase) return undefined;
       ctx.state.phase = next;
       return [despawnOwned({ tag: 'telegraph' }), castSpell('warCry')]; // War Cry holds `invulnerable` while it roars
-    },
-  },
+    }
+  }
 });
 
 const picking = behaviour({
   spawn: () => [setTimer('pick', 0.5)],
   timer: (ctx, timer) => (timer === TIMERS.id.pick ? ctx.host.wardenPick(ctx.unit) : undefined),
-  on: { castEnd: (ctx) => [setTimer('pick', ctx.host.wardenGap(ctx.unit))] },
+  on: { castEnd: (ctx) => [setTimer('pick', ctx.host.wardenGap(ctx.unit))] }
 });
 
 const raise = behaviour({
   spawn: () => [setTimer('raise', WARDEN.raise.opening)],
-  timer: (ctx, timer) => (timer === TIMERS.id.raise ? [castSpell('raiseDead'), setTimer('raise', 28)] : undefined),
+  timer: (ctx, timer) => (timer === TIMERS.id.raise ? [castSpell('raiseDead'), setTimer('raise', 28)] : undefined)
 });
 ```
 
@@ -870,7 +876,7 @@ const STATS = defineStats({
   maxHealth: { base: 600, kind: 'flat' },
   critChance: { base: 0, kind: 'flat', max: 1 }, // a chance is a flat stat on 0..1
   damage: { base: 1, kind: 'multiplier' }, // swarm's damage bonus
-  critDamage: { base: 1.75, kind: 'multiplier' },
+  critDamage: { base: 1.75, kind: 'multiplier' }
 });
 ```
 
@@ -905,12 +911,12 @@ export const piercingLight = defineSpell({
       ranks(60, 95, 130),
       add('attackDamage', 1.2),
       add('abilityPower', 0.5),
-      add('maxHealth', 0.08, { from: 'target' }), // read when it hits
+      add('maxHealth', 0.08, { from: 'target' }) // read when it hits
     ),
-    radius: 3,
+    radius: 3
   },
   scaling: { damage: 1.1, critChance: 1, critDamage: 1 }, // shares of the outgoing multipliers (below)
-  release: (ctx, target) => [damage(ctx.scaled.damage, { to: target })], // the target term finishes at the hit
+  release: (ctx, target) => [damage(ctx.scaled.damage, { to: target })] // the target term finishes at the hit
 });
 ```
 
@@ -949,15 +955,22 @@ Every parameter of a curve (`k`, `cap`, `per`) can be a scaled value (§II.3.13)
 ```ts
 const STATS = defineStats({
   level: { base: 1, kind: 'flat' },
-  hitRating: { base: 0, kind: 'flat', converts: { to: 'hitChance', curve: rating(byLevel(RATING.hit)) } },
+  hitRating: {
+    base: 0,
+    kind: 'flat',
+    converts: { to: 'hitChance', curve: rating(byLevel(RATING.hit)) }
+  },
   dodgeRating: {
     base: 0,
     kind: 'flat',
-    converts: { to: 'dodgeChance', curve: avoidance({ per: byLevel(RATING.dodge), cap: 0.6563, k: 0.956 }) },
+    converts: {
+      to: 'dodgeChance',
+      curve: avoidance({ per: byLevel(RATING.dodge), cap: 0.6563, k: 0.956 })
+    }
   },
   armor: { base: 0, kind: 'flat' },
   armorPen: { base: 0, kind: 'multiplier' }, // % penetration, 0 = none
-  lethality: { base: 0, kind: 'flat' }, // flat penetration
+  lethality: { base: 0, kind: 'flat' } // flat penetration
 });
 ```
 
@@ -969,16 +982,16 @@ const MITIGATION = defineMitigation({
     kinds: ['physical'],
     rating: 'armor', // the defender's stat
     penetration: [percent('armorPen'), flat('lethality')], // the attacker's, in LoL's order
-    curve: hyperbolic({ k: 100, negative: 'amplify' }), // LoL
+    curve: hyperbolic({ k: 100, negative: 'amplify' }) // LoL
     // WoW: curve: hyperbolic({ k: scaled(400, add('level', 85, { from: 'caster' })), cap: 0.75 }),
   },
   magicResist: {
     kinds: ['magic'],
     rating: 'magicResist',
     penetration: [percent('magicPen')],
-    curve: hyperbolic({ k: 100 }),
+    curve: hyperbolic({ k: 100 })
   },
-  taken: { kinds: 'all', multiplier: 'damageTaken' }, // a plain multiplier stat, after the curves
+  taken: { kinds: 'all', multiplier: 'damageTaken' } // a plain multiplier stat, after the curves
 });
 ```
 
@@ -1019,7 +1032,7 @@ const cyclone = defineAreaTrigger<{
   bound: { owner: 'standing' }, // a downed or gone owner takes it away; its end cue says nothing
   replicate: {
     fields: ['x', 'z', 'heading', 'radius', 'started', 'duration', 'evolved'],
-    store: 'tempests',
+    store: 'tempests'
   },
   frame(c, dt) {
     steer(c, dt); // own state: retarget every 0.5 s (siblings' goals excluded), capped turn, leash to the owner
@@ -1029,12 +1042,14 @@ const cyclone = defineAreaTrigger<{
     const procs: Proc[] = ending
       ? [
           cue('tempest.impact', c, {
-            radius: c.stats.radius * TEMPEST.flingReach,
-          }),
+            radius: c.stats.radius * TEMPEST.flingReach
+          })
         ]
       : [];
     const candidates: Creature[] = [];
-    for (const e of c.query.inside(circle(c.stats.radius * TEMPEST.pullReach + STRIKE_REACH), { side: 'foes' })) {
+    for (const e of c.query.inside(circle(c.stats.radius * TEMPEST.pullReach + STRIKE_REACH), {
+      side: 'foes'
+    })) {
       if (striking && isStrikeCandidate(c, e)) candidates.push(e); // gathered before any pull, as today
       if (ticking && inside(c, e, c.stats.radius))
         procs.push(damage(e, c.stats.damage, { strength: 'light', knock: 'none' }));
@@ -1045,7 +1060,7 @@ const cyclone = defineAreaTrigger<{
     }
     if (striking && candidates.length) procs.push(pickOne(candidates, 'main', (target) => maelstromStrike(c, target))); // drawn after the damage above, as today
     return procs; // per enemy, in the order today's single pass does them
-  },
+  }
 });
 ```
 

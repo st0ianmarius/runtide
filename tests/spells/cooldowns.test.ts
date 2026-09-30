@@ -16,18 +16,18 @@ describe('a spell’s cooldowns', () => {
           stats: { cooldown: 2 },
           cooldown: [
             { aura: 'boltCooldown', seconds: (ctx) => ctx.stats.cooldown },
-            { aura: 'global', seconds: 0.5 },
+            { aura: 'global', seconds: 0.5 }
           ],
-          release: () => [mark('bolt')],
+          release: () => [mark('bolt')]
         }),
         slam: spell({
           activation: { kind: 'trigger' },
           timeline: { windup: { seconds: 0.5 } },
           cooldown: { aura: 'global', seconds: 1, startsOn: 'release' },
-          release: () => [mark('slam')],
-        }),
+          release: () => [mark('slam')]
+        })
       },
-      { auras: { boltCooldown: aura({ duration: 9 }), global: aura({ duration: 9 }) } },
+      { auras: { boltCooldown: aura({ duration: 9 }), global: aura({ duration: 9 }) } }
     );
 
   it('land in order as the cast starts, share an aura across spells, and one lands at the release instead', () => {
@@ -37,7 +37,7 @@ describe('a spell’s cooldowns', () => {
     game.spells.cast(hero, game.id.bolt);
     assert.deepEqual(
       [game.spells.cooldownLeft(hero, game.id.bolt), game.spells.check(hero, game.id.slam)],
-      [2, 'cooldown'],
+      [2, 'cooldown']
     );
     assert.deepEqual(game.spells.cooldownsOf(game.id.bolt), [game.auraId.boltCooldown, game.auraId.global]);
 
@@ -69,7 +69,7 @@ describe('a spell’s cooldowns', () => {
     assert.equal(game.spells.cooldownLeft(hero, game.id.slam), 1, 'not landed again at the release');
     assert.deepEqual(
       game.log.filter((line) => line === 'slam@1'),
-      ['slam@1'],
+      ['slam@1']
     );
   });
 });
@@ -114,7 +114,9 @@ describe('time left on cooldown auras', () => {
     auras.apply(hero, { aura: auraNamed('ultimateCooldown'), duration: 10 });
 
     const apply = (options: { readonly factor?: number; readonly max?: number }) =>
-      procs.apply(timeLeft<AbilityGame>('cooldown.ultimate', { ...options, to: 'self' }), { self: hero });
+      procs.apply(timeLeft<AbilityGame>('cooldown.ultimate', { ...options, to: 'self' }), {
+        self: hero
+      });
 
     assert.equal(apply({ factor: 0.8 }).status, 'landed');
     assert.equal(auras.remaining(hero, auraNamed('ultimateCooldown')), 8);
@@ -128,14 +130,22 @@ describe('time left on cooldown auras', () => {
 /** A game with an attack clock tagged melee, a fire bolt clock, and a channel. */
 const clockGame = () =>
   makeSpellGame({
-    swing: spell({ tags: ['melee'], activation: { kind: 'auto', interval: 2 }, release: () => [mark('swing')] }),
-    bolt: spell({ tags: ['fire'], activation: { kind: 'auto', interval: 4 }, release: () => [mark('bolt')] }),
+    swing: spell({
+      tags: ['melee'],
+      activation: { kind: 'auto', interval: 2 },
+      release: () => [mark('swing')]
+    }),
+    bolt: spell({
+      tags: ['fire'],
+      activation: { kind: 'auto', interval: 4 },
+      release: () => [mark('bolt')]
+    }),
     channel: spell({
       tags: ['melee'],
       activation: { kind: 'trigger' },
       timeline: { windup: { seconds: 1 } },
-      release: () => undefined,
-    }),
+      release: () => undefined
+    })
   });
 
 describe('rescaling clocks', () => {

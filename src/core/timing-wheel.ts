@@ -204,6 +204,6 @@ const createOverflow = <Item extends Defined>(): Overflow<Item> => {
           admit(ticks[slot] ?? 0, item);
         }
       }
-    },
+    }
   };
 };

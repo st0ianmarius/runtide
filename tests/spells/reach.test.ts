@@ -9,7 +9,7 @@ import { makeSpellGame, mark, spell, type Unit } from '../helpers/spell-game.ts'
 const pillared = () =>
   createMemoryWorld<Unit>({
     bounds: { minX: -100, minZ: -100, maxX: 100, maxZ: 100 },
-    statics: [{ kind: 'circle', at: { x: 5, z: 0 }, r: 1 }],
+    statics: [{ kind: 'circle', at: { x: 5, z: 0 }, r: 1 }]
   });
 
 /** Aims at the unit it was handed. */
@@ -28,15 +28,15 @@ describe('reach rules', () => {
         activation: { kind: 'trigger' },
         target: atInput,
         reach: { range: 4, pointOf: pointOfUnit },
-        release: () => [mark('poke')],
+        release: () => [mark('poke')]
       }),
       far: spell({
         activation: { kind: 'trigger' },
         stats: { reach: 8 },
         target: atInput,
         reach: { range: (ctx) => ctx.stats.reach, pointOf: pointOfUnit },
-        release: () => [mark('far')],
-      }),
+        release: () => [mark('far')]
+      })
     });
 
     const [hero, near, away] = [game.unit(1), game.unit(5), game.unit(9)];
@@ -47,7 +47,7 @@ describe('reach rules', () => {
     assert.equal(game.spells.cast(hero, game.id.poke, {}).refusal, 'target');
     assert.deepEqual(
       game.log.filter((line) => !line.includes(' ')),
-      ['poke@1', 'far@1'],
+      ['poke@1', 'far@1']
     );
   });
 
@@ -56,9 +56,14 @@ describe('reach rules', () => {
       charge: spell({
         activation: { kind: 'trigger' },
         target: atInput,
-        reach: { range: 10, minRange: 3, pointOf: pointOfUnit, allows: (_ctx, target) => (target?.id ?? 0) !== 9 },
-        release: () => [mark('charge')],
-      }),
+        reach: {
+          range: 10,
+          minRange: 3,
+          pointOf: pointOfUnit,
+          allows: (_ctx, target) => (target?.id ?? 0) !== 9
+        },
+        release: () => [mark('charge')]
+      })
     });
 
     const [hero, close, mid, barred] = [game.unit(1), game.unit(2), game.unit(5), game.unit(9)];
@@ -76,10 +81,10 @@ describe('reach rules', () => {
           activation: { kind: 'trigger' },
           target: atInput,
           reach: { sight: true, pointOf: pointOfUnit },
-          release: () => [mark('glare')],
-        }),
+          release: () => [mark('glare')]
+        })
       },
-      { spells: { world: pillared() } },
+      { spells: { world: pillared() } }
     );
 
     const hero = game.unit(1);
@@ -95,13 +100,13 @@ describe('reach rules', () => {
           activation: { kind: 'trigger' },
           target: atInput,
           reach: { range: 2, sight: true },
-          release: () => [mark('bite')],
-        }),
+          release: () => [mark('bite')]
+        })
       },
       {
         spells: { world: pillared() },
-        host: { pointOf: (target) => (isUnit(target) ? target.at : undefined) },
-      },
+        host: { pointOf: (target) => (isUnit(target) ? target.at : undefined) }
+      }
     );
 
     const beast = game.unit(1);
@@ -116,8 +121,8 @@ describe('reach rules', () => {
         activation: { kind: 'trigger' },
         target: atInput,
         reach: { range: 4, pointOf: pointOfUnit },
-        release: () => [mark('poke')],
-      }),
+        release: () => [mark('poke')]
+      })
     });
 
     const hero = game.unit(1);
@@ -137,8 +142,8 @@ describe('reach rules', () => {
         activation: { kind: 'auto', interval: 2 },
         target: () => aim.target,
         reach: { range: 1.5, pointOf: pointOfUnit },
-        release: () => [mark('swing')],
-      }),
+        release: () => [mark('swing')]
+      })
     });
 
     const hero = game.unit(1);
@@ -153,7 +158,7 @@ describe('reach rules', () => {
     assert.equal(game.spells.autoClock(hero, game.id.swing), 2);
     assert.deepEqual(
       game.log.filter((line) => !line.includes(' ')),
-      ['swing@1'],
+      ['swing@1']
     );
   });
 
@@ -161,33 +166,51 @@ describe('reach rules', () => {
     const release = () => undefined;
 
     assert.throws(
-      () => makeSpellGame({ x: spell({ activation: { kind: 'trigger' }, reach: { range: 1 }, release }) }),
-      /its reach is checked against its target/,
+      () =>
+        makeSpellGame({
+          x: spell({ activation: { kind: 'trigger' }, reach: { range: 1 }, release })
+        }),
+      /its reach is checked against its target/
     );
     assert.throws(
       () =>
         makeSpellGame({
-          x: spell({ activation: { kind: 'trigger' }, target: atInput, reach: { range: -1 }, release }),
+          x: spell({
+            activation: { kind: 'trigger' },
+            target: atInput,
+            reach: { range: -1 },
+            release
+          })
         }),
-      /its range takes a distance from 0/,
+      /its range takes a distance from 0/
     );
     assert.throws(
       () =>
         makeSpellGame({
-          x: spell({ activation: { kind: 'trigger' }, target: atInput, reach: { sight: true }, release }),
+          x: spell({
+            activation: { kind: 'trigger' },
+            target: atInput,
+            reach: { sight: true },
+            release
+          })
         }),
-      /needs a world/,
+      /needs a world/
     );
   });
 
   it('throws when no one knows the target’s point', () => {
     const game = makeSpellGame({
-      poke: spell({ activation: { kind: 'trigger' }, target: atInput, reach: { range: 4 }, release: () => undefined }),
+      poke: spell({
+        activation: { kind: 'trigger' },
+        target: atInput,
+        reach: { range: 4 },
+        release: () => undefined
+      })
     });
 
     assert.throws(
       () => game.spells.cast(game.unit(1), game.id.poke, { input: game.unit(2) }),
-      /needs its target's point/,
+      /needs its target's point/
     );
   });
 });

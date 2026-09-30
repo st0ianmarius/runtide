@@ -19,7 +19,7 @@ export const spellAt = (record: LoadoutRecord, slot: number): SpellId | undefine
 const holds = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  [tags, every]: readonly [readonly AuraTagId[], boolean],
+  [tags, every]: readonly [readonly AuraTagId[], boolean]
 ): boolean => {
   for (let i = 0; i < tags.length; i++) {
     const tag = tags[i];
@@ -36,7 +36,7 @@ const holds = <G extends AbilityTypes>(
 const failedRule = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  button: CompiledButton<G>,
+  button: CompiledButton<G>
 ): ButtonRefusal | undefined => {
   if (button.requires.length > 0 && !holds(engine, bearer, [button.requires, true])) {
     return 'requires';
@@ -55,7 +55,7 @@ const failedRule = <G extends AbilityTypes>(
 const isCooling = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  button: CompiledButton<G>,
+  button: CompiledButton<G>
 ): boolean => {
   const { cooldowns } = button;
 
@@ -78,7 +78,7 @@ const isCooling = <G extends AbilityTypes>(
 export const refusalAt = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  slot: number,
+  slot: number
 ): ButtonRefusal | undefined => {
   const spell = spellAt(loadoutOf(bearer), slot);
   const button = spell === undefined ? undefined : engine.buttons[spell];
@@ -94,7 +94,7 @@ export const refusalAt = <G extends AbilityTypes>(
 const passesCheck = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  spell: SpellId,
+  spell: SpellId
 ): boolean => {
   const check = engine.buttons[spell]?.def.checkCast;
 
@@ -105,7 +105,7 @@ const passesCheck = <G extends AbilityTypes>(
 const pay = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  button: CompiledButton<G>,
+  button: CompiledButton<G>
 ): boolean =>
   button.costAura < 0 || engine.auras.spendStacks(bearer, toId<'auras'>(button.costAura), button.costStacks);
 
@@ -118,7 +118,7 @@ const pay = <G extends AbilityTypes>(
 const commit = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  [spell, button]: readonly [SpellId, CompiledButton<G>],
+  [spell, button]: readonly [SpellId, CompiledButton<G>]
 ): ButtonRefusal | undefined => {
   if (!pay(engine, bearer, button)) {
     return 'cost';
@@ -175,7 +175,7 @@ const castCommitted = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer:
 const admission = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  [spell, button]: readonly [SpellId, CompiledButton<G>],
+  [spell, button]: readonly [SpellId, CompiledButton<G>]
 ): PressRefusal<G> | undefined => {
   if (!passesCheck(engine, bearer, spell)) {
     return 'check';
@@ -235,7 +235,7 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
 export const press = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  [pressed, refusals]: readonly [number, (PressRefusal<G> | undefined)[] | undefined],
+  [pressed, refusals]: readonly [number, (PressRefusal<G> | undefined)[] | undefined]
 ): number => {
   const count = engine.slots.size;
   let accepted = 0;

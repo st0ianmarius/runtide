@@ -62,7 +62,7 @@ export const refreshLive = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
 export const autoIntervalOf = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
-  def: AnySpellDef<G>,
+  def: AnySpellDef<G>
 ): number => {
   const { activation } = def;
 
@@ -84,7 +84,7 @@ export const autoIntervalOf = <G extends SpellTypes>(
 
   if (!(seconds > 0) || !Number.isFinite(seconds)) {
     throw new RangeError(
-      `Spell ${engine.registry.name(cast.spell)}: an auto interval must be above 0; got ${seconds}.`,
+      `Spell ${engine.registry.name(cast.spell)}: an auto interval must be above 0; got ${seconds}.`
     );
   }
 

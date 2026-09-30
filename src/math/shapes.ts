@@ -166,7 +166,12 @@ export const point = (at: Vec2): PointShape => ({ kind: 'point', at });
 export const circle = (r: number, at: Vec2 = ORIGIN): Circle => ({ kind: 'circle', at, r });
 
 /** A ring between `inner` and `outer` centred on `at` (the origin by default). */
-export const ring = (inner: number, outer: number, at: Vec2 = ORIGIN): Ring => ({ kind: 'ring', at, inner, outer });
+export const ring = (inner: number, outer: number, at: Vec2 = ORIGIN): Ring => ({
+  kind: 'ring',
+  at,
+  inner,
+  outer
+});
 
 /** A cone. */
 export const cone = (spec: ConeSpec): Cone => ({
@@ -175,7 +180,7 @@ export const cone = (spec: ConeSpec): Cone => ({
   r: spec.r,
   half: spec.half,
   dir: spec.dir,
-  apex: spec.apex ?? 0,
+  apex: spec.apex ?? 0
 });
 
 /** A lane. */
@@ -185,11 +190,15 @@ export const lane = (spec: LaneSpec): Lane => ({
   length: spec.length,
   width: spec.width,
   dir: spec.dir,
-  back: spec.back ?? 0,
+  back: spec.back ?? 0
 });
 
 /** A polygon over `points`, grown by `band` (0 by default). */
-export const polygon = (points: readonly Vec2[], band = 0): Polygon => ({ kind: 'polygon', points, band });
+export const polygon = (points: readonly Vec2[], band = 0): Polygon => ({
+  kind: 'polygon',
+  points,
+  band
+});
 
 /** The complement of a shape (the burn outside a ring of fire). */
 export const outside = (shape: Shape): Outside => ({ kind: 'outside', shape });
@@ -198,4 +207,8 @@ export const outside = (shape: Shape): Outside => ({ kind: 'outside', shape });
 export const union = (...shapes: readonly Shape[]): Union => ({ kind: 'union', shapes });
 
 /** What `base` covers and `minus` does not (a lane with a gap). */
-export const difference = (base: Shape, minus: Shape): Difference => ({ kind: 'difference', base, minus });
+export const difference = (base: Shape, minus: Shape): Difference => ({
+  kind: 'difference',
+  base,
+  minus
+});

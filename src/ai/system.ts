@@ -86,7 +86,7 @@ export interface AiSystem<G extends AiTypes> {
   readonly first: (
     caster: G['bearer'],
     spells: readonly SpellId[],
-    options?: Pick<PickOptions<G>, 'input' | 'allows'>,
+    options?: Pick<PickOptions<G>, 'input' | 'allows'>
   ) => SpellId | undefined;
 
   /** The entity id a unit focuses (a tether's target, a sticky target); −1 for none. */
@@ -120,7 +120,7 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
 
       get created() {
         return scheduler.created;
-      },
+      }
     },
 
     procKinds: createAiProcKinds({ timers, scheduler }),
@@ -142,7 +142,7 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
 
     setFocus: (unit, focus) => {
       brainOf(unit.brain).focus = focus;
-    },
+    }
   };
 
   return Object.freeze(system);

@@ -3,7 +3,7 @@ import {
   type AreaTriggerProcs,
   type AreaTriggerTypes,
   createAreaTriggerSystem,
-  defineAreaTriggers,
+  defineAreaTriggers
 } from '../src/area-triggers/index.ts';
 import { type AuraState, createAuraSystem, defineAuras, defineAuraTags } from '../src/auras/index.ts';
 import { createClock, stream } from '../src/core/index.ts';
@@ -14,7 +14,7 @@ import {
   createSpellSystem,
   defineSpells,
   type SpellCaster,
-  type SpellProcs,
+  type SpellProcs
 } from '../src/spells/index.ts';
 import { createMemoryWorld } from '../src/world/index.ts';
 
@@ -139,7 +139,7 @@ const GRANT: readonly Proc<BenchGame>[] = Object.freeze([grant<BenchGame>('focus
 const pool: AnyAreaTriggerDef<BenchGame> = {
   shape: circle(3),
   lifetime: 'spent',
-  every: [{ seconds: 0.5, onPulse: (_c, hit) => (hit.targets.length > 0 ? GRANT : undefined) }],
+  every: [{ seconds: 0.5, onPulse: (_c, hit) => (hit.targets.length > 0 ? GRANT : undefined) }]
 };
 
 /** A missile orbiting its spawn point at 12 m/s, sweeping its foes, each again after a second. */
@@ -156,17 +156,21 @@ const missile: AnyAreaTriggerDef<BenchGame> = {
     c.position.z -= Math.sin(phase) * 12 * dt;
   },
 
-  onContact: () => GRANT,
+  onContact: () => GRANT
 };
 
 const KINDS = defineAreaTriggers<BenchGame, 'pool' | 'missile'>({ pool, missile });
 const CLOCK = createClock({ dt: 1 / 30 });
-const WORLD = createMemoryWorld<Unit>({ bounds: { minX: -100, minZ: -100, maxX: 100, maxZ: 100 }, dt: 1 / 30 });
+
+const WORLD = createMemoryWorld<Unit>({
+  bounds: { minX: -100, minZ: -100, maxX: 100, maxZ: 100 },
+  dt: 1 / 30
+});
 
 const AURAS = createAuraSystem<BenchGame>({
   registry: defineAuras<BenchGame, never>({}),
   tags: defineAuraTags(['ward']),
-  clocks: { world: CLOCK },
+  clocks: { world: CLOCK }
 });
 
 const HOST = {
@@ -174,7 +178,7 @@ const HOST = {
 
   grant: (_unit: Unit, _resource: number, amount: number) => {
     areaCounter.granted += amount;
-  },
+  }
 };
 
 const late: { procs?: ReturnType<typeof createProcSystem<BenchGame>> } = {};
@@ -189,7 +193,7 @@ const SPELLS = createSpellSystem<BenchGame>({
   auras: AURAS,
   procs: () => late.procs ?? missing(),
   clock: CLOCK,
-  host: HOST,
+  host: HOST
 });
 
 const AREAS = createAreaTriggerSystem<BenchGame>({
@@ -199,14 +203,14 @@ const AREAS = createAreaTriggerSystem<BenchGame>({
   procs: () => late.procs ?? missing(),
   world: WORLD,
   clock: CLOCK,
-  host: HOST,
+  host: HOST
 });
 
 late.procs = createProcSystem<BenchGame>({
   kinds: createProcRegistry<BenchGame>({ ...CORE_PROCS, ...SPELLS.procKinds, ...AREAS.procKinds }),
   auras: AURAS,
   host: HOST,
-  resources: ['focus'],
+  resources: ['focus']
 });
 
 const random = stream(777);
@@ -224,7 +228,7 @@ const unitAt = (id: number, [x, z, side]: readonly [number, number, number]): Un
 const OWNERS: readonly Unit[] = Array.from({ length: 10 }, (_unused, i) => unitAt(i + 1, [i * 5 - 25, 0, 0]));
 
 const FOES: readonly Unit[] = Array.from({ length: 2000 }, (_unused, i) =>
-  unitAt(100 + i, [(random() - 0.5) * 190, (random() - 0.5) * 190, 1]),
+  unitAt(100 + i, [(random() - 0.5) * 190, (random() - 0.5) * 190, 1])
 );
 
 // 150 pools and 50 missiles, spread over the world.
@@ -266,11 +270,11 @@ const ownerTick = (): void => {
 /** How many area triggers are live and how many records were made: what the baseline reports beside the times. */
 export const areaStats = (): { readonly live: number; readonly created: number } => ({
   live: AREAS.pool.live,
-  created: AREAS.pool.created,
+  created: AREAS.pool.created
 });
 
 /** The F8 area trigger benchmark tasks, and how many operations each call of its function is. */
 export const AREA_TASKS: readonly (readonly [string, () => void, number])[] = [
   ['areas: 150 pools + 50 missiles over 2,000 units (tick)', areaTick, 1000],
-  ['areas: the same, stepped owner by owner, 2,010 units (tick)', ownerTick, 1000],
+  ['areas: the same, stepped owner by owner, 2,010 units (tick)', ownerTick, 1000]
 ];

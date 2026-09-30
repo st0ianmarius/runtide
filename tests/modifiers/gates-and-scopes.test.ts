@@ -15,11 +15,16 @@ const game = () => {
     attackSpeed: { base: 1, kind: 'multiplier' },
     armor: { base: 0, kind: 'flat' },
     chainJumps: { base: 0, kind: 'flat' },
-    moveSpeed: { base: 0, kind: 'flat' },
+    moveSpeed: { base: 0, kind: 'flat' }
   });
 
   const sources = defineSources(['race', 'talents', 'auras', 'stance']);
-  const system = createModifierSystem({ stats, sources, stacks: (host: Host, gate) => host.stacks[gate] ?? 0 });
+
+  const system = createModifierSystem({
+    stats,
+    sources,
+    stacks: (host: Host, gate) => host.stacks[gate] ?? 0
+  });
 
   return { stats, sources, system, id: stats.id };
 };
@@ -45,7 +50,7 @@ describe('gated lists (an aura’s modifiers)', () => {
 
     system.setSource(sheet, sources.id.race, [system.compile([plus('moveSpeed', 6)])]);
     system.setSource(sheet, sources.id.talents, [
-      system.compile([mul('moveSpeed', 1.07, { stacking: 'linear' })], { gate: 0 }),
+      system.compile([mul('moveSpeed', 1.07, { stacking: 'linear' })], { gate: 0 })
     ]);
 
     assert.equal(system.resolve(sheet, id.moveSpeed, { host: { stacks: [1] } }), 6.42);
@@ -87,7 +92,7 @@ describe('scopes', () => {
     const other = createBitset([5]);
 
     system.setSource(sheet, sources.id.talents, [
-      system.compile([mul('damage', 1.2), mul('damage', 1.5, { scope: 9 }), plus('chainJumps', 2, { scope: 4 })]),
+      system.compile([mul('damage', 1.2), mul('damage', 1.5, { scope: 9 }), plus('chainJumps', 2, { scope: 4 })])
     ]);
 
     assert.equal(system.resolve(sheet, id.damage), 1.2);

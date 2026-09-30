@@ -75,7 +75,7 @@ const tagIdOf = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, tag: G['area
 /** Whether one kind passes a query's kind and tag. */
 const isKindKept = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
-  [query, kind, tag]: readonly [AreaQuery<G>, number, number],
+  [query, kind, tag]: readonly [AreaQuery<G>, number, number]
 ): boolean =>
   (query.kind === undefined || query.kind === kind) && (tag < 0 || engine.registry.tagSets[kind]?.has(tag) === true);
 
@@ -90,7 +90,7 @@ const isKept = <G extends AreaTriggerTypes>(area: AreaTrigger<G>, query: AreaQue
 const collect = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   query: AreaQuery<G>,
-  out: (AreaTrigger<G> | undefined)[],
+  out: (AreaTrigger<G> | undefined)[]
 ): number => {
   const tag = query.tag === undefined ? -1 : tagIdOf(engine, query.tag);
   let count = 0;
@@ -115,7 +115,7 @@ const collect = <G extends AreaTriggerTypes>(
 export const checkReason = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, reason: string): void => {
   if (engine.registry.reasonCodes[reason] === undefined) {
     throw new RangeError(
-      `Area triggers: unknown end reason ${reason}; name the game's reasons in the registry's endReasons.`,
+      `Area triggers: unknown end reason ${reason}; name the game's reasons in the registry's endReasons.`
     );
   }
 };
@@ -124,7 +124,7 @@ export const checkReason = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, r
 export const despawnWhere = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   query: AreaQuery<G>,
-  reason: EndReason<G>,
+  reason: EndReason<G>
 ): number => {
   const handles: AreaTriggerHandle[] = [];
   const count = engine.queries.query(query, handles);
@@ -193,7 +193,7 @@ export class AreaQueryApi<G extends AreaTriggerTypes> implements AreaQueries<G> 
   readonly intercept = (
     [from, to]: readonly [Vec2, Vec2],
     query: CoverQuery<G>,
-    out: AreaInterception,
+    out: AreaInterception
   ): AreaInterception => {
     const found = this.#engine.records.take();
     const count = collect(this.#engine, query, found);

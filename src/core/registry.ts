@@ -105,7 +105,7 @@ const resolveOrder = (keys: readonly string[], order: readonly string[] | undefi
 const buildSlots = <Def extends object>(
   names: readonly string[],
   lookup: (name: string) => object | undefined,
-  options: RegistryOptions<string, Def, string>,
+  options: RegistryOptions<string, Def, string>
 ): (Def | undefined)[] =>
   names.map((name) => {
     const def = lookup(name);
@@ -125,7 +125,7 @@ const buildSlots = <Def extends object>(
 const createLookups = <Kind extends string, Def>(
   kind: string,
   names: readonly string[],
-  slots: readonly (Def | undefined)[],
+  slots: readonly (Def | undefined)[]
 ) => {
   const slotOf = (id: Id<Kind>): number => {
     if (!Number.isInteger(id) || id < 0 || id >= slots.length) {
@@ -147,7 +147,7 @@ const createLookups = <Kind extends string, Def>(
       }
 
       return def;
-    },
+    }
   };
 };
 
@@ -159,10 +159,10 @@ const createLookups = <Kind extends string, Def>(
 export const createRegistry = <
   Defs extends Readonly<Record<string, object>>,
   Kind extends string = string,
-  Columns extends string = never,
+  Columns extends string = never
 >(
   defs: Defs,
-  options: RegistryOptions<Kind, DefOf<Defs>, Columns> = {},
+  options: RegistryOptions<Kind, DefOf<Defs>, Columns> = {}
 ): Registry<Kind, Extract<keyof Defs, string>, DefOf<Defs>, Columns> => {
   type Def = DefOf<Defs>;
   type Name = Extract<keyof Defs, string>;
@@ -185,8 +185,8 @@ export const createRegistry = <
     ...createLookups(kind, names, slots),
     columns: buildColumns(
       slots,
-      options.columns ?? recordOf<Columns, ColumnSpec<Def>>([], () => ({ type: 'u8', of: () => 0 })),
-    ),
+      options.columns ?? recordOf<Columns, ColumnSpec<Def>>([], () => ({ type: 'u8', of: () => 0 }))
+    )
   });
 };
 

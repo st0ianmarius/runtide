@@ -6,7 +6,7 @@ import { createPool, NO_HANDLE } from '../../src/core/index.ts';
 const castPool = () =>
   createPool({
     create: () => ({ spell: -1, elapsed: 0 }),
-    reset: (cast) => Object.assign(cast, { spell: -1, elapsed: 0 }),
+    reset: (cast) => Object.assign(cast, { spell: -1, elapsed: 0 })
   });
 
 describe('pools with generational handles', () => {
@@ -97,7 +97,7 @@ describe('pools with generational handles', () => {
 
     assert.deepEqual(
       [pool.acquire(), pool.acquire(), pool.acquire(), pool.acquire()].map((h) => pool.slotOf(h)),
-      [2, 0, 3, 4],
+      [2, 0, 3, 4]
     );
   });
 });

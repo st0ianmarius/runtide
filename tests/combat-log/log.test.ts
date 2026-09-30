@@ -7,7 +7,7 @@ import {
   type CombatLog,
   createCombatLog,
   createDamageMeter,
-  ENTRY_KILLED,
+  ENTRY_KILLED
 } from '../../src/combat-log/index.ts';
 import { createBus } from '../../src/core/index.ts';
 import { circle, vec2 } from '../../src/math/index.ts';
@@ -20,16 +20,17 @@ const logGame = () =>
       bolt: spell({
         activation: { kind: 'trigger' },
         target: (_ctx, input) => input,
-        release: (_ctx, target) => (target === undefined ? undefined : [{ kind: 'damage', amount: 30, to: target }]),
-      }),
+
+        release: (_ctx, target) => (target === undefined ? undefined : [{ kind: 'damage', amount: 30, to: target }])
+      })
     },
     {
       auras: {
         shield: aura({ duration: 'infinite', onIgnore: () => true }),
-        mark: aura({ duration: 1 }),
+        mark: aura({ duration: 1 })
       },
-      areaTriggers: { pool: { shape: circle(1), lifetime: 0.5 } },
-    },
+      areaTriggers: { pool: { shape: circle(1), lifetime: 0.5 } }
+    }
   );
 
 /** A combat log over a test game's bus, recording everything. */
@@ -41,10 +42,15 @@ const logOf = (game: ReturnType<typeof logGame>, capacity?: number): CombatLog =
     clock: game.clock,
     idOf: (unit) => unit.id,
     ...(capacity === undefined ? {} : { capacity }),
-    damage: { taken: bus.kind.taken, ignored: bus.kind.ignored, healed: bus.kind.healed, death: bus.kind.death },
+    damage: {
+      taken: bus.kind.taken,
+      ignored: bus.kind.ignored,
+      healed: bus.kind.healed,
+      death: bus.kind.death
+    },
     auras: bus.kind.aura,
     spells: { start: bus.kind.spellStart, release: bus.kind.spellRelease, end: bus.kind.spellEnd },
-    areaTriggers: { spawned: bus.kind.areaSpawned, ended: bus.kind.areaEnded },
+    areaTriggers: { spawned: bus.kind.areaSpawned, ended: bus.kind.areaEnded }
   });
 };
 
@@ -89,7 +95,7 @@ describe('the combat log', () => {
       '0 auraApplied 1>100 1',
       '0 areaSpawned 1>1 0',
       '1 damage 1>100 120',
-      '1 death 1>100 0',
+      '1 death 1>100 0'
     ]);
   });
 
@@ -106,7 +112,7 @@ describe('the combat log', () => {
     log.read(1, entry);
     assert.deepEqual(
       [entry.kind, entry.source, entry.actor, entry.amount, entry.overflow, entry.base, entry.damageKind],
-      ['damage', 7, 1, 110, 40, 150, 0],
+      ['damage', 7, 1, 110, 40, 150, 0]
     );
     assert.equal(entry.flags & ENTRY_KILLED, ENTRY_KILLED);
     assert.equal(entry.reason, 4);
@@ -190,7 +196,7 @@ describe('outcomes in the log', () => {
       clock: { tick: 0 },
       idOf: (unit) => unit,
       outcomes: ['miss', 'dodge', 'crit'],
-      damage: { taken: bus.kind.taken },
+      damage: { taken: bus.kind.taken }
     });
 
     const blow = {
@@ -208,13 +214,15 @@ describe('outcomes in the log', () => {
       isCrit: false,
       hasKilled: false,
       isDeathPrevented: false,
-      outcome: 'dodge',
+      outcome: 'dodge'
     };
 
     const entry = log.createEntry();
 
     bus.raise(bus.kind.taken, { blow });
-    bus.raise(bus.kind.taken, { blow: { ...blow, outcome: undefined, status: 'landed', dealt: 10 } });
+    bus.raise(bus.kind.taken, {
+      blow: { ...blow, outcome: undefined, status: 'landed', dealt: 10 }
+    });
     log.read(0, entry);
     assert.deepEqual([entry.outcome, entry.reason], [1, 5]);
     log.read(1, entry);
@@ -229,10 +237,10 @@ describe('the damage meter', () => {
         charge: spell({
           activation: { kind: 'trigger' },
           timeline: { channel: { seconds: 2 } },
-          release: () => undefined,
-        }),
+          release: () => undefined
+        })
       },
-      { areaTriggers: { pool: { shape: circle(1), lifetime: 5 } } },
+      { areaTriggers: { pool: { shape: circle(1), lifetime: 5 } } }
     );
 
     const { bus } = game;
@@ -243,7 +251,7 @@ describe('the damage meter', () => {
       clock: game.clock,
       idOf: (unit) => unit.id,
       spells: { end: bus.kind.spellEnd, outcomes: game.spells.registry.outcomes },
-      areaTriggers: { ended: bus.kind.areaEnded, reasons: game.areaTriggers.registry.endReasons },
+      areaTriggers: { ended: bus.kind.areaEnded, reasons: game.areaTriggers.registry.endReasons }
     });
 
     const entry = log.createEntry();
@@ -270,7 +278,7 @@ describe('the damage meter', () => {
     assert.equal(meter.healingBy(2), 25);
     assert.deepEqual(meter.ranking(), [
       { source: 100, damage: 40 },
-      { source: 1, damage: 35 },
+      { source: 1, damage: 35 }
     ]);
     meter.reset();
     assert.equal(meter.damageBy(1), 0);

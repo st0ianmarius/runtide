@@ -7,7 +7,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../../src/auras/index.ts';
 import { checkOrder, createBitset, TOMBSTONE } from '../../src/core/index.ts';
 import { aura, CLOCKS, makeGame, TAGS } from '../helpers/aura-game.ts';
@@ -16,7 +16,11 @@ const onApplied = () => ['applied'];
 
 describe('defineAuras', () => {
   it('gives each aura its id by key order, keeps a retired slot, and pins the order', () => {
-    const registry = defineAuras({ bleed: aura({ duration: 1 }), old: TOMBSTONE, stun: aura({ duration: 2 }) });
+    const registry = defineAuras({
+      bleed: aura({ duration: 1 }),
+      old: TOMBSTONE,
+      stun: aura({ duration: 2 })
+    });
 
     assert.deepEqual(registry.id, { bleed: 0, old: 1, stun: 2 });
     assert.deepEqual(registry.ids, [0, 2]);
@@ -28,7 +32,12 @@ describe('defineAuras', () => {
   it('builds typed columns, hook tables and has bitsets', () => {
     const registry = defineAuras({
       bleed: aura({ duration: 1, stacking: 'stack', maxStacks: 300, merge: 'add', onApplied }),
-      stun: aura({ duration: 2, stacking: (): undefined => undefined, audience: 'owner', perSource: true }),
+      stun: aura({
+        duration: 2,
+        stacking: (): undefined => undefined,
+        audience: 'owner',
+        perSource: true
+      })
     });
 
     assert.deepEqual(Array.from(registry.columns.stacking), [2, 5]);
@@ -80,7 +89,11 @@ describe('createAuraSystem', () => {
   });
 
   it('numbers its clocks by declaration order, the first the default', () => {
-    const { auras, id, unit } = makeGame({ a: aura({ duration: 1 }), b: aura({ duration: 1, clock: 'motion' }) });
+    const { auras, id, unit } = makeGame({
+      a: aura({ duration: 1 }),
+      b: aura({ duration: 1, clock: 'motion' })
+    });
+
     const u = unit();
 
     auras.apply(u, id.a);
@@ -88,18 +101,26 @@ describe('createAuraSystem', () => {
     assert.deepEqual(auras.clocks, { world: 0, motion: 1 });
     assert.deepEqual(
       u.auras.list.map((a) => a.clock),
-      [0, 1],
+      [0, 1]
     );
   });
 
   it('refuses a state made by another hand, and a system with no clock', () => {
     const { auras, id } = makeGame({ a: aura({ duration: 1 }) });
-    const forged = { list: [], tags: createBitset(), clocks: [], changes: 0, isSilent: false, serials: 0 };
+
+    const forged = {
+      list: [],
+      tags: createBitset(),
+      clocks: [],
+      changes: 0,
+      isSilent: false,
+      serials: 0
+    };
 
     assert.throws(() => auras.has({ id: 1, hp: 1, auras: forged }, id.a), /createState/);
     assert.throws(
       () => createAuraSystem({ registry: defineAuras({}), tags: defineAuraTags([]), clocks: {} }),
-      /from 1 to 255 clocks/,
+      /from 1 to 255 clocks/
     );
   });
 });

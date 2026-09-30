@@ -19,7 +19,7 @@ export type {
   ForceKind,
   ForceStatus,
   HealStatus,
-  RollSlot,
+  RollSlot
 } from './damage-types.ts';
 
 export type { Death } from './death.ts';
@@ -36,12 +36,13 @@ export {
   deathTriggerEvent,
   type HealEvent,
   healTriggerEvent,
-  type SpellNames,
+  type SpellNames
 } from './events.ts';
 
 export type { MitigationExplanation, MitigationRowExplanation } from './explain.ts';
 export type { Force, ForceSpec } from './force.ts';
 export type { Heal, HealSpec } from './heal.ts';
+
 export { type DamageKindDef, type DamageKindTable, defineDamageKinds, TRUE_DAMAGE } from './kinds.ts';
 
 export {
@@ -50,7 +51,7 @@ export {
   type MitigationRowDef,
   type MitigationTable,
   type Penetration,
-  percent,
+  percent
 } from './mitigation.ts';
 
 export type {
@@ -63,7 +64,7 @@ export type {
   ForceState,
   HealOptions,
   HealStage,
-  HealState,
+  HealState
 } from './options.ts';
 
 export {
@@ -78,7 +79,7 @@ export {
   pull,
   push,
   setHealth,
-  type SetHealthProc,
+  type SetHealthProc
 } from './procs.ts';
 
 export type { StageDef, StagePosition } from './stage-order.ts';
@@ -92,7 +93,7 @@ export {
   type RollStat,
   type RollTable,
   type RollTableSpec,
-  type RollValue,
+  type RollValue
 } from './rolls.ts';
 
 export {
@@ -100,5 +101,5 @@ export {
   type DamageSystem,
   type HealthCredit,
   type RollExplanation,
-  type RollQuery,
+  type RollQuery
 } from './system.ts';

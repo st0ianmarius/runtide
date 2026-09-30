@@ -47,7 +47,7 @@ export interface Restack {
  */
 export type AuraStackingRule<G extends AuraTypes> = (
   ctx: AuraContext<G>,
-  incoming: IncomingAura,
+  incoming: IncomingAura
 ) => Restack | undefined;
 
 /**

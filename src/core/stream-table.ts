@@ -35,7 +35,7 @@ export interface StreamTable<Name extends string> {
 /** Builds the stream table for one run from its seed and the game's specs, one entry per name. */
 export const createStreamTable = <const Specs extends Readonly<Record<string, StreamSpec>>>(
   seed: number,
-  specs: Specs,
+  specs: Specs
 ): StreamTable<Extract<keyof Specs, string>> => {
   type Name = Extract<keyof Specs, string>;
 
@@ -92,6 +92,6 @@ export const createStreamTable = <const Specs extends Readonly<Record<string, St
           one.restore(state);
         }
       }
-    },
+    }
   };
 };

@@ -17,13 +17,13 @@ const setUp = () =>
         requires: ['stance'],
         blockedBy: ['rooted'],
         resets: ['cooldown.dodge'],
-        applies: [auraNamed('sprint'), auraNamed('stance')],
+        applies: [auraNamed('sprint'), auraNamed('stance')]
       },
-      release,
+      release
     }),
 
     free: spell({ activation: { kind: 'button' }, release }),
-    swing: spell({ activation: { kind: 'trigger' }, release }),
+    swing: spell({ activation: { kind: 'trigger' }, release })
   });
 
 describe('button explanations', () => {
@@ -38,7 +38,7 @@ describe('button explanations', () => {
       requires: [auras.tags.id.stance],
       blockedBy: [auras.tags.id.rooted],
       resets: [auras.tags.id['cooldown.dodge']],
-      applies: [auraNamed('sprint'), auraNamed('stance')],
+      applies: [auraNamed('sprint'), auraNamed('stance')]
     });
   });
 

@@ -14,8 +14,8 @@ const owned = () => {
     {
       volley: spell({
         activation: { kind: 'trigger' },
-        release: () => [spawn('telegraph'), spawn('patch'), after(1, [mark('late')])],
-      }),
+        release: () => [spawn('telegraph'), spawn('patch'), after(1, [mark('late')])]
+      })
     },
     {
       spells: { interrupts: ['stun'] },
@@ -24,11 +24,11 @@ const owned = () => {
           tags: ['pool'],
           shape: circle(1),
           lifetime: 2,
-          bound: { suspendWhile: (c) => late.isStunned?.(c.owner) === true },
+          bound: { suspendWhile: (c) => late.isStunned?.(c.owner) === true }
         },
-        patch: { shape: circle(1), lifetime: 2 },
-      },
-    },
+        patch: { shape: circle(1), lifetime: 2 }
+      }
+    }
   );
 
   const elite = game.unit(1);
@@ -116,7 +116,7 @@ describe('withdrawing what a unit owns', () => {
     assert.throws(() => game.procs.prepare([forged], 'Test'), /unknown end reason storm/);
     assert.throws(
       () => Reflect.apply(game.areaTriggers.despawnWhere, undefined, [{ owner: elite }, 'storm']),
-      /unknown end reason storm/,
+      /unknown end reason storm/
     );
   });
 
@@ -124,9 +124,10 @@ describe('withdrawing what a unit owns', () => {
     const game = makeSpellGame({
       chain: spell({
         activation: { kind: 'trigger' },
-        release: () => [after(0.25, [despawnOwned<Game>(), mark('landed')]), after(0.5, [mark('never')])],
+
+        release: () => [after(0.25, [despawnOwned<Game>(), mark('landed')]), after(0.5, [mark('never')])]
       }),
-      other: spell({ activation: { kind: 'trigger' }, release: () => [castSpell('chain')] }),
+      other: spell({ activation: { kind: 'trigger' }, release: () => [castSpell('chain')] })
     });
 
     const elite = game.unit(1);

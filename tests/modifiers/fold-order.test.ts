@@ -22,7 +22,7 @@ interface Authored {
  */
 const documented = (
   lists: readonly (readonly Authored[])[],
-  stat: { readonly base: number; readonly min: number; readonly max: number },
+  stat: { readonly base: number; readonly min: number; readonly max: number }
 ): number => {
   const all = lists.flat();
   const ofOp = (op: Authored['op']) => all.filter((m) => m.op === op);
@@ -32,7 +32,7 @@ const documented = (
 
   const multiplied = ofOp('mul').reduce(
     (product, m) => product * atStacks(m, m.isLinear ? 1 + (m.value - 1) * m.stacks : m.value ** m.stacks),
-    added,
+    added
   );
 
   // A cap (and each side of the clamp) replaces the value only when it is strictly past it, so a -0 cap keeps a 0.
@@ -46,7 +46,7 @@ const authored = fc.record({
   op: fc.constantFrom('add', 'mul', 'min' as const),
   value: fc.double({ min: -4, max: 4, noNaN: true, noDefaultInfinity: true }),
   stacks: fc.integer({ min: 1, max: 4 }),
-  isLinear: fc.boolean(),
+  isLinear: fc.boolean()
 });
 
 describe('the fold’s float order (property)', () => {
@@ -57,7 +57,7 @@ describe('the fold’s float order (property)', () => {
     const system = createModifierSystem({
       stats,
       sources,
-      stacks: (stacks: readonly number[], gate) => stacks[gate] ?? 0,
+      stacks: (stacks: readonly number[], gate) => stacks[gate] ?? 0
     });
 
     fc.assert(
@@ -79,7 +79,7 @@ describe('the fold’s float order (property)', () => {
                 stat: 'power',
                 op: m.op,
                 value: m.value,
-                ...(m.op === 'mul' && m.isLinear ? { stacking: 'linear' as const } : {}),
+                ...(m.op === 'mul' && m.isLinear ? { stacking: 'linear' as const } : {})
               };
 
               return system.compile([modifier], { gate: stacks.length - 1 });
@@ -92,10 +92,10 @@ describe('the fold’s float order (property)', () => {
 
           assert.equal(
             system.resolve(sheet, stats.id.power, { host: stacks }),
-            documented(withStacks, { base: 1.5, min: -2, max: 40 }),
+            documented(withStacks, { base: 1.5, min: -2, max: 40 })
           );
-        },
-      ),
+        }
+      )
     );
   });
 });

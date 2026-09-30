@@ -9,7 +9,7 @@ import { aura, makeGame, TAGS } from '../helpers/aura-game.ts';
 const viewsOf = <Bearer>(
   system: { readonly view: (bearer: Bearer, out: AuraView[], options?: ViewOptions) => number },
   bearer: Bearer,
-  options?: ViewOptions,
+  options?: ViewOptions
 ): AuraView[] => {
   const out: AuraView[] = [];
 
@@ -17,7 +17,14 @@ const viewsOf = <Bearer>(
 };
 
 const defs = {
-  shell: aura({ duration: 10, value: 40, stacking: 'highest', merge: 'max', keepWhenDepleted: true, tags: ['boon'] }),
+  shell: aura({
+    duration: 10,
+    value: 40,
+    stacking: 'highest',
+    merge: 'max',
+    keepWhenDepleted: true,
+    tags: ['boon']
+  }),
   cooldown: aura({ audience: 'owner', clock: 'motion' }),
   echo: aura({ duration: 3, stacking: 'independent', maxStacks: 2 }),
 
@@ -31,16 +38,21 @@ const defs = {
     blockedBy: ['immune'],
     removes: ['boon', 'magic'],
     clock: 'motion',
-    periodic: { every: 1.5, onBeat: () => undefined },
+    periodic: { every: 1.5, onBeat: () => undefined }
   }),
 
-  live: aura({ duration: () => 1, periodic: { every: () => 2, onBeat: () => undefined } }),
+  live: aura({ duration: () => 1, periodic: { every: () => 2, onBeat: () => undefined } })
 };
 
 describe('views for the wire', () => {
   it('show each viewer what it may see: the owner everything, the party all but owner auras, others all auras', () => {
-    const { auras, id, unit } = makeGame({ ...defs, frame: aura({ duration: 5, audience: 'party' }) });
+    const { auras, id, unit } = makeGame({
+      ...defs,
+      frame: aura({ duration: 5, audience: 'party' })
+    });
+
     const u = unit();
+
     const seen = (viewer: 'owner' | 'party' | 'other') => viewsOf(auras, u, { for: viewer }).map((view) => view.aura);
 
     auras.apply(u, id.shell);
@@ -76,7 +88,17 @@ describe('views for the wire', () => {
     auras.apply(u, { aura: id.cooldown, duration: 2 });
     run(u, 4);
     assert.deepEqual(viewsOf(auras, u), [
-      { aura: id.shell, serial: 0, stacks: 1, value: 40, duration: 10, remaining: 9.5, end: 80, clock: 0, source: 7 },
+      {
+        aura: id.shell,
+        serial: 0,
+        stacks: 1,
+        value: 40,
+        duration: 10,
+        remaining: 9.5,
+        end: 80,
+        clock: 0,
+        source: 7
+      }
     ]);
     assert.deepEqual(viewsOf(auras, u, { for: 'owner' })[1], {
       aura: id.cooldown,
@@ -87,7 +109,7 @@ describe('views for the wire', () => {
       remaining: 2,
       end: 16,
       clock: 1,
-      source: NO_SOURCE,
+      source: NO_SOURCE
     });
   });
 });
@@ -113,7 +135,7 @@ describe('explainAura', () => {
       blockedBy: [TAGS.id.immune],
       removes: [TAGS.id.boon, TAGS.id.magic],
       modifiers: [],
-      periodic: { every: 1.5, clock: 1 },
+      periodic: { every: 1.5, clock: 1 }
     });
   });
 
@@ -122,7 +144,7 @@ describe('explainAura', () => {
 
     assert.deepEqual(
       [explainAura(auras, id.live).duration, explainAura(auras, id.live).periodic?.every],
-      ['live', 'live'],
+      ['live', 'live']
     );
     assert.equal(explainAura(auras, id.cooldown).duration, 'given');
     assert.deepEqual([explainAura(auras, id.shell).stacking, explainAura(auras, id.shell).merge], ['highest', 'max']);

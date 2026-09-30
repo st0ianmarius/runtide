@@ -20,7 +20,7 @@ export {
   type AuraStackingRule,
   defineAura,
   type IncomingAura,
-  type Restack,
+  type Restack
 } from './aura-def.ts';
 
 export type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
@@ -33,7 +33,7 @@ export type {
   ForceChange,
   HealChange,
   LethalOutcome,
-  OutgoingChange,
+  OutgoingChange
 } from './damage-hooks.ts';
 
 export {
@@ -43,7 +43,7 @@ export {
   type AuraHookTables,
   type AuraRegistry,
   defineAuras,
-  type GameHookTables,
+  type GameHookTables
 } from './define-auras.ts';
 
 export { type AuraEvent, type AuraEventBus, createAuraEvent } from './aura-event.ts';
@@ -59,7 +59,7 @@ export {
   type AuraSystemOptions,
   createAuraSystem,
   explainAura,
-  type StateOptions,
+  type StateOptions
 } from './system.ts';
 
 export { type AuraTagDef, type AuraTagTable, defineAuraTags } from './tags.ts';

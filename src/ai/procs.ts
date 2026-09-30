@@ -65,16 +65,16 @@ export interface AiProcKinds<G extends AiTypes> {
 export const setTimer = <G extends AiTypes = AiTypes>(
   timer: G['timerName'] | TimerId,
   seconds: number,
-  options: ChanceOption & Pick<SetTimerProc<G>, 'to'> = {},
+  options: ChanceOption & Pick<SetTimerProc<G>, 'to'> = {}
 ): SetTimerProc<G> => ({ ...options, kind: 'setTimer', timer, seconds });
 
 /** A `cancelTimer` proc: `cancelTimer('charge')`. */
 export const cancelTimer = <G extends AiTypes = AiTypes>(
   timer: G['timerName'] | TimerId,
-  options: ChanceOption & Pick<CancelTimerProc<G>, 'to'> = {},
+  options: ChanceOption & Pick<CancelTimerProc<G>, 'to'> = {}
 ): CancelTimerProc<G> => ({ ...options, kind: 'cancelTimer', timer });
 
 /** A `setFocus` proc: `setFocus()` focuses the list's target; `setFocus({ focus: 'none' })` clears it. */
 export const setFocus = <G extends AiTypes = AiTypes>(
-  options: ChanceOption & Omit<SetFocusProc<G>, 'kind' | 'chance'> = {},
+  options: ChanceOption & Omit<SetFocusProc<G>, 'kind' | 'chance'> = {}
 ): SetFocusProc<G> => ({ ...options, kind: 'setFocus' });

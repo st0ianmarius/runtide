@@ -13,7 +13,7 @@ export {
   type CooldownOptions,
   triggerName,
   type WithCooldowns,
-  withTriggerCooldowns,
+  withTriggerCooldowns
 } from './cooldowns.ts';
 
 export type { TriggerContext } from './dispatch.ts';
@@ -24,10 +24,11 @@ export {
   triggerEvent,
   type TriggerEventSpec,
   type TriggerFilterOf,
-  type TriggerFilterSpec,
+  type TriggerFilterSpec
 } from './events.ts';
 
 export type { TriggerConditionExplanation, TriggerExplanation, TriggerFilterExplanation } from './explain.ts';
+
 export type { TriggerId } from './trigger-id.ts';
 
 export {
@@ -35,7 +36,7 @@ export {
   type TriggerCondition,
   type TriggerDef,
   type TriggerFilter,
-  type TriggerTypes,
+  type TriggerTypes
 } from './trigger-types.ts';
 
 export {
@@ -44,5 +45,5 @@ export {
   explainTriggers,
   type TriggerBus,
   type TriggerSystem,
-  type TriggerSystemOptions,
+  type TriggerSystemOptions
 } from './system.ts';

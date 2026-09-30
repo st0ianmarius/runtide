@@ -21,11 +21,14 @@ const todoWithIssue = {
     Program: () => {
       for (const comment of context.sourceCode.getAllComments()) {
         if (/\b(?:TODO|FIXME)\b(?!\(#\d+\))/.test(comment.value)) {
-          context.report({ loc: comment.loc, message: 'A TODO or FIXME names its issue, as TODO(#12).' });
+          context.report({
+            loc: comment.loc,
+            message: 'A TODO or FIXME names its issue, as TODO(#12).'
+          });
         }
       }
-    },
-  }),
+    }
+  })
 };
 
 /** The line (1-based) of a character offset. */
@@ -42,6 +45,7 @@ const gapAfter = (sourceCode, node, nextStart) => {
   let end = node.range[1];
 
   const between = sourceCode.getAllComments().filter((c) => c.range[0] >= end && c.range[1] <= nextStart);
+
   const trailing = between.filter((c) => lineAt(sourceCode, c.range[0]) === lineAt(sourceCode, end));
 
   end = trailing.at(-1)?.range[1] ?? end;
@@ -57,7 +61,11 @@ const requireBlankLine = (context, [previous, next], message) => {
   const { end, start } = gapAfter(sourceCode, previous, next.range[0]);
 
   if (lineAt(sourceCode, start) - lineAt(sourceCode, end) < 2) {
-    context.report({ node: next, message, fix: (fixer) => fixer.insertTextAfterRange([end, end], '\n') });
+    context.report({
+      node: next,
+      message,
+      fix: (fixer) => fixer.insertTextAfterRange([end, end], '\n')
+    });
   }
 };
 
@@ -103,13 +111,14 @@ const paddedStatements = {
     Program: (node) => checkStatementList(context, node.body),
     BlockStatement: (node) => checkStatementList(context, node.body),
     StaticBlock: (node) => checkStatementList(context, node.body),
-    SwitchCase: (node) => checkStatementList(context, node.consequent),
-  }),
+    SwitchCase: (node) => checkStatementList(context, node.consequent)
+  })
 };
 
 /** Whether an object-literal property is a function that spans several lines. */
 const isMultilineFunction = (sourceCode, property) => {
   const value = property.type === 'Property' ? property.value : undefined;
+
   const isFunction = value?.type === 'ArrowFunctionExpression' || value?.type === 'FunctionExpression';
 
   return isFunction && isMultiline(sourceCode, property);
@@ -131,8 +140,8 @@ const paddedObjectFunctions = {
           requireBlankLine(context, [comma, next], 'Expected a blank line around a multi-line function property.');
         }
       });
-    },
-  }),
+    }
+  })
 };
 
 /**
@@ -153,18 +162,19 @@ const blankLineBeforeBlockComment = {
         const before = sourceCode.getTokenBefore(comment, { includeComments: true });
         const isAlone = sourceCode.text.slice(lineStart, comment.range[0]).trim() === '';
         const isAfterComment = before?.type === 'Line' || before?.type === 'Block';
+
         const isAtStart = before === null || isAfterComment || ['{', '[', ':'].includes(before.value);
 
         if (comment.type === 'Block' && isAlone && !isAtStart && line > 1 && lines[line - 2].trim() !== '') {
           context.report({
             loc: comment.loc,
             message: 'Expected a blank line before this block comment.',
-            fix: (fixer) => fixer.insertTextAfterRange(before.range, '\n'),
+            fix: (fixer) => fixer.insertTextAfterRange(before.range, '\n')
           });
         }
       }
-    },
-  }),
+    }
+  })
 };
 
 /** The text of the `/** … *\/` block right before a node, or undefined when there is none. */
@@ -191,7 +201,10 @@ const checkDocBlock = (context, node, label) => {
   if (description === undefined || description === '') {
     context.report({ node, message: `${label} has no /** */ block describing it.` });
   } else if (!/^[^a-z]/.test(description) || !/[.!?]$/.test(description)) {
-    context.report({ node, message: `The doc block of ${label} is not written as full sentences.` });
+    context.report({
+      node,
+      message: `The doc block of ${label} is not written as full sentences.`
+    });
   }
 };
 
@@ -229,7 +242,7 @@ const exportedDeclarations = (program) => {
   const names = new Set(
     program.body
       .filter((s) => s.type === 'ExportNamedDeclaration' && s.source === null)
-      .flatMap((s) => s.specifiers.map((specifier) => specifier.local.name)),
+      .flatMap((s) => s.specifiers.map((specifier) => specifier.local.name))
   );
 
   return [
@@ -238,7 +251,7 @@ const exportedDeclarations = (program) => {
       .map((s) => ({ docNode: s, declaration: s.declaration })),
     ...program.body
       .filter((s) => !s.type.startsWith('Export') && names.has(declaredName(s)))
-      .map((s) => ({ docNode: s, declaration: s })),
+      .map((s) => ({ docNode: s, declaration: s }))
   ];
 };
 
@@ -256,11 +269,11 @@ const exportDocs = {
 
         checkDocBlock(context, docNode, name);
         forEachMember(typeBody(declaration), (member) =>
-          checkDocBlock(context, member, `${name}.${context.sourceCode.getText(member.key)}`),
+          checkDocBlock(context, member, `${name}.${context.sourceCode.getText(member.key)}`)
         );
       }
-    },
-  }),
+    }
+  })
 };
 
 /** Field names that would carry presentation, which the client owns. */
@@ -274,7 +287,7 @@ const PRESENTATION_FIELDS = new Set([
   'name',
   'sound',
   'text',
-  'vfx',
+  'vfx'
 ]);
 
 /**
@@ -284,7 +297,7 @@ const PRESENTATION_FIELDS = new Set([
 const presentationFields = {
   meta: {
     type: 'problem',
-    schema: [{ type: 'object', properties: { allow: { type: 'array', items: { type: 'string' } } } }],
+    schema: [{ type: 'object', properties: { allow: { type: 'array', items: { type: 'string' } } } }]
   },
 
   create: (context) => ({
@@ -299,19 +312,22 @@ const presentationFields = {
           if (PRESENTATION_FIELDS.has(field.toLowerCase()) && !allowed.has(qualified)) {
             context.report({
               node: member,
-              message: `${qualified} is a presentation field; the client owns it.`,
+              message: `${qualified} is a presentation field; the client owns it.`
             });
           }
         });
       }
-    },
-  }),
+    }
+  })
 };
 
 /** Reports `identifier` unless its name matches one of `formats`. */
 const checkName = (context, identifier, { formats, what }) => {
   if (identifier?.type === 'Identifier' && !formats.some((format) => format.test(identifier.name))) {
-    context.report({ node: identifier, message: `${what} \`${identifier.name}\` is not in the project naming style.` });
+    context.report({
+      node: identifier,
+      message: `${what} \`${identifier.name}\` is not in the project naming style.`
+    });
   }
 };
 
@@ -366,7 +382,7 @@ const naming = {
 
         checkName(context, node.id, {
           formats: isModuleConst ? [CAMEL_CASE, UPPER_CASE] : [CAMEL_CASE],
-          what: 'Variable',
+          what: 'Variable'
         });
       },
 
@@ -381,7 +397,9 @@ const naming = {
         checkName(context, node.local, { formats: [CAMEL_CASE, PASCAL_CASE], what: 'Import' }),
 
       TSTypeAliasDeclaration: (node) => checkName(context, node.id, { formats: [PASCAL_CASE], what: 'Type' }),
+
       TSInterfaceDeclaration: (node) => checkName(context, node.id, { formats: [PASCAL_CASE], what: 'Interface' }),
+
       TSTypeParameter: (node) => checkName(context, node.name, { formats: [PASCAL_CASE], what: 'Type parameter' }),
 
       Property: (node) => {
@@ -391,9 +409,9 @@ const naming = {
       },
 
       TSPropertySignature: (node) => checkKey(context, node),
-      TSMethodSignature: (node) => checkKey(context, node),
+      TSMethodSignature: (node) => checkKey(context, node)
     };
-  },
+  }
 };
 
 /** The `simple-import-sort` group of an import source: side effects, `node:`, packages, then relative paths. */
@@ -467,12 +485,12 @@ const importOrder = {
           context.report({
             node: chunk[0],
             message: 'Imports are grouped (side effects, node:, packages, relative) and sorted by source.',
-            fix: hasComments ? undefined : (fixer) => fixer.replaceTextRange(range, expected),
+            fix: hasComments ? undefined : (fixer) => fixer.replaceTextRange(range, expected)
           });
         }
       }
-    },
-  }),
+    }
+  })
 };
 
 /** The specifiers of every `export { … }` list are sorted by name, as `simple-import-sort/exports` does. */
@@ -487,8 +505,8 @@ const exportOrder = {
       if (names.some((name, index) => name !== sorted[index])) {
         context.report({ node, message: 'Exported names are sorted.' });
       }
-    },
-  }),
+    }
+  })
 };
 
 export default {
@@ -502,6 +520,6 @@ export default {
     'presentation-fields': presentationFields,
     naming,
     'import-order': importOrder,
-    'export-order': exportOrder,
-  },
+    'export-order': exportOrder
+  }
 };

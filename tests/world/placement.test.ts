@@ -83,7 +83,11 @@ describe('moveBody: a body swept against static geometry', () => {
   });
 
   it('goes the whole way when nothing is in the way', () => {
-    assert.deepEqual(world.moveBody([vec2(0, 0), vec2(0, 10)], 1), { position: { x: 0, z: 10 }, hit: false, share: 1 });
+    assert.deepEqual(world.moveBody([vec2(0, 0), vec2(0, 10)], 1), {
+      position: { x: 0, z: 10 },
+      hit: false,
+      share: 1
+    });
   });
 });
 
@@ -100,7 +104,7 @@ describe('pickPoint: the game’s samples, cleared, filtered and scored', () => 
         asked.push(attempt);
 
         return candidates[attempt];
-      },
+      }
     });
 
     assert.deepEqual(picked, vec2(1, 0));
@@ -119,7 +123,7 @@ describe('pickPoint: the game’s samples, cleared, filtered and scored', () => 
         seen.push(p);
 
         return p.x;
-      },
+      }
     });
 
     assert.equal(seen.length, 6);
@@ -131,7 +135,7 @@ describe('pickPoint: the game’s samples, cleared, filtered and scored', () => 
 describe('query extensions', () => {
   it('adds the game’s own queries over the world, listed by name', () => {
     const extended = createMemoryWorld({ bounds: BOUNDS }, (base) => ({
-      squareClear: (at: Vec2): boolean => base.isPositionClear(at, 1),
+      squareClear: (at: Vec2): boolean => base.isPositionClear(at, 1)
     }));
 
     assert.equal(extended.squareClear(vec2(0, 0)), true);

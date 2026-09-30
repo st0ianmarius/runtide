@@ -109,7 +109,7 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
 
       get ledgers() {
         return engine.ledgers.live;
-      },
+      }
     };
     this.procKinds = createAreaTriggerProcKinds(engine);
     this.query = engine.queries.query;
@@ -169,5 +169,5 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
  * checked at load.
  */
 export const createAreaTriggerSystem = <G extends AreaTriggerTypes>(
-  options: AreaTriggerSystemOptions<G>,
+  options: AreaTriggerSystemOptions<G>
 ): AreaTriggerSystem<G> => Object.freeze(new AreaTriggers(areaEngineOf(options)));

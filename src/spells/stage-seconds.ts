@@ -7,7 +7,7 @@ import type { SpellTypes } from './spell-types.ts';
 export const enterStage = <G extends SpellTypes>(
   cast: Cast<G>,
   stage: Exclude<CastStage, 'ended'>,
-  seconds: CastSeconds<G> | undefined,
+  seconds: CastSeconds<G> | undefined
 ): void => {
   const value = typeof seconds === 'function' ? seconds(cast) : (seconds ?? 0);
 

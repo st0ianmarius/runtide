@@ -4,7 +4,7 @@ import {
   explainScaled,
   type ScaledExplanation,
   type StatId,
-  type StatView,
+  type StatView
 } from '../modifiers/index.ts';
 import type { ActivationKindDef } from './activation.ts';
 import { StatsCall } from './cast.ts';
@@ -134,7 +134,7 @@ const viewOf = <G extends SpellTypes>(registry: SpellRegistry<G>, options: Previ
 export const previewStats = <G extends SpellTypes>(
   registry: SpellRegistry<G>,
   spell: SpellId,
-  options: PreviewOptions<G> = {},
+  options: PreviewOptions<G> = {}
 ): Readonly<Record<string, unknown>> => {
   const def = registry.get(spell);
   const compiled = registry.compiled[spell];
@@ -147,7 +147,7 @@ export const previewStats = <G extends SpellTypes>(
         const value = compiled.values[index];
 
         return [key, value === undefined ? 0 : evaluateScaled(value, { caster: view, target: options.target, rank })];
-      }),
+      })
     );
   }
 
@@ -168,11 +168,11 @@ export const previewStats = <G extends SpellTypes>(
 /** The numbers of an activation: its kind's `explain`, else its own numeric fields. */
 const activationValues = <G extends SpellTypes>(
   kind: ActivationKindDef<ActivationShape, G> | undefined,
-  activation: ActivationShape,
+  activation: ActivationShape
 ): Readonly<Record<string, number>> =>
   kind?.explain?.(activation) ??
   Object.fromEntries(
-    Object.entries(activation).filter((entry): entry is [string, number] => typeof entry[1] === 'number'),
+    Object.entries(activation).filter((entry): entry is [string, number] => typeof entry[1] === 'number')
   );
 
 /** A stage's column entry as explained: its constant, `'cast'` for NaN, `undefined` for 0 when it has no stage. */
@@ -188,7 +188,7 @@ const stageOf = (seconds: number | undefined, hasStage: boolean): number | 'cast
 const statsOf = <G extends SpellTypes>(
   registry: SpellRegistry<G>,
   spell: SpellId,
-  options: PreviewOptions<G>,
+  options: PreviewOptions<G>
 ): readonly SpellStatExplanation[] => {
   const compiled = registry.compiled[spell];
   const view = viewOf(registry, options);
@@ -200,13 +200,13 @@ const statsOf = <G extends SpellTypes>(
       return {
         key,
         value:
-          value === undefined ? 0 : explainScaled(value, options.rank ?? 1, { caster: view, target: options.target }),
+          value === undefined ? 0 : explainScaled(value, options.rank ?? 1, { caster: view, target: options.target })
       };
     });
   }
 
   return Object.entries(previewStats(registry, spell, options)).flatMap(([key, value]) =>
-    typeof value === 'number' ? [{ key, value }] : [],
+    typeof value === 'number' ? [{ key, value }] : []
   );
 };
 
@@ -236,7 +236,7 @@ const timelineOf = <G extends SpellTypes>(registry: SpellRegistry<G>, spell: Spe
     windup: stageOf(windup, windup !== 0 || timeline?.windup !== undefined),
     channel: stageOf(columns.channel[spell], timeline?.channel !== undefined),
     every: stageOf(columns.every[spell] ?? 0, true) ?? 0,
-    recover: stageOf(recover, recover !== 0 || timeline?.recover !== undefined),
+    recover: stageOf(recover, recover !== 0 || timeline?.recover !== undefined)
   };
 };
 
@@ -249,7 +249,7 @@ const cooldownsOf = <G extends SpellTypes>(def: AnySpellDef<G>): SpellExplanatio
   cooldownList(def).map((one) => ({
     aura: one.aura,
     seconds: secondsOf(one.seconds) ?? 'aura',
-    startsOn: one.startsOn ?? 'start',
+    startsOn: one.startsOn ?? 'start'
   }));
 
 /** A spell's reach rules as data. */
@@ -257,7 +257,7 @@ const reachOf = <G extends SpellTypes>(def: AnySpellDef<G>): SpellExplanation['r
   range: secondsOf(def.reach?.range),
   minRange: secondsOf(def.reach?.minRange),
   sight: def.reach?.sight === true,
-  hasRule: def.reach?.allows !== undefined,
+  hasRule: def.reach?.allows !== undefined
 });
 
 /**
@@ -269,7 +269,7 @@ const reachOf = <G extends SpellTypes>(def: AnySpellDef<G>): SpellExplanation['r
 export const explainSpell = <G extends SpellTypes>(
   registry: SpellRegistry<G>,
   spell: SpellId,
-  options: PreviewOptions<G> = {},
+  options: PreviewOptions<G> = {}
 ): SpellExplanation => {
   const def = registry.get(spell);
   const kind = toId<'activations'>(registry.columns.activation[spell] ?? 0);
@@ -284,6 +284,6 @@ export const explainSpell = <G extends SpellTypes>(
     scaling: scalingOf(registry, spell),
     timeline: timelineOf(registry, spell),
     cooldowns: cooldownsOf(def),
-    reach: reachOf(def),
+    reach: reachOf(def)
   };
 };

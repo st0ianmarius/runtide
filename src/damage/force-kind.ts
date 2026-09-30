@@ -24,7 +24,7 @@ class ProcForceSpec<G extends DamageTypes> implements ForceSpec<G> {
  * the list's self and credited to its source. Checks its strength at load.
  */
 export const forceKind = <G extends DamageTypes>(
-  force: (spec: ForceSpec<G>) => Force<G>,
+  force: (spec: ForceSpec<G>) => Force<G>
 ): ProcKindDef<ForceProc<G>, G> => {
   let spec: ProcForceSpec<G> | undefined;
 
@@ -56,6 +56,6 @@ export const forceKind = <G extends DamageTypes>(
       return proc;
     },
 
-    explain: (proc) => ({ values: { strength: proc.strength } }),
+    explain: (proc) => ({ values: { strength: proc.strength } })
   };
 };

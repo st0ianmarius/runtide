@@ -11,7 +11,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../../src/auras/index.ts';
 
 /** A test unit: an id, some health, and its auras. */
@@ -116,7 +116,7 @@ export interface Game<Name extends string> {
  */
 export const makeGame = <const Name extends string>(
   defs: Readonly<Record<Name, AuraDef<TestAuras>>>,
-  options: GameOptions = {},
+  options: GameOptions = {}
 ): Game<Name> => {
   const registry = defineAuras(defs);
   const log: string[] = [];
@@ -126,7 +126,7 @@ export const makeGame = <const Name extends string>(
       for (const proc of procs) {
         log.push(`${proc}@${ctx.bearer.id}`);
       }
-    },
+    }
   };
 
   const auras = createAuraSystem<TestAuras>({
@@ -141,10 +141,14 @@ export const makeGame = <const Name extends string>(
       ext.snapshot = 0;
     },
 
-    ...options,
+    ...options
   });
 
-  const unit = (id = 1, isSilent = false): Unit => ({ id, hp: 100, auras: auras.createState({ isSilent }) });
+  const unit = (id = 1, isSilent = false): Unit => ({
+    id,
+    hp: 100,
+    auras: auras.createState({ isSilent })
+  });
 
   const run = (bearer: Unit, n: number, clock: 'world' | 'motion' = 'world'): void => {
     for (let i = 0; i < n; i++) {

@@ -5,7 +5,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../src/auras/index.ts';
 import { createClock, stream } from '../src/core/index.ts';
 import {
@@ -14,7 +14,7 @@ import {
   damage,
   type DamageProcs,
   defineDamageKinds,
-  type Force,
+  type Force
 } from '../src/damage/index.ts';
 import { hypot } from '../src/math/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul, plus } from '../src/modifiers/index.ts';
@@ -26,7 +26,7 @@ import {
   defineSpells,
   type SpellId,
   type SpellProcs,
-  type SpellSystem,
+  type SpellSystem
 } from '../src/spells/index.ts';
 import {
   createUnitSystem,
@@ -34,7 +34,7 @@ import {
   defineUnitStates,
   defineUnitTags,
   type Unit,
-  type UnitProcs,
+  type UnitProcs
 } from '../src/units/index.ts';
 
 /** The horde game's types: a whole unit game, as swarm's will be. */
@@ -174,7 +174,7 @@ const STATS = defineStats({
   maxHealth: { base: 100, kind: 'flat' },
   speed: { base: 5, kind: 'flat' },
   power: { base: 10, kind: 'flat' },
-  armor: { base: 0, kind: 'flat' },
+  armor: { base: 0, kind: 'flat' }
 });
 
 const TAGS = defineAuraTags(['stun', 'root', 'chill']);
@@ -184,8 +184,8 @@ const aura = defineAura<HordeGame>;
 const CONTENT = Object.fromEntries(
   Array.from({ length: 116 }, (_unused, i) => [
     `content${i}`,
-    aura({ duration: 10, modifiers: [i % 2 === 0 ? plus('power', 1) : mul('speed', 1.1)] }),
-  ]),
+    aura({ duration: 10, modifiers: [i % 2 === 0 ? plus('power', 1) : mul('speed', 1.1)] })
+  ])
 );
 
 const AURAS = defineAuras<HordeGame, string>({
@@ -193,12 +193,18 @@ const AURAS = defineAuras<HordeGame, string>({
   haste: aura({ duration: 'infinite', modifiers: [mul('speed', 1.2)] }),
   rage: aura({ duration: 3, modifiers: [mul('power', 1.25)] }),
   chill: aura({ duration: 2, tags: ['chill'], modifiers: [mul('speed', 0.7)] }),
-  mark: aura({ duration: 'infinite', removedOn: ['dead', 'despawned'] }),
+  mark: aura({ duration: 'infinite', removedOn: ['dead', 'despawned'] })
 });
 
 const CLOCK = createClock({ dt: DT });
 const SOURCES = defineSources(['base', 'auras']);
-const MODIFIERS = createModifierSystem({ stats: STATS, sources: SOURCES, stacks: auraStacks, held: auraGates });
+
+const MODIFIERS = createModifierSystem({
+  stats: STATS,
+  sources: SOURCES,
+  stacks: auraStacks,
+  held: auraGates
+});
 
 const late: {
   procs?: ReturnType<typeof createProcSystem<HordeGame>>;
@@ -219,7 +225,7 @@ const AURA_SYSTEM = createAuraSystem<HordeGame>({
   states: ['dead', 'despawned'],
   modifiers: MODIFIERS,
   fold: 'auras',
-  host: { run: (procs, ctx) => late.procs?.runAura(procs, ctx) },
+  host: { run: (procs, ctx) => late.procs?.runAura(procs, ctx) }
 });
 
 /** Each mob's position, by entity id, and the distance to its hero this tick (what the game measured to steer). */
@@ -231,8 +237,12 @@ const GAP = new Float64Array(8192);
 const OTHER_SPELLS = Object.fromEntries(
   Array.from({ length: 36 }, (_unused, i): [string, AnySpellDef<HordeGame>] => [
     `other${i}`,
-    { activation: { kind: 'trigger' }, timeline: { windup: { seconds: 0.5 } }, release: () => undefined },
-  ]),
+    {
+      activation: { kind: 'trigger' },
+      timeline: { windup: { seconds: 0.5 } },
+      release: () => undefined
+    }
+  ])
 );
 
 /** The swing's interval, which a mob's swing is reset to as its other casts end. */
@@ -248,7 +258,7 @@ const picked = (): AnySpellDef<HordeGame> => ({
     late.spells?.setClock(ctx.caster, SPELL_DEFS.id['swing'] ?? missing(), SWING_INTERVAL);
 
     return undefined;
-  },
+  }
 });
 
 const SPELL_DEFS = defineSpells<HordeGame, string>({
@@ -256,16 +266,16 @@ const SPELL_DEFS = defineSpells<HordeGame, string>({
     activation: {
       kind: 'auto',
       interval: SWING_INTERVAL,
-      ready: (caster) => (GAP[caster.id] ?? 0) <= REACH && late.spells?.isCasting(caster) !== true,
+      ready: (caster) => (GAP[caster.id] ?? 0) <= REACH && late.spells?.isCasting(caster) !== true
     },
     target: () => late.hero,
-    release: () => late.swing,
+    release: () => late.swing
   },
   a: picked(),
   b: picked(),
   c: picked(),
   d: picked(),
-  ...OTHER_SPELLS,
+  ...OTHER_SPELLS
 });
 
 const SPELLS = createSpellSystem<HordeGame>({
@@ -273,7 +283,7 @@ const SPELLS = createSpellSystem<HordeGame>({
   auras: AURA_SYSTEM,
   procs: () => late.procs ?? missing(),
   clock: CLOCK,
-  host: {},
+  host: {}
 });
 
 late.spells = SPELLS;
@@ -284,9 +294,9 @@ const AI = createAiSystem<HordeGame>({ spells: SPELLS, clock: CLOCK, timers: TIM
 const TEMPLATES = defineUnits<HordeGame, 'grunt' | 'hero'>(
   {
     grunt: { stats: { speed: 4, maxHealth: 60 }, tags: ['horde'], autoAttack: 'swing' },
-    hero: { stats: { maxHealth: 1e12 }, tags: ['hero'] },
+    hero: { stats: { maxHealth: 1e12 }, tags: ['hero'] }
   },
-  { stats: STATS, tags: defineUnitTags(['horde', 'hero']) },
+  { stats: STATS, tags: defineUnitTags(['horde', 'hero']) }
 );
 
 const UNITS = createUnitSystem<HordeGame>({
@@ -298,15 +308,15 @@ const UNITS = createUnitSystem<HordeGame>({
   health: { stat: 'maxHealth' },
   states: defineUnitStates(TAGS, {
     stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' },
-    rooted: { tags: ['root'], blocks: ['move'] },
-  }),
+    rooted: { tags: ['root'], blocks: ['move'] }
+  })
 });
 
 const DAMAGE = createDamageSystem<HordeGame>({
   auras: AURA_SYSTEM,
   kinds: defineDamageKinds({ physical: {} }),
   stats: STATS,
-  host: { ...UNITS.damageHost, run: (procs, ctx) => late.procs?.runAura(procs, ctx) },
+  host: { ...UNITS.damageHost, run: (procs, ctx) => late.procs?.runAura(procs, ctx) }
 });
 
 late.procs = createProcSystem<HordeGame>({
@@ -315,10 +325,10 @@ late.procs = createProcSystem<HordeGame>({
     ...DAMAGE.procKinds,
     ...SPELLS.procKinds,
     ...UNITS.procKinds,
-    ...AI.procKinds,
+    ...AI.procKinds
   }),
   auras: AURA_SYSTEM,
-  host: { idOf: (unit) => unit.id },
+  host: { idOf: (unit) => unit.id }
 });
 
 /** The draw the picks and the spawn points take. */
@@ -326,13 +336,17 @@ const DRAW = stream(9, 31);
 
 /** The pool a mob picks from, and how its picks are made. */
 const POOL: readonly SpellId[] = ['a', 'b', 'c', 'd'].map((name) => SPELL_DEFS.id[name] ?? missing());
+
 const WEIGHTS = new Float64Array(SPELL_DEFS.size);
 
 POOL.forEach((spell, i) => {
   WEIGHTS[spell] = i + 1;
 });
 
-const PICK = { random: DRAW, weight: (_unit: unknown, spell: SpellId): number => WEIGHTS[spell] ?? 0 };
+const PICK = {
+  random: DRAW,
+  weight: (_unit: unknown, spell: SpellId): number => WEIGHTS[spell] ?? 0
+};
 
 /** The auras every mob holds from its spawn. */
 const HASTE = AURAS.id['haste'] ?? missing();
@@ -445,11 +459,11 @@ export const hordeStats = (): { readonly swings: number; readonly inReach: numbe
 
   return {
     swings: hero === undefined ? 0 : Math.round((hero.maxHealth - hero.health) / 5),
-    inReach: mobs.filter((mob) => (GAP[mob.id] ?? 0) <= REACH).length,
+    inReach: mobs.filter((mob) => (GAP[mob.id] ?? 0) <= REACH).length
   };
 };
 
 /** The whole-game benchmark task, and how many operations each call of its function is. */
 export const HORDE_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['horde: 2,000 mobs + 4 heroes, the whole unit game (tick)', tick, 1],
+  ['horde: 2,000 mobs + 4 heroes, the whole unit game (tick)', tick, 1]
 ];

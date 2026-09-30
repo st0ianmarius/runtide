@@ -19,7 +19,7 @@ export interface HealWalks<G extends DamageTypes> {
 const applyChange = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   [heal, aura]: readonly [HealRecord<G>, ActiveAura<G>],
-  change: HealChange | undefined,
+  change: HealChange | undefined
 ): boolean => {
   const absorbed = Math.min(Math.max(0, change?.absorb ?? 0), heal.amount);
 
@@ -47,14 +47,16 @@ export const createHealWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
       hook: 'onOutgoingHeal',
       unit: healer,
       other: target,
-      step: (heal, aura, ctx) => applyChange(engine, [heal, aura], hooks.onOutgoingHeal[aura.id]?.(ctx, heal)),
+
+      step: (heal, aura, ctx) => applyChange(engine, [heal, aura], hooks.onOutgoingHeal[aura.id]?.(ctx, heal))
     },
 
     incoming: {
       hook: 'onIncomingHeal',
       unit: target,
       other: healer,
-      step: (heal, aura, ctx) => applyChange(engine, [heal, aura], hooks.onIncomingHeal[aura.id]?.(ctx, heal)),
-    },
+
+      step: (heal, aura, ctx) => applyChange(engine, [heal, aura], hooks.onIncomingHeal[aura.id]?.(ctx, heal))
+    }
   };
 };

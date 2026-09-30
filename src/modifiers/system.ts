@@ -4,7 +4,7 @@ import {
   type CompiledCondition,
   type ConditionTable,
   conditionTest,
-  type ValueTable,
+  type ValueTable
 } from '../conditions/index.ts';
 import { SheetCaches } from './build-sheet.ts';
 import { compileModifiers } from './compile-modifiers.ts';
@@ -65,7 +65,7 @@ export interface ModifierSystem<Host, S extends string, C extends string, V exte
 
       /** What is being compiled, for error messages. */
       readonly what?: string;
-    },
+    }
   ) => ModifierList;
 
   /** A new, empty stat sheet for one bearer. */
@@ -123,9 +123,10 @@ const boundTests = <Host>(tables: BoundTables<Host>) => {
 
 /** The fold tables of a system. */
 const tablesOf = <Host, S extends string, C extends string, V extends string, Src extends string>(
-  options: ModifierSystemOptions<Host, S, C, V, Src>,
+  options: ModifierSystemOptions<Host, S, C, V, Src>
 ): FoldTables<Host> => {
   const { stats } = options;
+
   const column = (name: 'base' | 'min' | 'max'): Float64Array => Float64Array.from(stats.columns[name]);
 
   return {
@@ -139,7 +140,7 @@ const tablesOf = <Host, S extends string, C extends string, V extends string, Sr
     testOf: boundTests({ conditions: options.conditions, values: options.values }),
     reads: options.values?.defs.map((def) => def?.read ?? (() => 0)) ?? [],
     sourceIds: options.sources.ids,
-    nameOf: (stat) => stats.names[stat] ?? String(stat),
+    nameOf: (stat) => stats.names[stat] ?? String(stat)
   };
 };
 
@@ -176,7 +177,7 @@ const explainFor = <Host>(sheet: Sheet<Host>, stat: StatId, read: FoldRead<Host>
 const checkedLists = (
   sources: SourceTable,
   at: { readonly source: SourceId; readonly hasStacks: boolean },
-  lists: readonly ModifierList[],
+  lists: readonly ModifierList[]
 ): readonly ModifierList[] => {
   checkSource(sources, at.source);
 
@@ -195,9 +196,9 @@ export const createModifierSystem = <
   S extends string,
   Src extends string,
   C extends string = never,
-  V extends string = never,
+  V extends string = never
 >(
-  options: ModifierSystemOptions<Host, S, C, V, Src>,
+  options: ModifierSystemOptions<Host, S, C, V, Src>
 ): ModifierSystem<Host, S, C, V, Src> => {
   const tables = tablesOf(options);
   const shared: (readonly ModifierList[])[] = options.sources.ids.map(() => []);
@@ -219,7 +220,9 @@ export const createModifierSystem = <
   return {
     stats: options.stats,
     sources: options.sources,
+
     compile: (modifiers, compileOptions = {}) => compileModifiers(options, modifiers, compileOptions),
+
     createSheet: () => new Sheet<Host>(tables, foldStat),
 
     setSource: (sheet, source, lists) => {
@@ -239,7 +242,7 @@ export const createModifierSystem = <
 
     view: (sheet, read) => ({
       total: (stat) => foldFor(built(sheet), stat, read),
-      base: (stat) => tables.base[stat] ?? 0,
-    }),
+      base: (stat) => tables.base[stat] ?? 0
+    })
   };
 };

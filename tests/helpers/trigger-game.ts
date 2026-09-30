@@ -10,7 +10,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../../src/auras/index.ts';
 import { defineConditions } from '../../src/conditions/index.ts';
 import { createBus, type Random } from '../../src/core/index.ts';
@@ -26,7 +26,7 @@ import {
   type ProcShape,
   type ProcSystem,
   type ProcSystemOptions,
-  type ProcTarget,
+  type ProcTarget
 } from '../../src/procs/index.ts';
 import {
   auraTriggerEvent,
@@ -39,7 +39,7 @@ import {
   type TriggerSystem,
   type TriggerSystemOptions,
   type TriggerTypes,
-  withTriggerCooldowns,
+  withTriggerCooldowns
 } from '../../src/triggers/index.ts';
 
 /** A test unit: an id, some health, and its auras. */
@@ -175,7 +175,9 @@ export const CLOCKS = { world: { dt: 0.125 } } as const;
 export const TAGS = defineAuraTags(['magic', 'curse', 'cooldown']);
 
 /** The test condition: health below a share of 100. */
-export const CONDITIONS = defineConditions({ healthBelow: (unit: Unit, share) => unit.hp < 100 * share });
+export const CONDITIONS = defineConditions({
+  healthBelow: (unit: Unit, share) => unit.hp < 100 * share
+});
 
 /** The test game's `strike` kind: takes health, logs it, and reports a kill at 0. */
 export const STRIKE = defineProcKind<StrikeProc, Game>({
@@ -192,7 +194,7 @@ export const STRIKE = defineProcKind<StrikeProc, Game>({
     return procOutcome('landed', { amount: proc.amount, hasKilled: target.hp <= 0 });
   },
 
-  explain: (proc) => ({ values: { amount: proc.amount } }),
+  explain: (proc) => ({ values: { amount: proc.amount } })
 });
 
 /**
@@ -226,7 +228,7 @@ export const scripted = (draws: readonly number[] = []): Random & { readonly cou
 
       return draw;
     },
-    { count: () => index },
+    { count: () => index }
   );
 };
 
@@ -239,7 +241,7 @@ export const mark = (label: string, chance?: number): Proc<Game> => ({
     ctx.host.log.push(`${label}@${ctx.self.id}`);
   },
 
-  ...(chance === undefined ? {} : { chance }),
+  ...(chance === undefined ? {} : { chance })
 });
 
 /** Overrides of a test game's options. */
@@ -263,9 +265,9 @@ const makeBus = (depth: number | undefined) =>
     {
       hit: (): HitEvent => ({ attacker: undefined, target: undefined, amount: 0, isCrit: false }),
       kill: (): KillEvent => ({ killer: undefined, victim: undefined }),
-      aura: (): AuraEvent<Game> => createAuraEvent<Game>(),
+      aura: (): AuraEvent<Game> => createAuraEvent<Game>()
     },
-    depth === undefined ? {} : { maxDepth: depth },
+    depth === undefined ? {} : { maxDepth: depth }
   );
 
 /** The test game's bus. */
@@ -332,7 +334,7 @@ export const KINDS = makeBus(undefined).kind;
  */
 export const makeGame = <const Name extends string>(
   defs: Readonly<Record<Name, AuraDef<Game>>>,
-  options: GameOptions = {},
+  options: GameOptions = {}
 ): TestGame<Name> => {
   const bus = makeBus(options.busDepth);
   const all = withTriggerCooldowns<Game, Name>(defs, { tags: ['cooldown'], ...options.cooldowns });
@@ -346,7 +348,7 @@ export const makeGame = <const Name extends string>(
     tags: TAGS,
     clocks: CLOCKS,
     events: { bus, changed: bus.kind.aura },
-    host: { run: (procs, ctx) => holder.procs?.runAura(procs, ctx) },
+    host: { run: (procs, ctx) => holder.procs?.runAura(procs, ctx) }
   });
 
   const host: ProcHost<Game> & GameHost = {
@@ -357,7 +359,7 @@ export const makeGame = <const Name extends string>(
 
     grant: (unit, resource, amount) => {
       log.push(`grant ${resource}x${amount}@${unit.id}`);
-    },
+    }
   };
 
   const procs = createProcSystem<Game>({
@@ -366,7 +368,7 @@ export const makeGame = <const Name extends string>(
     host,
     resources: ['gold', 'shards'],
     bus,
-    ...options.procs,
+    ...options.procs
   });
 
   holder.procs = procs;
@@ -377,11 +379,11 @@ export const makeGame = <const Name extends string>(
 
       filters: {
         minAmount: (hit, least) => hit.amount >= least,
-        isCrit: (hit, wanted) => hit.isCrit === (wanted === 1),
-      },
+        isCrit: (hit, wanted) => hit.isCrit === (wanted === 1)
+      }
     }),
     kill: triggerEvent<KillEvent, Game>(bus.kind.kill, { unit: (kill) => kill.killer }),
-    aura: auraTriggerEvent<Game>(bus.kind.aura),
+    aura: auraTriggerEvent<Game>(bus.kind.aura)
   };
 
   const triggers: TriggerSystem = createTriggerSystem<Game, Unit>({
@@ -390,7 +392,7 @@ export const makeGame = <const Name extends string>(
     bus,
     events,
     conditions: { table: CONDITIONS, host: (unit) => unit },
-    ...options.triggers,
+    ...options.triggers
   });
 
   const unit = (id: number): Unit => {
@@ -403,7 +405,7 @@ export const makeGame = <const Name extends string>(
 
   const hit = (
     attacker: Unit,
-    at: { readonly target?: Unit; readonly amount?: number; readonly isCrit?: boolean } = {},
+    at: { readonly target?: Unit; readonly amount?: number; readonly isCrit?: boolean } = {}
   ) => {
     const payload = bus.payload(bus.kind.hit);
 
@@ -414,5 +416,18 @@ export const makeGame = <const Name extends string>(
     bus.raise(bus.kind.hit, payload);
   };
 
-  return { bus, auras, procs, triggers, events, registry, id: registry.id, log, party, unit, hit, host };
+  return {
+    bus,
+    auras,
+    procs,
+    triggers,
+    events,
+    registry,
+    id: registry.id,
+    log,
+    party,
+    unit,
+    hit,
+    host
+  };
 };

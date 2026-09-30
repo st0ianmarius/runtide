@@ -17,26 +17,30 @@ import {
   scaled,
   stacking,
   type StatView,
-  table,
+  table
 } from '../../src/modifiers/index.ts';
 
 const STATS = defineStats({
   level: { base: 1, kind: 'flat' },
-  armor: { base: 0, kind: 'flat' },
+  armor: { base: 0, kind: 'flat' }
 });
 
 /** A unit's folded stats as a plain view, by stat id. */
 const unit = (totals: readonly number[]): StatView => ({
   total: (stat) => totals[stat] ?? 0,
-  base: (stat) => STATS.columns.base[stat] ?? 0,
+  base: (stat) => STATS.columns.base[stat] ?? 0
 });
 
 /** A curve compiled against the table and evaluated at `x` for a caster (and a target). */
 const at = (
   curve: Curve<'level' | 'armor'> | string,
   x: number,
-  sides: { caster?: StatView; target?: StatView } = {},
-) => evaluateCurve(compileCurve(STATS, curve), x, { caster: sides.caster ?? unit([1, 0]), target: sides.target });
+  sides: { caster?: StatView; target?: StatView } = {}
+) =>
+  evaluateCurve(compileCurve(STATS, curve), x, {
+    caster: sides.caster ?? unit([1, 0]),
+    target: sides.target
+  });
 
 describe('the curve library', () => {
   it('linear is x × per and rating is x / per / 100', () => {
@@ -67,12 +71,12 @@ describe('the curve library', () => {
     const steps = table([
       [0, 0],
       [10, 1],
-      [20, 1.5],
+      [20, 1.5]
     ]);
 
     assert.deepEqual(
       [-1, 0, 5, 10, 15, 20, 30].map((x) => at(steps, x)),
-      [0, 0, 0.5, 1, 1.25, 1.5, 1.5],
+      [0, 0, 0.5, 1, 1.25, 1.5, 1.5]
     );
   });
 
@@ -101,8 +105,8 @@ describe('curve parameters read either side of the hit', () => {
     const perLevel = rating(
       byLevel([
         [1, 10],
-        [60, 15.8],
-      ]),
+        [60, 15.8]
+      ])
     );
 
     assert.equal(at(byTarget, 100, { target: unit([30, 0]) }), 30);
@@ -125,11 +129,11 @@ describe('curve parameter checks', () => {
           bad: rating(
             byLevel([
               [1, 10],
-              [60, 0],
-            ]),
-          ),
+              [60, 0]
+            ])
+          )
         }),
-      /per > 0/,
+      /per > 0/
     );
     assert.throws(() => defineCurves({ bad: hyperbolic({ k: scaled(-5, add('level', 1)) }) }), /k > 0/);
   });
@@ -141,10 +145,10 @@ describe('curve parameter checks', () => {
         defineCurves({
           bad: table([
             [1, 0],
-            [1, 2],
-          ]),
+            [1, 2]
+          ])
         }),
-      /point 1/,
+      /point 1/
     );
   });
 });

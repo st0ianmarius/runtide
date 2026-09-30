@@ -20,7 +20,7 @@ export const defineSlots = <const Name extends string>(names: readonly Name[]): 
 
   const table = createRegistry(
     recordOf(names, () => none),
-    { kind: 'slots' },
+    { kind: 'slots' }
   );
 
   if (table.size > MAX_SLOTS) {

@@ -70,7 +70,7 @@ const liveAura = (
     readonly isRetired: (id: AuraId) => boolean;
   },
   aura: string | AuraId,
-  what: string,
+  what: string
 ): AuraId => {
   const id = typeof aura === 'string' ? registry.id[aura] : aura;
 
@@ -94,7 +94,7 @@ const compileButton = <G extends AbilityTypes>(state: Compiling<G>, def: ButtonA
     requires: tagsOf(state, def.requires),
     blockedBy: tagsOf(state, def.blockedBy),
     resets: tagsOf(state, def.resets),
-    applies: (def.applies ?? []).map((aura) => checkAura(state, aura)),
+    applies: (def.applies ?? []).map((aura) => checkAura(state, aura))
   });
 };
 
@@ -104,7 +104,7 @@ const compileButton = <G extends AbilityTypes>(state: Compiling<G>, def: ButtonA
  */
 export const compileButtons = <G extends AbilityTypes>(
   spells: SpellSystem<G>,
-  auras: AuraSystem<G>,
+  auras: AuraSystem<G>
 ): readonly (CompiledButton<G> | undefined)[] =>
   spells.registry.ids.map((id: SpellId) => {
     const { registry } = spells;

@@ -9,7 +9,7 @@ import {
   cue,
   escapeReport,
   explainProc,
-  type Proc,
+  type Proc
 } from '../../src/procs/index.ts';
 import { aura, type Game, makeGame, STRIKE } from '../helpers/trigger-game.ts';
 
@@ -18,7 +18,7 @@ const CUES = defineCues({
   step: defineCue({ anchor: 'self', params: { size: { kind: 'uint8' } } }),
   struck: defineCue({ anchor: 'entity', params: { amount: { kind: 'int' } } }),
   flare: defineCue({ anchor: 'target', params: { aim: { kind: 'vec2' } } }),
-  gong: defineCue({ anchor: 'world' }),
+  gong: defineCue({ anchor: 'world' })
 });
 
 /** A test game whose proc system fires into a cue buffer, with three units; unit `n` stands at `(n, −n)`. */
@@ -57,15 +57,15 @@ describe('the cue proc kind', () => {
         cue<Game>('struck', { to: 'eventUnit' }),
         cue<Game>('flare', { to: 'self' }),
         cue<Game>('flare', { at: { x: 5, z: 6 } }),
-        cue<Game>('gong', { to: 'eventUnit' }),
+        cue<Game>('gong', { to: 'eventUnit' })
       ]),
       [
         ['struck', 50, 2, 2, -2],
         ['struck', 50, 3, 3, -3],
         ['flare', 50, NO_ENTITY, 1, -1],
         ['flare', 50, NO_ENTITY, 5, 6],
-        ['gong', NO_ENTITY, NO_ENTITY, 3, -3],
-      ],
+        ['gong', NO_ENTITY, NO_ENTITY, 3, -3]
+      ]
     );
   });
 
@@ -75,7 +75,7 @@ describe('the cue proc kind', () => {
     assert.deepEqual(run([cue<Game>('struck', { to: 'party' })]), [
       ['struck', 50, 1, 1, -1],
       ['struck', 50, 2, 2, -2],
-      ['struck', 50, 3, 3, -3],
+      ['struck', 50, 3, 3, -3]
     ]);
   });
 
@@ -85,8 +85,8 @@ describe('the cue proc kind', () => {
     procs.run(
       [cue<Game>('step', { params: { size: 4 } }), cue<Game>(CUES.id.flare, { params: { aim: { x: 1, z: 0 } } })],
       {
-        self: a,
-      },
+        self: a
+      }
     );
 
     assert.deepEqual(Array.from(out.events[0]?.values.subarray(0, 1) ?? []), [4]);
@@ -133,7 +133,7 @@ describe('the cue proc kind', () => {
       chance: 1,
       to: 'none',
       values: { cue: CUES.id.flare },
-      procs: [],
+      procs: []
     });
     assert.deepEqual(escapeReport({ procs }).procKinds, ['strike']);
   });
@@ -144,7 +144,7 @@ describe('cue proc validation', () => {
     const { procs } = makeCueGame();
 
     assert.deepEqual(procs.prepare([cue<Game>('flare', { to: 'eventUnit' })], 'a trigger'), [
-      { kind: 'cue', cue: CUES.id.flare, to: 'eventUnit' },
+      { kind: 'cue', cue: CUES.id.flare, to: 'eventUnit' }
     ]);
   });
 
@@ -156,12 +156,12 @@ describe('cue proc validation', () => {
     assert.throws(prepare(cue<Game>(CUES.id.gong, { chance: 2 })), /a trigger: a proc's chance must be in \(0, 1\]/);
     assert.throws(
       prepare(cue<Game>('gong', { params: { pitch: 1 } })),
-      /a trigger: a cue proc: cue gong has no param pitch/,
+      /a trigger: a cue proc: cue gong has no param pitch/
     );
     assert.throws(prepare(cue<Game>('flare', { params: { aim: 1 } })), /param aim takes a vec2/);
     assert.throws(
       prepare(cue<Game>('step', { to: 'eventUnit' })),
-      /cue step sits on the procs' self, so it takes no to/,
+      /cue step sits on the procs' self, so it takes no to/
     );
     assert.throws(prepare(cue<Game>('step', { at: { x: 0, z: 0 } })), /cue step sits on the procs' self/);
     assert.throws(prepare(cue<Game>('struck', { at: { x: 0, z: 0 } })), /cue struck sits on a unit, so it takes no at/);
@@ -171,11 +171,17 @@ describe('cue proc validation', () => {
     const { auras, a } = makeCueGame();
     const kinds = createProcRegistry<Game>({ ...CORE_PROCS, strike: STRIKE });
     const bare = createProcSystem<Game>({ kinds, auras, host: { log: [] } });
-    const placeless = createProcSystem<Game>({ kinds, auras, host: { log: [] }, cues: createCueBuffer(CUES) });
+
+    const placeless = createProcSystem<Game>({
+      kinds,
+      auras,
+      host: { log: [] },
+      cues: createCueBuffer(CUES)
+    });
 
     assert.throws(
       () => bare.prepare([cue<Game>('gong')], 'a spell'),
-      /a spell: a cue proc needs the proc system to have cues/,
+      /a spell: a cue proc needs the proc system to have cues/
     );
     assert.throws(() => bare.run([cue<Game>(CUES.id.gong)], { self: a }), /This proc needs cues/);
     assert.throws(() => placeless.run([cue<Game>('gong')], { self: a }), /This proc needs host\.positionOf/);

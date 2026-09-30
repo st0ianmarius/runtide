@@ -16,14 +16,14 @@ import {
   raise,
   removeAura,
   removeByTag,
-  run,
+  run
 } from '../../src/procs/index.ts';
 import { aura, type Game, makeGame, scripted, STRIKE, TAGS } from '../helpers/trigger-game.ts';
 
 const defs = {
   ward: aura({ duration: 4, tags: ['magic'] }),
   hex: aura({ duration: 4, tags: ['curse'], blockedBy: ['magic'] }),
-  stack: aura({ duration: 4, stacking: 'stack', maxStacks: 9 }),
+  stack: aura({ duration: 4, stacking: 'stack', maxStacks: 9 })
 };
 
 describe('a proc list applies in order', () => {
@@ -36,9 +36,9 @@ describe('a proc list applies in order', () => {
         applyAura('ward'),
         andThen<Game>((ctx) => (ctx.auras.has(ctx.target, id.ward) ? [grant('gold', 1)] : [grant('shards', 1)])),
         removeAura('ward'),
-        andThen<Game>((ctx) => (auras.has(ctx.target, id.ward) ? [grant('gold', 2)] : [grant('shards', 2)])),
+        andThen<Game>((ctx) => (auras.has(ctx.target, id.ward) ? [grant('gold', 2)] : [grant('shards', 2)]))
       ],
-      { self: u },
+      { self: u }
     );
     assert.deepEqual(log, ['grant 0x1@1', 'grant 1x2@1']);
   });
@@ -57,9 +57,9 @@ describe('a proc list applies in order', () => {
 
           return undefined;
         }),
-        removeAura('stack'),
+        removeAura('stack')
       ],
-      { self: u },
+      { self: u }
     );
 
     assert.deepEqual(seen, ['refused', 'skipped', 'landed', 'landed']);
@@ -77,9 +77,9 @@ describe('a proc list applies in order', () => {
         { kind: 'strike', amount: 60, to: b },
         { kind: 'strike', amount: 60, to: b },
         applyAura('stack', { to: b }),
-        applyAura('stack', { to: a }),
+        applyAura('stack', { to: a })
       ],
-      { self: a },
+      { self: a }
     );
     assert.deepEqual(log, ['strike 60@2', 'strike 60@2']);
     assert.equal(auras.has(b, id.stack), false);
@@ -97,7 +97,7 @@ describe('a proc list applies in order', () => {
       { kind: 'strike', amount: 60, to: b },
       { kind: 'strike', amount: 60, to: b },
       undefined,
-      undefined,
+      undefined
     ];
 
     assert.equal(procs.run(reused, { self: a }), 2);
@@ -114,9 +114,9 @@ describe('a proc list applies in order', () => {
         grant('gold', 2),
         grant('gold', 3, { to: 'eventUnit' }),
         grant('gold', 4, { to: 'party' }),
-        grant('gold', 5, { to: a }),
+        grant('gold', 5, { to: a })
       ],
-      { self: a, target: b, eventUnit: c },
+      { self: a, target: b, eventUnit: c }
     );
     procs.run([grant('gold', 6, { to: 'eventUnit' })], { self: a });
     assert.deepEqual(log, [
@@ -126,7 +126,7 @@ describe('a proc list applies in order', () => {
       'grant 0x4@1',
       'grant 0x4@2',
       'grant 0x4@3',
-      'grant 0x5@1',
+      'grant 0x5@1'
     ]);
   });
 });
@@ -142,9 +142,9 @@ describe('chance and groups', () => {
         grant('gold', 1),
         grant('gold', 2, { chance: 1 }),
         grant('gold', 3, { chance: 0 }),
-        grant('gold', 4, { chance: -1 }),
+        grant('gold', 4, { chance: -1 })
       ],
-      { self: u },
+      { self: u }
     );
     assert.deepEqual(log, ['grant 0x1@1', 'grant 0x2@1']);
     assert.equal(random.count(), 0);
@@ -158,8 +158,8 @@ describe('chance and groups', () => {
     procs.run(
       [grant('gold', 1, { chance: 0.5 }), grant('gold', 2, { chance: 0.5 }), grant('gold', 3, { chance: 0.2 })],
       {
-        self: u,
-      },
+        self: u
+      }
     );
     assert.deepEqual(log, ['grant 0x1@1', 'grant 0x3@1']);
     assert.equal(random.count(), 3);
@@ -170,9 +170,16 @@ describe('chance and groups', () => {
     const { procs, unit, log } = makeGame(defs, { procs: { random } });
     const u = unit(1);
 
-    procs.run([group([grant('gold', 1), grant('gold', 2, { chance: 0.5 }), grant('gold', 3)], { chance: 0.4 })], {
-      self: u,
-    });
+    procs.run(
+      [
+        group([grant('gold', 1), grant('gold', 2, { chance: 0.5 }), grant('gold', 3)], {
+          chance: 0.4
+        })
+      ],
+      {
+        self: u
+      }
+    );
     procs.run([group([grant('gold', 4)], { chance: 0.4 })], { self: u });
     assert.deepEqual(log, ['grant 0x1@1', 'grant 0x3@1']);
     assert.equal(random.count(), 3);
@@ -187,16 +194,16 @@ describe('chance and groups', () => {
           asked.push([chance, ctx.self.id]);
 
           return chance > 0.3;
-        },
-      },
+        }
+      }
     });
 
     procs.run([grant('gold', 1, { chance: 0.25 }), grant('gold', 2, { chance: 0.75 }), grant('gold', 3)], {
-      self: unit(4),
+      self: unit(4)
     });
     assert.deepEqual(asked, [
       [0.25, 4],
-      [0.75, 4],
+      [0.75, 4]
     ]);
     assert.deepEqual(log, ['grant 0x2@4', 'grant 0x3@4']);
   });
@@ -217,8 +224,8 @@ describe('chance and groups', () => {
           order.push(name);
 
           return 0.7;
-        },
-      },
+        }
+      }
     });
 
     const [a, b, c] = [unit(1), unit(2), unit(3)];
@@ -229,14 +236,14 @@ describe('chance and groups', () => {
         pickOne<Game>(
           () => [a, b, c],
           (_ctx, picked) => [grant('shards', 1, { to: picked })],
-          { stream: 'loot' },
+          { stream: 'loot' }
         ),
         pickOne<Game>(
           () => [],
-          () => [grant('shards', 9)],
-        ),
+          () => [grant('shards', 9)]
+        )
       ],
-      { self: a },
+      { self: a }
     );
     assert.deepEqual(order, ['chance', 'loot']);
     assert.deepEqual(log, ['grant 0x1@1', 'grant 1x1@3']);
@@ -262,7 +269,12 @@ describe('the depth cap', () => {
     const { procs } = makeGame(defs);
 
     assert.throws(() =>
-      createProcSystem<Game>({ kinds: procs.kinds, auras: procs.auras, host: procs.host, maxDepth: 0 }),
+      createProcSystem<Game>({
+        kinds: procs.kinds,
+        auras: procs.auras,
+        host: procs.host,
+        maxDepth: 0
+      })
     );
   });
 });
@@ -271,7 +283,7 @@ describe('aura hooks run through the proc system', () => {
   it('lands hook procs on the bearer, credited to the aura source', () => {
     const { procs, unit, auras, id } = makeGame({
       ...defs,
-      sigil: aura({ duration: 2, onApplied: () => [applyAura('stack', { stacks: 2 })] }),
+      sigil: aura({ duration: 2, onApplied: () => [applyAura('stack', { stacks: 2 })] })
     });
 
     const u = unit(1);
@@ -302,27 +314,27 @@ describe('names, events and preparing lists at load', () => {
         kind: 'group',
         procs: [
           { kind: 'removeByTag', tag: 1 },
-          { kind: 'grant', resource: 1, amount: 2 },
-        ],
-      },
+          { kind: 'grant', resource: 1, amount: 2 }
+        ]
+      }
     ]);
     assert.throws(() => procs.prepare([applyAura('hex', { chance: 0 })], 'Pact'), /^RangeError: Pact: a proc's chance/);
     assert.throws(() => procs.prepare([applyAura('nope')], 'Pact'), /Pact: unknown aura nope/);
     assert.throws(
       () => procs.prepare([Object.assign(removeByTag<Game>('curse'), { tag: 'nope' })], 'Pact'),
-      /Pact: unknown aura tag nope/,
+      /Pact: unknown aura tag nope/
     );
     assert.throws(
       () => procs.prepare([Object.assign(grant<Game>('gold', 1), { resource: 'nope' })], 'Pact'),
-      /Pact: unknown resource nope/,
+      /Pact: unknown resource nope/
     );
     assert.throws(
       () => procs.prepare([Object.assign(applyAura<Game>('hex'), { aura: 99 })], 'Pact'),
-      /Pact: 99 is not a live aura id/,
+      /Pact: 99 is not a live aura id/
     );
     assert.throws(
       () => procs.prepare([Object.assign(grant<Game>('gold', 1), { kind: 'teleport' })], 'Pact'),
-      /Pact: Unknown proc kind teleport/,
+      /Pact: Unknown proc kind teleport/
     );
   });
 
@@ -343,7 +355,13 @@ describe('names, events and preparing lists at load', () => {
 
   it('reports a replaced core kind as a hatch', () => {
     const { procs } = makeGame(defs);
-    const kinds = createProcRegistry<Game>({ ...CORE_PROCS, applyAura: { ...CORE_PROCS.applyAura }, strike: STRIKE });
+
+    const kinds = createProcRegistry<Game>({
+      ...CORE_PROCS,
+      applyAura: { ...CORE_PROCS.applyAura },
+      strike: STRIKE
+    });
+
     const replaced = createProcSystem<Game>({ kinds, auras: procs.auras, host: procs.host });
 
     assert.deepEqual(escapeReport({ procs: replaced }).procKinds, ['applyAura', 'strike']);
@@ -351,7 +369,13 @@ describe('names, events and preparing lists at load', () => {
 
   it('refuses to roll, pick or grant without the stream or host it needs', () => {
     const { procs, unit, bus } = makeGame(defs);
-    const bare = createProcSystem<Game>({ kinds: procs.kinds, auras: procs.auras, host: { log: [] } });
+
+    const bare = createProcSystem<Game>({
+      kinds: procs.kinds,
+      auras: procs.auras,
+      host: { log: [] }
+    });
+
     const u = unit(1);
 
     assert.throws(() => bare.run([grant('gold', 1, { chance: 0.5 })], { self: u }), /needs a random stream/);
@@ -359,7 +383,7 @@ describe('names, events and preparing lists at load', () => {
     assert.throws(() => bare.run([grant('gold', 1, { to: 'party' })], { self: u }), /needs host.party/);
     assert.throws(
       () => bare.run([raise(bus.kind.hit, () => undefined)], { self: u }),
-      /needs the proc system to have a bus/,
+      /needs the proc system to have a bus/
     );
   });
 });

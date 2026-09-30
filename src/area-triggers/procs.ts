@@ -77,7 +77,7 @@ export interface AreaTriggerProcKinds<G extends AreaTriggerTypes> {
 /** A `spawn` proc: `spawn('pool')`, `spawn('fork', { heading: 0.5, now: 0.1, to: 'eventUnit' })`. */
 export const spawn = <G extends AreaTriggerTypes = AreaTriggerTypes>(
   areaTrigger: G['areaTriggerName'] | AreaTriggerId,
-  options: ChanceOption & Omit<SpawnProc<G>, 'kind' | 'areaTrigger' | 'chance'> = {},
+  options: ChanceOption & Omit<SpawnProc<G>, 'kind' | 'areaTrigger' | 'chance'> = {}
 ): SpawnProc<G> => ({ ...options, kind: 'spawn', areaTrigger });
 
 /**
@@ -85,5 +85,5 @@ export const spawn = <G extends AreaTriggerTypes = AreaTriggerTypes>(
  * delayed lists.
  */
 export const despawnOwned = <G extends AreaTriggerTypes = AreaTriggerTypes>(
-  options: ChanceOption & Omit<DespawnOwnedProc<G>, 'kind' | 'chance'> = {},
+  options: ChanceOption & Omit<DespawnOwnedProc<G>, 'kind' | 'chance'> = {}
 ): DespawnOwnedProc<G> => ({ ...options, kind: 'despawnOwned' });

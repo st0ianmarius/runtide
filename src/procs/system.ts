@@ -14,7 +14,7 @@ import {
   type ProcHost,
   type ProcOrigin,
   type ProcOutcome,
-  type ProcTypes,
+  type ProcTypes
 } from './proc-types.ts';
 import type { ProcRegistry } from './registry.ts';
 import { createResolver, prepareProcs, type ResolverParts } from './resolver.ts';
@@ -162,7 +162,7 @@ interface Runner<G extends ProcTypes> extends FrameRunner<G> {
 const createStack = <G extends ProcTypes>(
   options: ProcSystemOptions<G>,
   state: RunnerState<G>,
-  shared: () => FrameShared<G>,
+  shared: () => FrameShared<G>
 ) => {
   const maxDepth = options.maxDepth ?? 4;
 
@@ -185,7 +185,7 @@ const createStack = <G extends ProcTypes>(
       frame.reset(origin);
 
       return frame;
-    },
+    }
   };
 };
 
@@ -193,7 +193,7 @@ const createStack = <G extends ProcTypes>(
 const createRunner = <G extends ProcTypes>(
   options: ProcSystemOptions<G>,
   state: RunnerState<G>,
-  resolve: ProcResolver<G>,
+  resolve: ProcResolver<G>
 ): Runner<G> => {
   const applyIn = createApplier(options);
 
@@ -203,7 +203,7 @@ const createRunner = <G extends ProcTypes>(
     bus: options.bus,
     cues: options.cues,
     runner,
-    resolve,
+    resolve
   }));
 
   const list = (procs: readonly (Proc<G> | undefined)[], origin: ProcOrigin<G>): number => {
@@ -256,7 +256,7 @@ const createRunner = <G extends ProcTypes>(
 
     countRun: (hatch) => {
       state.runs.set(hatch, (state.runs.get(hatch) ?? 0) + 1);
-    },
+    }
   };
 
   return runner;
@@ -273,7 +273,7 @@ const partsOf = <G extends ProcTypes>(options: ProcSystemOptions<G>, state: Runn
     if (!state.runs.has(name)) {
       state.runs.set(name, 0);
     }
-  },
+  }
 });
 
 /** Checks the depth cap. */
@@ -297,7 +297,14 @@ class Procs<G extends ProcTypes> implements ProcSystem<G> {
   readonly #parts: ResolverParts<G>;
 
   constructor(options: ProcSystemOptions<G>) {
-    const state: RunnerState<G> = { frames: [], depth: 0, dropped: 0, runs: new Map(), auraOrigin: undefined };
+    const state: RunnerState<G> = {
+      frames: [],
+      depth: 0,
+      dropped: 0,
+      runs: new Map(),
+      auraOrigin: undefined
+    };
+
     const parts = partsOf(options, state);
     const resolver = createResolver(parts, undefined);
     const runner = createRunner(options, state, resolver);
@@ -329,7 +336,7 @@ class Procs<G extends ProcTypes> implements ProcSystem<G> {
       eventUnit: undefined,
       other: ctx.other,
       source: ctx.aura.source,
-      aura: ctx.aura,
+      aura: ctx.aura
     });
 
     origin.self = ctx.bearer;

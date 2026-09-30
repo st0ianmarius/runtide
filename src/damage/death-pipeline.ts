@@ -11,7 +11,7 @@ import type { DeathStep } from './options.ts';
 const raiseDeath = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   kind: EventKind<DeathEvent<G>> | undefined,
-  death: DeathRecord<G>,
+  death: DeathRecord<G>
 ): void => {
   const bus = engine.options.events?.bus;
 
@@ -30,7 +30,7 @@ const raiseDeath = <G extends DamageTypes>(
 const runSteps = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   steps: readonly DeathStep<G>[] | undefined,
-  death: DeathRecord<G>,
+  death: DeathRecord<G>
 ): void => {
   if (steps === undefined) {
     return;

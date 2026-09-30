@@ -124,7 +124,7 @@ export interface SpellContext<
   G extends SpellTypes,
   Source extends StatsSource<G> = StatsSource<G>,
   Target = unknown,
-  State = unknown,
+  State = unknown
 > extends GateContext<G> {
   /** The host: the framework services and the game's own. */
   readonly host: SpellHost<G> & G['host'];
@@ -243,7 +243,7 @@ export interface SpellDef<
   G extends SpellTypes,
   Source extends StatsSource<G> = StatsSource<G>,
   Target = unknown,
-  State = unknown,
+  State = unknown
 > {
   /** Its tags: modifier scopes, trigger filters, the class of the spell. */
   readonly tags?: readonly G['spellTag'][];
@@ -301,7 +301,7 @@ export interface SpellDef<
     this: void,
     ctx: SpellContext<G, Source, Target, State>,
     hit: SpellHit<G, Target>,
-    out: ProcOut<G>,
+    out: ProcOut<G>
   ): ProcReturn<G>;
 
   /** The cast ended, however it did. */
@@ -309,7 +309,7 @@ export interface SpellDef<
     this: void,
     ctx: SpellContext<G, Source, Target, State>,
     outcome: CastOutcome<G>,
-    out: ProcOut<G>,
+    out: ProcOut<G>
   ): ProcReturn<G>;
 }
 
@@ -323,6 +323,6 @@ export type AnySpellDef<G extends SpellTypes> = SpellDef<G>;
 export const defineSpell =
   <G extends SpellTypes>() =>
   <const Source extends StatsSource<G> = Readonly<Record<never, never>>, Target = undefined, State = undefined>(
-    def: SpellDef<G, Source, Target, State>,
+    def: SpellDef<G, Source, Target, State>
   ): SpellDef<G, Source, Target, State> =>
     def;

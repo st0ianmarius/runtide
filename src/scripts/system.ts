@@ -125,7 +125,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
 
       get created() {
         return records.length;
-      },
+      }
     };
     this.forUnits = { attach: this.#attach, start: this.#start, detach: this.#detach };
     this.#bind(options);
@@ -167,7 +167,9 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
 
   readonly stateOf = <State>(unit: G['bearer'], behaviour: Behaviour<G, State>): State | undefined => {
     const record = unit.scriptSlot < 0 ? undefined : this.#records[unit.scriptSlot];
+
     const index = record === undefined ? -1 : this.#runner.scriptOf(record).behaviours.indexOf(anyOf(behaviour));
+
     const state: unknown = index < 0 ? undefined : record?.states[index];
 
     return isStateOf(behaviour, state) ? state : undefined;

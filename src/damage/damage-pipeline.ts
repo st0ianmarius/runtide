@@ -6,7 +6,7 @@ import {
   healthStage,
   mitigationStage,
   outgoingStage,
-  rollStage,
+  rollStage
 } from './blow-stages.ts';
 import type { Blow, BlowRecord, BlowSpec } from './blow.ts';
 import { checkSkippable, isNamed } from './compile.ts';
@@ -38,7 +38,7 @@ class KillSpec<G extends DamageTypes> implements DeathSpec<G> {
 const raiseBlow = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   kind: EventKind<DamageEvent<G>> | undefined,
-  blow: BlowRecord<G>,
+  blow: BlowRecord<G>
 ): void => {
   const bus = engine.options.events?.bus;
 
@@ -57,6 +57,7 @@ const raiseBlow = <G extends DamageTypes>(
 const afterStages = <G extends DamageTypes>(engine: DamageEngine<G>, walks: BlowWalks<G>, onward: Onward<G>) => {
   let kill: KillSpec<G> | undefined;
   const { events } = engine.options;
+
   const isDealt = (blow: BlowRecord<G>): boolean => blow.status === 'landed' || blow.status === 'absorbed';
 
   return {
@@ -95,14 +96,14 @@ const afterStages = <G extends DamageTypes>(engine: DamageEngine<G>, walks: Blow
       }
 
       return undefined;
-    },
+    }
   };
 };
 
 /** The built-in blow stages that walk hooks, and the ones that do not, by name. */
 const builtInStages = <G extends DamageTypes>(
   engine: DamageEngine<G>,
-  onward: Onward<G>,
+  onward: Onward<G>
 ): Readonly<Record<string, BuiltInStage<G>>> => {
   const walks = createBlowWalks(engine);
   const after = afterStages(engine, walks, onward);
@@ -143,14 +144,14 @@ const builtInStages = <G extends DamageTypes>(
 
     death: (_engine, blow) => {
       after.death(blow);
-    },
+    }
   };
 };
 
 /** The stages of one system's damage pipeline, in order. */
 const compileDamageRuns = <G extends DamageTypes>(
   engine: DamageEngine<G>,
-  onward: Onward<G>,
+  onward: Onward<G>
 ): readonly BuiltInStage<G>[] => {
   const builtIn = builtInStages(engine, onward);
 
@@ -167,7 +168,11 @@ const compileDamageRuns = <G extends DamageTypes>(
 
 /** Records one stage of a traced blow. */
 const traceStep = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>, index: number): void => {
-  blow.trace?.push({ stage: engine.order.names[index] ?? '', amount: blow.amount, status: blow.status });
+  blow.trace?.push({
+    stage: engine.order.names[index] ?? '',
+    amount: blow.amount,
+    status: blow.status
+  });
 };
 
 /** Whether a blow names a stage to skip, or a group it belongs to. */
@@ -197,7 +202,7 @@ const checkBypass = <G extends DamageTypes>(engine: DamageEngine<G>, bypass: rea
 const runBlowStages = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   runs: readonly BuiltInStage<G>[],
-  blow: BlowRecord<G>,
+  blow: BlowRecord<G>
 ): void => {
   const { afterFrom } = engine.order;
 
@@ -238,7 +243,10 @@ export const createDamagePipeline = <G extends DamageTypes>(engine: DamageEngine
   return (spec: BlowSpec<G>): Blow<G> => {
     const blow = engine.blowRecord(spec.target);
 
-    blow.reset(spec, { source: engine.sourceOf(spec.source, spec.attacker), kind: spec.kind ?? engine.defaultKind });
+    blow.reset(spec, {
+      source: engine.sourceOf(spec.source, spec.attacker),
+      kind: spec.kind ?? engine.defaultKind
+    });
 
     if (!(spec.amount > 0) || engine.isDeadNow(spec.target) || !engine.enter()) {
       blow.status = 'skipped';

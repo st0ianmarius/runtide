@@ -11,7 +11,7 @@ export {
   type UnitExtFactory,
   type UnitScripts,
   type UnitSystemBase,
-  type UnitSystemOptions,
+  type UnitSystemOptions
 } from './engine.ts';
 
 export { type UnitVariant } from './bases.ts';
@@ -27,10 +27,11 @@ export {
   summon,
   type SummonProc,
   type UnitProcKinds,
-  type UnitProcs,
+  type UnitProcs
 } from './procs.ts';
 
 export { defineUnitStates, type UnitBlock, type UnitStateDef, type UnitStateTable } from './states.ts';
+
 export { createUnitSystem, type UnitSystem } from './system.ts';
 export { defineUnitTags, type UnitTagDef, type UnitTagTable } from './tags.ts';
 export { Unit, type UnitParts } from './unit.ts';

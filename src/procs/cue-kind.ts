@@ -9,7 +9,7 @@ import {
   type CueRegistry,
   type CueSpec,
   fireCue,
-  NO_ENTITY,
+  NO_ENTITY
 } from '../cues/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import { missing } from './apply.ts';
@@ -142,5 +142,5 @@ export const CUE_KIND: CoreProcKind<'cue'> = {
     return { ...proc, cue };
   },
 
-  explain: (proc, resolve) => ({ values: { cue: resolve.cue(proc.cue) } }),
+  explain: (proc, resolve) => ({ values: { cue: resolve.cue(proc.cue) } })
 };

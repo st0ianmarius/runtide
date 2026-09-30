@@ -28,7 +28,7 @@ describe('outgoing multipliers', () => {
 
     assert.equal(
       damage.hit({ target: unit(1), amount: 10, attacker, spell: 5, kind: fire }).amount,
-      10 * (1 + 0.5 * (1.4 - 1)),
+      10 * (1 + 0.5 * (1.4 - 1))
     );
     assert.equal(damage.hit({ target: unit(1), amount: 10, attacker, spell: 6, kind: fire }).amount, 10);
     assert.equal(damage.hit({ target: unit(1), amount: 10, attacker, spell: 7, kind: fire }).amount, 14);
@@ -38,7 +38,11 @@ describe('outgoing multipliers', () => {
     const { damage, unit, set, stat } = makeDamageGame({}, ATTACKER);
     const attacker = unit(2);
     const fire = damage.kinds.id.fire;
-    const snapshot = { total: (id: number): number => (id === stat('power') ? 2 : 0), base: (): number => 0 };
+
+    const snapshot = {
+      total: (id: number): number => (id === stat('power') ? 2 : 0),
+      base: (): number => 0
+    };
 
     set(attacker, 'power', 0.5);
     assert.equal(damage.hit({ target: unit(1), amount: 10, attacker, attackerStats: snapshot, kind: fire }).amount, 20);
@@ -113,8 +117,8 @@ describe('the crit stage', () => {
           draws.push(`${slot} ${chance}`);
 
           return true;
-        },
-      },
+        }
+      }
     );
 
     const attacker = unit(2);

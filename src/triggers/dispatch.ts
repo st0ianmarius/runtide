@@ -137,7 +137,7 @@ const roll = (random: Random | undefined): number => {
 const passes = <G extends TriggerTypes, Host>(
   parts: DispatchParts<G, Host>,
   trigger: CompiledTrigger<G, Host>,
-  frame: DispatchFrame<G, Host>,
+  frame: DispatchFrame<G, Host>
 ): boolean => {
   const { checks } = trigger;
 
@@ -165,7 +165,7 @@ const passes = <G extends TriggerTypes, Host>(
 const isLucky = <G extends TriggerTypes, Host>(
   parts: DispatchParts<G, Host>,
   trigger: CompiledTrigger<G, Host>,
-  frame: DispatchFrame<G, Host>,
+  frame: DispatchFrame<G, Host>
 ): boolean => {
   const chance = typeof trigger.chance === 'number' ? trigger.chance : Math.min(1, Math.max(0, trigger.chance(frame)));
 
@@ -179,7 +179,7 @@ const isLucky = <G extends TriggerTypes, Host>(
 const fire = <G extends TriggerTypes, Host>(
   parts: DispatchParts<G, Host>,
   trigger: CompiledTrigger<G, Host>,
-  frame: DispatchFrame<G, Host>,
+  frame: DispatchFrame<G, Host>
 ): void => {
   const { auras, procs } = parts;
   const { cooldown } = trigger;
@@ -195,7 +195,11 @@ const fire = <G extends TriggerTypes, Host>(
   const source = procs.host.idOf?.(frame.owner) ?? NO_SOURCE;
 
   if (cooldown !== undefined) {
-    auras.apply(frame.owner, { aura: cooldown, duration: parts.cooldownSeconds?.(trigger.icd, frame), source });
+    auras.apply(frame.owner, {
+      aura: cooldown,
+      duration: parts.cooldownSeconds?.(trigger.icd, frame),
+      source
+    });
   }
 
   frame.source = source;
@@ -205,7 +209,11 @@ const fire = <G extends TriggerTypes, Host>(
 /** Gathers one aura's triggers (its `party` ones only, for a listener), in authored order. */
 const gatherFrom = <G extends TriggerTypes, Host>(
   frame: DispatchFrame<G, Host>,
-  at: { readonly aura: ActiveAura<G>; readonly own: readonly CompiledTrigger<G, Host>[]; readonly isListener: boolean },
+  at: {
+    readonly aura: ActiveAura<G>;
+    readonly own: readonly CompiledTrigger<G, Host>[];
+    readonly isListener: boolean;
+  }
 ): void => {
   const { aura, own } = at;
 
@@ -225,7 +233,7 @@ const gatherFrom = <G extends TriggerTypes, Host>(
 const gather = <G extends TriggerTypes, Host>(
   parts: DispatchParts<G, Host>,
   frame: DispatchFrame<G, Host>,
-  isListener: boolean,
+  isListener: boolean
 ): void => {
   const kind = frame.event;
   const bits = (isListener ? parts.tables.partyAnswers : parts.tables.answers)[kind];
@@ -246,7 +254,7 @@ const gather = <G extends TriggerTypes, Host>(
 const answer = <G extends TriggerTypes, Host>(
   parts: DispatchParts<G, Host>,
   frame: DispatchFrame<G, Host>,
-  isListener: boolean,
+  isListener: boolean
 ): void => {
   const { gathered, holders, handles } = frame;
 
@@ -271,7 +279,7 @@ const answer = <G extends TriggerTypes, Host>(
  * into a scratch list before any runs, each running only while its aura is still on its bearer.
  */
 export const createDispatcher = <G extends TriggerTypes, Host>(
-  parts: DispatchParts<G, Host>,
+  parts: DispatchParts<G, Host>
 ): ((event: TriggerEvent<G>, payload: unknown) => void) => {
   const frames: DispatchFrame<G, Host>[] = [];
   let depth = 0;

@@ -44,7 +44,11 @@ const fnv1a = (text: string): string => {
 export const wireTableOf = (registry: WireSource): WireTable => {
   const names = Object.freeze([...registry.names]);
 
-  return Object.freeze({ kind: registry.kind, names, checksum: fnv1a(`${registry.kind}\n${names.join('\n')}`) });
+  return Object.freeze({
+    kind: registry.kind,
+    names,
+    checksum: fnv1a(`${registry.kind}\n${names.join('\n')}`)
+  });
 };
 
 /**

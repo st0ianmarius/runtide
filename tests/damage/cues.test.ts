@@ -7,25 +7,37 @@ import { aura, type Game, makeDamageGame } from '../helpers/damage-game.ts';
 
 /** A neutral cue table: numbers for what landed and what was absorbed, a callout for what was ignored, a death flash. */
 const CUES = defineCues({
-  number: defineCue({ anchor: 'entity', params: { amount: { kind: 'int' }, isCrit: { kind: 'uint8' } } }),
+  number: defineCue({
+    anchor: 'entity',
+    params: { amount: { kind: 'int' }, isCrit: { kind: 'uint8' } }
+  }),
   soaked: defineCue({ anchor: 'entity', audience: 'owner', params: { amount: { kind: 'int' } } }),
   callout: defineCue({ anchor: 'entity', params: { reason: { kind: 'uint8' } } }),
   mended: defineCue({ anchor: 'entity', params: { amount: { kind: 'int' } } }),
   shoved: defineCue({ anchor: 'entity', params: { strength: { kind: 'fixed', scale: 100 } } }),
-  fell: defineCue({ anchor: 'entity' }),
+  fell: defineCue({ anchor: 'entity' })
 });
 
 /** Auras the tests hook the pipelines with: an immunity and an absorb. */
 const AURAS = {
   immune: aura({ duration: 'infinite', onIgnore: () => true }),
-  ward: aura({ duration: 'infinite', value: 10, onIncomingDamage: (ctx) => ({ absorb: ctx.aura.value }) }),
+  ward: aura({
+    duration: 'infinite',
+    value: 10,
+    onIncomingDamage: (ctx) => ({ absorb: ctx.aura.value })
+  })
 } as const;
 
 /** What the mappings and listeners saw, in order; cleared by each game. */
 const LOG: string[] = [];
 
 /** Places a cue on a unit: the unit's own, at its id along x. */
-const on = (unit: { readonly id: number }, owner = unit.id) => ({ owner, entity: unit.id, x: unit.id, z: 0 });
+const on = (unit: { readonly id: number }, owner = unit.id) => ({
+  owner,
+  entity: unit.id,
+  x: unit.id,
+  z: 0
+});
 
 /** The game's mapping, written as a game would: which outcomes show, and with which numbers. */
 const MAPPING: Omit<DamageCues<Game>, 'out'> = {
@@ -46,7 +58,7 @@ const MAPPING: Omit<DamageCues<Game>, 'out'> = {
       fireCue(
         out,
         { cue: CUES.id.number, params: { amount: blow.dealt, isCrit: blow.isCrit ? 1 : 0 } },
-        on(blow.target, owner),
+        on(blow.target, owner)
       );
     }
   },
@@ -64,7 +76,7 @@ const MAPPING: Omit<DamageCues<Game>, 'out'> = {
   death: (death: Death<Game>, out: CueBuffer) => {
     LOG.push('death cues');
     fireCue(out, { cue: CUES.id.fell }, on(death.unit, death.killer?.id));
-  },
+  }
 };
 
 /** A damage game whose pipelines fire the mapping's cues, with its events logged too. */
@@ -96,7 +108,7 @@ describe('damage cues', () => {
     assert.deepEqual(LOG, ['blow cues (landed)', 'taken event']);
     assert.deepEqual(fired(), [
       ['soaked', 1, 1, 10],
-      ['number', 2, 1, 20],
+      ['number', 2, 1, 20]
     ]);
   });
 
@@ -123,7 +135,7 @@ describe('damage cues', () => {
     assert.deepEqual(LOG, ['heal cues (landed)', 'healed event', 'force cues (landed)']);
     assert.deepEqual(fired(), [
       ['mended', 1, 1, 20],
-      ['shoved', 1, 1, 1.5],
+      ['shoved', 1, 1, 1.5]
     ]);
   });
 
@@ -136,7 +148,7 @@ describe('damage cues', () => {
     assert.deepEqual(LOG, ['blow cues (landed)', 'taken event', 'death cues', 'death event']);
     assert.deepEqual(fired(), [
       ['number', 2, 1, 100],
-      ['fell', 2, 1, 0],
+      ['fell', 2, 1, 0]
     ]);
   });
 

@@ -7,7 +7,7 @@ import {
   type ScaledContext,
   type StatId,
   type StatTable,
-  type StatView,
+  type StatView
 } from '../modifiers/index.ts';
 import type { DamageKindId } from './damage-types.ts';
 import type { DamageKindTable } from './kinds.ts';
@@ -22,7 +22,10 @@ export interface Penetration<S extends string = string> {
 }
 
 /** A percentage penetration step: the rating times `1 − stat` of the attacker. */
-export const percent = <const S extends string>(stat: S): Penetration<S> => ({ kind: 'percent', stat });
+export const percent = <const S extends string>(stat: S): Penetration<S> => ({
+  kind: 'percent',
+  stat
+});
 
 /** A flat penetration step: the rating minus the attacker's stat. */
 export const flat = <const S extends string>(stat: S): Penetration<S> => ({ kind: 'flat', stat });
@@ -59,7 +62,7 @@ export type MitigationTable<S extends string = string, K extends string = string
 
 /** Declares the mitigation rows, in order (`defineMitigation({ armor: {…}, taken: {…} })`); checked by the system. */
 export const defineMitigation = <const S extends string, const K extends string = never>(
-  rows: Readonly<Record<string, MitigationRowDef<S, K>>>,
+  rows: Readonly<Record<string, MitigationRowDef<S, K>>>
 ): MitigationTable<S, K> => createRegistry(rows, { kind: 'mitigation' });
 
 /** One penetration step compiled against the stat table. */
@@ -147,7 +150,7 @@ const kindsOf = <K extends string>(kinds: DamageKindTable<K>, def: MitigationRow
 const compileRow = <S extends string, K extends string>(
   tables: { readonly stats: StatTable<S>; readonly kinds: DamageKindTable<K> },
   name: string,
-  def: MitigationRowDef<S, K>,
+  def: MitigationRowDef<S, K>
 ): CompiledRow => {
   const { stats } = tables;
   const isRating = def.rating !== undefined;
@@ -167,12 +170,12 @@ const compileRow = <S extends string, K extends string>(
 
     penetration: (def.penetration ?? []).map((step) => ({
       isPercent: step.kind === 'percent',
-      stat: statOf(stats, step.stat, { row: name, isMultiplier: step.kind === 'percent' }),
+      stat: statOf(stats, step.stat, { row: name, isMultiplier: step.kind === 'percent' })
     })),
 
     curve: def.curve === undefined ? undefined : compileCurve(stats, def.curve, { what: `Mitigation row ${name}` }),
     multiplier:
-      def.multiplier === undefined ? undefined : statOf(stats, def.multiplier, { row: name, isMultiplier: true }),
+      def.multiplier === undefined ? undefined : statOf(stats, def.multiplier, { row: name, isMultiplier: true })
   };
 };
 
@@ -186,7 +189,7 @@ export const compileMitigation = <S extends string, K extends string>(
     readonly stats: StatTable<S>;
     readonly kinds: DamageKindTable<K>;
     readonly skips: (kind: number) => boolean;
-  },
+  }
 ): readonly CompiledRow[] => {
   const rows = table.ids.map((id) => compileRow(tables, table.name(id), table.get(id)));
 

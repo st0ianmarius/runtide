@@ -13,7 +13,7 @@ import {
   explainTriggers,
   type TriggerFilter,
   triggerName,
-  withTriggerCooldowns,
+  withTriggerCooldowns
 } from '../../src/triggers/index.ts';
 import {
   aura,
@@ -25,18 +25,27 @@ import {
   makeGame,
   mark,
   TAGS,
-  type Unit,
+  type Unit
 } from '../helpers/trigger-game.ts';
 
 /** A trigger system over `defs` registered as they are (no derived cooldown auras), with or without conditions. */
 const bare = (defs: Readonly<Record<string, AuraDef<Game>>>, hasConditions = true) => {
   const game = makeGame({});
-  const auras = createAuraSystem<Game>({ registry: defineAuras<Game, string>(defs), tags: TAGS, clocks: CLOCKS });
+
+  const auras = createAuraSystem<Game>({
+    registry: defineAuras<Game, string>(defs),
+    tags: TAGS,
+    clocks: CLOCKS
+  });
+
   const procs = createProcSystem<Game>({ kinds: game.procs.kinds, auras, host: game.host });
   const base = { auras, procs, bus: game.bus, events: game.events };
 
   return hasConditions
-    ? createTriggerSystem<Game, Unit>({ ...base, conditions: { table: CONDITIONS, host: (unit) => unit } })
+    ? createTriggerSystem<Game, Unit>({
+        ...base,
+        conditions: { table: CONDITIONS, host: (unit) => unit }
+      })
     : createTriggerSystem<Game, Unit>(base);
 };
 
@@ -52,15 +61,15 @@ describe('validation at load', () => {
             duration: 1,
             triggers: [
               { on: 'hit', chance: 0, do: [noop] },
-              { on: 'hit', chance: 1.5, do: [noop] },
-            ],
+              { on: 'hit', chance: 1.5, do: [noop] }
+            ]
           }),
           cool: aura({
             duration: 1,
             triggers: [
               { on: 'hit', icd: 0, do: [noop] },
-              { on: 'hit', icd: Infinity, do: [noop] },
-            ],
+              { on: 'hit', icd: Infinity, do: [noop] }
+            ]
           }),
           idle: aura({ duration: 1, triggers: [{ on: 'hit', do: [] }] }),
           lost: aura({
@@ -70,18 +79,18 @@ describe('validation at load', () => {
               {
                 on: 'hit',
                 when: [invalid<TriggerFilter<Game>>({ filter: 'isCrit' }, { filter: 'parry' })],
-                do: [noop],
+                do: [noop]
               },
               {
                 on: 'hit',
                 when: [invalid<IsCondition<'healthBelow'>>({ is: 'healthBelow' }, { is: 'enraged' })],
-                do: [noop],
+                do: [noop]
               },
               { on: 'hit', do: [{ kind: 'applyAura', aura: 'nowhere' }] },
               { on: 'kill', when: [{ filter: 'minAmount', arg: 'lots' }], do: [noop] },
-              { on: 'aura', when: [{ filter: 'change', arg: 'vanished' }], do: [noop] },
-            ],
-          }),
+              { on: 'aura', when: [{ filter: 'change', arg: 'vanished' }], do: [noop] }
+            ]
+          })
         }),
       {
         name: 'RangeError',
@@ -97,35 +106,45 @@ describe('validation at load', () => {
           'Trigger aura.lost.2: when: there is no condition named enraged.',
           'Trigger aura.lost.3: unknown aura nowhere.',
           'Trigger aura.lost.4: filter minAmount takes a number.',
-          'Trigger aura.lost.5: unknown aura change vanished.',
-        ].join('\n'),
-      },
+          'Trigger aura.lost.5: unknown aura change vanished.'
+        ].join('\n')
+      }
     );
   });
 
   it('refuses an icd whose cooldown aura the registry lacks, and a trigger that is not one', () => {
-    const shapeless = invalid(defineTrigger<Game>({ on: 'hit', do: [mark('x')] }), { do: 'nothing' });
-    const solo = aura({ duration: 1, triggers: [{ on: 'hit', icd: 1, do: [mark('x')] }, shapeless] });
+    const shapeless = invalid(defineTrigger<Game>({ on: 'hit', do: [mark('x')] }), {
+      do: 'nothing'
+    });
+
+    const solo = aura({
+      duration: 1,
+      triggers: [{ on: 'hit', icd: 1, do: [mark('x')] }, shapeless]
+    });
 
     assert.throws(() => bare({ solo }), {
       message: [
         'Invalid triggers:',
         'Trigger aura.solo.0: has an icd, but the aura registry has no icd.aura.solo.0 (build it with withTriggerCooldowns).',
-        'Trigger aura.solo.1: is not a trigger (it needs on and do).',
-      ].join('\n'),
+        'Trigger aura.solo.1: is not a trigger (it needs on and do).'
+      ].join('\n')
     });
   });
 
   it('refuses conditions when the system has none, and hears other than self or party', () => {
     const loud = invalid(defineTrigger<Game>({ on: 'hit', do: [mark('x')] }), { hears: 'world' });
-    const test = aura({ duration: 1, triggers: [{ on: 'hit', when: [{ is: 'healthBelow' }], do: [mark('x')] }] });
+
+    const test = aura({
+      duration: 1,
+      triggers: [{ on: 'hit', when: [{ is: 'healthBelow' }], do: [mark('x')] }]
+    });
 
     assert.throws(() => bare({ test, loud: aura({ duration: 1, triggers: [loud] }) }, false), {
       message: [
         'Invalid triggers:',
         'Trigger aura.test.0: tests a condition, but the system has no conditions.',
-        'Trigger aura.loud.0: hears must be self or party; got world.',
-      ].join('\n'),
+        'Trigger aura.loud.0: hears must be self or party; got world.'
+      ].join('\n')
     });
   });
 
@@ -147,11 +166,11 @@ describe('internal cooldowns as derived auras', () => {
       triggers: [
         { on: 'hit', icd: 2, do: [noop] },
         { on: 'hit', do: [noop] },
-        { on: 'kill', icd: 0.5, do: [noop] },
-      ],
+        { on: 'kill', icd: 0.5, do: [noop] }
+      ]
     }),
     calm: aura({ duration: 5 }),
-    zeal: aura({ duration: 5, triggers: [{ on: 'hit', icd: 3, do: [noop] }] }),
+    zeal: aura({ duration: 5, triggers: [{ on: 'hit', icd: 3, do: [noop] }] })
   };
 
   it('names triggers and their cooldowns by address', () => {
@@ -160,7 +179,10 @@ describe('internal cooldowns as derived auras', () => {
   });
 
   it('derives one refresh, owner-only aura per icd, after the authored auras, with the given clock and tags', () => {
-    const all = withTriggerCooldowns<Game, keyof typeof authored>(authored, { tags: ['cooldown'], clock: 'world' });
+    const all = withTriggerCooldowns<Game, keyof typeof authored>(authored, {
+      tags: ['cooldown'],
+      clock: 'world'
+    });
 
     assert.deepEqual(all.order, ['rush', 'calm', 'zeal', 'icd.aura.rush.0', 'icd.aura.rush.2', 'icd.aura.zeal.0']);
     assert.deepEqual(all.defs['icd.aura.rush.2'], {
@@ -168,7 +190,7 @@ describe('internal cooldowns as derived auras', () => {
       stacking: 'refresh',
       audience: 'owner',
       clock: 'world',
-      tags: ['cooldown'],
+      tags: ['cooldown']
     });
   });
 
@@ -187,7 +209,7 @@ describe('internal cooldowns as derived auras', () => {
     assert.throws(() => withTriggerCooldowns<Game, 'calm'>({ calm }, { order: ['calm'] }), /is not an internal/);
     assert.throws(
       () => withTriggerCooldowns<Game, 'rush' | 'icd.aura.rush.0'>({ rush, 'icd.aura.rush.0': calm }),
-      /named like an internal-cooldown aura/,
+      /named like an internal-cooldown aura/
     );
   });
 });
@@ -209,14 +231,14 @@ describe('explainTrigger', () => {
               when: [
                 { is: 'healthBelow', arg: 0.5 },
                 { filter: 'minAmount', arg: 30 },
-                { filter: 'aura', arg: 'calm' },
+                { filter: 'aura', arg: 'calm' }
               ],
-              do: [{ kind: 'applyAura', aura: 'calm', to: 'eventUnit', duration: 2 }],
-            },
-          ],
-        }),
+              do: [{ kind: 'applyAura', aura: 'calm', to: 'eventUnit', duration: 2 }]
+            }
+          ]
+        })
       },
-      { triggers: { random: () => 0 } },
+      { triggers: { random: () => 0 } }
     );
 
     assert.deepEqual(explainTrigger(game.triggers, game.id.rush, 1), {
@@ -230,13 +252,23 @@ describe('explainTrigger', () => {
       icd: 1.5,
       cooldown: game.id['icd.aura.rush.1'],
       when: [
-        { kind: 'condition', condition: { kind: 'is', condition: CONDITIONS.id.healthBelow, arg: 0.5 } },
+        {
+          kind: 'condition',
+          condition: { kind: 'is', condition: CONDITIONS.id.healthBelow, arg: 0.5 }
+        },
         { kind: 'filter', filter: 0, arg: 30, isCarried: true },
-        { kind: 'filter', filter: 2, arg: game.id.calm, isCarried: false },
+        { kind: 'filter', filter: 2, arg: game.id.calm, isCarried: false }
       ],
       do: [
-        { kind: 'proc', proc: 0, chance: 1, to: 'eventUnit', values: { aura: game.id.calm, duration: 2 }, procs: [] },
-      ],
+        {
+          kind: 'proc',
+          proc: 0,
+          chance: 1,
+          to: 'eventUnit',
+          values: { aura: game.id.calm, duration: 2 },
+          procs: []
+        }
+      ]
     });
     assert.deepEqual(game.triggers.filters, ['minAmount', 'isCrit', 'aura', 'change']);
     assert.equal(explainTriggers(game.triggers, game.id.rush).length, 2);

@@ -11,7 +11,7 @@ import {
   inPolygon,
   pathIntervals,
   type Polygon,
-  type Vec2,
+  type Vec2
 } from '../math/index.ts';
 
 /** A piece of static geometry: a wall, a pillar, a zone that never moves. */
@@ -145,6 +145,7 @@ export class StaticGeometry {
   #shareOf(index: number, [segment, radius]: readonly [readonly [Vec2, Vec2], number]): number | undefined {
     const shape = this.#shapes[index];
     const [from, to] = segment;
+
     const count = shape === undefined ? 0 : pathIntervals(shape, { from, to, t0: 0, t1: 1, radius }, this.#times);
 
     if (shape === undefined || count === 0) {
@@ -163,6 +164,7 @@ export class StaticGeometry {
   /** Whether a move from inside a shape heads away from it: its step along the way out from the shape's nearest point. */
   #isLeaving(shape: StaticShape, [from, to]: readonly [Vec2, Vec2]): boolean {
     const near = shape.kind === 'circle' ? shape.at : nearestOnEdges(from, shape.points, this.#near);
+
     const sign = shape.kind === 'polygon' && inPolygon(from, shape.points) ? -1 : 1;
 
     return ((to.x - from.x) * (from.x - near.x) + (to.z - from.z) * (from.z - near.z)) * sign > 0;
@@ -193,7 +195,9 @@ const nearestOnEdges = (p: Vec2, points: readonly Vec2[], out: { x: number; z: n
       const dx = b.x - a.x;
       const dz = b.z - a.z;
       const length2 = dx * dx + dz * dz;
+
       const t = length2 > 1e-12 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / length2)) : 0;
+
       const x = a.x + dx * t;
       const z = a.z + dz * t;
       const d = (x - p.x) ** 2 + (z - p.z) ** 2;

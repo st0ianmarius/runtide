@@ -176,7 +176,7 @@ const AUTO: ActivationKindDef<AutoActivation, never> = {
     }
 
     return isSound ? undefined : 'an auto interval must be above 0 seconds.';
-  },
+  }
 };
 
 /** Whether an activation is the framework's `button` kind. */
@@ -201,7 +201,7 @@ const BUTTON: ActivationKindDef<ButtonActivation, never> = {
     }
 
     return isCost(activation.cost) ? undefined : 'a button costs a whole number of stacks from 1.';
-  },
+  }
 };
 
 /** A kind with nothing to check or supply. */
@@ -231,7 +231,7 @@ export type ActivationRegistry<G extends SpellTypes = SpellTypes> = Registry<
 
 /** Fixes an activation kind's types; returns it unchanged. */
 export const defineActivationKind = <A extends ActivationShape, G extends SpellTypes = SpellTypes>(
-  def: ActivationKindDef<A, G>,
+  def: ActivationKindDef<A, G>
 ): ActivationKindDef<A, G> => def;
 
 /**
@@ -239,8 +239,8 @@ export const defineActivationKind = <A extends ActivationShape, G extends SpellT
  * ...GAME_ACTIVATIONS })`. Each kind gets a dense id by key order, which the spell registry's `activation` column holds.
  */
 export const defineActivations = <G extends SpellTypes = SpellTypes>(
-  kinds: Readonly<Record<string, ActivationKindDef<ActivationShape, G>>>,
+  kinds: Readonly<Record<string, ActivationKindDef<ActivationShape, G>>>
 ): ActivationRegistry<G> =>
   createRegistry<Readonly<Record<string, ActivationKindDef<ActivationShape, G>>>, 'activations'>(kinds, {
-    kind: 'activations',
+    kind: 'activations'
   });

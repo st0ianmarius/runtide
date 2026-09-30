@@ -43,13 +43,13 @@ const cooldownAura = <G extends TriggerTypes>(icd: number, options: CooldownOpti
     stacking: 'refresh',
     audience: 'owner',
     ...(options.clock === undefined ? {} : { clock: options.clock }),
-    ...(options.tags === undefined ? {} : { tags: options.tags }),
+    ...(options.tags === undefined ? {} : { tags: options.tags })
   });
 
 /** Every derived cooldown aura, in aura order then trigger order. */
 const derive = <G extends TriggerTypes>(
   defs: Readonly<Record<string, AuraDef<G> | Tombstone>>,
-  options: CooldownOptions<G>,
+  options: CooldownOptions<G>
 ): Map<string, AuraDef<G>> => {
   const derived = new Map<string, AuraDef<G>>();
 
@@ -75,7 +75,7 @@ const derive = <G extends TriggerTypes>(
  */
 export const withTriggerCooldowns = <G extends TriggerTypes, const Name extends string>(
   defs: Readonly<Record<Name, AuraDef<G> | Tombstone>>,
-  options: CooldownOptions<G> = {},
+  options: CooldownOptions<G> = {}
 ): WithCooldowns<G, Name> => {
   const authored = Object.keys(defs);
   const derived = derive<G>(defs, options);
@@ -103,6 +103,6 @@ export const withTriggerCooldowns = <G extends TriggerTypes, const Name extends 
 
   return Object.freeze({
     defs: Object.freeze({ ...defs, ...cooldowns }),
-    order: Object.freeze([...authored, ...Object.keys(cooldowns)]),
+    order: Object.freeze([...authored, ...Object.keys(cooldowns)])
   });
 };

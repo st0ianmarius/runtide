@@ -122,6 +122,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
   const states = options.states;
 
   const isAlive = (unit: G['bearer']): boolean => unitOf<G>(unit).lifecycle === 'alive';
+
   const reviveUnit = (unit: G['bearer'], health?: number): boolean => moveTo(engine, unit, ['alive', health]);
 
   const spawnUnit = (template: UnitId, spawn: SpawnUnit<G>): G['bearer'] => {
@@ -141,7 +142,12 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
   const system: UnitSystem<G> = {
     registry,
-    procKinds: createUnitProcKinds<G>({ engine, spawn: spawnUnit, revive: reviveUnit, despawn: despawnUnit }),
+    procKinds: createUnitProcKinds<G>({
+      engine,
+      spawn: spawnUnit,
+      revive: reviveUnit,
+      despawn: despawnUnit
+    }),
 
     live: () => engine.byId.size,
 
@@ -171,8 +177,11 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     },
 
     canAct: (unit) => isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksAct)),
+
     canMove: (unit) => isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksMove)),
+
     isTargetable: (unit) => states === undefined || !unit.auras.tags.intersects(states.blocksTarget),
+
     setSide: (unit, side) => changeSide(engine, unit, side),
 
     hasTag: (unit, tag) => {
@@ -186,7 +195,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     statsOf: (unit) => engine.statsOf(unit),
     autoAttackOf: (unit) => engine.autoAttacks[unitOf<G>(unit).template],
     syncHealth: (unit) => syncHealth(engine, unit),
-    damageHost: damageHostOf(engine),
+    damageHost: damageHostOf(engine)
   };
 
   return Object.freeze(system);

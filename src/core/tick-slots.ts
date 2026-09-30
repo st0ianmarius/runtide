@@ -14,9 +14,9 @@ export type TickSlotDef = Readonly<Record<never, never>>;
  * steppers inside its own loops, so the framework never runs a fixed "tick everything" pass.
  */
 export const defineTickSlots = <const Name extends string>(
-  names: readonly Name[],
+  names: readonly Name[]
 ): Registry<'tickSlots', Extract<Name, string>, DefOf<Readonly<Record<Name, TickSlotDef>>>, never> =>
   createRegistry(
     recordOf(names, (): TickSlotDef => ({})),
-    { kind: 'tickSlots' },
+    { kind: 'tickSlots' }
   );

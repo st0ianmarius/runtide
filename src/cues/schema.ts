@@ -102,6 +102,7 @@ const defaultsOf = (param: CueParamDef): readonly number[] => {
 /** Checks that a default is a finite number its quantisation keeps exactly, so an omitted param decodes to it. */
 const checkDefault = (kind: number, scale: number, parts: { value: number; where: readonly [string, string] }) => {
   const { value, where } = parts;
+
   const isKept = Number.isFinite(value) && dequantise(kind, scale, quantise(kind, scale, value)) === value;
 
   if (!isKept && kind !== VEC2_LIST) {
@@ -161,6 +162,6 @@ export const compileSchema = (cue: string, def: CueDef, positionScale: number): 
     fields: Object.freeze(fields),
     defaults: Float64Array.from(defaults),
     wireDefaults: Float64Array.from(wireDefaults),
-    size: defaults.length,
+    size: defaults.length
   });
 };

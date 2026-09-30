@@ -9,7 +9,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../../src/auras/index.ts';
 import { createBus, createClock, type SimClock, stream } from '../../src/core/index.ts';
 import {
@@ -20,7 +20,7 @@ import {
   type DamageSystem,
   type DeathEvent,
   defineDamageKinds,
-  type Force,
+  type Force
 } from '../../src/damage/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
 import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc, type ProcSystem } from '../../src/procs/index.ts';
@@ -29,7 +29,7 @@ import {
   defineScripts,
   type ScriptRegistry,
   type ScriptSystem,
-  type ScriptTypes,
+  type ScriptTypes
 } from '../../src/scripts/index.ts';
 import {
   type AnySpellDef,
@@ -37,7 +37,7 @@ import {
   defineSpells,
   type SpellId,
   type SpellProcs,
-  type SpellSystem,
+  type SpellSystem
 } from '../../src/spells/index.ts';
 import {
   createUnitEvent,
@@ -51,7 +51,7 @@ import {
   type UnitEvent,
   type UnitId,
   type UnitProcs,
-  type UnitSystem,
+  type UnitSystem
 } from '../../src/units/index.ts';
 
 /** The unit test game's types. */
@@ -193,7 +193,7 @@ export const TIMERS = defineTimers(['pick', 'raise']);
 export const STATS = defineStats({
   maxHealth: { base: 100, kind: 'flat' },
   speed: { base: 5, kind: 'flat' },
-  power: { base: 10, kind: 'flat' },
+  power: { base: 10, kind: 'flat' }
 });
 
 const aura = defineAura<UnitGame>;
@@ -223,8 +223,8 @@ const AURAS = defineAuras<UnitGame, string>({
       HEARD.push(`${state} ${ctx.bearer.id}`);
 
       return undefined;
-    },
-  }),
+    }
+  })
 });
 
 /** The id of a test aura by name. */
@@ -249,7 +249,7 @@ const UNIT_STATES = defineUnitStates(AURA_TAGS, {
   stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' },
   rooted: { tags: ['root', 'freeze'], blocks: ['move'] },
   frozen: { tags: ['freeze'], interrupt: 'freeze' },
-  hidden: { tags: ['veil'], blocks: ['target'] },
+  hidden: { tags: ['veil'], blocks: ['target'] }
 });
 
 /** A unit test game's options. */
@@ -264,7 +264,7 @@ export interface UnitGameOptions<Extra extends string = never> {
   readonly onIncomingAura?: (
     units: UnitSystem<UnitGame>,
     unit: Unit<UnitGame>,
-    application: AuraApplication<UnitGame>,
+    application: AuraApplication<UnitGame>
   ) => AuraDecision<UnitGame> | undefined;
 
   /** Whether units fold their stats through the modifier system; true when absent. */
@@ -320,13 +320,19 @@ export interface UnitTestGame<Name extends string, Extra extends string = never>
  */
 export const makeUnitGame = <const Name extends string, const Extra extends string = never>(
   templates: Readonly<Record<Name, UnitDef<UnitGame>>>,
-  options: UnitGameOptions<Extra> = {},
+  options: UnitGameOptions<Extra> = {}
 ): UnitTestGame<Name, Extra> => {
   const log: string[] = [];
   const clock = createClock({ dt: 0.25 });
   const registry = defineUnits<UnitGame, Name>(templates, { stats: STATS, tags: UNIT_TAGS });
   const sources = defineSources(['base', 'auras']);
-  const modifiers = createModifierSystem({ stats: STATS, sources, stacks: auraStacks, held: auraGates });
+
+  const modifiers = createModifierSystem({
+    stats: STATS,
+    sources,
+    stacks: auraStacks,
+    held: auraGates
+  });
 
   const late: {
     units?: UnitSystem<UnitGame>;
@@ -338,7 +344,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     despawned: (): UnitEvent<UnitGame> => createUnitEvent<UnitGame>(),
     sideChanged: (): UnitEvent<UnitGame> => createUnitEvent<UnitGame>(),
     death: (): DeathEvent<UnitGame> => createDeathEvent<UnitGame>(),
-    kill: (): DeathEvent<UnitGame> => createDeathEvent<UnitGame>(),
+    kill: (): DeathEvent<UnitGame> => createDeathEvent<UnitGame>()
   });
 
   const auras = createAuraSystem<UnitGame>({
@@ -352,8 +358,8 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
       onIncomingAura: (unit, application) =>
         late.units === undefined ? undefined : options.onIncomingAura?.(late.units, unit, application),
 
-      onTagsChanged: (unit) => late.units?.syncStates(unit),
-    },
+      onTagsChanged: (unit) => late.units?.syncStates(unit)
+    }
   });
 
   const spellRegistry = defineSpells<UnitGame, 'swing' | 'channel' | Extra>({
@@ -362,8 +368,8 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     channel: {
       activation: { kind: 'trigger' },
       timeline: { windup: { seconds: 1 }, interrupts: { stun: 'cancel', freeze: 'pause' } },
-      release: () => undefined,
-    },
+      release: () => undefined
+    }
   });
 
   const holder: { procs?: ProcSystem<UnitGame> } = {};
@@ -373,10 +379,15 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     auras,
     procs: () => holder.procs ?? missing(),
     clock,
-    host: { canAct: (unit) => late.units?.canAct(unit) ?? true },
+    host: { canAct: (unit) => late.units?.canAct(unit) ?? true }
   });
 
-  const ai = createAiSystem<UnitGame>({ spells, clock, timers: TIMERS, holds: ['intro', 'freeze'] });
+  const ai = createAiSystem<UnitGame>({
+    spells,
+    clock,
+    timers: TIMERS,
+    holds: ['intro', 'freeze']
+  });
 
   const holdScripts: { system?: ScriptSystem<UnitGame> } = {};
 
@@ -387,17 +398,20 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     ai,
     spells,
     ...(options.folds === false ? {} : { modifiers: { system: modifiers, base: 'base' as const } }),
-    health: { stat: 'maxHealth', ...(options.policy === undefined ? {} : { policy: options.policy }) },
+    health: {
+      stat: 'maxHealth',
+      ...(options.policy === undefined ? {} : { policy: options.policy })
+    },
     states: UNIT_STATES,
     events: {
       bus,
       spawned: bus.kind.spawned,
       changed: bus.kind.changed,
       despawned: bus.kind.despawned,
-      sideChanged: bus.kind.sideChanged,
+      sideChanged: bus.kind.sideChanged
     },
     ...(options.allocateId === undefined ? {} : { allocateId: options.allocateId }),
-    createExt: (template, spawn) => ({ marks: 0, made: `${template}/${spawn.side}` }),
+    createExt: (template, spawn) => ({ marks: 0, made: `${template}/${spawn.side}` })
   });
 
   const damage: DamageSystem<UnitGame> = createDamageSystem<UnitGame>({
@@ -409,9 +423,9 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
 
       applyForce: (force) => {
         log.push(`force ${force.target.id} ${force.amount}`);
-      },
+      }
     },
-    events: { bus, death: bus.kind.death, kill: bus.kind.kill },
+    events: { bus, death: bus.kind.death, kill: bus.kind.kill }
   });
 
   const procs = createProcSystem<UnitGame>({
@@ -420,11 +434,11 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
       ...damage.procKinds,
       ...spells.procKinds,
       ...units.procKinds,
-      ...ai.procKinds,
+      ...ai.procKinds
     }),
     auras,
     host: { idOf: (unit) => unit.id },
-    random: stream(3),
+    random: stream(3)
   });
 
   holder.procs = procs;
@@ -438,8 +452,8 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     host: {},
     bindings: {
       changed: { kind: bus.kind.changed, unitOf: (event) => event.unit?.owner },
-      death: { kind: bus.kind.death, unitOf: (event) => event.death?.unit },
-    },
+      death: { kind: bus.kind.death, unitOf: (event) => event.death?.unit }
+    }
   });
 
   holdScripts.system = scripts;
@@ -467,7 +481,19 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
   bus.on(bus.kind.death, (event) => log.push(`death ${event.death?.unit.id ?? '?'}`));
   bus.on(bus.kind.kill, (event) => log.push(`kill by ${event.death?.killer?.id ?? '?'}`));
 
-  return { clock, auras, spells, damage, units, procs, ai, scripts, id: registry.id, spellId: spellRegistry.id, log };
+  return {
+    clock,
+    auras,
+    spells,
+    damage,
+    units,
+    procs,
+    ai,
+    scripts,
+    id: registry.id,
+    spellId: spellRegistry.id,
+    log
+  };
 };
 
 /** Throws: the proc system is wired after the systems that name it. */

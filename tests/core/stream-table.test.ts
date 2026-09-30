@@ -9,7 +9,7 @@ describe('the host stream table', () => {
       crit: { kind: 'sequential', salt: 0 },
       pick: { kind: 'sequential', salt: 1 },
       trigger: { kind: 'sequential', salt: 0x7219e5 },
-      placement: { kind: 'keyed', salt: 17 },
+      placement: { kind: 'keyed', salt: 17 }
     });
 
   it('gives each sequential name its own salted stream, and refuses two that share a salt', () => {
@@ -20,8 +20,12 @@ describe('the host stream table', () => {
     assert.equal(streams.random('pick')(), pick());
     assert.equal(streams.random('crit')(), crit());
     assert.throws(
-      () => createStreamTable(1, { a: { kind: 'sequential', salt: 3 }, b: { kind: 'sequential', salt: 3 } }),
-      /share the salt 3/,
+      () =>
+        createStreamTable(1, {
+          a: { kind: 'sequential', salt: 3 },
+          b: { kind: 'sequential', salt: 3 }
+        }),
+      /share the salt 3/
     );
   });
 

@@ -5,7 +5,7 @@ import {
   createAuraEvent,
   createAuraSystem,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../src/auras/index.ts';
 import { createBus, createClock, stream } from '../src/core/index.ts';
 import {
@@ -17,7 +17,7 @@ import {
   group,
   type Proc,
   type ProcSystem,
-  removeByTag,
+  removeByTag
 } from '../src/procs/index.ts';
 import {
   auraTriggerEvent,
@@ -25,7 +25,7 @@ import {
   type TriggerDef,
   triggerEvent,
   type TriggerTypes,
-  withTriggerCooldowns,
+  withTriggerCooldowns
 } from '../src/triggers/index.ts';
 
 /** A bench unit. */
@@ -84,7 +84,7 @@ const granting = (hears: 'self' | 'party'): TriggerDef<BenchGame> => ({
   on: 'hit',
   hears,
   when: [{ filter: 'minAmount', arg: 5 }],
-  do: [grant('gold', 1)],
+  do: [grant('gold', 1)]
 });
 
 const AURAS = defineAuras<BenchGame, string>(
@@ -93,15 +93,15 @@ const AURAS = defineAuras<BenchGame, string>(
     banner: { duration: 'infinite', triggers: [granting('party')] },
     plain: { duration: 'infinite' },
     buff: { duration: 30, tags: ['buff'] },
-    debuff: { duration: 30, stacking: 'stack', maxStacks: 5, tags: ['debuff'] },
-  }).defs,
+    debuff: { duration: 30, stacking: 'stack', maxStacks: 5, tags: ['debuff'] }
+  }).defs
 );
 
 /** One party of `size` units, each with three auras (two self triggers, one party trigger, one plain). */
 const makeParty = (size: number) => {
   const bus = createBus({
     hit: (): Hit => ({ attacker: undefined, amount: 0 }),
-    aura: (): AuraEvent<BenchGame> => createAuraEvent<BenchGame>(),
+    aura: (): AuraEvent<BenchGame> => createAuraEvent<BenchGame>()
   });
 
   const holder: { procs?: ProcSystem<BenchGame> } = {};
@@ -111,7 +111,7 @@ const makeParty = (size: number) => {
     registry: AURAS,
     tags: defineAuraTags(['buff', 'debuff']),
     clocks: { world: createClock({ dt: 1 / 60 }) },
-    host: { run: (procs, ctx) => holder.procs?.runAura(procs, ctx) },
+    host: { run: (procs, ctx) => holder.procs?.runAura(procs, ctx) }
   });
 
   const procs = createProcSystem<BenchGame>({
@@ -126,8 +126,8 @@ const makeParty = (size: number) => {
 
       grant: (_unit, _resource, amount) => {
         counter.granted += amount;
-      },
-    },
+      }
+    }
   });
 
   holder.procs = procs;
@@ -139,10 +139,10 @@ const makeParty = (size: number) => {
     events: {
       hit: triggerEvent<Hit, BenchGame>(bus.kind.hit, {
         unit: (hit) => hit.attacker,
-        filters: { minAmount: (hit, least) => hit.amount >= least },
+        filters: { minAmount: (hit, least) => hit.amount >= least }
       }),
-      aura: auraTriggerEvent<BenchGame>(bus.kind.aura),
-    },
+      aura: auraTriggerEvent<BenchGame>(bus.kind.aura)
+    }
   });
 
   for (let id = 1; id <= size; id++) {
@@ -187,9 +187,9 @@ const LIST = LIST_GAME.procs.prepare(
     grant('gold', 1, { to: 'eventUnit' }),
     group([grant('gold', 1), applyAura('buff')], { chance: 0.5 }),
     grant('gold', 1, { to: 'party' }),
-    applyAura('debuff', { to: 'eventUnit', stacks: 2 }),
+    applyAura('debuff', { to: 'eventUnit', stacks: 2 })
   ],
-  'bench list',
+  'bench list'
 );
 
 const ORIGIN = { self: SELF ?? never(), eventUnit: OTHER ?? never() };
@@ -202,6 +202,6 @@ export const PROC_TRIGGER_TASKS: readonly (readonly [string, () => void])[] = [
     'proc list run, 8 prepared procs',
     () => {
       LIST_GAME.procs.run(LIST, ORIGIN);
-    },
-  ],
+    }
+  ]
 ];

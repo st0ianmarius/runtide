@@ -63,6 +63,7 @@ export interface ScaledExplanation {
 const explainTerm = (term: CompiledTerm, slot: number, ctx: ScaledContext | undefined): TermExplanation => {
   const view = term.isTarget ? ctx?.target : ctx?.caster;
   const total = view?.total(term.stat);
+
   const value = total !== undefined && view !== undefined && term.isBonus ? total - view.base(term.stat) : total;
 
   return {
@@ -71,7 +72,7 @@ const explainTerm = (term: CompiledTerm, slot: number, ctx: ScaledContext | unde
     coef: term.coef[slot] ?? 0,
     of: term.isBonus ? 'bonus' : 'total',
     from: term.isTarget ? 'target' : 'caster',
-    value,
+    value
   };
 };
 
@@ -82,7 +83,7 @@ const explainTerm = (term: CompiledTerm, slot: number, ctx: ScaledContext | unde
 export const explainScaled = (
   value: CompiledScaled,
   rank = 1,
-  ctx?: Omit<ScaledContext, 'rank'>,
+  ctx?: Omit<ScaledContext, 'rank'>
 ): ScaledExplanation => {
   const slot = rankSlot(value.rankCount, rank);
   const isPartial = ctx !== undefined && ctx.target === undefined && value.hasTarget;
@@ -94,6 +95,6 @@ export const explainScaled = (
     terms: value.terms.map((term) => explainTerm(term, slot, ctx)),
     curve: value.curve === undefined ? undefined : { kind: value.curve.kind, id: value.curve.id },
     total: ctx === undefined ? undefined : evaluateScaled(value, { ...ctx, rank }),
-    isPartial,
+    isPartial
   };
 };

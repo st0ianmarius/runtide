@@ -6,7 +6,7 @@ import {
   type AreaInterception,
   type AreaQuery,
   type AreaTriggerHandle,
-  NO_AREA_TRIGGER,
+  NO_AREA_TRIGGER
 } from '../../src/area-triggers/index.ts';
 import { circle, vec2 } from '../../src/math/index.ts';
 import { type Game, makeSpellGame } from '../helpers/spell-game.ts';
@@ -15,7 +15,7 @@ import { type Game, makeSpellGame } from '../helpers/spell-game.ts';
 const kind = (r: number, def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<Game> => ({
   shape: circle(r),
   lifetime: 10,
-  ...def,
+  ...def
 });
 
 /** A game with domes, pools and a plain kind. */
@@ -26,9 +26,9 @@ const queryGame = () =>
       areaTriggers: {
         dome: kind(2, { tags: ['dome'], view: (c) => ({ charge: c.input ?? 0 }) }),
         pool: kind(1, { tags: ['pool'] }),
-        plain: kind(1),
-      },
-    },
+        plain: kind(1)
+      }
+    }
   );
 
 /** The handles a query of a game keeps. */
@@ -43,8 +43,18 @@ describe('queries over area triggers', () => {
     const game = queryGame();
     const [one, two] = [game.unit(1), game.unit(2)];
     const pool = game.areaTriggers.spawn(game.areaId.pool, { owner: one, at: vec2(0, 0) });
-    const domeA = game.areaTriggers.spawn(game.areaId.dome, { owner: two, at: vec2(0, 0), input: 1 });
-    const domeB = game.areaTriggers.spawn(game.areaId.dome, { owner: one, at: vec2(5, 0), input: 2 });
+
+    const domeA = game.areaTriggers.spawn(game.areaId.dome, {
+      owner: two,
+      at: vec2(0, 0),
+      input: 1
+    });
+
+    const domeB = game.areaTriggers.spawn(game.areaId.dome, {
+      owner: one,
+      at: vec2(5, 0),
+      input: 2
+    });
 
     assert.deepEqual(handlesOf(game, {}), [domeA, domeB, pool]);
     assert.deepEqual(handlesOf(game, { owner: one }), [domeB, pool]);
@@ -78,7 +88,7 @@ describe('queries over area triggers', () => {
     assert.equal(game.areaTriggers.despawnWhere({ owner: one }, 'bound'), 2);
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('ended')),
-      ['ended dome@1 bound', 'ended pool@1 bound'],
+      ['ended dome@1 bound', 'ended pool@1 bound']
     );
     assert.equal(game.areaTriggers.pool.live, 1);
   });
@@ -128,6 +138,7 @@ describe('coveredBy and interceptors', () => {
 
             frame: (c) => {
               const out: AreaTriggerHandle[] = [];
+
               const count = c.areas.query({ kind: c.kind, filter: (other) => other.id !== c.id }, out);
 
               for (const handle of out.slice(0, count)) {
@@ -135,10 +146,10 @@ describe('coveredBy and interceptors', () => {
               }
 
               return undefined;
-            },
-          }),
-        },
-      },
+            }
+          })
+        }
+      }
     );
 
     const owner = game.unit(1);

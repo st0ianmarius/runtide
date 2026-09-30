@@ -18,7 +18,7 @@ const SHAPE_KINDS: ReadonlySet<string> = new Set([
   'polygon',
   'outside',
   'union',
-  'difference',
+  'difference'
 ]);
 
 /** Throws a `RangeError` naming the area trigger kind. */
@@ -121,7 +121,7 @@ const checkFrame = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
 
 /** Checks one pulse's seconds, modes and hook, throwing a message naming it. */
 const checkBeat = <G extends AreaTriggerTypes>(
-  pulse: NonNullable<AnyAreaTriggerDef<G>['every']>[number],
+  pulse: NonNullable<AnyAreaTriggerDef<G>['every']>[number]
 ): string | undefined => {
   if (!isSoundSeconds(pulse.seconds) || !isSoundSeconds(pulse.first ?? 1, true)) {
     return 'beats every finite number of seconds above 0, the first after seconds from 0.';
@@ -151,7 +151,7 @@ const checkPulse = <G extends AreaTriggerTypes>(name: string, pulses: AnyAreaTri
 
 /** The problem with one ledger's spec, or `undefined`. */
 const ledgerProblem = (
-  spec: NonNullable<AnyAreaTriggerDef<AreaTriggerTypes>['ledgers']>[string],
+  spec: NonNullable<AnyAreaTriggerDef<AreaTriggerTypes>['ledgers']>[string]
 ): string | undefined => {
   if (!isOneOf(spec.policy, ['once', 'repeat', 'rehit']) || !isOneOf(spec.scope, ['self', 'cast'])) {
     return 'has an unknown policy or scope.';
@@ -185,6 +185,7 @@ const checkLedgers = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrig
   }
 
   const named = [def.contact?.ledger, def.land?.ledger, ...(def.every ?? []).map((pulse) => pulse.ledger)];
+
   const unknown = named.find((ledger) => ledger !== undefined && !Object.hasOwn(ledgers, ledger));
 
   if (unknown !== undefined) {
@@ -209,7 +210,7 @@ const checkAuras = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
 const checkTagsAndHooks = <G extends AreaTriggerTypes>(
   name: string,
   def: AnyAreaTriggerDef<G>,
-  tags: AreaTagTable<G['areaTag']>,
+  tags: AreaTagTable<G['areaTag']>
 ): void => {
   const tagIds: Readonly<Record<string, number | undefined>> = tags.id;
   const unknown = (def.tags ?? []).find((tag) => tagIds[tag] === undefined);
@@ -239,7 +240,7 @@ const checkTagsAndHooks = <G extends AreaTriggerTypes>(
 export const checkAreaTrigger = <G extends AreaTriggerTypes>(
   name: string,
   def: AnyAreaTriggerDef<G>,
-  tags: AreaTagTable<G['areaTag']>,
+  tags: AreaTagTable<G['areaTag']>
 ): void => {
   checkShapeAndLifetime(name, def);
   checkModes(name, def);

@@ -62,12 +62,12 @@ const defOf = <Host>(spec: ConditionTest<Host> | ConditionSpec<Host>): Condition
  * (health, the world) changes without the reader knowing.
  */
 export const defineConditions = <Host, const Name extends string>(
-  tests: Readonly<Record<Name, ConditionTest<Host> | ConditionSpec<Host>>>,
+  tests: Readonly<Record<Name, ConditionTest<Host> | ConditionSpec<Host>>>
 ): ConditionTable<Name, Host> => {
   const names = Object.keys(tests).filter((key): key is Name => Object.hasOwn(tests, key));
 
   return createRegistry<Readonly<Record<Name, ConditionDef<Host>>>, 'conditions'>(
     recordOf(names, (name) => defOf(tests[name])),
-    { kind: 'conditions' },
+    { kind: 'conditions' }
   );
 };

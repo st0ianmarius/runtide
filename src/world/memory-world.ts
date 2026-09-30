@@ -105,7 +105,7 @@ class World<Unit> implements MemoryWorld<Unit> {
     this.#reaction = options.reaction ?? bySides;
     this.#selector = new Selector(this.#table, this.#index, {
       reaction: this.#reaction,
-      canTarget: options.canTarget,
+      canTarget: options.canTarget
     });
     this.#parts = { table: this.#table, selector: this.#selector, selection: this.#selection };
     this.isPositionClear = placement.isPositionClear;
@@ -225,14 +225,14 @@ export interface CreateMemoryWorld {
   /** A memory world with the game's own query extensions, made over it. */
   <Unit, Ext extends QueryExtensions>(
     options: MemoryWorldOptions<Unit>,
-    extend: (world: MemoryWorld<Unit>) => Ext,
+    extend: (world: MemoryWorld<Unit>) => Ext
   ): MemoryWorld<Unit> & Ext;
 }
 
 /** Whether a world carries every extension it was given (all of none, when it was given none). */
 const isExtended = <Unit, Ext extends QueryExtensions>(
   world: MemoryWorld<Unit>,
-  ext: Ext | undefined,
+  ext: Ext | undefined
 ): world is MemoryWorld<Unit> & Ext =>
   ext === undefined || Object.keys(ext).every((name) => Object.hasOwn(world, name));
 
@@ -243,7 +243,7 @@ const isExtended = <Unit, Ext extends QueryExtensions>(
  */
 export const createMemoryWorld: CreateMemoryWorld = <Unit, Ext extends QueryExtensions>(
   options: MemoryWorldOptions<Unit>,
-  extend?: (world: MemoryWorld<Unit>) => Ext,
+  extend?: (world: MemoryWorld<Unit>) => Ext
 ): MemoryWorld<Unit> & Ext => {
   const world = new World<Unit>(options);
   const ext = extend?.(world);

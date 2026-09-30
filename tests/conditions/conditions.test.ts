@@ -13,7 +13,7 @@ import {
   defineValues,
   isMirrorSafe,
   not,
-  readsWorld,
+  readsWorld
 } from '../../src/conditions/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul } from '../../src/modifiers/index.ts';
 
@@ -30,14 +30,17 @@ const hostAt = (hp: number, stance = 0): Host => ({ hp, maxHp: 100, stance, aske
 
 const CONDITIONS = defineConditions({
   hurt: { test: (host: Host) => (host.asked.push('hurt'), host.hp < host.maxHp), mirrorSafe: true },
-  inStance: { test: (host: Host, stance) => (host.asked.push('inStance'), host.stance === stance), mirrorSafe: true },
+  inStance: {
+    test: (host: Host, stance) => (host.asked.push('inStance'), host.stance === stance),
+    mirrorSafe: true
+  },
   inSight: { test: (host: Host) => (host.asked.push('inSight'), host.hp > 0), world: true },
-  plain: (host: Host) => (host.asked.push('plain'), true),
+  plain: (host: Host) => (host.asked.push('plain'), true)
 });
 
 const VALUES = defineValues({
   healthShare: { read: (host: Host) => host.hp / host.maxHp, mirrorSafe: true },
-  missing: (host: Host, scale) => (host.maxHp - host.hp) * scale,
+  missing: (host: Host, scale) => (host.maxHp - host.hp) * scale
 });
 
 const TABLES = { conditions: CONDITIONS, values: VALUES };
@@ -57,17 +60,24 @@ describe('compiling a condition', () => {
         value: 'healthShare',
         op: '<=',
         than: 0.5,
-        epsilon: 0.01,
-      }),
+        epsilon: 0.01
+      })
     );
 
     assert.deepEqual(compiled, {
       kind: 'all',
       of: [
         { kind: 'not', of: { kind: 'is', condition: CONDITIONS.id.inStance, arg: 2 } },
-        { kind: 'compare', value: VALUES.id.healthShare, arg: 0, op: '<=', than: 0.5, epsilon: 0.01 },
-        { kind: 'is', condition: CONDITIONS.id.inSight, arg: 0 },
-      ],
+        {
+          kind: 'compare',
+          value: VALUES.id.healthShare,
+          arg: 0,
+          op: '<=',
+          than: 0.5,
+          epsilon: 0.01
+        },
+        { kind: 'is', condition: CONDITIONS.id.inSight, arg: 0 }
+      ]
     });
     assert.equal(readsWorld(TABLES, compiled), true);
   });
@@ -81,7 +91,7 @@ describe('compiling a condition', () => {
 
     assert.throws(
       () => compileCondition(LOOSE, { is: 'asleep' }, 'spell nova'),
-      /spell nova: there is no condition named asleep/,
+      /spell nova: there is no condition named asleep/
     );
     assert.throws(() => compileCondition(LOOSE, { value: 'mana', op: '<', than: 1 }), /no value kind named mana/);
     assert.throws(() => compileCondition(TABLES, { all: [] }), /an all condition needs at least one part/);
@@ -89,7 +99,7 @@ describe('compiling a condition', () => {
     assert.throws(bad({ is: undefined, value: 'missing', op: '=<', than: 1 }), /op is one of/);
     assert.throws(
       () => compileCondition(TABLES, { value: 'missing', op: '<=', than: 1, epsilon: -1 }),
-      /epsilon is from 0/,
+      /epsilon is from 0/
     );
     assert.throws(() => compileCondition(TABLES, { is: 'hurt', arg: Number.NaN }), /arg must be a finite number/);
     assert.throws(() => compileCondition({}, { is: 'hurt' }), /there is no condition named hurt/);
@@ -106,7 +116,7 @@ describe('evaluating a condition', () => {
     assert.equal(bound(not({ is: 'hurt' }))(host), false);
     assert.equal(
       bound(all({ is: 'hurt' }, any({ is: 'inStance', arg: 3 }, not({ is: 'inStance', arg: 3 }))))(host),
-      true,
+      true
     );
   });
 
@@ -157,12 +167,19 @@ describe('conditions in the modifier fold', () => {
   it('gate a modifier on a composed condition and a comparison, read at every fold', () => {
     const stats = defineStats({ damage: { base: 1, kind: 'multiplier' } });
     const sources = defineSources(['talents']);
-    const modifiers = createModifierSystem({ stats, sources, conditions: CONDITIONS, values: VALUES });
+
+    const modifiers = createModifierSystem({
+      stats,
+      sources,
+      conditions: CONDITIONS,
+      values: VALUES
+    });
+
     const sheet = modifiers.createSheet();
 
     const when = all<'inStance', 'healthShare'>(
       { is: 'inStance', arg: 1 },
-      { value: 'healthShare', op: '<=', than: 0.5 },
+      { value: 'healthShare', op: '<=', than: 0.5 }
     );
 
     modifiers.setSource(sheet, sources.id.talents, [modifiers.compile([mul('damage', 1.5, { when })])]);
@@ -180,7 +197,7 @@ describe('conditions in the modifier fold', () => {
     Reflect.set(forged, 'value', 'mana');
     assert.throws(
       () => modifiers.compile([mul('damage', 2, { when: forged })]),
-      /when: there is no value kind named mana/,
+      /when: there is no value kind named mana/
     );
   });
 });

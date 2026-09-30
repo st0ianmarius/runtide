@@ -37,7 +37,7 @@ const cut = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, index:
 export const takeOff = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  at: { readonly index: number; readonly change: number },
+  at: { readonly index: number; readonly change: number }
 ): void => {
   const set = setOf<G>(bearer);
   const item = set.items[at.index];
@@ -108,7 +108,7 @@ const strip = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], 
 const removeWhere = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  removal: Removal<G> & { readonly cause: AuraCause; readonly remover?: number },
+  removal: Removal<G> & { readonly cause: AuraCause; readonly remover?: number }
 ): number => {
   const from = engine.events.open(removal.cause, removal.remover);
   const removed = strip(engine, bearer, removal);
@@ -133,7 +133,7 @@ export const removeByTag = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: 
 export const enterState = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  state: G['state'],
+  state: G['state']
 ): number => {
   const bit = engine.tables.stateNames.indexOf(state);
 
@@ -251,7 +251,7 @@ export const evictFor = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['
 export const spendStacks = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  spend: { readonly id: AuraId; readonly count: number },
+  spend: { readonly id: AuraId; readonly count: number }
 ): boolean => {
   const set = setOf<G>(bearer);
   let left = spend.count;
@@ -301,7 +301,7 @@ const heldStacks = <G extends AuraTypes>(set: AuraSet<G>, id: AuraId): number =>
 const spendOne = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  at: { readonly index: number; readonly isEmpty: boolean },
+  at: { readonly index: number; readonly isEmpty: boolean }
 ): number => {
   const set = setOf<G>(bearer);
   const item = set.items[at.index];
@@ -328,7 +328,7 @@ const spendOne = <G extends AuraTypes>(
 export const spendValue = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  spend: { readonly id: AuraId; readonly amount: number; readonly only?: ActiveAura | undefined },
+  spend: { readonly id: AuraId; readonly amount: number; readonly only?: ActiveAura | undefined }
 ): number => {
   const set = setOf<G>(bearer);
   const from = engine.events.open('spendValue');
@@ -359,7 +359,7 @@ export const spendValue = <G extends AuraTypes>(
 export const refreshAura = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  refresh: { readonly id: AuraId; readonly seconds?: number | undefined },
+  refresh: { readonly id: AuraId; readonly seconds?: number | undefined }
 ): boolean => {
   const set = setOf<G>(bearer);
   const from = engine.events.open('refresh');

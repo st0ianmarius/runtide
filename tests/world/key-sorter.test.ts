@@ -25,7 +25,7 @@ describe('the key sorter', () => {
     fc.assert(
       fc.property(fc.array(fc.integer({ min: 0, max: 2 ** 32 - 1 }), { maxLength: 300 }), (keys) => {
         assert.deepEqual(sorted(sorter, keys), expected(keys));
-      }),
+      })
     );
   });
 

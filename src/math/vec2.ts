@@ -73,4 +73,7 @@ export const normalize = (v: Vec2): Vec2 => {
 };
 
 /** The point a share `t` of the way from `a` to `b`. */
-export const lerp = (a: Vec2, b: Vec2, t: number): Vec2 => ({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+export const lerp = (a: Vec2, b: Vec2, t: number): Vec2 => ({
+  x: a.x + (b.x - a.x) * t,
+  z: a.z + (b.z - a.z) * t
+});

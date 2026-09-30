@@ -16,7 +16,7 @@ import type {
   AreaLedger,
   AreaLedgerSpec,
   AreaPhase,
-  AreaPulse,
+  AreaPulse
 } from './delivery-def.ts';
 import type { AreaTriggerHandle } from './ids.ts';
 import type { AreaQueries } from './queries.ts';

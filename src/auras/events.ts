@@ -81,7 +81,7 @@ export class AuraEvents<G extends AuraTypes> {
   constructor(parts: EventParts<G>) {
     this.#parts = parts;
     this.#heard = HOOK_NAMES.map((name, code) =>
-      createBitset(parts.registry.ids.filter((id) => parts.registry.has[name].has(id) || isTagEdge(parts, code, id))),
+      createBitset(parts.registry.ids.filter((id) => parts.registry.has[name].has(id) || isTagEdge(parts, code, id)))
     );
   }
 
@@ -259,6 +259,7 @@ export class AuraEvents<G extends AuraTypes> {
     const code = this.#codes[i] ?? 0;
     const onState = code === STATE_ENTERED ? hooks.onState[item.id] : undefined;
     const name = HOOK_NAMES[code];
+
     const hook: AuraHook<G> | undefined = name === undefined || name === 'onState' ? undefined : hooks[name][item.id];
 
     if (hook === undefined && onState === undefined) {

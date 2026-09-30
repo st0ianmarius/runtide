@@ -106,6 +106,7 @@ export class Scheduler<G extends AiTypes> {
   /** Stops a timer; false when it was not running. */
   cancel(unit: G['bearer'], timer: TimerId): boolean {
     const brain = this.#own(unit, timer);
+
     const wasRunning = !Number.isNaN(brain.due[timer] ?? NONE) || !Number.isNaN(brain.left[timer] ?? NONE);
 
     this.#stop(brain, timer);

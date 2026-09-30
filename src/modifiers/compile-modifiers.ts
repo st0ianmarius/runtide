@@ -6,7 +6,7 @@ import type {
   Modifier,
   ModifierList,
   ModifierTables,
-  ModifierValue,
+  ModifierValue
 } from './modifier.ts';
 import type { StatId } from './stat-id.ts';
 
@@ -30,7 +30,7 @@ const statOf = <S extends string>(place: Place<S, string, string>, name: string)
 /** The id a registry gives a name, or `undefined` for a name it does not have (or no registry). */
 const idNamed = <Kind extends string>(
   ids: Readonly<Partial<Record<string, Id<Kind>>>> | undefined,
-  name: string,
+  name: string
 ): Id<Kind> | undefined => (ids !== undefined && Object.hasOwn(ids, name) ? ids[name] : undefined);
 
 /** Throws unless `value` is a number other than NaN (a cap may be infinite). */
@@ -43,7 +43,7 @@ const checkNumber = (value: number, place: Place<string, string, string>, field:
 /** Compiles a modifier's value. */
 const compileValue = <S extends string, C extends string, V extends string>(
   value: ModifierValue<S, V>,
-  place: Place<S, C, V>,
+  place: Place<S, C, V>
 ): CompiledValue => {
   if (typeof value === 'number') {
     checkNumber(value, place, 'value');
@@ -76,20 +76,20 @@ const compileValue = <S extends string, C extends string, V extends string>(
 /** Compiles a modifier's condition against the condition and value tables. */
 const compileWhen = <S extends string, C extends string, V extends string>(
   when: ConditionExpr<C, V> | undefined,
-  place: Place<S, C, V>,
+  place: Place<S, C, V>
 ): CompiledModifier['when'] =>
   when === undefined
     ? undefined
     : compileCondition(
         { conditions: place.tables.conditions, values: place.tables.values },
         when,
-        `${place.what}, when`,
+        `${place.what}, when`
       );
 
 /** Compiles and checks one modifier. */
 const compileModifier = <S extends string, C extends string, V extends string>(
   modifier: Modifier<S, C, V>,
-  place: Place<S, C, V>,
+  place: Place<S, C, V>
 ): CompiledModifier => {
   const { op, scope, stacking } = modifier;
 
@@ -111,7 +111,7 @@ const compileModifier = <S extends string, C extends string, V extends string>(
     value: compileValue(modifier.value, place),
     stacking: stacking ?? 'power',
     when: compileWhen(modifier.when, place),
-    scope,
+    scope
   });
 };
 
@@ -129,7 +129,7 @@ export const compileModifiers = <S extends string, C extends string = never, V e
 
     /** What is being compiled, for error messages. */
     readonly what?: string;
-  } = {},
+  } = {}
 ): ModifierList => {
   const { gate } = options;
 
@@ -138,7 +138,10 @@ export const compileModifiers = <S extends string, C extends string = never, V e
   }
 
   const list = modifiers.map((modifier, index) =>
-    compileModifier(modifier, { tables, what: `${options.what ?? 'Modifier list'}, modifier ${index}` }),
+    compileModifier(modifier, {
+      tables,
+      what: `${options.what ?? 'Modifier list'}, modifier ${index}`
+    })
   );
 
   return Object.freeze({ modifiers: Object.freeze(list), gate });

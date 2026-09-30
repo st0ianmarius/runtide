@@ -106,19 +106,19 @@ const termOf = <S extends string>(stat: S, coef: PerRank, options: TermOptions):
   stat,
   coef,
   ...(options.of === undefined ? {} : { of: options.of }),
-  ...(options.from === undefined ? {} : { from: options.from }),
+  ...(options.from === undefined ? {} : { from: options.from })
 });
 
 /** `+ coef × stat` on a flat stat: `add('attackDamage', 1.2)`, `add('maxHealth', 0.08, { from: 'target' })`. */
 export const add = <const S extends string>(stat: S, coef: PerRank, options: TermOptions = {}): ScalingPart<S> => ({
   part: 'add',
-  term: termOf(stat, coef, options),
+  term: termOf(stat, coef, options)
 });
 
 /** `× (1 + coef × (stat − neutral))` on a multiplier stat: `amp('damage', 1.1)` takes 110% of the damage bonus. */
 export const amp = <const S extends string>(stat: S, coef: PerRank, options: TermOptions = {}): ScalingPart<S> => ({
   part: 'amp',
-  term: termOf(stat, coef, options),
+  term: termOf(stat, coef, options)
 });
 
 /** `× curve(Σ coef × stat)`: `curveOf('haste', 0.5)`; without `stat`, the stat that declares the curve is read. */
@@ -128,7 +128,7 @@ export const curveOf = <const S extends string = never>(
   options: TermOptions & {
     /** The stat read; by default the one whose definition declares the curve. */
     readonly stat?: S;
-  } = {},
+  } = {}
 ): ScalingPart<S> => ({
   part: 'curve',
   curve,
@@ -136,8 +136,8 @@ export const curveOf = <const S extends string = never>(
     coef,
     ...(options.stat === undefined ? {} : { stat: options.stat }),
     ...(options.of === undefined ? {} : { of: options.of }),
-    ...(options.from === undefined ? {} : { from: options.from }),
-  },
+    ...(options.from === undefined ? {} : { from: options.from })
+  }
 });
 
 /** `× 100 / (100 + coef × haste)`: `scaled(12, haste(0.5))` is a 12 s cooldown taking half the ability haste. */
@@ -146,7 +146,7 @@ export const haste = (coef: PerRank): ScalingPart<never> => curveOf('haste', coe
 /** Appends a curve part, refusing a second curve: a scaled value has one curve at most. */
 const withCurve = <S extends string>(
   current: Scaling<S>['curve'],
-  part: Extract<ScalingPart<S>, { part: 'curve' }>,
+  part: Extract<ScalingPart<S>, { part: 'curve' }>
 ): NonNullable<Scaling<S>['curve']> => {
   if (current !== undefined && current.kind !== part.curve) {
     throw new RangeError('A scaled value takes one curve at most; its curve parts name two different curves.');
@@ -179,6 +179,6 @@ export const scaled = <const S extends string = never>(
     base,
     ...(adds.length > 0 ? { add: adds } : {}),
     ...(amps.length > 0 ? { amp: amps } : {}),
-    ...(curve === undefined ? {} : { curve }),
+    ...(curve === undefined ? {} : { curve })
   };
 };

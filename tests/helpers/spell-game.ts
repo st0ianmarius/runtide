@@ -10,7 +10,7 @@ import {
   createAreaTriggerEvent,
   createAreaTriggerSystem,
   defineAreaTags,
-  defineAreaTriggers,
+  defineAreaTriggers
 } from '../../src/area-triggers/index.ts';
 import {
   type AuraDef,
@@ -22,7 +22,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../../src/auras/index.ts';
 import {
   createBus,
@@ -30,7 +30,7 @@ import {
   createStreamTable,
   defineTickSlots,
   type SimClock,
-  stream,
+  stream
 } from '../../src/core/index.ts';
 import { createCueBuffer, type CueBuffer, defineCue, defineCues } from '../../src/cues/index.ts';
 import {
@@ -46,7 +46,7 @@ import {
   type DeathEvent,
   defineDamageKinds,
   type Force,
-  type HealEvent,
+  type HealEvent
 } from '../../src/damage/index.ts';
 import type { Vec2 } from '../../src/math/index.ts';
 import { defineStats, type StatView } from '../../src/modifiers/index.ts';
@@ -56,7 +56,7 @@ import {
   createProcSystem,
   type Proc,
   type ProcContext,
-  type ProcSystem,
+  type ProcSystem
 } from '../../src/procs/index.ts';
 import {
   type ActivationRegistry,
@@ -76,7 +76,7 @@ import {
   type SpellRegistry,
   type SpellSystem,
   type SpellSystemBase,
-  spellTriggerEvent,
+  spellTriggerEvent
 } from '../../src/spells/index.ts';
 import { createTriggerSystem, type TriggerDef, type TriggerTypes } from '../../src/triggers/index.ts';
 import { createMemoryWorld, type MemoryWorld } from '../../src/world/index.ts';
@@ -251,7 +251,7 @@ export const STATS = defineStats({
   power: { base: 10, kind: 'flat' },
   damage: { base: 1, kind: 'multiplier' },
   abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
-  maxHealth: { base: 100, kind: 'flat' },
+  maxHealth: { base: 100, kind: 'flat' }
 });
 
 /** The name of a test stat. */
@@ -276,7 +276,7 @@ export const aura = defineAura<Game>;
 export const CUES = defineCues({
   cast: defineCue({ anchor: 'self', params: { size: { kind: 'uint8' } } }),
   flash: defineCue({ anchor: 'world' }),
-  zone: defineCue({ anchor: 'entity' }),
+  zone: defineCue({ anchor: 'entity' })
 });
 
 /** The one test damage kind. */
@@ -301,7 +301,7 @@ const makeBus = () =>
     ignored: (): DamageEvent<Game> => createDamageEvent<Game>(),
     healed: (): HealEvent<Game> => createHealEvent<Game>(),
     death: (): DeathEvent<Game> => createDeathEvent<Game>(),
-    aura: (): AuraEvent<Game> => createAuraEvent<Game>(),
+    aura: (): AuraEvent<Game> => createAuraEvent<Game>()
   });
 
 /** The test game's bus. */
@@ -382,7 +382,7 @@ export interface SpellGame<Spell extends string, Aura extends string, Area exten
 /** A unit's stats as a view: its columns, with the table's bases. */
 const viewOf = (unit: Unit): StatView => ({
   total: (stat) => unit.stats[stat] ?? 0,
-  base: (stat) => STATS.columns.base[stat] ?? 0,
+  base: (stat) => STATS.columns.base[stat] ?? 0
 });
 
 /** A proc that logs a label with the procs' self when it runs (a named `run`). */
@@ -392,7 +392,7 @@ export const mark = (label: string): Proc<Game> => ({
 
   fn: (ctx: ProcContext<Game>) => {
     ctx.host.log.push(`${label}@${ctx.self.id}`);
-  },
+  }
 });
 
 /** Logs every spell event, as `start swing@1`, `end swing@1 released`. */
@@ -462,10 +462,10 @@ const aurasOf = <Aura extends string>(defs: Readonly<Record<Aura, AuraDef<Game>>
 export const makeSpellGame = <
   const Spell extends string,
   const Aura extends string = never,
-  const Area extends string = never,
+  const Area extends string = never
 >(
   defs: Readonly<Record<Spell, AnySpellDef<Game>>>,
-  options: SpellGameOptions<Aura, Area> = {},
+  options: SpellGameOptions<Aura, Area> = {}
 ): SpellGame<Spell, Aura, Area> => {
   const log: string[] = [];
   const bus = makeBus();
@@ -476,15 +476,19 @@ export const makeSpellGame = <
     tags: SPELL_TAGS,
     stats: STATS,
     outcomes: ['blocked'],
-    ...(options.activations === undefined ? {} : { activations: options.activations }),
+    ...(options.activations === undefined ? {} : { activations: options.activations })
   });
 
   const areaRegistry = defineAreaTriggers<Game, Area>(options.areaTriggers ?? isAreaTable<Area>({}), {
     tags: AREA_TAGS,
-    endReasons: ['phase'],
+    endReasons: ['phase']
   });
 
-  const world = createMemoryWorld<Unit>({ bounds: { minX: -100, minZ: -100, maxX: 100, maxZ: 100 }, dt: STEP });
+  const world = createMemoryWorld<Unit>({
+    bounds: { minX: -100, minZ: -100, maxX: 100, maxZ: 100 },
+    dt: STEP
+  });
+
   const cues = createCueBuffer(CUES);
   const views = new WeakMap<Unit, StatView>();
   const late: { procs?: ProcSystem<Game>; spells?: SpellSystem<Game> } = {};
@@ -494,7 +498,7 @@ export const makeSpellGame = <
     tags: TAGS,
     clocks: { world: clock },
     host: { run: (list, ctx) => late.procs?.runAura(list, ctx) },
-    events: { bus, changed: bus.kind.aura },
+    events: { bus, changed: bus.kind.aura }
   });
 
   const statsOf = (unit: Unit): StatView => views.get(unit) ?? viewOf(unit);
@@ -509,7 +513,7 @@ export const makeSpellGame = <
       taken: bus.kind.taken,
       ignored: bus.kind.ignored,
       healed: bus.kind.healed,
-      death: bus.kind.death,
+      death: bus.kind.death
     },
     host: {
       health: (unit) => unit.hp,
@@ -520,8 +524,8 @@ export const makeSpellGame = <
 
       statsOf,
       idOf: (unit) => unit.id,
-      shareOf: (spell, stat) => late.spells?.shareOf(spell, stat),
-    },
+      shareOf: (spell, stat) => late.spells?.shareOf(spell, stat)
+    }
   });
 
   const host = {
@@ -529,10 +533,13 @@ export const makeSpellGame = <
     idOf: (unit: Unit) => unit.id,
     positionOf: (unit: Unit): Vec2 => unit.at,
     statsOf: (unit: Unit) => statsOf(unit),
-    ...options.host,
+    ...options.host
   };
 
-  const streams = createStreamTable(7, { main: { kind: 'sequential', salt: 1 }, crit: { kind: 'keyed', salt: 2 } });
+  const streams = createStreamTable(7, {
+    main: { kind: 'sequential', salt: 1 },
+    crit: { kind: 'keyed', salt: 2 }
+  });
 
   const spells: SpellSystem<Game> = createSpellSystem<Game>({
     registry,
@@ -547,7 +554,7 @@ export const makeSpellGame = <
       start: bus.kind.spellStart,
       release: bus.kind.spellRelease,
       hit: bus.kind.spellHit,
-      end: bus.kind.spellEnd,
+      end: bus.kind.spellEnd
     },
     createExt: () => ({ hits: 0 }),
 
@@ -555,7 +562,7 @@ export const makeSpellGame = <
       ext.hits = 0;
     },
 
-    ...options.spells,
+    ...options.spells
   });
 
   const areaTriggers: AreaTriggerSystem<Game> = createAreaTriggerSystem<Game>({
@@ -570,7 +577,7 @@ export const makeSpellGame = <
     streams: streams.random,
     cues,
     events: { bus, spawned: bus.kind.areaSpawned, ended: bus.kind.areaEnded },
-    slots: TICK_SLOTS,
+    slots: TICK_SLOTS
   });
 
   const procs: ProcSystem<Game> = createProcSystem<Game>({
@@ -578,11 +585,11 @@ export const makeSpellGame = <
       ...CORE_PROCS,
       ...damage.procKinds,
       ...spells.procKinds,
-      ...areaTriggers.procKinds,
+      ...areaTriggers.procKinds
     }),
     auras,
     host,
-    bus,
+    bus
   });
 
   late.procs = procs;
@@ -598,8 +605,8 @@ export const makeSpellGame = <
       spellHit: spellTriggerEvent(bus.kind.spellHit, registry),
       spellEnd: spellTriggerEvent(bus.kind.spellEnd, registry),
       areaSpawned: areaTriggerEvent(bus.kind.areaSpawned, areaRegistry),
-      areaEnded: areaTriggerEvent(bus.kind.areaEnded, areaRegistry),
-    },
+      areaEnded: areaTriggerEvent(bus.kind.areaEnded, areaRegistry)
+    }
   });
 
   logEvents(bus, registry, log);
@@ -613,7 +620,7 @@ export const makeSpellGame = <
       hp: 100,
       stats: Float64Array.from(STATS.columns.base),
       auras: auras.createState(),
-      casts: spells.createCasterState(),
+      casts: spells.createCasterState()
     };
 
     views.set(made, viewOf(made));
@@ -654,6 +661,6 @@ export const makeSpellGame = <
       for (let i = 0; i < count; i++) {
         clock.step();
       }
-    },
+    }
   };
 };

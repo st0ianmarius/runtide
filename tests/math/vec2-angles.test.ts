@@ -18,7 +18,7 @@ import {
   sub,
   turnToward,
   vec2,
-  wrap,
+  wrap
 } from '../../src/math/index.ts';
 
 /** Asserts two numbers agree within 1e-12: results through Math.sin, cos or atan2 may differ in the last bit. */

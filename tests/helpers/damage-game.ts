@@ -8,7 +8,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../../src/auras/index.ts';
 import { createBus } from '../../src/core/index.ts';
 import {
@@ -30,7 +30,7 @@ import {
   type Force,
   type Heal,
   type HealEvent,
-  TRUE_DAMAGE,
+  TRUE_DAMAGE
 } from '../../src/damage/index.ts';
 import { defineStats, hyperbolic, type StatId, type StatView } from '../../src/modifiers/index.ts';
 import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc, type ProcSystem } from '../../src/procs/index.ts';
@@ -160,7 +160,7 @@ export const STATS = defineStats({
   healing: { base: 1, kind: 'multiplier' },
   healingDone: { base: 1, kind: 'multiplier' },
   regen: { base: 0, kind: 'flat' },
-  maxHealth: { base: 100, kind: 'flat' },
+  maxHealth: { base: 100, kind: 'flat' }
 });
 
 /** The name of a test stat. */
@@ -173,7 +173,12 @@ export const KINDS = defineDamageKinds({ physical: {}, fire: {}, pure: TRUE_DAMA
 const BLOCK_ROW = { effect: 'block', chance: { stat: 'blockChance', of: 'defender' } } as const;
 
 /** The attacker's crit row: its chance and its crit damage. */
-const CRIT_ROW = { effect: 'scale', chance: 'critChance', multiplier: 'critDamage', isCrit: true } as const;
+const CRIT_ROW = {
+  effect: 'scale',
+  chance: 'critChance',
+  multiplier: 'critDamage',
+  isCrit: true
+} as const;
 
 /** Independent rolls: the defender's block only. */
 export const BLOCK = defineRollTable(STATS, { mode: 'independent', rows: { block: BLOCK_ROW } });
@@ -184,13 +189,17 @@ export const CRIT = defineRollTable(STATS, { mode: 'independent', rows: { crit: 
 /** Independent rolls in swarm's order: the defender's block, then the attacker's crit. */
 export const BLOCK_THEN_CRIT = defineRollTable(STATS, {
   mode: 'independent',
-  rows: { block: BLOCK_ROW, crit: CRIT_ROW },
+  rows: { block: BLOCK_ROW, crit: CRIT_ROW }
 });
 
 /** The test mitigation rows: armor on physical (LoL's curve), then damage taken on both mitigated kinds. */
 const MITIGATION = defineMitigation({
-  armor: { kinds: ['physical'], rating: 'armor', curve: hyperbolic({ k: 100, negative: 'amplify' }) },
-  taken: { kinds: ['physical', 'fire'], multiplier: 'taken' },
+  armor: {
+    kinds: ['physical'],
+    rating: 'armor',
+    curve: hyperbolic({ k: 100, negative: 'amplify' })
+  },
+  taken: { kinds: ['physical', 'fire'], multiplier: 'taken' }
 });
 
 /** The test tags. */
@@ -206,7 +215,7 @@ const makeBus = () =>
     taken: (): DamageEvent<Game> => createDamageEvent<Game>(),
     healed: (): HealEvent<Game> => createHealEvent<Game>(),
     death: (): DeathEvent<Game> => createDeathEvent<Game>(),
-    kill: (): DeathEvent<Game> => createDeathEvent<Game>(),
+    kill: (): DeathEvent<Game> => createDeathEvent<Game>()
   });
 
 /** The test game's bus. */
@@ -260,7 +269,7 @@ export interface DamageGame<Name extends string> {
 /** A unit's stats as a view: its columns, with the table's bases. */
 const viewOf = (unit: Unit): StatView => ({
   total: (stat) => unit.stats[stat] ?? 0,
-  base: (stat) => STATS.columns.base[stat] ?? 0,
+  base: (stat) => STATS.columns.base[stat] ?? 0
 });
 
 /** The per-unit stat views, made once each. */
@@ -274,7 +283,7 @@ const VIEWS = new WeakMap<Unit, StatView>();
 export const makeDamageGame = <const Name extends string>(
   defs: Readonly<Record<Name, AuraDef<Game>>>,
   overrides: DamageOverrides = {},
-  hostExtras: Partial<DamageHost<Game>> = {},
+  hostExtras: Partial<DamageHost<Game>> = {}
 ): DamageGame<Name> => {
   const log: string[] = [];
   const rolls: number[] = [];
@@ -288,7 +297,7 @@ export const makeDamageGame = <const Name extends string>(
     registry,
     tags: TAGS,
     clocks: { world: { dt: 0.125 } },
-    host: { run: (list, ctx) => late.procs?.runAura(list, ctx) },
+    host: { run: (list, ctx) => late.procs?.runAura(list, ctx) }
   });
 
   const damage = createDamageSystem<Game>({
@@ -302,7 +311,7 @@ export const makeDamageGame = <const Name extends string>(
       taken: bus.kind.taken,
       healed: bus.kind.healed,
       death: bus.kind.death,
-      kill: bus.kind.kill,
+      kill: bus.kind.kill
     },
 
     host: {
@@ -341,16 +350,16 @@ export const makeDamageGame = <const Name extends string>(
         log.push(`remove@${unit.id}`);
       },
 
-      ...hostExtras,
+      ...hostExtras
     },
 
-    ...overrides,
+    ...overrides
   });
 
   const procs = createProcSystem<Game>({
     kinds: createProcRegistry<Game>({ ...CORE_PROCS, ...damage.procKinds }),
     auras,
-    host: { idOf: (unit) => unit.id },
+    host: { idOf: (unit) => unit.id }
   });
 
   late.procs = procs;
@@ -361,7 +370,7 @@ export const makeDamageGame = <const Name extends string>(
       hp: 100,
       maxHp: 100,
       stats: Float64Array.from(STATS.columns.base),
-      auras: auras.createState(),
+      auras: auras.createState()
     };
 
     VIEWS.set(made, viewOf(made));
@@ -385,6 +394,6 @@ export const makeDamageGame = <const Name extends string>(
 
     set: (target, name, value) => {
       target.stats[STATS.id[name]] = value;
-    },
+    }
   };
 };

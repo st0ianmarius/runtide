@@ -5,7 +5,7 @@ import {
   createRegistry,
   type Registry,
   TOMBSTONE,
-  type Tombstone,
+  type Tombstone
 } from '../core/index.ts';
 import type { StatTable } from '../modifiers/index.ts';
 import { type ActivationRegistry, CORE_ACTIVATIONS, defineActivations } from './activation.ts';
@@ -119,7 +119,7 @@ const flagsOf = <G extends SpellTypes>(def: AnySpellDef<G>): number =>
 const columnOf = <G extends SpellTypes, C extends Column>(
   column: C,
   slots: readonly (AnySpellDef<G> | undefined)[],
-  of: (def: AnySpellDef<G>) => number,
+  of: (def: AnySpellDef<G>) => number
 ): C => {
   for (const [index, def] of slots.entries()) {
     column[index] = def === undefined ? 0 : of(def);
@@ -131,10 +131,12 @@ const columnOf = <G extends SpellTypes, C extends Column>(
 /** The typed hot-field columns. */
 const buildColumns = <G extends SpellTypes>(
   slots: readonly (AnySpellDef<G> | undefined)[],
-  [activations, names]: readonly [ActivationRegistry<G>, readonly string[]],
+  [activations, names]: readonly [ActivationRegistry<G>, readonly string[]]
 ): Record<SpellColumn, Column> => {
   const kindIds: Readonly<Record<string, number | undefined>> = activations.id;
+
   const plans = slots.map((def, id) => (def === undefined ? undefined : planOf(def, names[id] ?? '')));
+
   const size = slots.length;
 
   return {
@@ -144,14 +146,14 @@ const buildColumns = <G extends SpellTypes>(
     windup: Float64Array.from(plans, (plan) => constantOf(plan?.windup)),
     channel: Float64Array.from(plans, (plan) => constantOf(plan?.channel)),
     every: Float64Array.from(plans, (plan) => constantOf(plan?.every)),
-    recover: Float64Array.from(plans, (plan) => constantOf(plan?.recover)),
+    recover: Float64Array.from(plans, (plan) => constantOf(plan?.recover))
   };
 };
 
 /** The dispatch table of one hook. */
 const tableOf = <G extends SpellTypes, Hook extends SpellHookName>(
   slots: readonly (AnySpellDef<G> | undefined)[],
-  hook: Hook,
+  hook: Hook
 ): readonly (AnySpellDef<G>[Hook] | undefined)[] => Object.freeze(slots.map((def) => def?.[hook]));
 
 /** The dispatch tables of every hook. */
@@ -162,13 +164,13 @@ const buildHooks = <G extends SpellTypes>(slots: readonly (AnySpellDef<G> | unde
   begin: tableOf(slots, 'begin'),
   release: tableOf(slots, 'release'),
   onHit: tableOf(slots, 'onHit'),
-  onEnd: tableOf(slots, 'onEnd'),
+  onEnd: tableOf(slots, 'onEnd')
 });
 
 /** Each spell's tags as a bitset. */
 const buildTagSets = <G extends SpellTypes>(
   slots: readonly (AnySpellDef<G> | undefined)[],
-  tags: SpellTagTable<G['spellTag']>,
+  tags: SpellTagTable<G['spellTag']>
 ): readonly Bitset[] => {
   const ids: Readonly<Record<string, number | undefined>> = tags.id;
 
@@ -204,7 +206,7 @@ const CORE_KINDS: ActivationRegistry<never> = defineActivations<never>(CORE_ACTI
  */
 export const defineSpells = <G extends SpellTypes, const Name extends string>(
   defs: Readonly<Record<Name, AnySpellDef<G> | Tombstone>>,
-  options: SpellRegistryOptions<G> = {},
+  options: SpellRegistryOptions<G> = {}
 ): SpellRegistry<G, Name> => {
   const activations: ActivationRegistry<G> = options.activations ?? CORE_KINDS;
   const tags = options.tags ?? NO_TAGS;
@@ -223,7 +225,7 @@ export const defineSpells = <G extends SpellTypes, const Name extends string>(
   const base = createRegistry<Readonly<Record<string, object>>, 'spells'>(defs, {
     kind: 'spells',
     ...(order === undefined ? {} : { order }),
-    ...(freeze === undefined ? {} : { freeze }),
+    ...(freeze === undefined ? {} : { freeze })
   });
 
   const slots = Object.freeze(base.names.map((name) => liveDef(byName.get(name))));
@@ -247,6 +249,6 @@ export const defineSpells = <G extends SpellTypes, const Name extends string>(
     tagSets: buildTagSets(slots, tags),
     compiled: Object.freeze(slots.map((def, id) => def && compileStats(base.names[id] ?? '', def, options.stats))),
     shares: Object.freeze(slots.map((def, id) => def && compileShares(base.names[id] ?? '', def, options.stats))),
-    outcomes: outcomesOf<G>(options.outcomes),
+    outcomes: outcomesOf<G>(options.outcomes)
   });
 };

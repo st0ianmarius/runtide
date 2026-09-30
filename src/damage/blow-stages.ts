@@ -10,7 +10,7 @@ import { chanceOf, type CompiledRollRow, ROLL_EFFECTS, valueOf } from './rolls.t
 /** A built-in stage of the damage pipeline. */
 export type BuiltInStage<G extends DamageTypes> = (
   engine: DamageEngine<G>,
-  blow: BlowRecord<G>,
+  blow: BlowRecord<G>
 ) => BlowStop | undefined;
 
 /** The walks the built-in stages take over aura hooks, made once per system. */
@@ -87,7 +87,7 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
       hook: 'onIgnore',
       unit: target,
       other: attacker,
-      step: (blow, aura, ctx) => hooks.onIgnore[aura.id]?.(ctx, blow) === true,
+      step: (blow, aura, ctx) => hooks.onIgnore[aura.id]?.(ctx, blow) === true
     },
 
     outgoing: {
@@ -103,7 +103,7 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
         }
 
         return false;
-      },
+      }
     },
 
     absorb: {
@@ -121,7 +121,7 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
         }
 
         return blow.amount <= 0;
-      },
+      }
     },
 
     lethal: { hook: 'onLethal', unit: target, other: attacker, step: deathPreventer(engine) },
@@ -135,8 +135,8 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
         engine.runProcs(hooks.onDealt[aura.id]?.(ctx, blow), ctx);
 
         return false;
-      },
-    },
+      }
+    }
   };
 };
 
@@ -188,7 +188,7 @@ const BLOCK = ROLL_EFFECTS.indexOf('block');
 const applyRow = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   blow: BlowRecord<G>,
-  row: CompiledRollRow,
+  row: CompiledRollRow
 ): BlowStop | undefined => {
   blow.outcome = row.outcome;
 
@@ -217,13 +217,14 @@ const rollsRow = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowReco
 const rollSingle = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   blow: BlowRecord<G>,
-  rows: readonly CompiledRollRow[],
+  rows: readonly CompiledRollRow[]
 ): BlowStop | undefined => {
   let draw = -1;
   let reach = 0;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
+
     const chance = row === undefined || !rollsRow(engine, blow, row) ? 0 : chanceOf(row, engine.rollViews);
 
     if (row !== undefined && chance > 0) {
@@ -243,7 +244,7 @@ const rollSingle = <G extends DamageTypes>(
 const rollIndependent = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   blow: BlowRecord<G>,
-  rows: readonly CompiledRollRow[],
+  rows: readonly CompiledRollRow[]
 ): BlowStop | undefined => {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -270,7 +271,7 @@ const rollIndependent = <G extends DamageTypes>(
  */
 export const rollStage = <G extends DamageTypes>(
   engine: DamageEngine<G>,
-  blow: BlowRecord<G>,
+  blow: BlowRecord<G>
 ): BlowStop | undefined => {
   const table = engine.rolls;
 

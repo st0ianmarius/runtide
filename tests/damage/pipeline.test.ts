@@ -20,11 +20,11 @@ describe('the damage pipeline order', () => {
       'health',
       'dealt',
       'outcome',
-      'death',
+      'death'
     ]);
     assert.deepEqual(
       damage.stages.filter((stage) => stage !== 'mitigation.taken').map((stage) => stage.replace(/\..*/, '')),
-      DAMAGE_STAGES,
+      DAMAGE_STAGES
     );
     assert.deepEqual(damage.healStages, HEAL_STAGES);
     assert.deepEqual(damage.forceStages, FORCE_STAGES);
@@ -42,9 +42,9 @@ describe('the damage pipeline order', () => {
           wound: { after: 'shelter', run: () => undefined },
           shove: { after: 'health', run: () => undefined },
           scar: { after: 'wound', run: () => undefined },
-          dusk: { after: 'ignore', run: () => undefined },
-        },
-      },
+          dusk: { after: 'ignore', run: () => undefined }
+        }
+      }
     );
 
     assert.deepEqual(damage.stages.slice(0, 9), [
@@ -56,7 +56,7 @@ describe('the damage pipeline order', () => {
       'scar',
       'horde',
       'dusk',
-      'outgoing',
+      'outgoing'
     ]);
     assert.deepEqual(damage.stages.slice(14, 17), ['health', 'shove', 'dealt']);
     assert.deepEqual(damage.gameStages, [
@@ -67,7 +67,7 @@ describe('the damage pipeline order', () => {
       'damage.wound',
       'damage.shove',
       'damage.scar',
-      'damage.dusk',
+      'damage.dusk'
     ]);
   });
 
@@ -80,9 +80,9 @@ describe('the damage pipeline order', () => {
         stages: {
           between: { after: 'mitigation.armor', run },
           early: { before: 'mitigation', run },
-          late: { after: 'mitigation', run },
-        },
-      },
+          late: { after: 'mitigation', run }
+        }
+      }
     );
 
     assert.deepEqual(damage.stages.slice(3, 8), ['early', 'mitigation.armor', 'between', 'mitigation.taken', 'late']);
@@ -107,8 +107,8 @@ describe('the damage pipeline order', () => {
         'health:30:landed',
         'dealt:30:landed',
         'outcome:30:landed',
-        'death:30:landed',
-      ],
+        'death:30:landed'
+      ]
     );
   });
 });
@@ -155,10 +155,10 @@ describe('a blow', () => {
               calls.push('probe');
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     const dead = unit(2);
@@ -188,10 +188,10 @@ describe('a blow', () => {
               seen.push(`${blow.status} ${blow.amount} ${blow.base}`);
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     const target = unit(1);
@@ -214,10 +214,10 @@ describe('a blow', () => {
               blow.amount *= system.kinds.size;
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     const target = unit(1);
@@ -251,10 +251,10 @@ describe('a blow', () => {
               statuses.push(`${system.depth} ${nested.status}`);
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     damage.hit({ target: unit(1), amount: 1 });
@@ -276,13 +276,17 @@ describe('the load-time checks', () => {
   it('refuse stats of the wrong kind, and stages that read what the host lacks', () => {
     assert.throws(() => makeDamageGame({}, { outgoing: ['armor'] }), /armor must be a multiplier stat/);
     assert.throws(
-      () => defineRollTable(STATS, { mode: 'independent', rows: { crit: { effect: 'scale', chance: 'critChance' } } }),
-      /roll row crit: a scale row takes a multiplier/,
+      () =>
+        defineRollTable(STATS, {
+          mode: 'independent',
+          rows: { crit: { effect: 'scale', chance: 'critChance' } }
+        }),
+      /roll row crit: a scale row takes a multiplier/
     );
     assert.throws(() => makeDamageGame({}, invalid<DamageOverrides>({}, { outgoing: ['nothing'] })), /no stat nothing/);
     assert.throws(
       () => makeDamageGame({}, invalid<DamageOverrides>({}, { heal: { received: 'nothing' } })),
-      /no stat nothing/,
+      /no stat nothing/
     );
     assert.throws(() => makeDamageGame({}, { maxDepth: 0 }), /maxDepth/);
   });

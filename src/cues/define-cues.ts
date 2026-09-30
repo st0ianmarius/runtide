@@ -81,13 +81,13 @@ export interface CueRegistry<Table extends CueTable = CueTable> extends Registry
 /** The slots of one schema's params, by name. */
 const slotsOf = (schema: CueSchema | undefined): Readonly<Record<string, CueParam>> =>
   Object.freeze(
-    Object.fromEntries((schema?.names ?? []).map((name, i) => [name, toCueParam(schema?.fields[i]?.slot ?? 0)])),
+    Object.fromEntries((schema?.names ?? []).map((name, i) => [name, toCueParam(schema?.fields[i]?.slot ?? 0)]))
   );
 
 /** Whether a record built from a registry's names holds one entry per live name, which types it. */
 const isParamTable = <Table extends CueTable>(
   record: Readonly<Record<string, unknown>>,
-  names: readonly string[],
+  names: readonly string[]
 ): record is CueRegistry<Table>['params'] => names.every((name) => Object.hasOwn(record, name));
 
 /**
@@ -97,7 +97,7 @@ const isParamTable = <Table extends CueTable>(
  */
 export const defineCues = <const Table extends CueTable>(
   table: Table,
-  options: CueRegistryOptions = {},
+  options: CueRegistryOptions = {}
 ): CueRegistry<Table> => {
   const positionScale = options.positionScale ?? DEFAULT_POSITION_SCALE;
 
@@ -111,17 +111,18 @@ export const defineCues = <const Table extends CueTable>(
     columns: {
       anchor: { type: 'u8', of: (def: CueDef) => ANCHORS.indexOf(def.anchor) },
       audience: { type: 'u8', of: (def: CueDef) => AUDIENCES.indexOf(def.audience ?? 'all') },
-      isPredicted: { type: 'u8', of: (def: CueDef) => (def.isPredicted === true ? 1 : 0) },
-    },
+      isPredicted: { type: 'u8', of: (def: CueDef) => (def.isPredicted === true ? 1 : 0) }
+    }
   });
 
   const schemas = Object.freeze(
     base.defs.map((def, id) =>
-      def === undefined ? undefined : compileSchema(base.names[id] ?? '', def, positionScale),
-    ),
+      def === undefined ? undefined : compileSchema(base.names[id] ?? '', def, positionScale)
+    )
   );
 
   const live = base.ids.map((id) => base.name(id));
+
   const params = Object.freeze(Object.fromEntries(base.ids.map((id) => [base.name(id), slotsOf(schemas[id])])));
 
   if (!isParamTable<Table>(params, live)) {
@@ -143,6 +144,6 @@ export const defineCues = <const Table extends CueTable>(
       const index = schema?.names.indexOf(name) ?? -1;
 
       return schema === undefined || index < 0 ? undefined : toCueParam(schema.fields[index]?.slot ?? 0);
-    },
+    }
   });
 };

@@ -93,6 +93,7 @@ const writeParam = (field: CueField, event: CueEvent, out: CueWriter): void => {
  */
 export const encodeCueParams = (registry: CueRegistry, event: CueEvent, out: CueWriter): void => {
   const schema = registry.schemas[event.cue] ?? corrupt(`names cue ${event.cue}, which is not live`);
+
   const { fields, wireDefaults } = schema;
   let mask = 0;
 
@@ -218,6 +219,7 @@ const readParam = (field: CueField, event: CueEvent, from: CueReader): void => {
 /** Reads an event's params (`encodeCueParams`'s output) into it; the params that did not cross keep their defaults. */
 export const decodeCueParams = (registry: CueRegistry, event: CueEvent, from: CueReader): void => {
   const schema = registry.schemas[event.cue] ?? corrupt(`names cue ${event.cue}, which is not live`);
+
   const { fields } = schema;
   const mask = from.uint();
 

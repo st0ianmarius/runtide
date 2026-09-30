@@ -48,12 +48,12 @@ const defOf = <Host>(spec: ValueRead<Host> | ValueSpec<Host>): ValueDef<Host> =>
  * explain, while the number comes from the bearer's state at each read.
  */
 export const defineValues = <Host, const Name extends string>(
-  reads: Readonly<Record<Name, ValueRead<Host> | ValueSpec<Host>>>,
+  reads: Readonly<Record<Name, ValueRead<Host> | ValueSpec<Host>>>
 ): ValueTable<Name, Host> => {
   const names = Object.keys(reads).filter((key): key is Name => Object.hasOwn(reads, key));
 
   return createRegistry<Readonly<Record<Name, ValueDef<Host>>>, 'values'>(
     recordOf(names, (name) => defOf(reads[name])),
-    { kind: 'values' },
+    { kind: 'values' }
   );
 };

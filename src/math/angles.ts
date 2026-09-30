@@ -29,4 +29,7 @@ export const turnToward = (from: number, to: number, rate: number): number => wr
 export const headingOf = (v: Vec2): number => Math.atan2(v.x, v.z);
 
 /** The unit direction of a heading: `(sin, cos)`. */
-export const directionOf = (heading: number): Vec2 => ({ x: Math.sin(heading), z: Math.cos(heading) });
+export const directionOf = (heading: number): Vec2 => ({
+  x: Math.sin(heading),
+  z: Math.cos(heading)
+});

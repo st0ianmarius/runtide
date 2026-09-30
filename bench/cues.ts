@@ -8,25 +8,33 @@ import {
   defineCues,
   encodeCues,
   fireCue,
-  setCuePath,
+  setCuePath
 } from '../src/cues/index.ts';
 
 /** A combat-shaped cue table: impacts and numbers on units, a cast on its caster, a chain between points. */
 const CUES = defineCues({
   impact: defineCue({
     anchor: 'entity',
-    params: { strength: { kind: 'uint8', default: 1 }, isCrit: { kind: 'uint8' }, facing: { kind: 'angle' } },
+    params: {
+      strength: { kind: 'uint8', default: 1 },
+      isCrit: { kind: 'uint8' },
+      facing: { kind: 'angle' }
+    }
   }),
-  number: defineCue({ anchor: 'entity', audience: 'owner', params: { amount: { kind: 'fixed', scale: 10 } } }),
+  number: defineCue({
+    anchor: 'entity',
+    audience: 'owner',
+    params: { amount: { kind: 'fixed', scale: 10 } }
+  }),
   cast: defineCue({
     anchor: 'self',
     params: {
       radius: { kind: 'fixed', scale: 100, default: 1 },
       facing: { kind: 'angle' },
-      duration: { kind: 'fixed', scale: 1000 },
-    },
+      duration: { kind: 'fixed', scale: 1000 }
+    }
   }),
-  chain: defineCue({ anchor: 'target', params: { links: { kind: 'vec2[]' } } }),
+  chain: defineCue({ anchor: 'target', params: { links: { kind: 'vec2[]' } } })
 });
 
 /** How many cues one bench tick fires: 120 impacts, 60 numbers, 15 casts and 5 four-link chains. */
@@ -54,7 +62,7 @@ const LINKS = [
   { x: 1, z: 1 },
   { x: 3.5, z: 2 },
   { x: 6, z: -1.25 },
-  { x: 8, z: 0 },
+  { x: 8, z: 0 }
 ];
 
 const CHAIN = { cue: CUES.id.chain, params: { links: LINKS } };
@@ -164,5 +172,5 @@ export const CUE_TICK_BYTES = TICK_BYTES.length;
 export const CUE_TASKS: readonly (readonly [string, () => void, number])[] = [
   ['cues: fire 200 specs + encode bytes (tick)', specsToBytes, PER_TICK],
   ['cues: emit 200 by slot + encode numbers (tick)', slotsToNumbers, PER_TICK],
-  ['cues: decode 200 events from bytes (tick)', decodeTick, PER_TICK],
+  ['cues: decode 200 events from bytes (tick)', decodeTick, PER_TICK]
 ];

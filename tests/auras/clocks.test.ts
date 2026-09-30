@@ -11,7 +11,7 @@ const defs = {
   forever: aura({ duration: 'infinite' }),
   flash: aura({ duration: 0 }),
   cooldown: aura({}),
-  scaled: aura({ duration: (bearer) => bearer.hp / 50 }),
+  scaled: aura({ duration: (bearer) => bearer.hp / 50 })
 };
 
 /** A one-aura system on a 1/60 s clock, and a bearer. */
@@ -21,7 +21,7 @@ const sixtyHertz = (seconds: number) => {
   const auras = createAuraSystem({
     registry,
     tags: defineAuraTags([]),
-    clocks: { world: { dt: 1 / 60 } },
+    clocks: { world: { dt: 1 / 60 } }
   });
 
   const bearer: AuraBearer = { auras: auras.createState() };

@@ -81,7 +81,7 @@ export class AuraHolds<Unit> {
   applicationFor(
     aura: AuraId,
     spec: Pick<AreaAura<AreaTriggerTypes>, 'stacks' | 'value'>,
-    [source, duration]: readonly [number, number | undefined],
+    [source, duration]: readonly [number, number | undefined]
   ): AreaAuraApplication {
     const application = (this.#application ??= new AreaAuraApplication(aura));
 
@@ -147,7 +147,7 @@ const enter = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraIn
 const leave = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   inside: AuraInside<G>,
-  unit: G['bearer'] | undefined,
+  unit: G['bearer'] | undefined
 ): void => {
   const { area, index } = inside;
   const spec = engine.registry.get(area.kind).auras?.[index];
@@ -171,7 +171,7 @@ const leave = <G extends AreaTriggerTypes>(
 const compare = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   inside: AuraInside<G>,
-  targets: readonly G['bearer'][],
+  targets: readonly G['bearer'][]
 ): void => {
   const { units, ids, nextUnits, nextIds } = inside;
   let i = 0;

@@ -62,6 +62,6 @@ export const savableStream = (seed: number, salt = 0): SavableStream => {
       }
 
       state = saved | 0;
-    },
+    }
   });
 };

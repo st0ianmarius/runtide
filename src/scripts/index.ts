@@ -20,7 +20,7 @@ export {
   type ScriptEventName,
   type ScriptId,
   type ScriptReturn,
-  type ScriptTypes,
+  type ScriptTypes
 } from './script-types.ts';
 
 export {
@@ -29,5 +29,5 @@ export {
   type ScriptEventBinding,
   type ScriptEventBindings,
   type ScriptSystem,
-  type ScriptSystemOptions,
+  type ScriptSystemOptions
 } from './system.ts';

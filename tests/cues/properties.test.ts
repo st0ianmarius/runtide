@@ -15,7 +15,7 @@ import {
   defineCue,
   defineCues,
   encodeCues,
-  fireCue,
+  fireCue
 } from '../../src/cues/index.ts';
 
 /** A cue with a param of every kind, and a predicted one. */
@@ -32,12 +32,12 @@ const CUES = defineCues(
         trail: { kind: 'vec2[]', scale: 10 },
         glow: { kind: 'f32' },
         spell: { kind: 'id' },
-        mark: { kind: 'entity' },
-      },
+        mark: { kind: 'entity' }
+      }
     }),
-    step: defineCue({ anchor: 'self', isPredicted: true, params: { turn: { kind: 'angle' } } }),
+    step: defineCue({ anchor: 'self', isPredicted: true, params: { turn: { kind: 'angle' } } })
   },
-  { positionScale: 100 },
+  { positionScale: 100 }
 );
 
 const P = CUES.params.flare;
@@ -63,7 +63,7 @@ const firing = fc.record({
   trail: fc.array(point, { maxLength: 6 }),
   glow: fc.float({ noNaN: true }),
   spell: fc.integer({ min: 0, max: 1e6 }),
-  mark: fc.integer({ min: -1, max: 1e6 }),
+  mark: fc.integer({ min: -1, max: 1e6 })
 });
 
 /** One generated firing's values. */
@@ -94,10 +94,10 @@ const fireEach = (firings: readonly Firing[]) => {
           spell: f.spell,
           mark: f.mark,
           ...(f.reach === undefined ? {} : { reach: f.reach }),
-          ...(f.heavy === undefined ? {} : { heavy: f.heavy }),
-        },
+          ...(f.heavy === undefined ? {} : { heavy: f.heavy })
+        }
       },
-      place,
+      place
     );
   }
 
@@ -174,7 +174,7 @@ describe('cue wire round trips (fast-check)', () => {
         for (let i = 0; i < sent.count; i++) {
           checkEvent(sent.events[i], got.events[i]);
         }
-      }),
+      })
     );
   });
 
@@ -186,7 +186,7 @@ describe('cue wire round trips (fast-check)', () => {
 
         decodeCues(createNumberReader(wire), got);
         assert.deepEqual(numbersOf(got), wire);
-      }),
+      })
     );
   });
 
@@ -202,7 +202,7 @@ describe('cue wire round trips (fast-check)', () => {
         decodeCues(createByteReader(bytes.bytes()), fromBytes);
         decodeCues(createNumberReader(numbersOf(sent)), fromNumbers);
         assert.deepEqual(numbersOf(fromBytes), numbersOf(fromNumbers));
-      }),
+      })
     );
   });
 
@@ -224,7 +224,7 @@ describe('cue wire round trips (fast-check)', () => {
         decodeCues(createNumberReader(wire), got);
         assert.equal(isReachSent || got.events[0]?.values[P.reach] === 1.5, true);
         assert.equal(isHeavySent || got.events[0]?.values[P.heavy] === 2, true);
-      }),
+      })
     );
   });
 });

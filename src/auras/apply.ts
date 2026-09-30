@@ -38,7 +38,7 @@ const UNCHANGED: ApplyResult = Object.freeze({ applied: true, fresh: false, chan
 const existingFor = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   set: AuraSet<G>,
-  application: AuraApplication<G>,
+  application: AuraApplication<G>
 ): AuraItem<G> | undefined => {
   const id = application.aura;
 
@@ -65,7 +65,7 @@ const existingFor = <G extends AuraTypes>(
 const land = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   at: { readonly bearer: G['bearer']; readonly item: AuraItem<G> },
-  application: AuraApplication<G>,
+  application: AuraApplication<G>
 ): void => {
   const onLand = engine.registry.hooks.onLand[at.item.id];
 
@@ -103,13 +103,15 @@ const firstBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer
 const fresh = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  at: { readonly application: AuraApplication<G>; readonly seconds: number },
+  at: { readonly application: AuraApplication<G>; readonly seconds: number }
 ): AuraItem<G> => {
   const { application, seconds } = at;
   const set = setOf<G>(bearer);
   const id = application.aura;
   const item = engine.acquire(id);
+
   const isOwnInstance = engine.stacking[id] === INDEPENDENT || ((engine.flags[id] ?? 0) & PER_SOURCE) !== 0;
+
   const maxStacks = engine.maxStacks[id] ?? 1;
 
   engine.events.setCause('evict');
@@ -138,7 +140,11 @@ const fresh = <G extends AuraTypes>(
 const again = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  at: { readonly item: AuraItem<G>; readonly application: AuraApplication<G>; readonly seconds: number },
+  at: {
+    readonly item: AuraItem<G>;
+    readonly application: AuraApplication<G>;
+    readonly seconds: number;
+  }
 ): boolean => {
   const { item, application } = at;
   const isChanged = restack(engine, bearer, at);
@@ -174,7 +180,7 @@ const checkSeconds = <G extends AuraTypes>(engine: AuraEngine<G>, id: AuraId, se
 const landAura = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  application: AuraApplication<G>,
+  application: AuraApplication<G>
 ): ApplyResult => {
   const set = setOf<G>(bearer);
   const id = application.aura;
@@ -214,7 +220,7 @@ const landAura = <G extends AuraTypes>(
 export const applyAura = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  input: AuraId | AuraApplication<G>,
+  input: AuraId | AuraApplication<G>
 ): ApplyResult => {
   const incoming = typeof input === 'number' ? engine.applicationOf(input) : input;
   const decision = engine.host.onIncomingAura?.(bearer, incoming);

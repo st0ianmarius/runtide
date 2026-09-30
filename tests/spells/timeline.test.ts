@@ -30,8 +30,8 @@ describe('stage order', () => {
       slow: spell({
         activation: { kind: 'trigger' },
         timeline: { windup: { seconds: 1 }, recover: { seconds: 0.5 } },
-        release: () => [mark('release')],
-      }),
+        release: () => [mark('release')]
+      })
     });
 
     const handle = game.spells.cast(game.a, game.id.slow).handle;
@@ -48,7 +48,7 @@ describe('stage order', () => {
       'release slow@1',
       't5',
       't6',
-      'end slow@1 released',
+      'end slow@1 released'
     ]);
     assert.equal(game.spells.isRunning(handle), false);
   });
@@ -67,8 +67,8 @@ describe('stage order', () => {
           return aims;
         },
 
-        release: (_ctx, target) => [mark(`slam at ${target}`)],
-      }),
+        release: (_ctx, target) => [mark(`slam at ${target}`)]
+      })
     });
 
     const handle = game.spells.cast(game.a, game.id.slam).handle;
@@ -90,11 +90,11 @@ describe('stage order', () => {
         activation: { kind: 'trigger' },
         timeline: {
           windup: { seconds: 1, cancelIf: () => isLost },
-          recover: { seconds: 1 },
+          recover: { seconds: 1 }
         },
         release: () => [mark('release')],
-        onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)],
-      }),
+        onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)]
+      })
     });
 
     game.spells.cast(game.a, game.id.tether);
@@ -110,10 +110,10 @@ describe('stage order', () => {
         activation: { kind: 'trigger' },
         timeline: {
           channel: { seconds: 1, every: 0.5, tick: (ctx) => [mark(`beat ${ctx.elapsed}`)] },
-          recover: { seconds: 0.25 },
+          recover: { seconds: 0.25 }
         },
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     game.spells.cast(game.a, game.id.beam);
@@ -128,7 +128,7 @@ describe('stage order', () => {
       't4',
       'beat 1@1',
       't5',
-      'end beam@1 released',
+      'end beam@1 released'
     ]);
   });
 
@@ -137,13 +137,13 @@ describe('stage order', () => {
       stream: spell({
         activation: { kind: 'trigger' },
         timeline: { channel: { seconds: 0.5, tick: () => [mark('tick')] } },
-        release: () => undefined,
+        release: () => undefined
       }),
       burst: spell({
         activation: { kind: 'trigger' },
         timeline: { channel: { seconds: 1, every: 0.1, tick: () => [mark('pulse')] } },
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     game.spells.cast(game.a, game.id.stream);
@@ -168,19 +168,19 @@ describe('stage order', () => {
               game.spells.finish(handle, 'blocked');
 
               return [mark('pulse')];
-            },
+            }
           },
-          recover: { seconds: 1 },
+          recover: { seconds: 1 }
         },
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     handle = game.spells.cast(game.a, game.id.burst).handle;
     game.advance(2);
     assert.deepEqual(
       game.log.filter((line) => line === 'pulse@1'),
-      ['pulse@1'],
+      ['pulse@1']
     );
   });
 
@@ -189,9 +189,11 @@ describe('stage order', () => {
       storm: spell({
         activation: { kind: 'trigger' },
         stats: { beat: 0.5 },
-        timeline: { channel: { seconds: 1, every: (ctx) => ctx.stats.beat / 2, tick: () => [mark('beat')] } },
-        release: () => undefined,
-      }),
+        timeline: {
+          channel: { seconds: 1, every: (ctx) => ctx.stats.beat / 2, tick: () => [mark('beat')] }
+        },
+        release: () => undefined
+      })
     });
 
     game.spells.cast(game.a, game.id.storm);
@@ -204,8 +206,8 @@ describe('stage order', () => {
       heal: spell({
         activation: { kind: 'trigger' },
         timeline: { windup: { seconds: 1 } },
-        release: () => [mark('heal')],
-      }),
+        release: () => [mark('heal')]
+      })
     });
 
     const { handle } = game.spells.cast(game.a, game.id.heal);
@@ -232,13 +234,13 @@ describe('stage order', () => {
       chant: spell({
         activation: { kind: 'trigger' },
         timeline: { windup: { seconds: 0.25 }, interrupts: { stun: 'pause' } },
-        release: () => [mark('chant')],
+        release: () => [mark('chant')]
       }),
       instant: spell({
         activation: { kind: 'trigger' },
         timeline: { interrupts: { stun: 'pause' } },
-        release: () => [mark('instant')],
-      }),
+        release: () => [mark('instant')]
+      })
     });
 
     game.spells.interrupt(game.a, 'stun');
@@ -250,13 +252,13 @@ describe('stage order', () => {
     assert.equal(game.spells.get(handle)?.stage, 'windup');
     assert.deepEqual(
       game.log.filter((line) => !line.includes(' ') && !line.startsWith('t')),
-      [],
+      []
     );
     game.spells.endInterrupt(game.a, 'stun');
     game.advance(1);
     assert.deepEqual(
       game.log.filter((line) => !line.includes(' ') && !line.startsWith('t')),
-      ['chant@1', 'instant@1'],
+      ['chant@1', 'instant@1']
     );
   });
 
@@ -268,10 +270,10 @@ describe('stage order', () => {
         activation: { kind: 'trigger' },
         timeline: {
           channel: { seconds: 5, breakIf: () => isOut },
-          recover: { seconds: (ctx) => (ctx.outcome === 'broken' ? 0.5 : 0) },
+          recover: { seconds: (ctx) => (ctx.outcome === 'broken' ? 0.5 : 0) }
         },
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     game.spells.cast(game.a, game.id.leash);
@@ -287,7 +289,7 @@ describe('hooks for the cast rules (F16)', () => {
   const aimed = spell({
     activation: { kind: 'trigger' },
     timeline: { windup: { seconds: 1 }, interrupts: { stun: 'pause', death: 'cancel' } },
-    release: () => [mark('release')],
+    release: () => [mark('release')]
   });
 
   it('pauses a cast, which then does not count down, until it resumes', () => {
@@ -310,8 +312,8 @@ describe('hooks for the cast rules (F16)', () => {
       plain: spell({
         activation: { kind: 'trigger' },
         timeline: { windup: { seconds: 0.5 } },
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     const first = game.spells.cast(game.a, game.id.aimed).handle;
@@ -360,8 +362,8 @@ describe('hooks for the cast rules (F16)', () => {
           return [run('end', () => game0.spells.cancel(ctx.cast)), mark('after')];
         },
 
-        onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)],
-      }),
+        onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)]
+      })
     });
 
     const game0 = game;
@@ -382,9 +384,12 @@ describe('hooks for the cast rules (F16)', () => {
     const game = timeline({
       charge: spell({
         activation: { kind: 'trigger' },
-        timeline: { channel: { seconds: 2 }, recover: { seconds: (ctx) => (ctx.outcome === 'blocked' ? 0.5 : 0.25) } },
-        release: () => undefined,
-      }),
+        timeline: {
+          channel: { seconds: 2 },
+          recover: { seconds: (ctx) => (ctx.outcome === 'blocked' ? 0.5 : 0.25) }
+        },
+        release: () => undefined
+      })
     });
 
     const handle = game.spells.cast(game.a, game.id.charge).handle;
@@ -398,6 +403,7 @@ describe('hooks for the cast rules (F16)', () => {
     assert.deepEqual(game.spells.registry.outcomes, ['released', 'cancelled', 'broken', 'blocked']);
 
     const next = game.spells.cast(game.a, game.id.charge).handle;
+
     const finish = (outcome: string) => (): unknown => Reflect.apply(game.spells.finish, undefined, [next, outcome]);
 
     assert.throws(finish('stuck'), /cannot finish as stuck/);
@@ -413,16 +419,16 @@ describe('stepping per caster', () => {
         timeline: {
           channel: {
             seconds: 0.5,
-            tick: (ctx) => [run('follow', () => game0.spells.cast(ctx.caster, game0.id.follow))],
-          },
+            tick: (ctx) => [run('follow', () => game0.spells.cast(ctx.caster, game0.id.follow))]
+          }
         },
-        release: () => undefined,
+        release: () => undefined
       }),
       follow: spell({
         activation: { kind: 'trigger' },
         timeline: { windup: { seconds: 0.25 } },
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     const game0 = game;
@@ -439,8 +445,8 @@ describe('stepping per caster', () => {
       loop: spell({
         activation: { kind: 'trigger' },
         timeline: { windup: { seconds: 0.5 } },
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     for (let i = 0; i < 20; i++) {

@@ -4,7 +4,7 @@ import {
   type AbilityTypes,
   createAbilitySystem,
   defineSlots,
-  type SlotTable,
+  type SlotTable
 } from '../../src/abilities/index.ts';
 import {
   type AuraId,
@@ -13,7 +13,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../../src/auras/index.ts';
 import { createClock, type SimClock } from '../../src/core/index.ts';
 import { createCueBuffer, type CueBuffer, defineCue, defineCues } from '../../src/cues/index.ts';
@@ -29,7 +29,7 @@ import {
   type SpellId,
   type SpellProcs,
   type SpellSystem,
-  type StaticWorld,
+  type StaticWorld
 } from '../../src/spells/index.ts';
 
 /** A test hero: an entity id, a place, a stat column per stat, its auras, casts and loadout. */
@@ -153,7 +153,7 @@ export interface AbilityGame extends AbilityTypes {
 export const STATS = defineStats({
   power: { base: 10, kind: 'flat' },
   abilityHaste: { base: 0, kind: 'flat', curve: 'haste' },
-  duration: { base: 1, kind: 'multiplier' },
+  duration: { base: 1, kind: 'multiplier' }
 });
 
 /** `defineSpell` fixed to the test types. */
@@ -176,7 +176,7 @@ const AURAS = defineAuras<AbilityGame, string>({
   charge: aura({ duration: 'infinite', stacking: 'stack', maxStacks: 9 }),
   sprint: aura({ duration: 2, predicted: true }),
   stance: aura({ duration: 'infinite', tags: ['stance'] }),
-  root: aura({ duration: 'infinite', tags: ['rooted'] }),
+  root: aura({ duration: 'infinite', tags: ['rooted'] })
 });
 
 /** The id of every test aura, by name. */
@@ -216,7 +216,7 @@ export interface AbilityGameOptions {
  */
 export const CUES = defineCues({
   swish: defineCue({ anchor: 'self', isPredicted: true, params: { size: { kind: 'uint8' } } }),
-  flash: defineCue({ anchor: 'self' }),
+  flash: defineCue({ anchor: 'self' })
 });
 
 /** A small ability test game. */
@@ -255,7 +255,7 @@ export interface AbilityTestGame<Spell extends string> {
 /** A hero's stats as a view: its columns, with the table's bases. */
 const viewOf = (hero: Hero): StatView => ({
   total: (stat) => hero.stats[stat] ?? 0,
-  base: (stat) => STATS.columns.base[stat] ?? 0,
+  base: (stat) => STATS.columns.base[stat] ?? 0
 });
 
 /**
@@ -265,14 +265,21 @@ const viewOf = (hero: Hero): StatView => ({
  */
 export const makeAbilityGame = <const Spell extends string>(
   defs: Readonly<Record<Spell, AnySpellDef<AbilityGame>>>,
-  options: AbilityGameOptions = {},
+  options: AbilityGameOptions = {}
 ): AbilityTestGame<Spell> => {
   const { slots = SLOTS, world, mirror } = options;
   const log: string[] = [];
   const clock = createClock({ dt: STEP });
   const late: { procs?: ProcSystem<AbilityGame> } = {};
   const heroes: Hero[] = [];
-  const host = { log, idOf: (hero: Hero) => hero.id, positionOf: (hero: Hero): Vec2 => hero.at, statsOf: viewOf };
+
+  const host = {
+    log,
+    idOf: (hero: Hero) => hero.id,
+    positionOf: (hero: Hero): Vec2 => hero.at,
+    statsOf: viewOf
+  };
+
   const registry = defineSpells<AbilityGame, Spell>(defs, { stats: STATS });
 
   /** Throws: the proc system is wired right after the systems that name it. */
@@ -284,7 +291,7 @@ export const makeAbilityGame = <const Spell extends string>(
     registry: AURAS,
     tags: TAGS,
     clocks: { world: clock },
-    host: { run: (list, ctx) => late.procs?.runAura(list, ctx) },
+    host: { run: (list, ctx) => late.procs?.runAura(list, ctx) }
   });
 
   const cues = createCueBuffer(CUES);
@@ -296,15 +303,23 @@ export const makeAbilityGame = <const Spell extends string>(
     clock,
     host,
     cues,
-    ...(world === undefined ? {} : { world }),
+    ...(world === undefined ? {} : { world })
   });
 
-  const abilities = createAbilitySystem<AbilityGame>({ spells, auras, slots, clock, world, mirror, statsOf: viewOf });
+  const abilities = createAbilitySystem<AbilityGame>({
+    spells,
+    auras,
+    slots,
+    clock,
+    world,
+    mirror,
+    statsOf: viewOf
+  });
 
   const procs = createProcSystem<AbilityGame>({
     kinds: createProcRegistry<AbilityGame>({ ...CORE_PROCS, ...spells.procKinds }),
     auras,
-    host,
+    host
   });
 
   late.procs = procs;
@@ -327,7 +342,7 @@ export const makeAbilityGame = <const Spell extends string>(
         stats: Float64Array.from(STATS.columns.base),
         auras: auras.createState(),
         casts: spells.createCasterState(),
-        loadout: abilities.createLoadout(),
+        loadout: abilities.createLoadout()
       };
 
       heroes.push(made);
@@ -344,6 +359,6 @@ export const makeAbilityGame = <const Spell extends string>(
           spells.step(hero);
         }
       }
-    },
+    }
   };
 };

@@ -80,33 +80,33 @@ export interface ModifierOptions<C extends string = string, V extends string = n
 /** Builds a modifier with only the options that are present. */
 const modifierOf = <S extends string, C extends string, V extends string>(
   head: Pick<Modifier<S, C, V>, 'stat' | 'op' | 'value'>,
-  options: ModifierOptions<C, V>,
+  options: ModifierOptions<C, V>
 ): Modifier<S, C, V> => ({
   ...head,
   ...(options.when === undefined ? {} : { when: options.when }),
   ...(options.scope === undefined ? {} : { scope: options.scope }),
-  ...(options.stacking === undefined ? {} : { stacking: options.stacking }),
+  ...(options.stacking === undefined ? {} : { stacking: options.stacking })
 });
 
 /** An `add` modifier. Named `plus` because `add` is the scaled-value term helper. */
 export const plus = <const S extends string, const V extends string = never, const C extends string = never>(
   stat: S,
   value: ModifierValue<S, V>,
-  options: ModifierOptions<C, V> = {},
+  options: ModifierOptions<C, V> = {}
 ): Modifier<S, C, V> => modifierOf({ stat, op: 'add', value }, options);
 
 /** A `mul` modifier: `mul('moveSpeed', 1.2)`. */
 export const mul = <const S extends string, const V extends string = never, const C extends string = never>(
   stat: S,
   value: ModifierValue<S, V>,
-  options: ModifierOptions<C, V> = {},
+  options: ModifierOptions<C, V> = {}
 ): Modifier<S, C, V> => modifierOf({ stat, op: 'mul', value }, options);
 
 /** A `min` modifier: the stat is capped at `value`, after every multiplier. */
 export const cap = <const S extends string, const V extends string = never, const C extends string = never>(
   stat: S,
   value: ModifierValue<S, V>,
-  options: ModifierOptions<C, V> = {},
+  options: ModifierOptions<C, V> = {}
 ): Modifier<S, C, V> => modifierOf({ stat, op: 'min', value }, options);
 
 /** A value that follows another stat's bonus: `per × (total(stat) − neutral)`, capped. */
@@ -119,17 +119,21 @@ export const perStat = <const S extends string>(
 
     /** The highest value it lands with. */
     readonly cap?: number;
-  } = {},
+  } = {}
 ): StatValue<S> => ({
   kind: 'stat',
   stat,
   per,
   ...(options.neutral === undefined ? {} : { neutral: options.neutral }),
-  ...(options.cap === undefined ? {} : { cap: options.cap }),
+  ...(options.cap === undefined ? {} : { cap: options.cap })
 });
 
 /** A value read from the bearer through a game value kind: `hostValue('missingHealth', 0.5)`. */
-export const hostValue = <const V extends string>(value: V, arg = 0): HostValue<V> => ({ kind: 'host', value, arg });
+export const hostValue = <const V extends string>(value: V, arg = 0): HostValue<V> => ({
+  kind: 'host',
+  value,
+  arg
+});
 
 /** A compiled value: a number, or a stat-valued or host-valued one with its names resolved to ids. */
 export type CompiledValue =

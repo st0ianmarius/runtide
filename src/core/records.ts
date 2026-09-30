@@ -1,13 +1,13 @@
 /** Whether `record` has an own property for every key, which narrows it to a record over exactly those keys. */
 const hasEvery = <Key extends string, Value>(
   record: Readonly<Record<string, Value>>,
-  keys: readonly Key[],
+  keys: readonly Key[]
 ): record is Readonly<Record<Key, Value>> => keys.every((key) => Object.hasOwn(record, key));
 
 /** Builds a frozen record with one entry per key, in key order, each value made by `value`. */
 export const recordOf = <Key extends string, Value>(
   keys: readonly Key[],
-  value: (key: Key) => Value,
+  value: (key: Key) => Value
 ): Readonly<Record<Key, Value>> => {
   const record = Object.freeze(Object.fromEntries(keys.map((key) => [key, value(key)])));
 

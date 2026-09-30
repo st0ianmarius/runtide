@@ -12,7 +12,7 @@ import {
   perStat,
   plus,
   type StatChange,
-  watchStats,
+  watchStats
 } from '../../src/modifiers/index.ts';
 
 /** A creature-like host: health, and aura stacks by gate. */
@@ -23,7 +23,13 @@ interface Host {
   tests: number;
 }
 
-const creature = (over: Partial<Host> = {}): Host => ({ hp: 100, maxHp: 100, stacks: [], tests: 0, ...over });
+const creature = (over: Partial<Host> = {}): Host => ({
+  hp: 100,
+  maxHp: 100,
+  stacks: [],
+  tests: 0,
+  ...over
+});
 
 const game = () => {
   const stats = defineStats({
@@ -31,7 +37,7 @@ const game = () => {
     moveSpeed: { base: 4, kind: 'flat' },
     projectiles: { base: 1, kind: 'multiplier' },
     chainJumps: { base: 0, kind: 'flat' },
-    maxHp: { base: 100, kind: 'flat', min: 1 },
+    maxHp: { base: 100, kind: 'flat', min: 1 }
   });
 
   const sources = defineSources(['base', 'talents', 'auras']);
@@ -41,11 +47,11 @@ const game = () => {
       host.tests += 1;
 
       return host.hp < host.maxHp / 2;
-    },
+    }
   });
 
   const values = defineValues({
-    missingHealth: (host: Host, max) => 1 + max * (1 - host.hp / host.maxHp),
+    missingHealth: (host: Host, max) => 1 + max * (1 - host.hp / host.maxHp)
   });
 
   const system = createModifierSystem({
@@ -53,7 +59,7 @@ const game = () => {
     sources,
     conditions,
     values,
-    stacks: (host: Host, gate) => host.stacks[gate] ?? 0,
+    stacks: (host: Host, gate) => host.stacks[gate] ?? 0
   });
 
   return { stats, sources, system, id: stats.id };
@@ -84,7 +90,7 @@ describe('the per-bearer cache', () => {
 
     system.setSource(sheet, sources.id.auras, [
       system.compile([mul('damage', 1.5, { when: { is: 'enraged' } })]),
-      system.compile([mul('damage', 1.2)], { gate: 0 }),
+      system.compile([mul('damage', 1.2)], { gate: 0 })
     ]);
 
     assert.equal(system.resolve(sheet, id.damage, { host }), 1);
@@ -126,18 +132,19 @@ describe('the per-bearer cache', () => {
     system.setSource(three, sources.id.base, [system.compile([plus('moveSpeed', 1.5)])]);
     assert.deepEqual(
       [one, two, three].map((sheet) => system.resolve(sheet, id.moveSpeed)),
-      [5.5, 5.5, 5.5],
+      [5.5, 5.5, 5.5]
     );
     system.setSource(one, sources.id.talents, [system.compile([mul('moveSpeed', 2)])]);
     assert.deepEqual(
       [one, two, three].map((sheet) => system.resolve(sheet, id.moveSpeed)),
-      [11, 5.5, 5.5],
+      [11, 5.5, 5.5]
     );
     assert.deepEqual([one.compiles, two.compiles, three.compiles], [2, 1, 1]);
   });
 
   it('refuses shared lists that are ungated or out of gate order, which a held walk could not keep in order', () => {
     const { system, sources } = game();
+
     const at = (gate?: number) => system.compile([mul('moveSpeed', 2)], gate === undefined ? {} : { gate });
 
     assert.throws(() => {
@@ -169,8 +176,8 @@ describe('values that follow a stat or the bearer', () => {
       system.compile([
         plus('projectiles', 0.6),
         plus('chainJumps', perStat('projectiles', 2)),
-        plus('chainJumps', perStat('projectiles', 10, { cap: 3 })),
-      ]),
+        plus('chainJumps', perStat('projectiles', 10, { cap: 3 }))
+      ])
     ]);
 
     assert.equal(system.resolve(sheet, id.projectiles), 1.6);
@@ -194,7 +201,7 @@ describe('values that follow a stat or the bearer', () => {
     const sheet = system.createSheet();
 
     system.setSource(sheet, sources.id.talents, [
-      system.compile([plus('chainJumps', perStat('projectiles', 1)), plus('projectiles', perStat('chainJumps', 1))]),
+      system.compile([plus('chainJumps', perStat('projectiles', 1)), plus('projectiles', perStat('chainJumps', 1))])
     ]);
 
     assert.throws(() => system.resolve(sheet, id.damage), /follows itself/);
@@ -209,7 +216,7 @@ describe('stat watches', () => {
 
     const watch = watchStats(system, {
       stats: [id.maxHp, id.moveSpeed],
-      onChange: (change) => heard.push({ ...change }),
+      onChange: (change) => heard.push({ ...change })
     });
 
     watch.check(sheet);
@@ -221,7 +228,7 @@ describe('stat watches', () => {
 
     assert.deepEqual(heard, [
       { sheet, stat: id.maxHp, before: 100, after: 150 },
-      { sheet, stat: id.moveSpeed, before: 4, after: 3 },
+      { sheet, stat: id.moveSpeed, before: 4, after: 3 }
     ]);
   });
 });

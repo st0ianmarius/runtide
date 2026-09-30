@@ -101,13 +101,13 @@ const readTagsOf = <G extends AuraTypes>(options: PredictedRuleOptions<G>): Set<
 const readsOf = <G extends AuraTypes>(options: PredictedRuleOptions<G>) => ({
   auras: new Set<number>([...(options.abilities?.mirrorReads.auras ?? []), ...(options.motion?.auras ?? [])]),
   tags: readTagsOf(options),
-  stats: new Set<string>(options.motion?.stats ?? []),
+  stats: new Set<string>(options.motion?.stats ?? [])
 });
 
 /** Why the mirror reads an aura, or `undefined` when it does not. */
 const reasonOf = <G extends AuraTypes>(
   options: PredictedRuleOptions<G>,
-  [aura, reads]: readonly [AuraId, ReturnType<typeof readsOf>],
+  [aura, reads]: readonly [AuraId, ReturnType<typeof readsOf>]
 ): ReadReason | undefined => {
   const def = options.auras.registry.get(aura);
 
@@ -125,7 +125,7 @@ const reasonOf = <G extends AuraTypes>(
 /** Whether a predicted aura's modifiers all wait on mirror-safe conditions, or on none. */
 const isSafeAura = <G extends AuraTypes>(tables: ConditionTables, def: ReturnType<AuraSystem<G>['registry']['get']>) =>
   (def.modifiers ?? []).every(
-    (modifier) => modifier.when === undefined || isMirrorSafe(tables, compileCondition(tables, modifier.when)),
+    (modifier) => modifier.when === undefined || isMirrorSafe(tables, compileCondition(tables, modifier.when))
   );
 
 /** The predicted auras whose modifiers wait on a condition the mirror may not evaluate. */
@@ -136,7 +136,7 @@ const unsafeOf = <G extends AuraTypes>(options: PredictedRuleOptions<G>): AuraId
   return conditions === undefined
     ? []
     : registry.ids.filter(
-        (aura) => !registry.isRetired(aura) && auras.isPredicted(aura) && !isSafeAura(conditions, registry.get(aura)),
+        (aura) => !registry.isRetired(aura) && auras.isPredicted(aura) && !isSafeAura(conditions, registry.get(aura))
       );
 };
 
@@ -171,17 +171,18 @@ export const checkPredicted = <G extends AuraTypes>(options: PredictedRuleOption
 
 /** The predicted auras a seed cannot rebuild, and those a split fold of the motion stats would fold inexactly. */
 const seedReport = <G extends AuraTypes>(
-  options: PredictedRuleOptions<G>,
+  options: PredictedRuleOptions<G>
 ): Pick<PredictedReport, 'unseedable' | 'inexact'> => {
   const { auras } = options;
   const { registry } = auras;
   const stats = new Set<string>(options.motion?.stats ?? []);
+
   const predicted = registry.ids.filter((aura) => !registry.isRetired(aura) && auras.isPredicted(aura));
 
   return {
     unseedable: predicted.filter((aura) => registry.get(aura).onLand !== undefined),
     inexact: predicted.filter((aura) =>
-      (registry.get(aura).modifiers ?? []).some((modifier) => modifier.op !== 'mul' && stats.has(modifier.stat)),
-    ),
+      (registry.get(aura).modifiers ?? []).some((modifier) => modifier.op !== 'mul' && stats.has(modifier.stat))
+    )
   };
 };

@@ -29,15 +29,18 @@ describe('button activation data', () => {
 
     assert.throws(
       () => makeAbilityGame({ bad: button({ cost: { aura: auraNamed('charge'), stacks: 1.5 } }) }),
-      /whole number of stacks/,
+      /whole number of stacks/
     );
   });
 
   it('refuses unknown tags and dead auras, at load', () => {
     assert.throws(() => makeAbilityGame({ bad: forged('requires', ['frozen']) }), /spell bad: there is no aura tag/);
     assert.throws(
-      () => makeAbilityGame({ bad: button({ cost: { aura: toId<'auras'>(auraNamed('charge') + 99) } }) }),
-      /not a live/,
+      () =>
+        makeAbilityGame({
+          bad: button({ cost: { aura: toId<'auras'>(auraNamed('charge') + 99) } })
+        }),
+      /not a live/
     );
   });
 
@@ -51,9 +54,13 @@ describe('button activation data', () => {
 
 describe('loadouts', () => {
   const game = makeAbilityGame({
-    roll: spell({ activation: { kind: 'button' }, cooldown: { aura: 'dodgeCooldown', seconds: 2 }, release }),
+    roll: spell({
+      activation: { kind: 'button' },
+      cooldown: { aura: 'dodgeCooldown', seconds: 2 },
+      release
+    }),
     nova: spell({ ranks: 2, activation: { kind: 'button' }, release }),
-    swing: spell({ activation: { kind: 'trigger' }, release }),
+    swing: spell({ activation: { kind: 'trigger' }, release })
   });
 
   const { abilities } = game;
@@ -92,17 +99,21 @@ describe('loadouts', () => {
 
   it('reads the button spells’ cooldowns and costs for the mirror, a shared aura once', () => {
     const shared = makeAbilityGame({
-      roll: spell({ activation: { kind: 'button' }, cooldown: { aura: 'dodgeCooldown', seconds: 2 }, release }),
+      roll: spell({
+        activation: { kind: 'button' },
+        cooldown: { aura: 'dodgeCooldown', seconds: 2 },
+        release
+      }),
       hop: spell({
         activation: { kind: 'button', cost: { aura: 'charge' } },
         cooldown: [{ aura: 'dodgeCooldown', seconds: 1 }, { aura: 'skillCooldown' }],
-        release,
-      }),
+        release
+      })
     });
 
     assert.deepEqual(
       shared.abilities.mirrorReads.auras,
-      [auraNamed('dodgeCooldown'), auraNamed('skillCooldown'), auraNamed('charge')].toSorted((a, b) => a - b),
+      [auraNamed('dodgeCooldown'), auraNamed('skillCooldown'), auraNamed('charge')].toSorted((a, b) => a - b)
     );
   });
 });

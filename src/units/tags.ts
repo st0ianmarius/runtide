@@ -14,5 +14,5 @@ export type UnitTagTable<Name extends string = string> = Registry<'unitTags', Ex
 export const defineUnitTags = <const Name extends string>(names: readonly Name[]): UnitTagTable<Name> =>
   createRegistry(
     recordOf(names, (): UnitTagDef => ({})),
-    { kind: 'unitTags' },
+    { kind: 'unitTags' }
   );

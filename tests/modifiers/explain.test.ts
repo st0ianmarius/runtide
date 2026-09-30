@@ -13,7 +13,7 @@ import {
   explainModifiers,
   type Modifier,
   mul,
-  plus,
+  plus
 } from '../../src/modifiers/index.ts';
 
 const game = () => {
@@ -21,12 +21,18 @@ const game = () => {
     damage: { base: 1, kind: 'multiplier' },
     armor: { base: 0, kind: 'flat', min: 0, max: 500 },
     reach: { base: 1, kind: 'multiplier' },
-    area: { base: 1, kind: 'multiplier', derives: { from: 'reach', per: 0.125 } },
+    area: { base: 1, kind: 'multiplier', derives: { from: 'reach', per: 0.125 } }
   });
 
   const sources = defineSources(['race', 'gear', 'talents', 'auras']);
   const conditions = defineConditions({ below: (hp: number, share) => hp < share });
-  const system = createModifierSystem({ stats, sources, conditions, stacks: (_hp: number, gate) => gate });
+
+  const system = createModifierSystem({
+    stats,
+    sources,
+    conditions,
+    stacks: (_hp: number, gate) => gate
+  });
 
   return { stats, sources, system, id: stats.id };
 };
@@ -37,7 +43,7 @@ describe('modifier explanations', () => {
 
     const list = system.compile([
       mul('damage', 1.3, { when: { is: 'below', arg: 0.4 } }),
-      plus('armor', 30, { scope: 2 }),
+      plus('armor', 30, { scope: 2 })
     ]);
 
     assert.deepEqual(explainModifiers(list), [
@@ -50,7 +56,7 @@ describe('modifier explanations', () => {
         when: { kind: 'is', condition: 0, arg: 0.4 },
         scope: undefined,
         stacks: 1,
-        landed: 1.3,
+        landed: 1.3
       },
       {
         kind: 'modifier',
@@ -61,8 +67,8 @@ describe('modifier explanations', () => {
         when: undefined,
         scope: 2,
         stacks: 1,
-        landed: 30,
-      },
+        landed: 30
+      }
     ]);
   });
 
@@ -73,7 +79,7 @@ describe('modifier explanations', () => {
       mul('damage', 1.1),
       mul('damage', 1.1, { stacking: 'linear' }),
       cap('armor', 50),
-      plus('armor', 30),
+      plus('armor', 30)
     ]).modifiers;
 
     assert.equal(power && explainModifier(power, 3).landed, 1.3310000000000004);
@@ -99,7 +105,7 @@ describe('stat explanations', () => {
     assert.deepEqual(explained.derived, [{ kind: 'derives', from: id.reach, input: 1, value: 0.125 }]);
     assert.deepEqual(
       explained.muls.map(({ source, gate, stacks, value }) => ({ source, gate, stacks, value })),
-      [{ source: sources.id.auras, gate: 3, stacks: 3, value: 8 }],
+      [{ source: sources.id.auras, gate: 3, stacks: 3, value: 8 }]
     );
 
     assert.deepEqual(explained.clamp, { min: -Infinity, max: Infinity });
@@ -115,7 +121,7 @@ describe('stat explanations', () => {
 
     assert.deepEqual(
       explained.muls.map(({ stacks, value }) => ({ stacks, value })),
-      [{ stacks: 0, value: undefined }],
+      [{ stacks: 0, value: undefined }]
     );
 
     assert.equal(explained.total, 1);
@@ -130,11 +136,11 @@ describe('stat explanations', () => {
       stat: statName,
       op: fc.constantFrom('add', 'mul', 'min' as const),
       value,
-      isConditional: fc.boolean(),
+      isConditional: fc.boolean()
     });
 
     const build = fc.array(fc.tuple(fc.constantFrom(...sources.ids), fc.array(modifier, { maxLength: 4 })), {
-      maxLength: 5,
+      maxLength: 5
     });
 
     fc.assert(
@@ -146,7 +152,7 @@ describe('stat explanations', () => {
             stat: m.stat,
             op: m.op,
             value: m.value,
-            ...(m.isConditional ? { when: { is: 'below', arg: 10 } } : {}),
+            ...(m.isConditional ? { when: { is: 'below', arg: 10 } } : {})
           }));
 
           system.setSource(sheet, source, [system.compile(authored)]);
@@ -155,7 +161,7 @@ describe('stat explanations', () => {
         for (const stat of stats.ids) {
           assert.equal(system.explainStat(sheet, stat, { host: hp }).total, system.resolve(sheet, stat, { host: hp }));
         }
-      }),
+      })
     );
   });
 });

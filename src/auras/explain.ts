@@ -9,7 +9,7 @@ import {
   OWNER_ONLY,
   PARTY_ONLY,
   PER_SOURCE,
-  STACKINGS,
+  STACKINGS
 } from './define-auras.ts';
 import type { AuraEngine } from './engine.ts';
 
@@ -99,7 +99,7 @@ const rulesOf = <G extends AuraTypes>(engine: AuraEngine<G>, id: AuraId) => {
     isPerSource: (flags & PER_SOURCE) !== 0,
     merge: merge === CUSTOM_MERGE ? ('custom' as const) : (MERGES[merge] ?? 'replace'),
     keepsWhenDepleted: (flags & KEEP_DEPLETED) !== 0,
-    audience: auraAudience(flags),
+    audience: auraAudience(flags)
   };
 };
 
@@ -116,7 +116,7 @@ const auraAudience = (flags: number): 'owner' | 'party' | 'all' => {
 const tagsOf = <G extends AuraTypes>(engine: AuraEngine<G>, id: AuraId) => ({
   tags: engine.tables.tagIds[id] ?? [],
   blockedBy: engine.tables.blockedByIds[id] ?? [],
-  removes: engine.tables.removes[id] ?? [],
+  removes: engine.tables.removes[id] ?? []
 });
 
 /** The beat part of an explanation. */
@@ -127,7 +127,10 @@ const periodicOf = <G extends AuraTypes>(engine: AuraEngine<G>, id: AuraId): Aur
     return undefined;
   }
 
-  return { every: typeof every === 'function' ? 'live' : every, clock: engine.tables.beatClock[id] ?? 0 };
+  return {
+    every: typeof every === 'function' ? 'live' : every,
+    clock: engine.tables.beatClock[id] ?? 0
+  };
 };
 
 /** Explains an aura of an engine's registry at `stacks` stacks. */
@@ -145,6 +148,6 @@ export const explainIn = <G extends AuraTypes>(engine: AuraEngine<G>, id: AuraId
     value: def.value ?? 0,
     ...tagsOf(engine, id),
     modifiers: list === undefined ? [] : explainModifiers(list, stacks),
-    periodic: periodicOf(engine, id),
+    periodic: periodicOf(engine, id)
   };
 };

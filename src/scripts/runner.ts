@@ -118,7 +118,7 @@ export class ScriptRunner<G extends ScriptTypes> {
     const ctx: ScriptContext<G> = (this.#contexts[depth] ??= new ScriptContext<G>({
       unit: record.unit,
       host: this.#parts.host,
-      run: (procs): number => this.#runProcs(ctx, procs),
+      run: (procs): number => this.#runProcs(ctx, procs)
     }));
 
     ctx.unit = record.unit;

@@ -12,7 +12,7 @@ import {
   defineMitigation,
   defineRollTable,
   type Force,
-  TRUE_DAMAGE,
+  TRUE_DAMAGE
 } from '../src/damage/index.ts';
 import { defineStats, hyperbolic, type StatView } from '../src/modifiers/index.ts';
 import type { Proc } from '../src/procs/index.ts';
@@ -110,13 +110,13 @@ const STATS = defineStats({
   critDamage: { base: 1.75, kind: 'multiplier' },
   blockChance: { base: 0.1, kind: 'flat' },
   armor: { base: 80, kind: 'flat' },
-  taken: { base: 1.05, kind: 'multiplier' },
+  taken: { base: 1.05, kind: 'multiplier' }
 });
 
 /** A stat view over the table's bases: what every bench unit reads. */
 const BASE_VIEW: StatView = {
   total: (stat) => STATS.columns.base[stat] ?? 0,
-  base: (stat) => STATS.columns.base[stat] ?? 0,
+  base: (stat) => STATS.columns.base[stat] ?? 0
 };
 
 /** A damage-taken change, made once as a game would: a hook that returns a constant allocates nothing. */
@@ -129,9 +129,9 @@ const AURAS = defineAuras<BenchGame, string>({
     duration: 'infinite',
     value: 1e12,
     keepWhenDepleted: true,
-    onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount * 0.25) }),
+    onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount * 0.25) })
   },
-  guard: { duration: 'infinite', onIncomingDamage: () => GUARDED },
+  guard: { duration: 'infinite', onIncomingDamage: () => GUARDED }
 });
 
 const MAIN = stream(12_345, 0xda);
@@ -147,7 +147,7 @@ bus.on(bus.kind.taken, (event) => {
 const auras = createAuraSystem<BenchGame>({
   registry: AURAS,
   tags: defineAuraTags(['ward']),
-  clocks: { world: createClock({ dt: 1 / 60 }) },
+  clocks: { world: createClock({ dt: 1 / 60 }) }
 });
 
 const damage = createDamageSystem<BenchGame>({
@@ -159,12 +159,16 @@ const damage = createDamageSystem<BenchGame>({
     mode: 'independent',
     rows: {
       block: { effect: 'block', chance: { stat: 'blockChance', of: 'defender' } },
-      crit: { effect: 'scale', chance: 'critChance', multiplier: 'critDamage', isCrit: true },
-    },
+      crit: { effect: 'scale', chance: 'critChance', multiplier: 'critDamage', isCrit: true }
+    }
   }),
   mitigation: defineMitigation({
-    armor: { kinds: ['physical'], rating: 'armor', curve: hyperbolic({ k: 100, negative: 'amplify' }) },
-    taken: { kinds: ['physical'], multiplier: 'taken' },
+    armor: {
+      kinds: ['physical'],
+      rating: 'armor',
+      curve: hyperbolic({ k: 100, negative: 'amplify' })
+    },
+    taken: { kinds: ['physical'], multiplier: 'taken' }
   }),
   events: { bus, taken: bus.kind.taken },
 
@@ -177,8 +181,8 @@ const damage = createDamageSystem<BenchGame>({
 
     statsOf: (unit) => unit.view,
     idOf: (unit) => unit.id,
-    roll: () => MAIN(),
-  },
+    roll: () => MAIN()
+  }
 });
 
 /** Makes a unit with health that no bench blow empties, holding the three hooking auras when `isHooked`. */
@@ -203,7 +207,7 @@ const SPEC: { -readonly [Key in keyof BlowSpec<BenchGame>]: BlowSpec<BenchGame>[
   target: TARGET,
   amount: 40,
   attacker: ATTACKER,
-  spell: 3,
+  spell: 3
 };
 
 /** One blow through the full pipeline onto a target whose three auras hook it. */
@@ -223,5 +227,5 @@ const burst = (): void => {
 /** The F5 benchmark tasks, and how many operations each call of its function is. */
 export const DAMAGE_TASKS: readonly (readonly [string, () => void, number])[] = [
   ['blow, full pipeline, 3 hooking auras', oneBlow, 1],
-  ['burst of 100 blows on 100 hooked targets', burst, 100],
+  ['burst of 100 blows on 100 hooked targets', burst, 100]
 ];

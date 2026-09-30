@@ -72,19 +72,24 @@ export interface TriggerExplanation {
 
 /** One `when` entry explained. */
 const explainCheck = <G extends TriggerTypes, Host>(
-  check: TriggerCheck<G, Host>,
+  check: TriggerCheck<G, Host>
 ): TriggerConditionExplanation | TriggerFilterExplanation => {
   if (check.condition !== undefined) {
     return { kind: 'condition', condition: check.condition };
   }
 
-  return { kind: 'filter', filter: check.filter, arg: check.arg, isCarried: check.spec !== undefined };
+  return {
+    kind: 'filter',
+    filter: check.filter,
+    arg: check.arg,
+    isCarried: check.spec !== undefined
+  };
 };
 
 /** A compiled trigger explained. */
 export const explainCompiled = <G extends TriggerTypes, Host>(
   procs: ProcSystem<G>,
-  trigger: CompiledTrigger<G, Host>,
+  trigger: CompiledTrigger<G, Host>
 ): TriggerExplanation => ({
   kind: 'trigger',
   trigger: trigger.id,
@@ -96,5 +101,5 @@ export const explainCompiled = <G extends TriggerTypes, Host>(
   icd: trigger.icd,
   cooldown: trigger.cooldown,
   when: trigger.checks.map(explainCheck),
-  do: trigger.procs.map((proc) => explainProc(procs, proc)),
+  do: trigger.procs.map((proc) => explainProc(procs, proc))
 });

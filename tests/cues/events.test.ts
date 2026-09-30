@@ -12,19 +12,26 @@ import {
   defineCues,
   fireCue,
   NO_ENTITY,
-  setCuePath,
+  setCuePath
 } from '../../src/cues/index.ts';
 
 /** A neutral cue table: one cue per anchor, and a retired slot. */
 const TABLE = {
-  struck: defineCue({ anchor: 'entity', params: { amount: { kind: 'int' }, heavy: { kind: 'uint8', default: 1 } } }),
+  struck: defineCue({
+    anchor: 'entity',
+    params: { amount: { kind: 'int' }, heavy: { kind: 'uint8', default: 1 } }
+  }),
   flare: defineCue({
     anchor: 'target',
-    params: { reach: { kind: 'fixed', scale: 10, default: 2 }, aim: { kind: 'vec2' }, trail: { kind: 'vec2[]' } },
+    params: {
+      reach: { kind: 'fixed', scale: 10, default: 2 },
+      aim: { kind: 'vec2' },
+      trail: { kind: 'vec2[]' }
+    }
   }),
   gong: defineCue({ anchor: 'world', params: { pitch: { kind: 'uint8' } } }),
   step: defineCue({ anchor: 'self', isPredicted: true }),
-  retired: TOMBSTONE,
+  retired: TOMBSTONE
 } as const;
 
 const CUES = defineCues(TABLE);
@@ -103,7 +110,7 @@ describe('fireCue', () => {
       [3, 7, 7, 1, 2, 0],
       [0, 7, 9, 1, 2, 0],
       [1, 7, NO_ENTITY, 1, 2, 0],
-      [2, NO_ENTITY, NO_ENTITY, 1, 2, 0],
+      [2, NO_ENTITY, NO_ENTITY, 1, 2, 0]
     ]);
   });
 
@@ -123,9 +130,9 @@ describe('fireCue', () => {
         aim: { x: 0.5, z: -0.5 },
         trail: [
           { x: 1, z: 1 },
-          { x: 2, z: 0 },
-        ],
-      },
+          { x: 2, z: 0 }
+        ]
+      }
     };
 
     const event = fireCue(out, spec, PLACE);
@@ -133,7 +140,7 @@ describe('fireCue', () => {
     assert.deepEqual(Array.from(event.values.subarray(0, 5)), [2, 0.5, -0.5, 0, 2]);
     assert.deepEqual(cuePath(event, CUES.params.flare.trail), [
       { x: 1, z: 1 },
-      { x: 2, z: 0 },
+      { x: 2, z: 0 }
     ]);
   });
 
@@ -143,7 +150,7 @@ describe('fireCue', () => {
       // @ts-expect-error: the struck cue has no reach param.
       { cue: CUES.id.struck, params: { reach: 3 } },
       // @ts-expect-error: aim is a point, not a number.
-      { cue: CUES.id.flare, params: { aim: 3 } },
+      { cue: CUES.id.flare, params: { aim: 3 } }
     ];
 
     assert.equal(specs.length, 3);
@@ -182,7 +189,7 @@ describe('lists of points', () => {
     setCuePath(
       event,
       CUES.params.flare.trail,
-      Array.from({ length: 40 }, (_unused, i) => ({ x: i, z: -i })),
+      Array.from({ length: 40 }, (_unused, i) => ({ x: i, z: -i }))
     );
     assert.equal(cuePath(event, CUES.params.flare.trail).length, 40);
     assert.deepEqual(cuePath(event, CUES.params.flare.trail).at(-1), { x: 39, z: -39 });

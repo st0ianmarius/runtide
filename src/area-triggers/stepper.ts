@@ -66,7 +66,7 @@ export const stepArea = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area
 const snapshotAll = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   kinds: readonly number[],
-  out: (AreaTriggerHandle | undefined)[],
+  out: (AreaTriggerHandle | undefined)[]
 ): number => {
   let count = 0;
 
@@ -84,7 +84,7 @@ const snapshotAll = <G extends AreaTriggerTypes>(
 const snapshotOwned = <G extends AreaTriggerTypes>(
   owned: OwnerAreas<G>,
   kinds: readonly number[],
-  out: (AreaTriggerHandle | undefined)[],
+  out: (AreaTriggerHandle | undefined)[]
 ): number => {
   let count = 0;
 
@@ -108,7 +108,7 @@ const snapshotOwned = <G extends AreaTriggerTypes>(
 export const stepSlot = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   slot: number,
-  owner: G['bearer'] | undefined,
+  owner: G['bearer'] | undefined
 ): number => {
   const kinds = engine.slotKinds[slot] ?? [];
   const owned = owner === undefined ? undefined : engine.ownerOf(owner);
@@ -118,7 +118,9 @@ export const stepSlot = <G extends AreaTriggerTypes>(
   }
 
   const handles = engine.handles.take();
+
   const count = owned === undefined ? snapshotAll(engine, kinds, handles) : snapshotOwned(owned, kinds, handles);
+
   let stepped = 0;
 
   try {

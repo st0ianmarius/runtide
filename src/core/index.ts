@@ -25,7 +25,7 @@ export {
   type Registry,
   type RegistryOptions,
   TOMBSTONE,
-  type Tombstone,
+  type Tombstone
 } from './registry.ts';
 
 export type { Column, ColumnSpec, ColumnType } from './registry-tables.ts';

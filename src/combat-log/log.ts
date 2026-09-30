@@ -9,7 +9,7 @@ import {
   recordBlow,
   recordDeath,
   recordHeal,
-  type Recording,
+  type Recording
 } from './recorders.ts';
 import { EntryStore } from './store.ts';
 import type { AreaLogEvents, AuraEventView, DamageLogEvents, SpellLogEvents } from './views.ts';
@@ -108,7 +108,7 @@ const plainSpellId = (spell: unknown): number => (typeof spell === 'number' ? sp
 /** Subscribes the recorders of every event kind the options name; returns the unsubscribes. */
 const listen = <Unit, Spell>(
   options: CombatLogOptions<Unit, Spell>,
-  recording: Recording<Unit, Spell>,
+  recording: Recording<Unit, Spell>
 ): (() => void)[] => {
   const { bus, damage } = options;
   const offs: (() => void)[] = [];
@@ -146,7 +146,7 @@ type On = <Payload>(kind: EventKind<Payload> | undefined, listener: (payload: Pa
 const listenSpells = <Unit, Spell>(
   options: CombatLogOptions<Unit, Spell>,
   recording: Recording<Unit, Spell>,
-  on: On,
+  on: On
 ): void => {
   const { spells, areaTriggers } = options;
   const outcomes = spells?.outcomes ?? CAST_OUTCOMES;
@@ -156,7 +156,7 @@ const listenSpells = <Unit, Spell>(
     ['start', 'castStart'],
     ['release', 'castRelease'],
     ['hit', 'castHit'],
-    ['end', 'castEnd'],
+    ['end', 'castEnd']
   ];
 
   for (const [name, kind] of casts) {
@@ -194,7 +194,8 @@ class Log<Unit, Spell> implements CombatLog {
 
       idOf: (unit) => (unit === undefined ? -1 : options.idOf(unit)),
       spellOf: (spell) => (spell === undefined ? -1 : spellIdOf(spell)),
-      outcomeOf: (outcome) => (outcome === undefined ? -1 : (options.outcomes?.indexOf(outcome) ?? -1)),
+
+      outcomeOf: (outcome) => (outcome === undefined ? -1 : (options.outcomes?.indexOf(outcome) ?? -1))
     });
   }
 

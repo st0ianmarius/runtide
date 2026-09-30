@@ -243,7 +243,9 @@ const foldMins = <Host>(sheet: Sheet<Host>, mins: readonly Entry<Host>[], value:
 
   for (let i = 0; i < mins.length; i++) {
     const entry = mins[i];
+
     const isLive = entry !== undefined && entry.shared === undefined && liveStacks(sheet, entry) > 0;
+
     const cap = isLive ? entryValue(sheet, entry) : result;
 
     if (entry?.shared !== undefined) {

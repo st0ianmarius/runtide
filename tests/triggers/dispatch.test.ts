@@ -10,7 +10,7 @@ import { aura, defined, type Game, type HitEvent, KINDS, makeGame, mark, scripte
 const viewsOf = <Bearer>(
   system: { readonly view: (bearer: Bearer, out: AuraView[], options?: ViewOptions) => number },
   bearer: Bearer,
-  options?: ViewOptions,
+  options?: ViewOptions
 ): AuraView[] => {
   const out: AuraView[] = [];
 
@@ -24,11 +24,11 @@ describe('dispatch order', () => {
         duration: 9,
         triggers: [
           { on: 'hit', do: [mark('alpha.0')] },
-          { on: 'hit', hears: 'party', do: [mark('alpha.1')] },
-        ],
+          { on: 'hit', hears: 'party', do: [mark('alpha.1')] }
+        ]
       }),
       beta: aura({ duration: 9, triggers: [{ on: 'hit', hears: 'party', do: [mark('beta.0')] }] }),
-      gamma: aura({ duration: 9, triggers: [{ on: 'kill', do: [mark('gamma.0')] }] }),
+      gamma: aura({ duration: 9, triggers: [{ on: 'kill', do: [mark('gamma.0')] }] })
     });
 
     const [a, b, c] = [game.unit(1), game.unit(2), game.unit(3)];
@@ -47,7 +47,7 @@ describe('dispatch order', () => {
       'alpha.1@1',
       'beta.0@1',
       'alpha.1@3',
-      'beta.0@3',
+      'beta.0@3'
     ]);
   });
 
@@ -55,10 +55,10 @@ describe('dispatch order', () => {
     const game = makeGame({
       first: aura({
         duration: 9,
-        triggers: [{ on: 'hit', do: [mark('first'), applyAura('late'), removeAura('second')] }],
+        triggers: [{ on: 'hit', do: [mark('first'), applyAura('late'), removeAura('second')] }]
       }),
       second: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('second')] }] }),
-      late: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('late')] }] }),
+      late: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('late')] }] })
     });
 
     const u = game.unit(1);
@@ -71,7 +71,10 @@ describe('dispatch order', () => {
   });
 
   it('answers the unit the event is about, and does nothing for an event about no unit', () => {
-    const game = makeGame({ watch: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('watch')] }] }) });
+    const game = makeGame({
+      watch: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('watch')] }] })
+    });
+
     const [a, b] = [game.unit(1), game.unit(2)];
 
     game.auras.apply(b, game.id.watch);
@@ -95,11 +98,11 @@ describe('dispatch order', () => {
             do: [
               { kind: 'grant', resource: 'gold', amount: 1 },
               { kind: 'grant', resource: 'gold', amount: 2, to: 'eventUnit' },
-              { kind: 'grant', resource: 'gold', amount: 3, to: 'party' },
-            ],
-          },
-        ],
-      }),
+              { kind: 'grant', resource: 'gold', amount: 3, to: 'party' }
+            ]
+          }
+        ]
+      })
     });
 
     const [a, b] = [game.unit(1), game.unit(2)];
@@ -113,9 +116,9 @@ describe('dispatch order', () => {
     const game = makeGame({
       thorns: aura({
         duration: 9,
-        triggers: [{ on: 'hit', hears: 'party', do: [applyAura('scar', { to: 'eventUnit' })] }],
+        triggers: [{ on: 'hit', hears: 'party', do: [applyAura('scar', { to: 'eventUnit' })] }]
       }),
-      scar: aura({ duration: 9 }),
+      scar: aura({ duration: 9 })
     });
 
     const [a, b] = [game.unit(1), game.unit(2)];
@@ -136,14 +139,14 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
             on: 'hit',
             when: [
               { filter: 'minAmount', arg: 20 },
-              { filter: 'isCrit', arg: 1 },
+              { filter: 'isCrit', arg: 1 }
             ],
-            do: [mark('crit')],
+            do: [mark('crit')]
           },
           { on: 'hit', when: [{ is: 'healthBelow', arg: 0.5 }], do: [mark('low')] },
-          { on: 'kill', when: [{ filter: 'minAmount', arg: 0 }], do: [mark('never')] },
-        ],
-      }),
+          { on: 'kill', when: [{ filter: 'minAmount', arg: 0 }], do: [mark('never')] }
+        ]
+      })
     });
 
     const u = game.unit(1);
@@ -171,11 +174,11 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
           duration: 9,
           triggers: [
             { on: 'hit', chance: 0.5, when: [{ filter: 'isCrit', arg: 1 }], do: [mark('half')] },
-            { on: 'hit', chance: 1, do: [mark('sure')] },
-          ],
-        }),
+            { on: 'hit', chance: 1, do: [mark('sure')] }
+          ]
+        })
       },
-      { triggers: { random } },
+      { triggers: { random } }
     );
 
     const u = game.unit(1);
@@ -197,10 +200,10 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
           duration: 9,
           stacking: 'stack',
           maxStacks: 9,
-          triggers: [{ on: 'hit', chance: (ctx) => ctx.aura.stacks * 0.2, do: [mark('focus')] }],
-        }),
+          triggers: [{ on: 'hit', chance: (ctx) => ctx.aura.stacks * 0.2, do: [mark('focus')] }]
+        })
       },
-      { triggers: { random } },
+      { triggers: { random } }
     );
 
     const u = game.unit(1);
@@ -220,8 +223,13 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
     const random = scripted([0.9, 0.1, 0.1]);
 
     const game = makeGame(
-      { spark: aura({ duration: 99, triggers: [{ on: 'hit', chance: 0.5, icd: 0.5, do: [mark('spark')] }] }) },
-      { triggers: { random } },
+      {
+        spark: aura({
+          duration: 99,
+          triggers: [{ on: 'hit', chance: 0.5, icd: 0.5, do: [mark('spark')] }]
+        })
+      },
+      { triggers: { random } }
     );
 
     const u = game.unit(1);
@@ -246,7 +254,10 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
   });
 
   it('keeps the cooldown as an owner-only aura that a cleanse resets', () => {
-    const game = makeGame({ echo: aura({ duration: 99, triggers: [{ on: 'hit', icd: 2, do: [mark('echo')] }] }) });
+    const game = makeGame({
+      echo: aura({ duration: 99, triggers: [{ on: 'hit', icd: 2, do: [mark('echo')] }] })
+    });
+
     const u = game.unit(1);
     const cooldown = defined(game.triggers.cooldownOf(game.id.echo, 0));
 
@@ -255,11 +266,11 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
     game.hit(u);
     assert.deepEqual(
       viewsOf(game.auras, u, { for: 'owner' }).map((view) => view.aura),
-      [game.id.echo, cooldown],
+      [game.id.echo, cooldown]
     );
     assert.deepEqual(
       viewsOf(game.auras, u).map((view) => view.aura),
-      [game.id.echo],
+      [game.id.echo]
     );
     game.procs.run([{ kind: 'removeByTag', tag: 'cooldown' }], { self: u });
     game.hit(u);
@@ -271,13 +282,16 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
 
     const game = makeGame(
       {
-        storm: aura({ duration: 99, triggers: [{ on: 'hit', chance: 0.3, icd: 4, do: [mark('storm')] }] }),
+        storm: aura({
+          duration: 99,
+          triggers: [{ on: 'hit', chance: 0.3, icd: 4, do: [mark('storm')] }]
+        })
       },
       {
         triggers: {
           rollChance: (chance, ctx) => {
             seen.push(
-              `roll ${chance} t${ctx.trigger} #${ctx.index} a${ctx.aura.id} ${ctx.owner.id}/${ctx.eventUnit.id}`,
+              `roll ${chance} t${ctx.trigger} #${ctx.index} a${ctx.aura.id} ${ctx.owner.id}/${ctx.eventUnit.id}`
             );
 
             return true;
@@ -287,9 +301,9 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
             seen.push(`icd ${icd} on ${ctx.owner.id}`);
 
             return icd / 2;
-          },
-        },
-      },
+          }
+        }
+      }
     );
 
     const u = game.unit(5);
@@ -307,7 +321,7 @@ describe('aura events and nesting', () => {
     const game = makeGame({
       grief: aura({
         duration: 9,
-        triggers: [{ on: 'aura', when: [{ filter: 'change', arg: 'removed' }], do: [mark('grief')] }],
+        triggers: [{ on: 'aura', when: [{ filter: 'change', arg: 'removed' }], do: [mark('grief')] }]
       }),
       mourn: aura({
         duration: 9,
@@ -316,12 +330,12 @@ describe('aura events and nesting', () => {
             on: 'aura',
             when: [
               { filter: 'aura', arg: 'grief' },
-              { filter: 'change', arg: 'removed' },
+              { filter: 'change', arg: 'removed' }
             ],
-            do: [mark('mourn')],
-          },
-        ],
-      }),
+            do: [mark('mourn')]
+          }
+        ]
+      })
     });
 
     const u = game.unit(1);
@@ -340,7 +354,10 @@ describe('aura events and nesting', () => {
       hit.amount = 1;
     });
 
-    const game = makeGame({ loop: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('loop'), echo] }] }) });
+    const game = makeGame({
+      loop: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('loop'), echo] }] })
+    });
+
     const u = game.unit(1);
     let heard = 0;
 
@@ -358,7 +375,10 @@ describe('aura events and nesting', () => {
       hit.attacker = ctx.self;
     });
 
-    const loop = { loop: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('loop'), echo] }] }) } as const;
+    const loop = {
+      loop: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('loop'), echo] }] })
+    } as const;
+
     const deep = makeGame(loop, { busDepth: 5, procs: { maxDepth: 8 } });
     const capped = makeGame(loop, { busDepth: 5 });
 
@@ -375,7 +395,10 @@ describe('aura events and nesting', () => {
   });
 
   it('stops listening on stop', () => {
-    const game = makeGame({ watch: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('watch')] }] }) });
+    const game = makeGame({
+      watch: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('watch')] }] })
+    });
+
     const u = game.unit(1);
 
     game.auras.apply(u, game.id.watch);

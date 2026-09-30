@@ -13,7 +13,14 @@ export const INLINE_GATES = 4;
 
 /** The modifier a marker entry carries: it lands nothing and is never explained (explanations expand markers). */
 const markerOf = (stat: StatId): CompiledModifier =>
-  Object.freeze({ stat, op: 'add', value: 0, stacking: 'power', when: undefined, scope: undefined });
+  Object.freeze({
+    stat,
+    op: 'add',
+    value: 0,
+    stacking: 'power',
+    when: undefined,
+    scope: undefined
+  });
 
 /**
  * The entries of one stat that the shared lists fold at one source, by gate: compiled once for the system,
@@ -97,7 +104,7 @@ const checkGates = (lists: readonly ModifierList[]): void => {
 const compileSource = <Host>(
   tables: FoldTables<Host>,
   at: { readonly source: SourceId; readonly lists: readonly ModifierList[] },
-  follows: number[][],
+  follows: number[][]
 ): readonly SharedAt<Host>[] | undefined => {
   const byStat = new Map<StatId, SharedAt<Host>>();
   const { source } = at;
@@ -135,7 +142,7 @@ const compileSource = <Host>(
 export const compileShared = <Host>(
   tables: FoldTables<Host>,
   bySource: readonly (readonly ModifierList[])[],
-  into: SharedLists<Host>,
+  into: SharedLists<Host>
 ): void => {
   const follows: number[][] = Array.from(tables.base, () => []);
 
@@ -157,8 +164,8 @@ export const compileShared = <Host>(
 export const entriesInOrder = <Host>(
   sheet: Sheet<Host>,
   stat: number,
-  list: keyof Gathering<Host>,
+  list: keyof Gathering<Host>
 ): readonly Entry<Host>[] =>
   (sheet.compiled[stat]?.[list] ?? []).flatMap((entry) =>
-    entry.shared === undefined ? [entry] : entry.shared.entries.flatMap((gathered) => gathered[list]),
+    entry.shared === undefined ? [entry] : entry.shared.entries.flatMap((gathered) => gathered[list])
   );

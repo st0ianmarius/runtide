@@ -62,6 +62,6 @@ export const createProcRegistry = <G extends ProcTypes>(kinds: ProcKinds<G>): Pr
       }
 
       return id;
-    },
+    }
   });
 };

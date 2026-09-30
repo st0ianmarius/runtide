@@ -63,7 +63,7 @@ export interface UnitStateTable<Name extends string = string, I extends string =
  */
 export const defineUnitStates = <T extends string, const Name extends string, const I extends string = never>(
   auraTags: AuraTagTable<T>,
-  states: Readonly<Record<Name, UnitStateDef<NoInfer<T>, I>>>,
+  states: Readonly<Record<Name, UnitStateDef<NoInfer<T>, I>>>
 ): UnitStateTable<Name, I> => {
   const names = Object.keys(states).filter((key): key is Name => Object.hasOwn(states, key));
   const ids: Readonly<Record<string, number | undefined>> = auraTags.id;
@@ -78,11 +78,11 @@ export const defineUnitStates = <T extends string, const Name extends string, co
         }
 
         return id;
-      }),
+      })
     );
 
   const tags: Readonly<Record<string, Bitset | undefined>> = Object.fromEntries(
-    names.map((name) => [name, bitsOf(name, states[name].tags)]),
+    names.map((name) => [name, bitsOf(name, states[name].tags)])
   );
 
   const blocking = (block: UnitBlock): Bitset => {
@@ -119,12 +119,12 @@ export const defineUnitStates = <T extends string, const Name extends string, co
     blocksAct: blocking('act'),
     blocksMove: blocking('move'),
     blocksTarget: blocking('target'),
-    interrupting: Object.freeze(interrupting),
+    interrupting: Object.freeze(interrupting)
   });
 };
 
 /** Whether a record has a bitset for every name. */
 const isRecordOf = <Name extends string>(
   record: Readonly<Record<string, Bitset | undefined>>,
-  names: readonly Name[],
+  names: readonly Name[]
 ): record is Readonly<Record<Name, Bitset>> => names.every((name) => record[name] !== undefined);

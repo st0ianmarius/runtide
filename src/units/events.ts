@@ -27,7 +27,7 @@ export const createUnitEvent = <G extends UnitTypes>(): UnitEvent<G> => ({
   from: 'alive',
   to: 'alive',
   at: undefined,
-  reason: '',
+  reason: ''
 });
 
 /** The bus and event kinds the unit system raises, each optional and raised only when something hears it. */

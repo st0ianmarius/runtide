@@ -20,7 +20,7 @@ export interface SearchParts<Unit> {
 export const sweep = <Unit>(
   parts: SearchParts<Unit>,
   [segment, options]: readonly [readonly [Vec2, Vec2], SweepOptions<Unit>],
-  out: (Unit | undefined)[],
+  out: (Unit | undefined)[]
 ): number => {
   const { table, selector, selection } = parts;
   const count = selector.run(selection.along(segment, options));

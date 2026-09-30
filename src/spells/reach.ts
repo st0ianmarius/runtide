@@ -69,7 +69,7 @@ const ruleOf = <G extends SpellTypes>(own: Reach<G>): ReachPlan<G> => ({
   minRange: own.minRange,
   sight: own.sight ?? false,
   pointOf: own.pointOf,
-  allows: own.allows,
+  allows: own.allows
 });
 
 /**
@@ -115,7 +115,7 @@ const targetPoint = <G extends SpellTypes>(engine: SpellEngine<G>, plan: ReachPl
   }
 
   throw new TypeError(
-    `Spell ${engine.registry.name(cast.spell)}: its reach needs its target's point (reach.pointOf or host.pointOf).`,
+    `Spell ${engine.registry.name(cast.spell)}: its reach needs its target's point (reach.pointOf or host.pointOf).`
   );
 };
 
@@ -138,7 +138,7 @@ const FROM = { x: 0, z: 0 };
 const placedRefusal = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
-  plan: ReachPlan<G>,
+  plan: ReachPlan<G>
 ): ReachRefusal | undefined => {
   if (plan.range === undefined && plan.minRange === undefined && !plan.sight) {
     return undefined;
@@ -163,7 +163,7 @@ const placedRefusal = <G extends SpellTypes>(
 export const checkReach = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
-  plan: ReachPlan<G>,
+  plan: ReachPlan<G>
 ): ReachRefusal | G['refusal'] | undefined => {
   const placed = placedRefusal(engine, cast, plan);
 

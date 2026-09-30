@@ -14,5 +14,5 @@ export type AuraTagTable<Name extends string = string> = Registry<'auraTags', Ex
 export const defineAuraTags = <const Name extends string>(names: readonly Name[]): AuraTagTable<Name> =>
   createRegistry(
     recordOf(names, (): AuraTagDef => ({})),
-    { kind: 'auraTags' },
+    { kind: 'auraTags' }
   );

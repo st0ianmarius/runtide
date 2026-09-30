@@ -48,12 +48,16 @@ export interface AreaReplica {
 }
 
 /** The replication of a kind that sends none: only its events. */
-const EVENTS_ONLY: CompiledReplication = Object.freeze({ mode: 'events-only', names: [], quanta: new Float64Array(0) });
+const EVENTS_ONLY: CompiledReplication = Object.freeze({
+  mode: 'events-only',
+  names: [],
+  quanta: new Float64Array(0)
+});
 
 /** Throws unless a spec's entries and quanta are sound. */
 const checkSpec = <G extends AreaTriggerTypes>(
   name: string,
-  [spec, def]: readonly [AreaReplicationSpec, AnyAreaTriggerDef<G>],
+  [spec, def]: readonly [AreaReplicationSpec, AnyAreaTriggerDef<G>]
 ): void => {
   const names = spec.values;
 
@@ -68,7 +72,7 @@ const checkSpec = <G extends AreaTriggerTypes>(
   for (const [key, quantum] of Object.entries(spec.rounding ?? {})) {
     if (!names.includes(key) || !(quantum > 0) || !Number.isFinite(quantum)) {
       throw new RangeError(
-        `Area trigger ${name}: rounds ${key}, which needs a replicated value and a quantum above 0.`,
+        `Area trigger ${name}: rounds ${key}, which needs a replicated value and a quantum above 0.`
       );
     }
   }
@@ -77,7 +81,7 @@ const checkSpec = <G extends AreaTriggerTypes>(
 /** Resolves a kind's replication at load (`events-only` for a tombstone), checking its spec. */
 export const compileReplication = <G extends AreaTriggerTypes>(
   name: string,
-  def: AnyAreaTriggerDef<G> | undefined,
+  def: AnyAreaTriggerDef<G> | undefined
 ): CompiledReplication => {
   const spec = def?.replicate;
 
@@ -90,7 +94,7 @@ export const compileReplication = <G extends AreaTriggerTypes>(
   return Object.freeze({
     mode: 'state',
     names: Object.freeze([...spec.values]),
-    quanta: Float64Array.from(spec.values, (key) => spec.rounding?.[key] ?? 0),
+    quanta: Float64Array.from(spec.values, (key) => spec.rounding?.[key] ?? 0)
   });
 };
 
@@ -102,7 +106,7 @@ const rounded = (value: number, quantum: number): number =>
 const writeReplica = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  replica: AreaReplica,
+  replica: AreaReplica
 ): void => {
   const spec = engine.registry.replication[area.kind] ?? EVENTS_ONLY;
   const view = engine.registry.get(area.kind).view?.(area);
@@ -126,7 +130,7 @@ const writeReplica = <G extends AreaTriggerTypes>(
 export const replicateAreas = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   out: AreaReplica[],
-  admit?: (area: AreaTriggerContext<G>) => boolean,
+  admit?: (area: AreaTriggerContext<G>) => boolean
 ): number => {
   let count = 0;
 

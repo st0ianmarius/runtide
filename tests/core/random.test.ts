@@ -12,35 +12,35 @@ describe('sequential streams', () => {
     // Mulberry32's outputs for fixed seeds, frozen: any change to the generator fails here.
     assert.deepEqual(
       draws(stream(0), 5),
-      [0.26642920868471265, 0.0003297457005828619, 0.2232720274478197, 0.1462021479383111, 0.46732782293111086],
+      [0.26642920868471265, 0.0003297457005828619, 0.2232720274478197, 0.1462021479383111, 0.46732782293111086]
     );
     assert.deepEqual(
       draws(stream(1), 5),
-      [0.6270739405881613, 0.002735721180215478, 0.5274470399599522, 0.9810509674716741, 0.9683778982143849],
+      [0.6270739405881613, 0.002735721180215478, 0.5274470399599522, 0.9810509674716741, 0.9683778982143849]
     );
     assert.deepEqual(
       draws(stream(12345), 8),
       [
         0.9797282677609473, 0.3067522644996643, 0.484205421525985, 0.817934412509203, 0.5094283693470061,
-        0.34747186047025025, 0.07375754183158278, 0.7663964673411101,
-      ],
+        0.34747186047025025, 0.07375754183158278, 0.7663964673411101
+      ]
     );
   });
 
   it('seed from seed ^ salt, so a salted stream is the unsalted stream of the mixed seed', () => {
     assert.deepEqual(
       draws(stream(12345, 0x7219e5), 5),
-      [0.75149060273543, 0.059921055333688855, 0.44655840983614326, 0.3468936122953892, 0.44077447173185647],
+      [0.75149060273543, 0.059921055333688855, 0.44655840983614326, 0.3468936122953892, 0.44077447173185647]
     );
     assert.deepEqual(
       draws(stream(12345, 0x5be115), 5),
-      [0.5963826854713261, 0.9609864926896989, 0.629096802091226, 0.05504003423266113, 0.03500056732445955],
+      [0.5963826854713261, 0.9609864926896989, 0.629096802091226, 0.05504003423266113, 0.03500056732445955]
     );
 
     fc.assert(
       fc.property(fc.integer(), fc.integer(), (seed, salt) => {
         assert.deepEqual(draws(stream(seed, salt), 4), draws(stream(seed ^ salt), 4));
-      }),
+      })
     );
   });
 
@@ -59,7 +59,7 @@ describe('sequential streams', () => {
 
         assert.deepEqual(draws(stream(seed, salt), n), first);
         assert.ok(first.every((value) => value >= 0 && value < 1));
-      }),
+      })
     );
   });
 
@@ -81,7 +81,7 @@ describe('integer helpers', () => {
     // Draws of 0 swap every item with the first: [a, b, c, d] → [b, c, d, a].
     assert.deepEqual(
       shuffle(() => 0, ['a', 'b', 'c', 'd']),
-      ['b', 'c', 'd', 'a'],
+      ['b', 'c', 'd', 'a']
     );
   });
 
@@ -92,9 +92,9 @@ describe('integer helpers', () => {
 
         assert.deepEqual(
           shuffled.toSorted((a, b) => a - b),
-          items.toSorted((a, b) => a - b),
+          items.toSorted((a, b) => a - b)
         );
-      }),
+      })
     );
   });
 
@@ -103,7 +103,7 @@ describe('integer helpers', () => {
 
     assert.deepEqual(
       Array.from({ length: 6 }, () => int(random, 10)),
-      [6, 4, 8, 6, 1, 5],
+      [6, 4, 8, 6, 1, 5]
     );
   });
 
@@ -112,13 +112,13 @@ describe('integer helpers', () => {
 
     assert.deepEqual(
       Array.from({ length: 8 }, () => weighted(random, [1, 2, 3, 4])),
-      [0, 0, 3, 3, 2, 2, 2, 1],
+      [0, 0, 3, 3, 2, 2, 2, 1]
     );
 
     // A draw of 0.5 over weights [1, 2, 1] scales to 2: past the first (1), inside the second (1 + 2).
     assert.equal(
       weighted(() => 0.5, [1, 2, 1]),
-      1,
+      1
     );
   });
 
@@ -131,8 +131,8 @@ describe('integer helpers', () => {
           const index = weighted(stream(seed), w);
 
           assert.ok(w.some((weight) => weight > 0) ? (w[index] ?? 0) > 0 : index === -1);
-        },
-      ),
+        }
+      )
     );
   });
 
@@ -199,12 +199,12 @@ describe('keyed rolls', () => {
         roll(12345, 0x7219e5, 60, 7, 3, 12, 1),
         roll(12345, 0x5be115, 61, 7, 3, 12, 0),
         roll(-1, 4_294_967_295, -2_147_483_648),
-        roll(42, 0, 1, 2, 3),
+        roll(42, 0, 1, 2, 3)
       ],
       [
         0.665013991529122, 0.0038770162500441074, 0.18112360499799252, 0.018563059624284506, 0.20127860317006707,
-        0.9181832675822079, 0.5042357565835118, 0.8840016580652446,
-      ],
+        0.9181832675822079, 0.5042357565835118, 0.8840016580652446
+      ]
     );
   });
 
@@ -212,7 +212,7 @@ describe('keyed rolls', () => {
     assert.deepEqual(shuffle(keyed(42, 0, [7, 9]), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]), [3, 5, 0, 4, 7, 6, 1, 9, 8, 2]);
     assert.deepEqual(
       [0, 1, 2, 3, 4, 5].map((i) => int(keyed(42, 0, [i]), 10)),
-      [5, 9, 2, 9, 7, 6],
+      [5, 9, 2, 9, 7, 6]
     );
   });
 
@@ -227,7 +227,7 @@ describe('keyed rolls', () => {
 
         assert.equal(roll(seed, 3, ...key), first);
         assert.equal(rollKey(seed, 3, key), first);
-      }),
+      })
     );
   });
 
@@ -237,7 +237,7 @@ describe('keyed rolls', () => {
         const value = roll(seed, salt, ...key);
 
         assert.ok(value >= 0 && value < 1);
-      }),
+      })
     );
   });
 

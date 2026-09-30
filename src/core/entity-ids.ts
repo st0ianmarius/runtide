@@ -30,6 +30,6 @@ export const createEntityIds = (from = 0): EntityIds => {
       return last;
     },
 
-    count: (): number => last,
+    count: (): number => last
   });
 };

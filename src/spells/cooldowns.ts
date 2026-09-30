@@ -29,7 +29,7 @@ const NONE: readonly never[] = Object.freeze([]);
 const compileOne = <G extends SpellTypes>(
   auras: AuraSystem<G>,
   cooldown: SpellCooldown<G>,
-  name: string,
+  name: string
 ): CompiledCooldown<G> => {
   const { seconds, startsOn } = cooldown;
 
@@ -53,7 +53,7 @@ const compileOne = <G extends SpellTypes>(
 
 /** Whether a spell names a list of cooldowns, not one. */
 const isList = <G extends SpellTypes>(
-  cooldown: SpellCooldown<G> | readonly SpellCooldown<G>[],
+  cooldown: SpellCooldown<G> | readonly SpellCooldown<G>[]
 ): cooldown is readonly SpellCooldown<G>[] => Array.isArray(cooldown);
 
 /** A spell's cooldowns as a list, whether it names none, one or several. */
@@ -71,7 +71,7 @@ export const cooldownList = <G extends SpellTypes>(def: AnySpellDef<G>): readonl
 export const compileCooldowns = <G extends SpellTypes>(
   auras: AuraSystem<G>,
   def: AnySpellDef<G> | undefined,
-  name: string,
+  name: string
 ): readonly CompiledCooldown<G>[] => {
   const list = def === undefined ? NONE : cooldownList(def);
 

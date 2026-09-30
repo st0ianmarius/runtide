@@ -19,7 +19,7 @@ export {
   defineActivations,
   isButton,
   type PassiveActivation,
-  type TriggerActivation,
+  type TriggerActivation
 } from './activation.ts';
 
 export type { CasterState } from './caster.ts';
@@ -31,7 +31,7 @@ export {
   type SpellHookName,
   type SpellHookTables,
   type SpellRegistry,
-  type SpellRegistryOptions,
+  type SpellRegistryOptions
 } from './define-spells.ts';
 
 export { autoNext, type ClockScale } from './auto.ts';
@@ -44,7 +44,7 @@ export {
   type PreviewOptions,
   previewStats,
   type SpellExplanation,
-  type SpellStatExplanation,
+  type SpellStatExplanation
 } from './explain.ts';
 
 export { type CastHandle, NO_CAST } from './ids.ts';
@@ -60,7 +60,7 @@ export {
   rescaleClocks,
   type RescaleClocksProc,
   type SpellProcKinds,
-  type SpellProcs,
+  type SpellProcs
 } from './procs.ts';
 
 export {
@@ -78,13 +78,15 @@ export {
   type SpellHit,
   type StatsContext,
   type StatsOf,
-  type StatsSource,
+  type StatsSource
 } from './spell-def.ts';
 
 export type { Reach, ReachRefusal } from './reach.ts';
 export type { CastOptions, CastRefusal, CastReport, GateAnswer } from './cast-request.ts';
 export type { SpellHost } from './spell-host.ts';
+
 export type { ActivationKindId, ActivationShape, SpellCaster, SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
+
 export type { SpellSystem } from './spell-system.ts';
 export { createSpellSystem } from './system.ts';
 export type { SpellSystemBase, SpellSystemOptions } from './system-options.ts';
@@ -98,7 +100,7 @@ export {
   type Timeline,
   type Track,
   type TrackContext,
-  type Windup,
+  type Windup
 } from './timeline.ts';
 
 export { CAST_STAGES, type CastView } from './view.ts';

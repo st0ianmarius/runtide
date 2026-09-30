@@ -17,7 +17,7 @@ const heldOf = (host: Host): readonly { readonly id: number }[] =>
 const stats = defineStats({
   speed: { base: 6, kind: 'flat', min: 0 },
   damage: { base: 1, kind: 'multiplier' },
-  armor: { base: 0, kind: 'flat' },
+  armor: { base: 0, kind: 'flat' }
 });
 
 const sources = defineSources(['base', 'auras', 'late']);
@@ -35,7 +35,7 @@ const GATED = [
   { gate: 8, source: 'auras', modifiers: [plus('speed', 0.15)] },
   { gate: 9, source: 'auras', modifiers: [mul('speed', 1.3)] },
   { gate: 10, source: 'late', modifiers: [mul('damage', 1.3), cap('speed', 9.1)] },
-  { gate: 11, source: 'auras', modifiers: [mul('speed', 0.83)] },
+  { gate: 11, source: 'auras', modifiers: [mul('speed', 0.83)] }
 ] as const;
 
 /** A system sharing the gated lists, walking held gates or asking every gate, with a sheet holding own lists. */
@@ -44,12 +44,12 @@ const system = (walksHeld: boolean) => {
     stats,
     sources,
     stacks: (host: Host, gate) => host.stacks[gate] ?? 0,
-    ...(walksHeld ? { held: heldOf } : {}),
+    ...(walksHeld ? { held: heldOf } : {})
   });
 
   for (const source of ['auras', 'late'] as const) {
     const lists = GATED.filter((list) => list.source === source).map((list) =>
-      modifiers.compile(list.modifiers, { gate: list.gate }),
+      modifiers.compile(list.modifiers, { gate: list.gate })
     );
 
     modifiers.share(sources.id[source], lists);
@@ -71,7 +71,10 @@ describe('shared lists walked by held gates', () => {
 
     fc.assert(
       fc.property(
-        fc.array(fc.integer({ min: 0, max: 3 }), { minLength: GATED.length, maxLength: GATED.length }),
+        fc.array(fc.integer({ min: 0, max: 3 }), {
+          minLength: GATED.length,
+          maxLength: GATED.length
+        }),
         gate,
         fc.integer({ min: 0, max: 3 }),
         (stacks, whatIf, whatIfStacks) => {
@@ -82,17 +85,17 @@ describe('shared lists walked by held gates', () => {
             for (const read of reads) {
               assert.equal(
                 held.modifiers.resolve(held.sheet, stat, read),
-                every.modifiers.resolve(every.sheet, stat, read),
+                every.modifiers.resolve(every.sheet, stat, read)
               );
             }
 
             assert.deepEqual(
               held.modifiers.explainStat(held.sheet, stat, { host }),
-              every.modifiers.explainStat(every.sheet, stat, { host }),
+              every.modifiers.explainStat(every.sheet, stat, { host })
             );
           }
-        },
-      ),
+        }
+      )
     );
   });
 

@@ -26,7 +26,7 @@ interface KindParts<G extends SpellTypes> {
 const spellIdOf = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   spell: G['spellName'] | SpellId,
-  isChecked: boolean,
+  isChecked: boolean
 ): SpellId => {
   const { registry } = engine;
 
@@ -79,9 +79,9 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
     explain: (proc) => ({
       values: {
         spell: spellIdOf(engine, proc.spell, false),
-        ...(proc.rank === undefined ? {} : { rank: proc.rank }),
-      },
-    }),
+        ...(proc.rank === undefined ? {} : { rank: proc.rank })
+      }
+    })
   };
 };
 
@@ -115,13 +115,13 @@ const afterKind = <G extends SpellTypes>(engine: SpellEngine<G>): ProcKindDef<Af
     return { ...proc, procs: resolve.procs(proc.procs) };
   },
 
-  explain: (proc) => ({ values: { seconds: proc.seconds }, procs: proc.procs }),
+  explain: (proc) => ({ values: { seconds: proc.seconds }, procs: proc.procs })
 });
 
 /** A spell tag's id from its name or id; `undefined` for none. Throws for an unknown name. */
 const tagIdOf = <G extends SpellTypes>(
   engine: SpellEngine<G>,
-  tag: G['spellTag'] | SpellTagId | undefined,
+  tag: G['spellTag'] | SpellTagId | undefined
 ): SpellTagId | undefined => {
   if (tag === undefined || typeof tag !== 'string') {
     return tag;
@@ -163,8 +163,11 @@ const rescaleKind = <G extends SpellTypes>(engine: SpellEngine<G>): ProcKindDef<
   },
 
   explain: (proc) => ({
-    values: { factor: proc.factor, ...(proc.tag === undefined ? {} : { tag: tagIdOf(engine, proc.tag) ?? -1 }) },
-  }),
+    values: {
+      factor: proc.factor,
+      ...(proc.tag === undefined ? {} : { tag: tagIdOf(engine, proc.tag) ?? -1 })
+    }
+  })
 });
 
 /** Builds the spell system's proc kinds over its engine. */
@@ -172,5 +175,5 @@ export const createSpellProcKinds = <G extends SpellTypes>(parts: KindParts<G>):
   Object.freeze({
     castSpell: castSpellKind(parts),
     after: afterKind(parts.engine),
-    rescaleClocks: rescaleKind(parts.engine),
+    rescaleClocks: rescaleKind(parts.engine)
   });

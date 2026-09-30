@@ -18,7 +18,7 @@ export {
   removeByTag,
   run,
   type TargetOptions,
-  timeLeft,
+  timeLeft
 } from './builders.ts';
 
 export { CORE_PROCS, type CoreProcKind, type CoreProcName } from './core-procs.ts';
@@ -30,7 +30,7 @@ export {
   escapeReport,
   type EscapeRun,
   type EscapeSpells,
-  type EscapeWorld,
+  type EscapeWorld
 } from './escape.ts';
 
 export { explainProc, type ProcExplanation, type ProcTargetKind } from './explain.ts';
@@ -48,7 +48,7 @@ export type {
   RemoveAuraProc,
   RemoveByTagProc,
   RunProc,
-  TimeLeftProc,
+  TimeLeftProc
 } from './proc-data.ts';
 
 export { defineProcKind, type ProcDetail, type ProcKindDef, type ProcKinds, type ProcResolver } from './proc-kind.ts';
@@ -66,7 +66,7 @@ export {
   type ProcShape,
   type ProcStatus,
   type ProcTarget,
-  type ProcTypes,
+  type ProcTypes
 } from './proc-types.ts';
 
 export { createProcRegistry, type ProcKindId, type ProcRegistry } from './registry.ts';

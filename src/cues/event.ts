@@ -133,6 +133,6 @@ export const cuePath = (event: CueEvent, param: CueParam): Vec2[] => {
 
   return Array.from({ length: count }, (_unused, index) => ({
     x: event.path[start + index * 2] ?? 0,
-    z: event.path[start + index * 2 + 1] ?? 0,
+    z: event.path[start + index * 2 + 1] ?? 0
   }));
 };

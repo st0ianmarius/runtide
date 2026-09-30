@@ -6,7 +6,7 @@ import { createBus } from '../../src/core/index.ts';
 const gameBus = () =>
   createBus({
     hit: () => ({ target: 0, amount: 0 }),
-    kill: () => ({ target: 0 }),
+    kill: () => ({ target: 0 })
   });
 
 describe('bus kinds and hearing', () => {

@@ -11,8 +11,8 @@ describe('cast views', () => {
         ranks: 2,
         activation: { kind: 'trigger' },
         timeline: { windup: { seconds: 1 }, recover: { seconds: 0.5 } },
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     const caster = game.unit(3);
@@ -30,7 +30,7 @@ describe('cast views', () => {
       started: 0,
       caster: 0,
       source: 0,
-      key: 0,
+      key: 0
     };
 
     assert.equal(game.spells.viewOf(handle, view), true);
@@ -43,7 +43,7 @@ describe('cast views', () => {
       started: 4,
       caster: 3,
       source: 9,
-      key: 14,
+      key: 14
     });
 
     game.step();

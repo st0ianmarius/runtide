@@ -114,7 +114,7 @@ const compileHealRuns = <G extends DamageTypes>(engine: DamageEngine<G>): readon
 const runHealStages = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   runs: readonly HealRun<G>[],
-  heal: HealRecord<G>,
+  heal: HealRecord<G>
 ): void => {
   const { afterFrom } = engine.healOrder;
   let i = 0;

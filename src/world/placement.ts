@@ -39,7 +39,7 @@ export class Placement {
 
     return {
       x: Math.min(bounds.maxX - radius, Math.max(bounds.minX + radius, p.x)),
-      z: Math.min(bounds.maxZ - radius, Math.max(bounds.minZ + radius, p.z)),
+      z: Math.min(bounds.maxZ - radius, Math.max(bounds.minZ + radius, p.z))
     };
   };
 
@@ -62,7 +62,12 @@ export class Placement {
     const normal =
       contact !== undefined && contact <= exit ? this.#statics.normalOf(position, this.#normal) : undefined;
 
-    return { position, hit: true, share, normal: { ...(normal ?? this.#boundsNormal(position, radius)) } };
+    return {
+      position,
+      hit: true,
+      share,
+      normal: { ...(normal ?? this.#boundsNormal(position, radius)) }
+    };
   };
 
   /** The inward normal of the bound a body at `p` presses against: the nearest one. */
@@ -131,7 +136,7 @@ export class Placement {
 
     return Math.min(
       axisExit([from.x, to.x], [bounds.minX + radius, bounds.maxX - radius]),
-      axisExit([from.z, to.z], [bounds.minZ + radius, bounds.maxZ - radius]),
+      axisExit([from.z, to.z], [bounds.minZ + radius, bounds.maxZ - radius])
     );
   }
 }

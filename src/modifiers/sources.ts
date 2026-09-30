@@ -25,7 +25,7 @@ export const defineSources = <const Name extends string>(names: readonly Name[])
 
   return createRegistry(
     recordOf(names, (): SourceDef => ({})),
-    { kind: 'sources' },
+    { kind: 'sources' }
   );
 };
 
@@ -35,7 +35,7 @@ export const defineSources = <const Name extends string>(names: readonly Name[])
  */
 export const sourceMask = <Name extends string>(
   sources: SourceTable<Name>,
-  names: readonly Extract<Name, string>[],
+  names: readonly Extract<Name, string>[]
 ): number => {
   let mask = 0;
 

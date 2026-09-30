@@ -14,7 +14,7 @@ export type {
   CompiledScaled,
   CompiledTerm,
   ScaledContext,
-  StatView,
+  StatView
 } from './compiled.ts';
 
 export { compileCurve, type CompileOptions, compileScaled } from './compile-values.ts';
@@ -42,7 +42,7 @@ export {
   stacking,
   type StackingCurve,
   table,
-  type TableCurve,
+  type TableCurve
 } from './curves.ts';
 
 export { evaluateCurve, evaluateScaled, shareOf } from './evaluate.ts';
@@ -53,7 +53,7 @@ export {
   explainModifier,
   explainModifiers,
   type ModifierExplanation,
-  type StatExplanation,
+  type StatExplanation
 } from './explain.ts';
 
 export { explainScaled, type ScaledExplanation, type TermExplanation } from './explain-scaled.ts';
@@ -72,7 +72,7 @@ export {
   mul,
   perStat,
   plus,
-  type StatValue,
+  type StatValue
 } from './modifier.ts';
 
 export {
@@ -88,12 +88,14 @@ export {
   type Scaling,
   type ScalingPart,
   type Term,
-  type TermOptions,
+  type TermOptions
 } from './scaled.ts';
 
 export type { FoldRead, StatSheet } from './sheet.ts';
 export { finishScaled, type ScaledSnapshot, snapshotScaled } from './snapshot.ts';
+
 export { defineSources, type SourceDef, type SourceId, sourceMask, type SourceTable } from './sources.ts';
+
 export type { NamedCurve, StatId, StatIndex } from './stat-id.ts';
 
 export { defineStats, type Derivation, type StatDef, type StatTable } from './stats.ts';

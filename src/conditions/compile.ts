@@ -36,7 +36,7 @@ const finite = (state: Compiling, value: number, field: string): number =>
 /** The id of a name in a registry's ids, or `undefined`. */
 const idIn = <Kind extends string>(
   ids: Readonly<Record<string, Id<Kind> | undefined>> | undefined,
-  name: string,
+  name: string
 ): Id<Kind> | undefined => ids?.[name];
 
 /** Whether a compiled condition asks the world anywhere in it. */
@@ -83,17 +83,14 @@ const compileParts = (state: Compiling, parts: readonly ConditionExpr[], kind: '
 
   return Object.freeze({
     kind,
-    of: Object.freeze([
-      ...compiled.filter((_part, i) => world[i] !== true),
-      ...compiled.filter((_part, i) => world[i]),
-    ]),
+    of: Object.freeze([...compiled.filter((_part, i) => world[i] !== true), ...compiled.filter((_part, i) => world[i])])
   });
 };
 
 /** Compiles a comparison. */
 const compileCompare = (
   state: Compiling,
-  expr: Extract<ConditionExpr, { readonly value: string }>,
+  expr: Extract<ConditionExpr, { readonly value: string }>
 ): CompiledCondition => {
   const value =
     idIn<'values'>(state.tables.values?.id, expr.value) ?? refuse(state, `there is no value kind named ${expr.value}.`);
@@ -114,7 +111,7 @@ const compileCompare = (
     arg: finite(state, expr.arg ?? 0, 'arg'),
     op: expr.op,
     than: finite(state, expr.than, 'than'),
-    epsilon,
+    epsilon
   });
 };
 
@@ -151,5 +148,5 @@ const compileWith = (state: Compiling, expr: ConditionExpr): CompiledCondition =
 export const compileCondition = <C extends string, V extends string>(
   tables: ConditionTables<C, V>,
   expr: ConditionExpr<C, V>,
-  what = 'condition',
+  what = 'condition'
 ): CompiledCondition => compileWith({ tables, what }, expr);

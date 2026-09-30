@@ -97,7 +97,7 @@ describe('the timing wheel', () => {
           .map(({ index }) => index);
 
         assert.deepEqual(fired, expected);
-      }),
+      })
     );
   });
 });

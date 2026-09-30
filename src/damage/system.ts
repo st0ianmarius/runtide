@@ -92,7 +92,7 @@ export interface DamageSystem<G extends DamageTypes> {
 
       /** The damage kind; the table's first when absent. */
       readonly kind?: DamageKindId | undefined;
-    },
+    }
   ) => MitigationExplanation;
 
   /**
@@ -148,7 +148,7 @@ const setHealthWith =
       killer: credit.attacker,
       source: engine.sourceOf(credit.source, credit.attacker),
       spell: credit.spell,
-      blow: undefined,
+      blow: undefined
     });
 
     return SET_KILLED;
@@ -159,7 +159,7 @@ const gameStagesOf = <G extends DamageTypes>(engine: DamageEngine<G>): readonly 
   Object.freeze([
     ...engine.order.game.map((name) => `damage.${name}`),
     ...engine.healOrder.game.map((name) => `heal.${name}`),
-    ...engine.forceOrder.game.map((name) => `force.${name}`),
+    ...engine.forceOrder.game.map((name) => `force.${name}`)
   ]);
 
 /** A damage system: a class for fast properties, its functions arrow fields so they work detached. */
@@ -193,7 +193,7 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
     this.hit = createDamagePipeline(engine, {
       death: (spec) => {
         runDeath(engine, spec);
-      },
+      }
     });
     this.heal = heal;
     this.force = force;
@@ -204,7 +204,7 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
       hit: this.hit,
       heal,
       setHealth: (unit, health, source) => setHealth(unit, health, { source }),
-      force,
+      force
     });
   }
 
@@ -216,12 +216,12 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
 
   readonly explainMitigation = (
     defender: G['bearer'],
-    query: { readonly attacker?: G['bearer'] | undefined; readonly kind?: DamageKindId | undefined },
+    query: { readonly attacker?: G['bearer'] | undefined; readonly kind?: DamageKindId | undefined }
   ): MitigationExplanation =>
     explainRows(this.#engine.rows, {
       kind: query.kind ?? this.#engine.defaultKind,
       caster: this.#engine.viewOf(query.attacker, undefined),
-      target: this.#engine.viewOf(defender, undefined),
+      target: this.#engine.viewOf(defender, undefined)
     });
 
   readonly explainRolls = (defender: G['bearer'], query: RollQuery<G> = {}): RollExplanation[] =>
@@ -235,7 +235,7 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
  * point `blow` at `Blow<Game>` and `force` at `Force<Game>`.
  */
 export const createDamageSystem = <G extends DamageTypes>(
-  options: DamageSystemOptions<G> & RecordsCheck<G>,
+  options: DamageSystemOptions<G> & RecordsCheck<G>
 ): DamageSystem<G> => {
   const engine = new DamageEngine<G>(options);
   const system: DamageSystem<G> = Object.freeze(new Damage(options, engine));

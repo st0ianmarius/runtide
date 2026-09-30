@@ -5,7 +5,7 @@ import {
   type AnyAreaTriggerDef,
   type AreaPulse,
   type AreaTriggerHandle,
-  spawn,
+  spawn
 } from '../../src/area-triggers/index.ts';
 import { circle, vec2 } from '../../src/math/index.ts';
 import { castSpell } from '../../src/spells/index.ts';
@@ -14,12 +14,12 @@ import { type Game, makeSpellGame, spell } from '../helpers/spell-game.ts';
 /** A pool with pulses, living long enough; its frame does nothing. */
 const pool = (
   every: readonly AreaPulse<Game>[],
-  def: Partial<AnyAreaTriggerDef<Game>> = {},
+  def: Partial<AnyAreaTriggerDef<Game>> = {}
 ): AnyAreaTriggerDef<Game> => ({
   shape: circle(2),
   lifetime: 10,
   every,
-  ...def,
+  ...def
 });
 
 /** A pulse that logs its beat as `beat <id> <age>: <unit ids>`. */
@@ -32,7 +32,7 @@ const logging = (pulse: Partial<AreaPulse<Game>> = {}): AreaPulse<Game> => ({
     return undefined;
   },
 
-  ...pulse,
+  ...pulse
 });
 
 /** Steps a game's clock and its area triggers `count` times. */
@@ -65,9 +65,9 @@ describe('own pulses', () => {
       {
         areaTriggers: {
           wide: pool([logging({ hits: circle(1, vec2(0, 5)) })]),
-          blind: pool([logging({ hits: 'none' })]),
-        },
-      },
+          blind: pool([logging({ hits: 'none' })])
+        }
+      }
     );
 
     const owner = game.unit(1);
@@ -115,7 +115,7 @@ describe('own pulses', () => {
     ticks(game, 8);
     assert.deepEqual(
       beats(game.log).map((line) => line.split(':')[0]),
-      ['beat 1 0.25', 'beat 1 0.75', 'beat 1 1.75'],
+      ['beat 1 0.25', 'beat 1 0.75', 'beat 1 1.75']
     );
   });
 });
@@ -130,10 +130,10 @@ describe('the frame’s order', () => {
             wave: pool([logging({ seconds: 0.25 })], {
               ...(order === undefined ? {} : { order }),
               move: (c) => void c.host.log.push('move'),
-              frame: (c) => void c.host.log.push('frame'),
-            }),
-          },
-        },
+              frame: (c) => void c.host.log.push('frame')
+            })
+          }
+        }
       );
 
       game.areaTriggers.spawn(game.areaId.wave, { owner: game.unit(1), at: vec2(0, 0) });
@@ -164,7 +164,7 @@ describe('contacts and landings', () => {
       return undefined;
     },
 
-    ...def,
+    ...def
   });
 
   it('hands its sweep’s foes to onContact in the order it reached them', () => {
@@ -179,7 +179,7 @@ describe('contacts and landings', () => {
     ticks(game, 2);
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('contact')),
-      ['contact 0.5: 100,101'],
+      ['contact 0.5: 100,101']
     );
   });
 
@@ -188,9 +188,9 @@ describe('contacts and landings', () => {
       {},
       {
         areaTriggers: {
-          picky: missile({ contact: { radius: 0.5, unitFilter: (_c, unit) => unit.id !== 100 } }),
-        },
-      },
+          picky: missile({ contact: { radius: 0.5, unitFilter: (_c, unit) => unit.id !== 100 } })
+        }
+      }
     );
 
     game.place(game.unit(100), vec2(1, 0));
@@ -199,7 +199,7 @@ describe('contacts and landings', () => {
     ticks(game, 1);
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('contact')),
-      ['contact 0.25: 101'],
+      ['contact 0.25: 101']
     );
   });
 
@@ -214,8 +214,8 @@ describe('contacts and landings', () => {
             ctx.host.log.push(`onHit ${hit.targets.length}`);
 
             return undefined;
-          },
-        }),
+          }
+        })
       },
       {
         areaTriggers: {
@@ -228,10 +228,10 @@ describe('contacts and landings', () => {
               c.host.log.push(`land ${hit.targets.map((unit) => unit.id).join(',')}`);
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     game.place(game.unit(100), vec2(21, 0));
@@ -254,23 +254,27 @@ describe('an area trigger that casts (the sentry)', () => {
             ctx.host.log.push(`bolt by ${ctx.caster.id} for ${ctx.source} at ${ctx.input?.id ?? 'nothing'}`);
 
             return [spawn<Game>('spark')];
-          },
-        }),
+          }
+        })
       },
       {
         areaTriggers: {
           sentry: pool([{ seconds: 0.5, hits: 'none', onPulse: () => [castSpell<Game>('bolt')] }]),
-          spark: { shape: circle(1), lifetime: 5, init: (c) => void children.push(c.parent) },
-        },
-      },
+          spark: { shape: circle(1), lifetime: 5, init: (c) => void children.push(c.parent) }
+        }
+      }
     );
 
-    const sentry = game.areaTriggers.spawn(game.areaId.sentry, { owner: game.unit(1), at: vec2(0, 0), source: 7 });
+    const sentry = game.areaTriggers.spawn(game.areaId.sentry, {
+      owner: game.unit(1),
+      at: vec2(0, 0),
+      source: 7
+    });
 
     ticks(game, 4);
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('bolt')),
-      ['bolt by 1 for 7 at nothing', 'bolt by 1 for 7 at nothing'],
+      ['bolt by 1 for 7 at nothing', 'bolt by 1 for 7 at nothing']
     );
     assert.deepEqual(children, [sentry, sentry]);
   });

@@ -8,7 +8,7 @@ import {
   type ModifierSystem,
   type SourceId,
   type StatId,
-  type StatView,
+  type StatView
 } from '../modifiers/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
 import { UnitBases, type UnitVariant } from './bases.ts';
@@ -216,7 +216,7 @@ export class UnitEngine<G extends UnitTypes> {
       loadout: options.abilities?.createLoadout() ?? NO_LOADOUT,
       brain: options.ai?.createBrain() ?? NO_BRAIN,
       sheet: options.modifiers?.system.createSheet(),
-      ext: this.#createExt(template, spawn),
+      ext: this.#createExt(template, spawn)
     });
 
     if (!isBearer<G>(unit)) {
@@ -268,6 +268,7 @@ export class UnitEngine<G extends UnitTypes> {
 
     const { system } = modifiers;
     const sources: Readonly<Record<string, SourceId | undefined>> = system.sources.id;
+
     const source = sources[modifiers.base] ?? missing(`there is no modifier source named ${modifiers.base}`);
 
     const list = shared ?? this.bases.compile(unit.base) ?? missing('a unit lost its modifier system');

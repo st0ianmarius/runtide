@@ -29,7 +29,7 @@ const logging = (label: string, log: string[]) =>
       log.push(`timer ${TIMERS.names[timer] ?? '?'} ${ctx.state.label}@${ctx.unit.id}`);
 
       return undefined;
-    },
+    }
   });
 
 /** A game with a `caster` template running a two-behaviour script, a `grunt` with none, and an `add`. */
@@ -44,8 +44,8 @@ const scripted = () => {
         log.push(`${event.unit?.id ?? '?'} ${event.to} seen by ${ctx.unit.id}`);
 
         return undefined;
-      },
-    },
+      }
+    }
   });
 
   const scripts = defineScripts<UnitGame, 'caster'>({ caster: [first, second, watcher] });
@@ -53,7 +53,7 @@ const scripted = () => {
   const templates = {
     caster: { script: 'caster' },
     grunt: {},
-    add: {},
+    add: {}
   } satisfies Record<string, UnitDef<UnitGame>>;
 
   const game = makeUnitGame(templates, { scripts });
@@ -99,7 +99,7 @@ describe('scripts', () => {
     game.clock.step();
     assert.equal(
       game.scripts.collect((unit, timer) => unscripted.push(`${TIMERS.names[timer] ?? '?'}@${unit.id}`)),
-      2,
+      2
     );
     assert.deepEqual(unscripted, ['raise@2']);
     assert.equal(game.events.includes('timer pick a@1'), false);
@@ -134,7 +134,7 @@ describe('scripts', () => {
     game.units.kill(game.units.spawn(game.id.grunt, { side: 1 }));
     assert.deepEqual(
       game.events.filter((line) => line.includes('seen')),
-      [`${add?.id ?? 0} dead seen by 1`],
+      [`${add?.id ?? 0} dead seen by 1`]
     );
   });
 
@@ -149,7 +149,11 @@ describe('scripts', () => {
     const second = game.units.spawn(game.id.caster, { side: 1 });
 
     assert.deepEqual([game.scripts.records.live, game.scripts.records.created, second.scriptSlot], [1, 1, 0]);
-    assert.deepEqual(game.scripts.stateOf(second, game.first), { label: 'a', id: second.id, ticks: 0 });
+    assert.deepEqual(game.scripts.stateOf(second, game.first), {
+      label: 'a',
+      id: second.id,
+      ticks: 0
+    });
   });
 
   it('let a handler run procs mid-way through ctx.run, nested handlers taking their own context', () => {
@@ -161,8 +165,8 @@ describe('scripts', () => {
           log.push(`owner ${ctx.unit.id} sees an add go`);
 
           return undefined;
-        },
-      },
+        }
+      }
     });
 
     const suicidal = behaviour({
@@ -172,16 +176,16 @@ describe('scripts', () => {
         log.push(`summoned ${count} by ${ctx.unit.id}`);
 
         return undefined;
-      },
+      }
     });
 
     const templates = {
       boss: { script: 'boss' },
-      add: { script: 'add' },
+      add: { script: 'add' }
     } satisfies Record<string, UnitDef<UnitGame>>;
 
     const game = makeUnitGame(templates, {
-      scripts: defineScripts<UnitGame, 'boss' | 'add'>({ boss: [suicidal, owner], add: [] }),
+      scripts: defineScripts<UnitGame, 'boss' | 'add'>({ boss: [suicidal, owner], add: [] })
     });
 
     const boss = game.units.spawn(game.id.boss, { side: 1 });
@@ -207,9 +211,9 @@ describe('scripts', () => {
           ai: game.ai,
           procs: game.procs,
           bus: { on: () => () => undefined },
-          host: {},
+          host: {}
         }),
-      /Script dancer handles changed, which the script system does not bind/,
+      /Script dancer handles changed, which the script system does not bind/
     );
     assert.throws(() => game.units.spawn(game.id.caster, { side: 1 }), /no script named nope/);
 
@@ -218,7 +222,7 @@ describe('scripts', () => {
     Reflect.set(forged, 'tick', 3);
     assert.throws(
       () => defineScripts<UnitGame, 'bad'>({ bad: [forged] }),
-      /Script bad, behaviour 0: its tick is not a function/,
+      /Script bad, behaviour 0: its tick is not a function/
     );
   });
 

@@ -25,7 +25,7 @@ const random = stream(4242);
 /** The bench units, spread evenly at random, half on each side. */
 const MOBS: readonly Mob[] = Array.from({ length: UNITS }, () => ({
   x: (random() - 0.5) * 190,
-  z: (random() - 0.5) * 190,
+  z: (random() - 0.5) * 190
 }));
 
 /** A world over the bench units, with the point index given. */
@@ -90,35 +90,35 @@ export const WORLD_TASKS: readonly (readonly [string, () => void, number])[] = [
     () => {
       worldCounter.found += GRID.inside(CIRCLE, FOES, OUT);
     },
-    1,
+    1
   ],
   [
     'world: nearest foe in a crowd, 2,000 within 30 m (grid)',
     () => {
       worldCounter.found += CROWD.nearest(HERO, CROWD_NEAR, OUT);
     },
-    1,
+    1
   ],
   [
     'world: nearest foe in 10 m (grid)',
     () => {
       worldCounter.found += GRID.nearest(CASTER, NEAR, OUT);
     },
-    1,
+    1
   ],
   [
     'world: sweep 40 m, body 0.5 (grid)',
     () => {
       worldCounter.found += GRID.sweep(SEGMENT, SWEEP, OUT);
     },
-    1,
+    1
   ],
   [
     'world: 2,000 units move, grid updated (tick)',
     () => {
       wander(GRID);
     },
-    1000,
+    1000
   ],
   [
     'world: 2,000 units move, k-d rebuilt + a query (tick)',
@@ -126,7 +126,7 @@ export const WORLD_TASKS: readonly (readonly [string, () => void, number])[] = [
       wander(KD);
       worldCounter.found += KD.inside(CIRCLE, FOES, OUT);
     },
-    1000,
+    1000
   ],
   [
     'world: a body crossing a circle over one tick',
@@ -134,9 +134,9 @@ export const WORLD_TASKS: readonly (readonly [string, () => void, number])[] = [
       worldCounter.found += pathIntervals(
         CIRCLE,
         { from: vec2(0, 10), to: vec2(20, 10), t0: 0, t1: 1 / 30 },
-        INTERVALS,
+        INTERVALS
       );
     },
-    1,
-  ],
+    1
+  ]
 ];

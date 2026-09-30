@@ -112,6 +112,6 @@ export const createCueEchoes = (registry: CueRegistry, capacity = 64): CueEchoes
 
     clear: () => {
       cues.fill(-1);
-    },
+    }
   };
 };

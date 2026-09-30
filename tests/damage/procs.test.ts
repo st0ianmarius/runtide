@@ -24,7 +24,7 @@ describe('the damage proc', () => {
   it('credits a periodic beat to the aura’s caster, found by the host’s unitOf', () => {
     const game = makeDamageGame(
       { burn: aura({ duration: 'infinite', periodic: { every: 0.125, onBeat: () => [fire(5)] } }) },
-      { outgoing: ['power'] },
+      { outgoing: ['power'] }
     );
 
     const [victim, caster] = [game.unit(1), game.unit(2)];
@@ -68,10 +68,14 @@ describe('the damage proc', () => {
     const game = makeDamageGame({});
     const [prepared] = game.procs.prepare([fire(5)], 'test list');
 
-    assert.deepEqual(prepared, { kind: 'damage', amount: 5, damageKind: game.damage.kinds.id.fire });
+    assert.deepEqual(prepared, {
+      kind: 'damage',
+      amount: 5,
+      damageKind: game.damage.kinds.id.fire
+    });
     assert.throws(
       () => game.procs.prepare([invalid(fire(5), { damageKind: 'ice' })], 'bad'),
-      /Unknown damage kind ice/,
+      /Unknown damage kind ice/
     );
   });
 
@@ -80,7 +84,7 @@ describe('the damage proc', () => {
 
     assert.deepEqual(explainProc(game.procs, fire(12)).values, {
       amount: 12,
-      damageKind: game.damage.kinds.id.fire,
+      damageKind: game.damage.kinds.id.fire
     });
   });
 });
@@ -95,13 +99,16 @@ describe('the force procs', () => {
       {
         applyForce: (force) => {
           seen.push(`${force.kind} ${force.amount} by ${force.attacker?.id} along ${force.direction?.x}`);
-        },
-      },
+        }
+      }
     );
 
     const [target, caster] = [game.unit(1), game.unit(2)];
 
-    game.procs.run([pull<Game>(2), push<Game>(3, { direction: { x: 1, z: 0 } })], { self: caster, target });
+    game.procs.run([pull<Game>(2), push<Game>(3, { direction: { x: 1, z: 0 } })], {
+      self: caster,
+      target
+    });
     assert.deepEqual(seen, ['pull 2 by 2 along undefined', 'push 3 by 2 along 1']);
     assert.deepEqual(explainProc(game.procs, pull<Game>(2)).values, { strength: 2 });
     assert.throws(() => game.procs.prepare([push<Game>(0)], 'Test'), /push proc's strength is a finite number above 0/);
@@ -115,7 +122,10 @@ describe('outcome-gated procs', () => {
     const game = makeDamageGame(gated);
     const [target, attacker] = [game.unit(1), game.unit(2)];
 
-    game.procs.run([fire(10, { to: target, andThen: [applyAura('chilled')] })], { self: attacker, target: attacker });
+    game.procs.run([fire(10, { to: target, andThen: [applyAura('chilled')] })], {
+      self: attacker,
+      target: attacker
+    });
     assert.equal(game.auras.has(target, game.id.chilled), true);
     assert.equal(game.auras.has(attacker, game.id.chilled), false);
   });
@@ -128,9 +138,9 @@ describe('outcome-gated procs', () => {
     game.procs.run(
       [
         fire(10, { andThen: [applyAura('chilled')] }),
-        fire(10, { on: ['blocked'], andThen: [applyAura('rage', { to: 'self' })] }),
+        fire(10, { on: ['blocked'], andThen: [applyAura('rage', { to: 'self' })] })
       ],
-      { self: attacker, target },
+      { self: attacker, target }
     );
 
     assert.equal(game.auras.has(target, game.id.chilled), false);
@@ -143,7 +153,7 @@ describe('outcome-gated procs', () => {
 
     game.procs.run([fire(150, { andThen: [applyAura('chilled'), applyAura('rage', { to: 'self' })] })], {
       self: attacker,
-      target,
+      target
     });
     assert.equal(game.auras.has(target, game.id.chilled), false);
     assert.equal(game.auras.has(attacker, game.id.rage), true);
@@ -152,7 +162,11 @@ describe('outcome-gated procs', () => {
   it('leave the blow’s own outcome as the one reported', () => {
     const game = makeDamageGame(gated);
     const [target, attacker] = [game.unit(1), game.unit(2)];
-    const outcome = game.procs.apply(fire(10, { andThen: [fire(500, { to: 'self' })] }), { self: attacker, target });
+
+    const outcome = game.procs.apply(fire(10, { andThen: [fire(500, { to: 'self' })] }), {
+      self: attacker,
+      target
+    });
 
     assert.deepEqual([outcome.status, outcome.amount, outcome.hasKilled], ['landed', 10, false]);
     assert.equal(attacker.hp, -400);
@@ -162,6 +176,7 @@ describe('outcome-gated procs', () => {
 describe('the damage system’s proc kinds', () => {
   it('are frozen, work detached, and count as the framework’s in the escape report, beside the game’s stages', () => {
     const game = makeDamageGame({}, { stages: { horde: { before: 'ignore', run: () => undefined } } });
+
     const { apply } = game.damage.procKinds.damage;
     const target = game.unit(1);
 
@@ -170,9 +185,9 @@ describe('the damage system’s proc kinds', () => {
       [
         run<Game>('detached', (ctx) => {
           apply(damage<Game>(5, { damageKind: 'fire' }), ctx, target);
-        }),
+        })
       ],
-      { self: target },
+      { self: target }
     );
     assert.equal(target.hp, 95);
     assert.deepEqual(escapeReport({ procs: game.procs, damage: game.damage }), {
@@ -180,7 +195,7 @@ describe('the damage system’s proc kinds', () => {
       runs: [{ hatch: 'detached', count: 1 }],
       stages: ['damage.horde'],
       activationKinds: [],
-      queryExtensions: [],
+      queryExtensions: []
     });
     assert.deepEqual(escapeReport({ procs: game.procs }).procKinds, ['damage', 'heal', 'setHealth', 'force']);
   });

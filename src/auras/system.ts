@@ -275,10 +275,11 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
     host,
     events: options.events,
     createExt: extFactory(options),
-    resetExt: options.resetExt,
+    resetExt: options.resetExt
   });
 
   const clockNames = Object.keys(options.clocks).filter((key): key is G['clock'] => Object.hasOwn(options.clocks, key));
+
   const clockIds = recordOf(clockNames, (name) => clockNames.indexOf(name));
 
   const system: AuraSystem<G> = {
@@ -293,7 +294,7 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
 
       get live() {
         return engine.pool.live;
-      },
+      }
     },
 
     createState: (stateOptions = {}) => new AuraSet<G>(tables.clockNames.length, stateOptions.isSilent === true),
@@ -303,7 +304,7 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
     },
 
     ...operationsOf(engine),
-    ...queriesOf(engine),
+    ...queriesOf(engine)
   };
 
   EXPLAINERS.set(system, (aura, stacks) => explainIn(engine, aura, stacks));

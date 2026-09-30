@@ -11,7 +11,7 @@ const ROWS = {
   miss: { effect: 'avoid', chance: 0.1 },
   dodge: { effect: 'avoid', chance: scaled(0.2, add('blockChance', 1, { from: 'target' })) },
   glancing: { effect: 'scale', chance: 0.1, multiplier: 0.5 },
-  crit: { effect: 'scale', chance: 'critChance', multiplier: 'critDamage', isCrit: true },
+  crit: { effect: 'scale', chance: 'critChance', multiplier: 'critDamage', isCrit: true }
 } as const;
 
 /** WoW's attack table over the test rows. */
@@ -96,7 +96,7 @@ describe('the roll table as data', () => {
       { outcome: 'miss', effect: 'avoid', chance: 0.1, multiplier: undefined },
       { outcome: 'dodge', effect: 'avoid', chance: 1, multiplier: undefined },
       { outcome: 'glancing', effect: 'scale', chance: 0.1, multiplier: 0.5 },
-      { outcome: 'crit', effect: 'scale', chance: 0.2, multiplier: 2 },
+      { outcome: 'crit', effect: 'scale', chance: 0.2, multiplier: 2 }
     ]);
     assert.deepEqual(makeDamageGame({}).damage.explainRolls(target), []);
   });
@@ -112,7 +112,7 @@ describe('the roll table as data', () => {
     assert.throws(table({ miss: { effect: 'avoid', chance: 0.1, multiplier: 2 } }), /a scale row takes a multiplier/);
     assert.throws(
       table(Object.fromEntries(Array.from({ length: 33 }, (_unused, i) => [`r${i}`, { effect: 'avoid', chance: 0 }]))),
-      /at most 32 rows/,
+      /at most 32 rows/
     );
 
     const mode = { mode: 'single' as const, rows: {} };
@@ -123,7 +123,13 @@ describe('the roll table as data', () => {
 
   it('gives triggers an outcome filter by row name', () => {
     const bus = createBus({ taken: () => createDamageEvent<Game>() });
-    const event = damageTriggerEvent<Game>(bus.kind.taken, { about: 'target', kinds: KINDS, rolls: SINGLE });
+
+    const event = damageTriggerEvent<Game>(bus.kind.taken, {
+      about: 'target',
+      kinds: KINDS,
+      rolls: SINGLE
+    });
+
     const filter = event.filters['outcome'];
     const { damage, unit, rolls, auras } = makeDamageGame({}, { rolls: SINGLE });
 

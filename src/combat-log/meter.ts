@@ -73,6 +73,6 @@ export const createDamageMeter = (log: CombatLog): DamageMeter => {
       taken.clear();
     },
 
-    close,
+    close
   });
 };

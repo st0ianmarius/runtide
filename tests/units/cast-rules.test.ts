@@ -61,7 +61,7 @@ describe('states interrupting casts', () => {
     const tags = defineAuraTags(['stun']);
 
     const many = Object.fromEntries(
-      Array.from({ length: 32 }, (_unused, i) => [`s${i}`, { tags: ['stun' as const], interrupt: 'stun' as const }]),
+      Array.from({ length: 32 }, (_unused, i) => [`s${i}`, { tags: ['stun' as const], interrupt: 'stun' as const }])
     );
 
     assert.throws(() => defineUnitStates(tags, many), /At most 31 unit states may raise interrupts/);
@@ -83,6 +83,7 @@ describe('leaving life', () => {
 describe('the revive proc', () => {
   it('stands a dead unit again, at a health or its maximum, and skips a living one', () => {
     const game = makeUnitGame(TEMPLATES);
+
     const [hero, ally] = [game.units.spawn(game.id.grunt, { side: 0 }), game.units.spawn(game.id.grunt, { side: 0 })];
 
     game.units.kill(ally);
@@ -95,7 +96,7 @@ describe('the revive proc', () => {
     assert.equal(game.procs.apply(revive<UnitGame>(), { self: hero, target: ally }).status, 'skipped');
     assert.throws(
       () => game.procs.prepare([revive<UnitGame>({ health: 0 })], 'Test'),
-      /health is a finite number above 0/,
+      /health is a finite number above 0/
     );
   });
 });

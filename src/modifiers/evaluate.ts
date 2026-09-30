@@ -6,7 +6,7 @@ import type {
   CompiledScaled,
   CompiledTerm,
   ScaledContext,
-  StatView,
+  StatView
 } from './compiled.ts';
 
 /**

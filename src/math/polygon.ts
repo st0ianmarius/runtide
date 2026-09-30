@@ -31,7 +31,9 @@ export const segmentDistanceSq = (p: Vec2, a: Vec2, b: Vec2): number => {
   const dx = b.x - a.x;
   const dz = b.z - a.z;
   const length2 = dx * dx + dz * dz;
+
   const t = length2 > 1e-12 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / length2)) : 0;
+
   const ex = a.x + dx * t - p.x;
   const ez = a.z + dz * t - p.z;
 

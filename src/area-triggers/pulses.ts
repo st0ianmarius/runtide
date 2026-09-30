@@ -79,7 +79,7 @@ const ownBeats = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
 export const stepPulses = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  dt: number,
+  dt: number
 ): void => {
   const pulses = engine.registry.get(area.kind).every ?? NO_PULSES;
 

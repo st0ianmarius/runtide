@@ -102,7 +102,7 @@ const end = { x: 0, z: 0 };
 export const contactShare = <Unit>(
   selection: Selection<Unit>,
   table: UnitTable<Unit>,
-  slot: number,
+  slot: number
 ): number | undefined => {
   const { segment } = selection;
   const x = table.x[slot] ?? 0;

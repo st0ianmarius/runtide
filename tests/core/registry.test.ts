@@ -18,15 +18,15 @@ const spells = () =>
     {
       frostNova: defineSpell({ cooldown: 8, onHit: (target, scale) => target * scale }),
       blast: defineSpell({ windup: 1.2, cooldown: 5, tags: ['fire'], release: () => 3 }),
-      spark: defineSpell({ windup: 0.4, cooldown: 1, onHit: (target) => target + 1 }),
+      spark: defineSpell({ windup: 0.4, cooldown: 1, onHit: (target) => target + 1 })
     },
     {
       kind: 'spells',
       columns: {
         windup: { type: 'f64', of: (def) => def.windup ?? 0 },
-        cooldown: { type: 'u8', of: (def) => def.cooldown },
-      },
-    },
+        cooldown: { type: 'u8', of: (def) => def.cooldown }
+      }
+    }
   );
 
 describe('registry ids and lookups', () => {
@@ -120,7 +120,7 @@ describe('registry order is append-only', () => {
   it('keeps a retired slot as a tombstone, so later ids do not move', () => {
     const registry = createRegistry(
       { a: { r: 1 }, old: TOMBSTONE, b: { r: 2 } },
-      { columns: { r: { type: 'f32', of: (def) => def.r } } },
+      { columns: { r: { type: 'f32', of: (def) => def.r } } }
     );
 
     assert.equal(registry.id.b, 2);
@@ -135,7 +135,7 @@ describe('registry order is append-only', () => {
   it('takes a pinned order for a derived registry, whatever the key order', () => {
     const cooldowns = createRegistry(
       { second: { seconds: 2 }, first: { seconds: 1 } },
-      { kind: 'cooldowns', order: ['first', 'gone', 'second'] },
+      { kind: 'cooldowns', order: ['first', 'gone', 'second'] }
     );
 
     assert.deepEqual(cooldowns.id, { second: 2, first: 0 });

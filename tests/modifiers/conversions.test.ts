@@ -8,7 +8,7 @@ describe('rating conversions', () => {
     const stats = defineStats({
       level: { base: 1, kind: 'flat' },
       hitRating: { base: 0, kind: 'flat', converts: { to: 'hitChance', curve: rating(10) } },
-      hitChance: { base: 0.05, kind: 'flat', max: 1 },
+      hitChance: { base: 0.05, kind: 'flat', max: 1 }
     });
 
     const sources = defineSources(['gear']);
@@ -19,7 +19,7 @@ describe('rating conversions', () => {
 
     assert.deepEqual(
       stats.derivations[stats.id.hitChance]?.map((d) => [d.kind, d.from]),
-      [['converts', 1]],
+      [['converts', 1]]
     );
     assert.equal(system.resolve(sheet, stats.id.hitChance), 0.21);
   });
@@ -38,12 +38,12 @@ describe('rating conversions', () => {
             from: 'caster',
             points: [
               [1, 10],
-              [60, 15.8],
-            ],
-          }),
-        },
+              [60, 15.8]
+            ]
+          })
+        }
       },
-      hitChance: { base: 0, kind: 'flat' },
+      hitChance: { base: 0, kind: 'flat' }
     });
 
     const sources = defineSources(['gear']);
@@ -63,10 +63,13 @@ describe('rating conversions', () => {
           rating: {
             base: 0,
             kind: 'flat',
-            converts: { to: 'level', curve: linear({ base: 1, add: [{ stat: 'level', coef: 1, from: 'target' }] }) },
-          },
+            converts: {
+              to: 'level',
+              curve: linear({ base: 1, add: [{ stat: 'level', coef: 1, from: 'target' }] })
+            }
+          }
         }),
-      /no target here/,
+      /no target here/
     );
   });
 });

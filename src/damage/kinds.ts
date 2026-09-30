@@ -25,7 +25,7 @@ export interface DamageKindDef {
  */
 export const TRUE_DAMAGE: DamageKindDef = Object.freeze({
   bypass: Object.freeze(['mitigation', 'absorb']),
-  unrolled: Object.freeze(['avoid', 'block'] as const),
+  unrolled: Object.freeze(['avoid', 'block'] as const)
 });
 
 /** The game's damage kinds: dense ids by key order (the first is a blow's default), append-only like any registry. */
@@ -41,7 +41,7 @@ export type DamageKindTable<Name extends string = string> = Registry<
  * mitigation rows, ignore hooks and trigger filters read, and which stages each kind skips.
  */
 export const defineDamageKinds = <const Name extends string>(
-  kinds: Readonly<Record<Name, DamageKindDef>>,
+  kinds: Readonly<Record<Name, DamageKindDef>>
 ): DamageKindTable<Name> => {
   const table: Readonly<Record<string, DamageKindDef>> = kinds;
 

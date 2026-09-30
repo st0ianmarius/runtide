@@ -25,7 +25,7 @@ const valueFields = (value: CompiledValue): ValueFields => {
     neutral: 0,
     cap: Infinity,
     readId: -1,
-    readArg: 0,
+    readArg: 0
   };
 
   if (typeof value === 'number') {
@@ -35,7 +35,14 @@ const valueFields = (value: CompiledValue): ValueFields => {
   if (value.kind === 'stat') {
     const { stat, per, neutral } = value;
 
-    return { ...plain, valueKind: FROM_STAT, valueStat: stat, per, neutral, cap: value.cap ?? Infinity };
+    return {
+      ...plain,
+      valueKind: FROM_STAT,
+      valueStat: stat,
+      per,
+      neutral,
+      cap: value.cap ?? Infinity
+    };
   }
 
   return { ...plain, valueKind: FROM_HOST, readId: value.value, readArg: value.arg };
@@ -45,7 +52,7 @@ const valueFields = (value: CompiledValue): ValueFields => {
 export const entryOf = <Host>(
   tables: FoldTables<Host>,
   modifier: CompiledModifier,
-  at: { readonly source: SourceId; readonly gate: number; readonly shared?: SharedAt<Host> },
+  at: { readonly source: SourceId; readonly gate: number; readonly shared?: SharedAt<Host> }
 ): Entry<Host> => {
   const fields = valueFields(modifier.value);
   const { when } = modifier;
@@ -67,7 +74,7 @@ export const entryOf = <Host>(
     gate: at.gate,
     isLinear: modifier.stacking === 'linear',
     modifier,
-    shared: at.shared,
+    shared: at.shared
   };
 };
 
@@ -102,7 +109,7 @@ const checkAcyclic = <Host>(sheet: Sheet<Host>, lists: readonly Gathering<Host>[
     ...[...(lists[stat]?.adds ?? []), ...(lists[stat]?.muls ?? []), ...(lists[stat]?.mins ?? [])]
       .filter((entry) => entry.valueKind === FROM_STAT)
       .map((entry) => entry.valueStat),
-    ...(sheet.tables.shared.follows[stat] ?? []),
+    ...(sheet.tables.shared.follows[stat] ?? [])
   ];
 
   const state = new Uint8Array(sheet.tables.base.length);
@@ -172,7 +179,7 @@ const buildSheet = <Host>(sheet: Sheet<Host>): void => {
   checkAcyclic(sheet, lists);
 
   sheet.compiled = lists.map((stat): CompiledStat<Host> | undefined =>
-    stat.adds.length + stat.muls.length + stat.mins.length === 0 ? undefined : Object.freeze(stat),
+    stat.adds.length + stat.muls.length + stat.mins.length === 0 ? undefined : Object.freeze(stat)
   );
 
   sheet.isDirty = false;
@@ -225,6 +232,7 @@ export class SheetCaches<Host> {
   /** Gives a sheet a compiled cache for its lists: one another sheet built, else a new one it keeps for the next. */
   build(sheet: Sheet<Host>, revision: number): void {
     const entries = this.#entriesOf(sheet);
+
     const known = entries.find((entry) => entry.revision === revision && isSameLists(entry.lists, sheet.lists));
 
     if (known !== undefined) {

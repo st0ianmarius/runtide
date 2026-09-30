@@ -36,7 +36,7 @@ export const emptyBox = (): MutableBox => ({
   minX: Number.POSITIVE_INFINITY,
   minZ: Number.POSITIVE_INFINITY,
   maxX: Number.NEGATIVE_INFINITY,
-  maxZ: Number.NEGATIVE_INFINITY,
+  maxZ: Number.NEGATIVE_INFINITY
 });
 
 /** Grows `box` to hold the point `(x, z)`. */

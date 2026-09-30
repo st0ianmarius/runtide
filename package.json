@@ -92,9 +92,6 @@
       "default": "./dist/world/index.js"
     }
   },
-  "engines": {
-    "node": "^22.22.2 || >=24.15.0"
-  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.src.json",
     "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\" && tsc -p tsconfig.build.json",
@@ -107,16 +104,6 @@
     "bundle:check": "esbuild src/index.ts --bundle --platform=browser --format=esm --log-level=warning --outfile=/dev/null",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run build",
     "prepare": "simple-git-hooks"
-  },
-  "simple-git-hooks": {
-    "pre-commit": "npx lint-staged"
-  },
-  "lint-staged": {
-    "*.{ts,js}": [
-      "oxlint --fix --max-warnings 0",
-      "oxfmt --no-error-on-unmatched-pattern"
-    ],
-    "*.{json,md,yml,yaml}": "oxfmt --no-error-on-unmatched-pattern"
   },
   "dependencies": {
     "flatbush": "4.6.2",
@@ -136,5 +123,18 @@
     "simple-git-hooks": "2.14.0",
     "tinybench": "6.2.0",
     "typescript": "7.0.2"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "oxlint --fix --max-warnings 0",
+      "oxfmt --no-error-on-unmatched-pattern"
+    ],
+    "*.{json,md,yml,yaml}": "oxfmt --no-error-on-unmatched-pattern"
+  },
+  "engines": {
+    "node": "^22.22.2 || >=24.15.0"
   }
 }

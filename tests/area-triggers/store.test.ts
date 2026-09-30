@@ -8,7 +8,7 @@ import {
   type AreaTriggerHandle,
   type AreaTriggerSystem,
   NO_AREA_TRIGGER,
-  spawn,
+  spawn
 } from '../../src/area-triggers/index.ts';
 import { circle, vec2 } from '../../src/math/index.ts';
 import { type Game, makeSpellGame, spell, TICK_SLOTS } from '../helpers/spell-game.ts';
@@ -23,7 +23,10 @@ const allOf = (game: { readonly areaTriggers: AreaTriggerSystem<Game> }) => {
 
 /** A spell that spawns one area trigger of a kind at `(10, 0)` when it goes out. */
 const spawner = (kind: string) =>
-  spell({ activation: { kind: 'trigger' }, release: () => [spawn<Game>(kind, { at: vec2(10, 0) })] });
+  spell({
+    activation: { kind: 'trigger' },
+    release: () => [spawn<Game>(kind, { at: vec2(10, 0) })]
+  });
 
 /** A kind that logs each frame's `dt` and age, as `frame 0.25/0.5`. */
 const logged = (def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<Game> => ({
@@ -36,12 +39,13 @@ const logged = (def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<G
     return undefined;
   },
 
-  ...def,
+  ...def
 });
 
 describe('spawning', () => {
   it('spawns from a spell’s procs, owned by the caster, credited to the cast, holding the cast alive', () => {
     const game = makeSpellGame({ nova: spawner('pool') }, { areaTriggers: { pool: logged({ lifetime: 0.5 }) } });
+
     const caster = game.unit(1);
     const report = game.spells.cast(caster, game.id.nova);
     const { handle } = report;
@@ -66,7 +70,7 @@ describe('spawning', () => {
       'end nova@1 released',
       'frame 0.25/0.25',
       'frame 0.25/0.5',
-      'ended pool@1 expired',
+      'ended pool@1 expired'
     ]);
   });
 
@@ -82,10 +86,10 @@ describe('spawning', () => {
           pool: logged({
             init: (c, input) => {
               seen.push(`init ${c.id} ${input}`);
-            },
-          }),
-        },
-      },
+            }
+          })
+        }
+      }
     );
 
     const owner = game.unit(1);
@@ -117,11 +121,14 @@ describe('spawning', () => {
         {
           nova: spell({
             activation: { kind: 'trigger' },
-            release: () => [spawn<Game>('fork', { at: vec2(0, 0), now: 0.1 })],
+            release: () => [spawn<Game>('fork', { at: vec2(0, 0), now: 0.1 })]
           }),
-          spark: spell({ activation: { kind: 'trigger' }, release: () => [spawn<Game>('shard', { at: vec2(0, 0) })] }),
+          spark: spell({
+            activation: { kind: 'trigger' },
+            release: () => [spawn<Game>('shard', { at: vec2(0, 0) })]
+          })
         },
-        { areaTriggers: { fork: logged(), shard: logged() } },
+        { areaTriggers: { fork: logged(), shard: logged() } }
       );
 
       game.bus.on(game.bus.kind.areaSpawned, ({ areaTrigger }) => {
@@ -147,7 +154,13 @@ describe('spawning', () => {
 
     it('returns its own handle and flies nothing when it ended first, even if the nested spawn took its record', () => {
       const game = forkGame((handle) => game.areaTriggers.despawn(handle));
-      const handle = game.areaTriggers.spawn(game.areaId.fork, { owner: game.unit(1), at: vec2(0, 0), now: 0.1 });
+
+      const handle = game.areaTriggers.spawn(game.areaId.fork, {
+        owner: game.unit(1),
+        at: vec2(0, 0),
+        now: 0.1
+      });
+
       const [shard] = allOf(game);
 
       assert.equal(game.areaTriggers.get(handle), undefined);
@@ -164,9 +177,9 @@ describe('spawning', () => {
       {
         areaTriggers: {
           parent: logged({ state: () => ({ passes: 0 }), frame: () => [spawn<Game>('child')] }),
-          child: logged({ state: () => ({ own: true }), init: (c) => void states.push(c.state) }),
-        },
-      },
+          child: logged({ state: () => ({ own: true }), init: (c) => void states.push(c.state) })
+        }
+      }
     );
 
     const owner = game.unit(1);
@@ -200,14 +213,19 @@ describe('lifetime and expiry', () => {
       'frame 0.25/0.5',
       'frame 0.25/0.75',
       'frame 0.25/1',
-      'ended pool@1 expired',
+      'ended pool@1 expired'
     ]);
   });
 
   it('reads a lifetime function once, and lives forever when spent or owned until something ends it', () => {
     const game = makeSpellGame(
       {},
-      { areaTriggers: { timed: logged({ lifetime: (c) => c.rank / 4 }), spent: logged({ lifetime: 'spent' }) } },
+      {
+        areaTriggers: {
+          timed: logged({ lifetime: (c) => c.rank / 4 }),
+          spent: logged({ lifetime: 'spent' })
+        }
+      }
     );
 
     const owner = game.unit(1);
@@ -236,7 +254,7 @@ describe('the tick order', () => {
         }
 
         return c.age === 0.75 ? [spawn<Game>('child')] : undefined;
-      },
+      }
     }),
     b: logged({
       lifetime: 'spent',
@@ -245,7 +263,7 @@ describe('the tick order', () => {
         c.host.log.push(`b${c.id}`);
 
         return undefined;
-      },
+      }
     }),
     child: logged({
       lifetime: 'spent',
@@ -254,7 +272,7 @@ describe('the tick order', () => {
         c.host.log.push(`child${c.id}`);
 
         return undefined;
-      },
+      }
     }),
     late: logged({
       lifetime: 'spent',
@@ -264,8 +282,8 @@ describe('the tick order', () => {
         c.host.log.push(`late${c.id}`);
 
         return undefined;
-      },
-    }),
+      }
+    })
   };
 
   it('steps kind by kind in registry order, each in creation order', () => {
@@ -292,32 +310,34 @@ describe('the tick order', () => {
           c.host.log.push(`${name}${c.id}@${c.owner.id}`);
 
           return undefined;
-        },
+        }
       });
 
     const op = fc.record({
       kind: fc.constantFrom('a', 'b', 'child' as const),
       owner: fc.integer({ min: 1, max: 3 }),
       parent: fc.nat(),
-      despawn: fc.option(fc.nat(), { nil: undefined }),
+      despawn: fc.option(fc.nat(), { nil: undefined })
     });
 
     fc.assert(
       fc.property(fc.array(op, { minLength: 1, maxLength: 24 }), (ops) => {
         const game = makeSpellGame({}, { areaTriggers: { a: quiet('a'), b: quiet('b'), child: quiet('child') } });
+
         const owners = [game.unit(1), game.unit(2), game.unit(3)];
         const live: AreaTriggerHandle[] = [];
 
         for (const { kind, owner, parent, despawn } of ops) {
           const unit = owners[owner - 1] ?? game.unit(owner);
+
           const parentHandle = kind === 'child' ? live[parent % Math.max(1, live.length)] : undefined;
 
           live.push(
             game.areaTriggers.spawn(game.areaId[kind], {
               owner: unit,
               at: vec2(0, 0),
-              ...(parentHandle === undefined ? {} : { parent: parentHandle }),
-            }),
+              ...(parentHandle === undefined ? {} : { parent: parentHandle })
+            })
           );
 
           if (despawn !== undefined && live.length > 1) {
@@ -341,7 +361,7 @@ describe('the tick order', () => {
         const byOwner = owners.flatMap((unit) => whole.filter((line) => line.endsWith(`@${unit.id}`)));
 
         assert.deepEqual(game.log, byOwner);
-      }),
+      })
     );
   });
 
@@ -371,7 +391,7 @@ describe('the tick order', () => {
     game.log.length = 0;
     assert.deepEqual(
       [game.areaTriggers.countOf(one, game.areaId.b), game.areaTriggers.countOf(two, game.areaId.b)],
-      [0, 1],
+      [0, 1]
     );
     assert.deepEqual([game.areaTriggers.stepOwner(one), game.areaTriggers.stepOwner(two)], [0, 1]);
     assert.deepEqual(game.log, ['b2']);

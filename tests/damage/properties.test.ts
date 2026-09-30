@@ -11,7 +11,7 @@ const absorb = () =>
   aura({
     duration: 'infinite',
     keepWhenDepleted: true,
-    onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) }),
+    onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) })
   });
 
 /** Three absorbs, spent in this order. */
@@ -37,6 +37,7 @@ describe('absorbs, for any blow and any shells', () => {
           const before = names.map((name) => game.auras.find(target, game.id[name])?.value ?? 0);
           const blow = game.damage.hit({ target, amount, kind: game.damage.kinds.id.fire });
           const after = names.map((name) => game.auras.find(target, game.id[name])?.value ?? 0);
+
           const spent = before.reduce((sum, value, index) => sum + (value - (after[index] ?? 0)), 0);
 
           assert.ok(after.every((value) => value >= 0));
@@ -45,8 +46,8 @@ describe('absorbs, for any blow and any shells', () => {
           assert.ok(Math.abs(blow.amount + blow.absorbed - amount) <= 1e-9 * amount);
           assert.equal(target.hp, 1000 - blow.amount);
           assert.equal(blow.status, blow.amount === 0 ? 'absorbed' : 'landed');
-        },
-      ),
+        }
+      )
     );
   });
 });
@@ -59,7 +60,7 @@ describe('true damage, for any defence', () => {
         fc.record({
           armor: fc.integer({ min: -100, max: 500 }),
           taken: fc.double({ min: 0, max: 3, noNaN: true }),
-          shell: fc.nat(100),
+          shell: fc.nat(100)
         }),
         (amount, defence) => {
           const game = makeDamageGame(ABSORBS, { rolls: BLOCK });
@@ -77,10 +78,10 @@ describe('true damage, for any defence', () => {
           assert.equal(game.auras.find(target, game.id.first)?.value, defence.shell);
           assert.deepEqual(
             game.log.filter((line) => line.startsWith('roll')),
-            [],
+            []
           );
-        },
-      ),
+        }
+      )
     );
   });
 });
@@ -102,7 +103,7 @@ describe('armor, for any rating at or above zero', () => {
 
         assert.ok(lighter <= amount);
         assert.ok(heavier <= lighter);
-      }),
+      })
     );
   });
 });
@@ -115,22 +116,28 @@ describe('game stage positions, for any declarations', () => {
 
     fc.assert(
       fc.property(
-        fc.array(fc.record({ side: fc.constantFrom('before', 'after'), anchor: fc.constantFrom(...anchors) }), {
-          maxLength: 8,
-        }),
+        fc.array(
+          fc.record({
+            side: fc.constantFrom('before', 'after'),
+            anchor: fc.constantFrom(...anchors)
+          }),
+          {
+            maxLength: 8
+          }
+        ),
         (specs) => {
           const stages = Object.fromEntries(
             specs.map((spec, index) => [
               `game${index}`,
-              spec.side === 'before' ? { before: spec.anchor, run: noop } : { after: spec.anchor, run: noop },
-            ]),
+              spec.side === 'before' ? { before: spec.anchor, run: noop } : { after: spec.anchor, run: noop }
+            ])
           );
 
           const order = makeDamageGame({}, { stages }).damage.stages;
 
           assert.deepEqual(
             order.filter((name) => !name.startsWith('game')),
-            [...builtIn],
+            [...builtIn]
           );
 
           specs.forEach((spec, index) => {
@@ -139,8 +146,8 @@ describe('game stage positions, for any declarations', () => {
 
             assert.ok(spec.side === 'before' ? at < anchor : at > anchor);
           });
-        },
-      ),
+        }
+      )
     );
   });
 });

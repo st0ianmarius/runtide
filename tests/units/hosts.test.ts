@@ -9,7 +9,7 @@ const TEMPLATES = {
   grunt: { tags: ['horde'] },
   elite: { tags: ['elite'] },
   boss: { tags: ['boss'] },
-  wall: {},
+  wall: {}
 } satisfies Record<string, UnitDef<UnitGame>>;
 
 describe('every unit folds', () => {
@@ -103,15 +103,18 @@ describe('an aura application policy', () => {
         }
 
         return application.aura === auraId('freeze') && units.hasTag(unit, 'elite')
-          ? { apply: { ...application, duration: 0.75 }, after: [{ aura: auraId('freezeImmune'), duration: 1.5 }] }
+          ? {
+              apply: { ...application, duration: 0.75 },
+              after: [{ aura: auraId('freezeImmune'), duration: 1.5 }]
+            }
           : undefined;
-      },
+      }
     });
 
     const { auras, units } = game;
 
     const [grunt, elite, boss] = [game.id.grunt, game.id.elite, game.id.boss].map((template) =>
-      units.spawn(template, { side: 1 }),
+      units.spawn(template, { side: 1 })
     );
 
     assert.ok(grunt !== undefined && elite !== undefined && boss !== undefined);

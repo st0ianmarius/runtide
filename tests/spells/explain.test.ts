@@ -30,38 +30,44 @@ const SPELLS = () =>
         ranks: 3,
         stats: {
           damage: scaled(ranks(10, 20, 30), add('power', 0.5), add('maxHealth', 0.1, { from: 'target' })),
-          radius: 4,
+          radius: 4
         },
         scaling: { damage: 1.1 },
-        timeline: { channel: { seconds: 2, every: 0.5 }, recover: { seconds: (ctx) => ctx.stats.radius } },
-        release: () => undefined,
+        timeline: {
+          channel: { seconds: 2, every: 0.5 },
+          recover: { seconds: (ctx) => ctx.stats.radius }
+        },
+        release: () => undefined
       }),
       swing: spell({
         activation: { kind: 'auto', interval: 1.5 },
         stats: (ctx) => ({ reach: 2 + ctx.rank, label: 'unused' }),
-        release: () => undefined,
+        release: () => undefined
       }),
       slam: spell({
         activation: { kind: 'button', commitsOn: 'cast' },
         cooldown: [
           { aura: 'slamCooldown', seconds: 3 },
           { aura: 'global', seconds: (ctx) => 1 + ctx.rank, startsOn: 'release' },
-          { aura: 'rage' },
+          { aura: 'rage' }
         ],
         reach: { range: 8, minRange: (ctx) => ctx.rank, sight: true, allows: () => true },
         target: () => ({ x: 0, z: 0 }),
         timeline: { windup: { seconds: 1.2, track: lockBefore(0.3) }, recover: { seconds: 0.5 } },
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     },
-    { tags: SPELL_TAGS, stats: STATS },
+    { tags: SPELL_TAGS, stats: STATS }
   );
 
 describe('stat previews', () => {
   it("evaluates a table at a rank against the stat table's bases, with no world", () => {
     const registry = SPELLS();
 
-    assert.deepEqual(previewStats(registry, registry.id.nova, { rank: 2 }), { damage: 25, radius: 4 });
+    assert.deepEqual(previewStats(registry, registry.id.nova, { rank: 2 }), {
+      damage: 25,
+      radius: 4
+    });
   });
 
   it("reads the given caster's stats, and a target's to finish target terms", () => {
@@ -71,16 +77,19 @@ describe('stat previews', () => {
       previewStats(registry, registry.id.nova, {
         rank: 3,
         view: statsWith({ power: 20 }),
-        target: statsWith({ maxHealth: 300 }),
+        target: statsWith({ maxHealth: 300 })
       }),
-      { damage: 30 + 10 + 30, radius: 4 },
+      { damage: 30 + 10 + 30, radius: 4 }
     );
   });
 
   it('calls a stats function with the rank and no caster', () => {
     const registry = SPELLS();
 
-    assert.deepEqual(previewStats(registry, registry.id.swing, { rank: 2 }), { reach: 4, label: 'unused' });
+    assert.deepEqual(previewStats(registry, registry.id.swing, { rank: 2 }), {
+      reach: 4,
+      label: 'unused'
+    });
     assert.deepEqual(previewStats(registry, registry.id.slam), {});
   });
 });
@@ -93,9 +102,17 @@ describe('explainSpell', () => {
     assert.equal(explained.kind, 'spell');
     assert.equal(explained.rank, 2);
     assert.deepEqual(explained.tags, [SPELL_TAGS.id.fire, SPELL_TAGS.id.area]);
-    assert.deepEqual(explained.activation, { kind: registry.activations.id['trigger'], values: {} });
+    assert.deepEqual(explained.activation, {
+      kind: registry.activations.id['trigger'],
+      values: {}
+    });
     assert.deepEqual(explained.scaling, [{ stat: STATS.id.damage, share: 1.1 }]);
-    assert.deepEqual(explained.timeline, { windup: undefined, channel: 2, every: 0.5, recover: 'cast' });
+    assert.deepEqual(explained.timeline, {
+      windup: undefined,
+      channel: 2,
+      every: 0.5,
+      recover: 'cast'
+    });
 
     const [damage, radius] = explained.stats;
 
@@ -108,8 +125,8 @@ describe('explainSpell', () => {
       damage.value.terms.map((term) => [term.stat, term.coef, term.from]),
       [
         [STATS.id.power, 0.5, 'caster'],
-        [STATS.id.maxHealth, 0.1, 'target'],
-      ],
+        [STATS.id.maxHealth, 0.1, 'target']
+      ]
     );
     assert.equal(radius?.key, 'radius');
   });
@@ -126,10 +143,15 @@ describe('explainSpell', () => {
     assert.deepEqual(slam.cooldowns, [
       { aura: 'slamCooldown', seconds: 3, startsOn: 'start' },
       { aura: 'global', seconds: 'cast', startsOn: 'release' },
-      { aura: 'rage', seconds: 'aura', startsOn: 'start' },
+      { aura: 'rage', seconds: 'aura', startsOn: 'start' }
     ]);
     assert.deepEqual(slam.reach, { range: 8, minRange: 'cast', sight: true, hasRule: true });
     assert.deepEqual(swing.cooldowns, []);
-    assert.deepEqual(swing.reach, { range: undefined, minRange: undefined, sight: false, hasRule: false });
+    assert.deepEqual(swing.reach, {
+      range: undefined,
+      minRange: undefined,
+      sight: false,
+      hasRule: false
+    });
   });
 });

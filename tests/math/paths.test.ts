@@ -18,7 +18,7 @@ import {
   type Shape,
   type TickPath,
   union,
-  vec2,
+  vec2
 } from '../../src/math/index.ts';
 
 /** The seconds a body on `path` spends inside `shape`: the sum of its intervals. */
@@ -50,7 +50,7 @@ describe('boundsOf', () => {
       minX: -1,
       minZ: -1,
       maxX: 1,
-      maxZ: 10,
+      maxZ: 10
     });
   });
 
@@ -58,8 +58,18 @@ describe('boundsOf', () => {
     const square = polygon([vec2(0, 0), vec2(2, 0), vec2(2, 2), vec2(0, 2)], 1);
 
     assert.deepEqual(boundsOf(square), { minX: -1, minZ: -1, maxX: 3, maxZ: 3 });
-    assert.deepEqual(boundsOf(union(circle(1), circle(1, vec2(10, 0)))), { minX: -1, minZ: -1, maxX: 11, maxZ: 1 });
-    assert.deepEqual(boundsOf(difference(circle(2), circle(1))), { minX: -2, minZ: -2, maxX: 2, maxZ: 2 });
+    assert.deepEqual(boundsOf(union(circle(1), circle(1, vec2(10, 0)))), {
+      minX: -1,
+      minZ: -1,
+      maxX: 11,
+      maxZ: 1
+    });
+    assert.deepEqual(boundsOf(difference(circle(2), circle(1))), {
+      minX: -2,
+      minZ: -2,
+      maxX: 2,
+      maxZ: 2
+    });
     assert.equal(boundsOf(outside(circle(1))).maxX, Number.POSITIVE_INFINITY);
   });
 
@@ -112,7 +122,7 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
     close(secondsInside(outside(circle(5)), across), 1);
     close(
       secondsInside(difference(lane({ length: 20, width: 2, dir: Math.PI / 2, at: vec2(-10, 0) }), circle(2)), across),
-      1.6,
+      1.6
     );
   });
 
@@ -141,7 +151,7 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
       to: vec2(0, -5.943511983007753),
       t0: 0,
       t1: 1,
-      radius: 0.9999999578531515,
+      radius: 0.9999999578531515
     };
 
     // Solving the inner rim as b² − a(o·o − r²) lost r² ≈ 2e-15 against o·o ≈ 22, dropping both crossings.
@@ -170,7 +180,7 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
       cone({ r: 5, half: 0.6, dir: 0.3, apex: 0.5 }),
       lane({ length: 6, width: 2, dir: 1, back: 1 }),
       polygon([vec2(0, 0), vec2(4, 1), vec2(3, 4), vec2(-1, 3)], 0.5),
-      difference(circle(4), ring(1, 2)),
+      difference(circle(4), ring(1, 2))
     ];
 
     const coordinate = fc.double({ min: -8, max: 8, noNaN: true });
@@ -187,10 +197,11 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
 
           const isInside = (t: number) =>
             Array.from({ length: count }, (_unused, i) => i).some(
-              (i) => (out[i * 2] ?? 0) <= t && t <= (out[i * 2 + 1] ?? 0),
+              (i) => (out[i * 2] ?? 0) <= t && t <= (out[i * 2 + 1] ?? 0)
             );
 
           const isNearEdge = (t: number) => out.slice(0, count * 2).some((edge) => Math.abs(edge - t) < 1e-6);
+
           const coversAt = (t: number) => covers(shape, vec2(ax + (bx - ax) * t, az + (bz - az) * t), radius);
 
           // A sample a rim passes within a hair of is skipped too: pathIntervals joins gaps under 1e-12 of the path
@@ -204,8 +215,8 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
               assert.equal(isInside(t), coversAt(t));
             }
           }
-        },
-      ),
+        }
+      )
     );
   });
 });

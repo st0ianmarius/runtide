@@ -13,14 +13,14 @@ const setUp = () => {
   const stats = defineStats({
     damage: { base: 1, kind: 'multiplier' },
     armor: { base: 0, kind: 'flat' },
-    speed: { base: 6, kind: 'flat' },
+    speed: { base: 6, kind: 'flat' }
   });
 
   const modifiers = createModifierSystem({
     stats,
     sources: defineSources(['base', 'auras', 'late']),
     stacks: auraStacks,
-    held: auraGates,
+    held: auraGates
   });
 
   return makeGame(
@@ -32,11 +32,20 @@ const setUp = () => {
       haste: aura({ duration: 3, modifiers: [mul('speed', 1.3)] }),
       might: aura({ duration: 3, modifiers: [mul('damage', 1.3)] }),
       ghost: aura({ duration: 3, predicted: true }),
-      dash: aura({ duration: 1, predicted: true, onLand: () => undefined, modifiers: [plus('speed', 2)] }),
-      sprint: aura({ duration: 1, predicted: true, modifiers: [mul('speed', 1.5), plus('armor', 3)] }),
-      halo: aura({ duration: 3, tags: ['boon'] }),
+      dash: aura({
+        duration: 1,
+        predicted: true,
+        onLand: () => undefined,
+        modifiers: [plus('speed', 2)]
+      }),
+      sprint: aura({
+        duration: 1,
+        predicted: true,
+        modifiers: [mul('speed', 1.5), plus('armor', 3)]
+      }),
+      halo: aura({ duration: 3, tags: ['boon'] })
     },
-    { modifiers, fold: 'auras' },
+    { modifiers, fold: 'auras' }
   );
 };
 
@@ -47,7 +56,7 @@ describe('the predicted rule', () => {
     const report = checkPredicted({
       auras,
       abilities: { mirrorReads: { auras: [id.cooldown, id.charge], tags: [TAGS.id.boon] } },
-      motion: { tags: ['stun'], stats: ['speed'] },
+      motion: { tags: ['stun'], stats: ['speed'] }
     });
 
     assert.deepEqual(report, {
@@ -55,12 +64,12 @@ describe('the predicted rule', () => {
         { aura: id.charge, reason: 'aura' },
         { aura: id.snare, reason: 'tag' },
         { aura: id.haste, reason: 'stat' },
-        { aura: id.halo, reason: 'tag' },
+        { aura: id.halo, reason: 'tag' }
       ],
       unread: [id.ghost],
       unsafe: [],
       unseedable: [id.dash],
-      inexact: [id.dash],
+      inexact: [id.dash]
     });
   });
 
@@ -79,7 +88,7 @@ describe('the predicted rule', () => {
       unread: [id.dash],
       unsafe: [],
       unseedable: [id.dash],
-      inexact: [],
+      inexact: []
     });
 
     const motion = { tags: ['stun' as const] };
@@ -93,13 +102,13 @@ describe('mirror-safe conditions on predicted auras', () => {
   it('reports a predicted aura whose modifier waits on a condition the mirror may not evaluate', () => {
     const conditions = defineConditions({
       grounded: { test: () => true, mirrorSafe: true },
-      lucky: () => true,
+      lucky: () => true
     });
 
     const stats = defineStats({
       damage: { base: 1, kind: 'multiplier' },
       armor: { base: 0, kind: 'flat' },
-      speed: { base: 6, kind: 'flat' },
+      speed: { base: 6, kind: 'flat' }
     });
 
     const modifiers = createModifierSystem({
@@ -107,7 +116,7 @@ describe('mirror-safe conditions on predicted auras', () => {
       sources: defineSources(['base', 'auras', 'late']),
       conditions,
       stacks: auraStacks,
-      held: auraGates,
+      held: auraGates
     });
 
     /** A speed modifier waiting on a game condition (the test game's types name none, so it is set by hand). */
@@ -123,12 +132,16 @@ describe('mirror-safe conditions on predicted auras', () => {
       {
         dash: aura({ duration: 1, predicted: true, modifiers: [speedWhen('grounded')] }),
         gamble: aura({ duration: 1, predicted: true, modifiers: [speedWhen('lucky')] }),
-        fling: aura({ duration: 1, modifiers: [speedWhen('lucky')] }),
+        fling: aura({ duration: 1, modifiers: [speedWhen('lucky')] })
       },
-      { modifiers, fold: 'auras' },
+      { modifiers, fold: 'auras' }
     );
 
-    const report = checkPredicted({ auras, motion: { stats: ['speed'] }, conditions: { conditions } });
+    const report = checkPredicted({
+      auras,
+      motion: { stats: ['speed'] },
+      conditions: { conditions }
+    });
 
     assert.deepEqual(report.unsafe, [id.gamble]);
     assert.deepEqual(report.unpredicted, [{ aura: id.fling, reason: 'stat' }]);
@@ -147,19 +160,23 @@ describe('what a press reads (abilities.mirrorReads)', () => {
           cost: { aura: auraNamed('charge') },
           applies: [auraNamed('sprint')],
           requires: ['stance'],
-          resets: ['cooldown.dodge'],
+          resets: ['cooldown.dodge']
         },
         cooldown: { aura: 'skillCooldown', seconds: 4 },
-        release,
+        release
       }),
-      bolt: spell({ activation: { kind: 'trigger' }, cooldown: { aura: 'ultimateCooldown' }, release }),
+      bolt: spell({
+        activation: { kind: 'trigger' },
+        cooldown: { aura: 'ultimateCooldown' },
+        release
+      })
     });
 
     const { tags } = game.auras;
 
     assert.deepEqual(game.abilities.mirrorReads, {
       auras: ['skillCooldown', 'charge'].map(auraNamed),
-      tags: [tags.id['cooldown.dodge'], tags.id.stance],
+      tags: [tags.id['cooldown.dodge'], tags.id.stance]
     });
   });
 });

@@ -47,7 +47,7 @@ describe('the heal pipeline', () => {
             before: 'done',
 
             run: (heal, damage) =>
-              damage.auras.hasTag(heal.target, damage.auras.tags.id.wound) ? 'blocked' : undefined,
+              damage.auras.hasTag(heal.target, damage.auras.tags.id.wound) ? 'blocked' : undefined
           },
 
           halve: {
@@ -57,10 +57,10 @@ describe('the heal pipeline', () => {
               heal.amount /= 2;
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     const [target, wounded] = [unit(1), unit(9)];
@@ -77,7 +77,7 @@ describe('the heal pipeline', () => {
       'incoming',
       'halve',
       'health',
-      'outcome',
+      'outcome'
     ]);
     assert.equal(damage.heal({ target, amount: 10 }).amount, 5);
     assert.deepEqual([damage.heal({ target: wounded, amount: 10 }).status, wounded.hp], ['blocked', 50]);
@@ -86,7 +86,11 @@ describe('the heal pipeline', () => {
   it('raises the heal event for a landed or a blocked heal, never a skipped one', () => {
     const { damage, unit, bus, log } = makeDamageGame(
       {},
-      { healStages: { ward: { before: 'done', run: (heal) => (heal.target.id === 2 ? 'blocked' : undefined) } } },
+      {
+        healStages: {
+          ward: { before: 'done', run: (heal) => (heal.target.id === 2 ? 'blocked' : undefined) }
+        }
+      }
     );
 
     const [target, warded] = [unit(1), unit(2)];
@@ -104,12 +108,15 @@ describe('the heal pipeline', () => {
 describe('the heal hooks', () => {
   it('change a heal from the healer’s side, then the target’s: a heal absorb spends its value', () => {
     const { damage, auras, id, unit } = makeDamageGame({
-      blessed: aura({ duration: 5, onOutgoingHeal: (ctx) => (ctx.other?.id === 1 ? { scale: 2 } : undefined) }),
+      blessed: aura({
+        duration: 5,
+        onOutgoingHeal: (ctx) => (ctx.other?.id === 1 ? { scale: 2 } : undefined)
+      }),
       necrotic: aura({
         duration: 5,
         value: 15,
-        onIncomingHeal: (ctx, heal) => ({ absorb: Math.min(ctx.aura.value, heal.amount) }),
-      }),
+        onIncomingHeal: (ctx, heal) => ({ absorb: Math.min(ctx.aura.value, heal.amount) })
+      })
     });
 
     const [target, healer] = [unit(1), unit(2)];
@@ -140,7 +147,7 @@ describe('the game’s own aura hooks', () => {
     const { auras, id, unit } = makeDamageGame({
       taunt: aura({ duration: 5, on: { onThreat: () => 10 } }),
       menace: aura({ duration: 5, on: { onThreat: (ctx) => ctx.aura.stacks * 2 } }),
-      plain: aura({ duration: 5 }),
+      plain: aura({ duration: 5 })
     });
 
     const tank = unit(1);
@@ -171,7 +178,7 @@ describe('setHealth', () => {
   it('bypasses the heal stages', () => {
     const { damage, auras, id, unit, set } = makeDamageGame(
       { wounded: aura({ duration: 5, tags: ['wound'] }) },
-      HEALING,
+      HEALING
     );
 
     const target = unit(1);
@@ -199,7 +206,10 @@ describe('the force pipeline', () => {
   it('goes through the target’s onIncomingForce hooks, then the host moves the unit', () => {
     const { damage, auras, id, unit, log } = makeDamageGame({
       heavy: aura({ duration: 5, onIncomingForce: () => ({ scale: 0.5 }) }),
-      rooted: aura({ duration: 5, onIncomingForce: (_ctx, force) => ({ isCancelled: force.kind === 'pull' }) }),
+      rooted: aura({
+        duration: 5,
+        onIncomingForce: (_ctx, force) => ({ isCancelled: force.kind === 'pull' })
+      })
     });
 
     const target = unit(1);
@@ -209,7 +219,7 @@ describe('the force pipeline', () => {
 
     assert.deepEqual(
       [damage.force({ target, strength: 4 }).amount, damage.force({ target, strength: 4, kind: 'pull' }).status],
-      [2, 'ignored'],
+      [2, 'ignored']
     );
     assert.equal(damage.force({ target, strength: 0 }).status, 'skipped');
     assert.deepEqual(log, ['force knock 2@1']);
@@ -220,7 +230,10 @@ describe('the force pipeline', () => {
       {},
       {
         forceStages: {
-          immovable: { before: 'resist', run: (force) => (force.target.id === 7 ? 'ignored' : undefined) },
+          immovable: {
+            before: 'resist',
+            run: (force) => (force.target.id === 7 ? 'ignored' : undefined)
+          },
 
           cap: {
             before: 'apply',
@@ -229,10 +242,10 @@ describe('the force pipeline', () => {
               force.amount = Math.min(force.amount, 1.5);
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     damage.force({ target: unit(7), strength: 3 });
@@ -252,12 +265,17 @@ describe('the force pipeline', () => {
 
             run: (blow, system) => {
               if (blow.status === 'landed') {
-                system.force({ target: blow.target, strength: 0.5, direction: blow.direction, blow });
+                system.force({
+                  target: blow.target,
+                  strength: 0.5,
+                  direction: blow.direction,
+                  blow
+                });
               }
 
               return undefined;
-            },
-          },
+            }
+          }
         },
 
         forceStages: {
@@ -268,10 +286,10 @@ describe('the force pipeline', () => {
               seen.push(`${force.amount} ${force.direction?.x},${force.direction?.z} ${force.blow?.amount}`);
 
               return undefined;
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     );
 
     damage.hit({ target: unit(1), amount: 5, direction: { x: 1, z: 0 } });
@@ -288,9 +306,9 @@ describe('the death pipeline', () => {
       {
         death: {
           before: [(death) => order.push(`souls ${death.unit.id}`)],
-          after: [(death) => order.push(`loot ${death.blow?.dealt}`)],
-        },
-      },
+          after: [(death) => order.push(`loot ${death.blow?.dealt}`)]
+        }
+      }
     );
 
     const [target, killer] = [unit(1), unit(2)];

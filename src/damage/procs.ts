@@ -136,29 +136,29 @@ export interface DamageProcKinds<G extends DamageTypes> {
 /** A `damage` proc: `damage(40, { damageKind: 'fire', andThen: [applyAura('chilled')] })`. */
 export const damage = <G extends DamageTypes = DamageTypes>(
   amount: ProcAmount,
-  options: Omit<DamageProc<G>, 'kind' | 'amount'> = {},
+  options: Omit<DamageProc<G>, 'kind' | 'amount'> = {}
 ): DamageProc<G> => ({ ...options, kind: 'damage', amount });
 
 /** A `heal` proc: `heal(25)`, or `heal(0.2, { of: 'maxHealth' })`. */
 export const heal = <G extends DamageTypes = DamageTypes>(
   amount: ProcAmount,
-  options: Omit<HealProc<G>, 'kind' | 'amount'> = {},
+  options: Omit<HealProc<G>, 'kind' | 'amount'> = {}
 ): HealProc<G> => ({ ...options, kind: 'heal', amount });
 
 /** A `setHealth` proc: `setHealth({ share: 0.3 })`. */
 export const setHealth = <G extends DamageTypes = DamageTypes>(
   health: SetHealthProc<G>['health'],
-  options: Omit<SetHealthProc<G>, 'kind' | 'health'> = {},
+  options: Omit<SetHealthProc<G>, 'kind' | 'health'> = {}
 ): SetHealthProc<G> => ({ ...options, kind: 'setHealth', health });
 
 /** A push along a direction: `push(3, { direction })`, or away from a point the game's `applyForce` reads. */
 export const push = <G extends DamageTypes = DamageTypes>(
   strength: number,
-  options: Omit<ForceProc<G>, 'kind' | 'force' | 'strength'> = {},
+  options: Omit<ForceProc<G>, 'kind' | 'force' | 'strength'> = {}
 ): ForceProc<G> => ({ ...options, kind: 'force', force: 'push', strength });
 
 /** A pull toward a point, or toward the list's self when the proc names none: `pull(2)`. */
 export const pull = <G extends DamageTypes = DamageTypes>(
   strength: number,
-  options: Omit<ForceProc<G>, 'kind' | 'force' | 'strength'> = {},
+  options: Omit<ForceProc<G>, 'kind' | 'force' | 'strength'> = {}
 ): ForceProc<G> => ({ ...options, kind: 'force', force: 'pull', strength });

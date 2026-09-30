@@ -15,7 +15,7 @@ import {
   ring,
   type Shape,
   union,
-  vec2,
+  vec2
 } from '../../src/math/index.ts';
 
 describe('covers: base shapes', () => {
@@ -107,19 +107,22 @@ describe('covers: shape algebra', () => {
 
   const shapes = fc.oneof(
     fc
-      .record({ r: fc.double({ min: 0.1, max: 5, noNaN: true }), x: fc.integer({ min: -5, max: 5 }) })
+      .record({
+        r: fc.double({ min: 0.1, max: 5, noNaN: true }),
+        x: fc.integer({ min: -5, max: 5 })
+      })
       .map(({ r, x }) => circle(r, vec2(x, 0))),
     fc
       .record({
         inner: fc.double({ min: 0, max: 2, noNaN: true }),
-        outer: fc.double({ min: 2.1, max: 6, noNaN: true }),
+        outer: fc.double({ min: 2.1, max: 6, noNaN: true })
       })
-      .map(({ inner, outer }) => ring(inner, outer)),
+      .map(({ inner, outer }) => ring(inner, outer))
   );
 
   const points = fc.record({
     x: fc.double({ min: -10, max: 10, noNaN: true }),
-    z: fc.double({ min: -10, max: 10, noNaN: true }),
+    z: fc.double({ min: -10, max: 10, noNaN: true })
   });
 
   it('round-trips the algebra on bare points', () => {
@@ -130,7 +133,7 @@ describe('covers: shape algebra', () => {
         assert.equal(covers(difference(a, b), p), covers(a, p) && !covers(b, p));
         assert.equal(covers(difference(a, a), p), false);
         assert.equal(covers(union(a, outside(a)), p), true);
-      }),
+      })
     );
   });
 });

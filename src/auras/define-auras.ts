@@ -5,7 +5,7 @@ import {
   createRegistry,
   type Registry,
   TOMBSTONE,
-  type Tombstone,
+  type Tombstone
 } from '../core/index.ts';
 import { recordOf } from '../core/records.ts';
 import type { AuraDef, AuraStacking } from './aura-def.ts';
@@ -62,7 +62,7 @@ export const AURA_HOOKS = [
   'onDealt',
   'onIncomingForce',
   'onOutgoingHeal',
-  'onIncomingHeal',
+  'onIncomingHeal'
 ] as const;
 
 /**
@@ -178,7 +178,7 @@ const liveDef = <G extends AuraTypes>(entry: AuraDef<G> | Tombstone | undefined)
 const columnOf = <G extends AuraTypes, C extends Column>(
   column: C,
   slots: readonly (AuraDef<G> | undefined)[],
-  of: (def: AuraDef<G>) => number,
+  of: (def: AuraDef<G>) => number
 ): C => {
   for (const [index, def] of slots.entries()) {
     column[index] = def === undefined ? 0 : of(def);
@@ -192,13 +192,13 @@ const buildColumns = <G extends AuraTypes>(slots: readonly (AuraDef<G> | undefin
   stacking: columnOf(new Uint8Array(slots.length), slots, stackingCode),
   maxStacks: columnOf(new Uint16Array(slots.length), slots, (def) => def.maxStacks ?? 1),
   merge: columnOf(new Uint8Array(slots.length), slots, mergeCode),
-  flags: columnOf(new Uint8Array(slots.length), slots, flagsOf),
+  flags: columnOf(new Uint8Array(slots.length), slots, flagsOf)
 });
 
 /** The dispatch table of one hook. */
 const tableOf = <G extends AuraTypes, Hook extends AuraHookName>(
   slots: readonly (AuraDef<G> | undefined)[],
-  hook: Hook,
+  hook: Hook
 ): readonly (AuraDef<G>[Hook] | undefined)[] => {
   const table = slots.map((def) => def?.[hook]);
 
@@ -224,12 +224,12 @@ const buildHooks = <G extends AuraTypes>(slots: readonly (AuraDef<G> | undefined
   onDealt: tableOf(slots, 'onDealt'),
   onIncomingForce: tableOf(slots, 'onIncomingForce'),
   onOutgoingHeal: tableOf(slots, 'onOutgoingHeal'),
-  onIncomingHeal: tableOf(slots, 'onIncomingHeal'),
+  onIncomingHeal: tableOf(slots, 'onIncomingHeal')
 });
 
 /** The dispatch table and `has` bitset of each of the game's own hooks, by name: every name an aura's `on` uses. */
 const buildGameHooks = <G extends AuraTypes>(
-  slots: readonly (AuraDef<G> | undefined)[],
+  slots: readonly (AuraDef<G> | undefined)[]
 ): { readonly on: GameHookTables<G>; readonly hasOn: Readonly<Record<string, Bitset>> } => {
   const names = [...new Set(slots.flatMap((def) => Object.keys(def?.on ?? {})))].toSorted();
 
@@ -251,10 +251,10 @@ const buildGameHooks = <G extends AuraTypes>(
             const hook = hookOf(def, name);
 
             return isHook(hook) ? hook : undefined;
-          }),
-        ),
-      ]),
-    ),
+          })
+        )
+      ])
+    )
   );
 
   if (!isGameTables<G>(on)) {
@@ -267,10 +267,10 @@ const buildGameHooks = <G extends AuraTypes>(
       Object.fromEntries(
         names.map((name) => [
           name,
-          createBitset(slots.flatMap((def, index) => (hookOf(def, name) === undefined ? [] : [index]))),
-        ]),
-      ),
-    ),
+          createBitset(slots.flatMap((def, index) => (hookOf(def, name) === undefined ? [] : [index])))
+        ])
+      )
+    )
   };
 };
 
@@ -285,10 +285,10 @@ const isGameTables = <G extends AuraTypes>(tables: object): tables is GameHookTa
 
 /** The `has` bitset of every hook. */
 const buildHas = <G extends AuraTypes>(
-  slots: readonly (AuraDef<G> | undefined)[],
+  slots: readonly (AuraDef<G> | undefined)[]
 ): Readonly<Record<AuraHookName, Bitset>> =>
   recordOf(AURA_HOOKS, (hook) =>
-    createBitset(slots.flatMap((def, index) => (def?.[hook] === undefined ? [] : [index]))),
+    createBitset(slots.flatMap((def, index) => (def?.[hook] === undefined ? [] : [index])))
   );
 
 /**
@@ -304,7 +304,7 @@ export const defineAuras = <G extends AuraTypes, const Name extends string>(
 
     /** Whether to deep-freeze every definition; true by default. */
     readonly freeze?: boolean;
-  } = {},
+  } = {}
 ): AuraRegistry<G, Name> => {
   const byName = new Map(Object.entries<AuraDef<G> | Tombstone>(defs));
 
@@ -316,7 +316,11 @@ export const defineAuras = <G extends AuraTypes, const Name extends string>(
 
   // The core registry assigns the ids, pins the order and freezes; the typed tables are built here, since the core's
   // hook typing cannot see through a generic `G`.
-  const base = createRegistry<Readonly<Record<string, object>>, 'auras'>(defs, { kind: 'auras', ...options });
+  const base = createRegistry<Readonly<Record<string, object>>, 'auras'>(defs, {
+    kind: 'auras',
+    ...options
+  });
+
   const slots = Object.freeze(base.names.map((name) => liveDef(byName.get(name))));
 
   return Object.freeze({
@@ -332,6 +336,6 @@ export const defineAuras = <G extends AuraTypes, const Name extends string>(
     columns: buildColumns(slots),
     hooks: buildHooks(slots),
     has: buildHas(slots),
-    ...buildGameHooks(slots),
+    ...buildGameHooks(slots)
   });
 };

@@ -9,7 +9,7 @@ import { makeUnitGame, type UnitGame } from '../helpers/unit-game.ts';
 const aiSpell = (canCast?: () => boolean): AnySpellDef<UnitGame> => ({
   activation: { kind: 'trigger' },
   ...(canCast === undefined ? {} : { canCast }),
-  release: () => undefined,
+  release: () => undefined
 });
 
 /** A draw that always answers `value`. */
@@ -21,7 +21,7 @@ const picking = () => {
 
   const game = makeUnitGame(
     { beast: {} },
-    { spells: { slam: aiSpell(), bolt: aiSpell(), nova: aiSpell(() => gate.isOpen) } },
+    { spells: { slam: aiSpell(), bolt: aiSpell(), nova: aiSpell(() => gate.isOpen) } }
   );
 
   const beast = game.units.spawn(game.id.beast, { side: 1 });
@@ -31,7 +31,7 @@ const picking = () => {
   const weights = new Map([
     [slam, 1],
     [bolt, 3],
-    [nova, 4],
+    [nova, 4]
   ]);
 
   const weight = (_unit: unknown, spell: SpellId): number => weights.get(spell) ?? 0;

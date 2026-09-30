@@ -20,7 +20,7 @@ export interface AreaTriggerEvent<G extends AreaTriggerTypes> {
 /** Makes an empty area trigger event payload: the factory a game registers its area trigger events on its bus with. */
 export const createAreaTriggerEvent = <G extends AreaTriggerTypes>(): AreaTriggerEvent<G> => ({
   areaTrigger: undefined,
-  reason: undefined,
+  reason: undefined
 });
 
 /**
@@ -46,7 +46,7 @@ export const END_REASONS: readonly EndReason[] = Object.freeze([
   'self',
   'bound',
   'replaced',
-  'source-gone',
+  'source-gone'
 ]);
 
 /** Resolves a name to its code in a list or a table, throwing for an unknown one. */
@@ -69,7 +69,7 @@ const codeIn =
  */
 export const areaTriggerEvent = <G extends AreaTriggerTypes & TriggerTypes>(
   kind: EventKind<AreaTriggerEvent<G>>,
-  registry: AreaTriggerRegistry<G>,
+  registry: AreaTriggerRegistry<G>
 ): TriggerEvent<G> =>
   Object.freeze({
     kind,
@@ -78,19 +78,20 @@ export const areaTriggerEvent = <G extends AreaTriggerTypes & TriggerTypes>(
     filters: Object.freeze({
       kind: {
         test: (event: AreaTriggerEvent<G>, id: number) => event.areaTrigger?.kind === id,
-        resolve: codeIn(registry.id, 'area trigger kind'),
+        resolve: codeIn(registry.id, 'area trigger kind')
       },
 
       tag: {
         test: (event: AreaTriggerEvent<G>, tag: number) =>
           event.areaTrigger !== undefined && registry.tagSets[event.areaTrigger.kind]?.has(tag) === true,
 
-        resolve: codeIn(registry.tags.id, 'area trigger tag'),
+        resolve: codeIn(registry.tags.id, 'area trigger tag')
       },
 
       reason: {
         test: (event: AreaTriggerEvent<G>, code: number) => event.reason === registry.endReasons[code],
-        resolve: codeIn(registry.reasonCodes, 'end reason'),
-      },
-    }),
+
+        resolve: codeIn(registry.reasonCodes, 'end reason')
+      }
+    })
   });

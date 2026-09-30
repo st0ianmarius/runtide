@@ -48,7 +48,7 @@ export class AuraEngine<G extends AuraTypes> {
 
       release: (item) => {
         this.#release(item);
-      },
+      }
     });
     this.stacking = registry.columns.stacking;
     this.maxStacks = registry.columns.maxStacks;

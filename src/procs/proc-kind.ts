@@ -83,5 +83,5 @@ export type ProcKinds<G extends ProcTypes> = {
 
 /** Fixes a proc kind's types; returns it unchanged. */
 export const defineProcKind = <P extends ProcShape, G extends ProcTypes = ProcTypes>(
-  def: ProcKindDef<P, G>,
+  def: ProcKindDef<P, G>
 ): ProcKindDef<P, G> => def;

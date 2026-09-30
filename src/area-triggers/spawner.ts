@@ -88,7 +88,7 @@ const bindCredit = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
 const fill = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  [spec, parent]: readonly [SpawnSpec<G>, AreaTrigger<G> | undefined],
+  [spec, parent]: readonly [SpawnSpec<G>, AreaTrigger<G> | undefined]
 ): void => {
   const { registry } = engine;
 
@@ -114,7 +114,7 @@ const fill = <G extends AreaTriggerTypes>(
 const admitLimit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  def: AnyAreaTriggerDef<G>,
+  def: AnyAreaTriggerDef<G>
 ): boolean => {
   const { limit } = def;
 
@@ -146,7 +146,7 @@ const admitLimit = <G extends AreaTriggerTypes>(
 const enter = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  def: AnyAreaTriggerDef<G>,
+  def: AnyAreaTriggerDef<G>
 ): void => {
   const { registry } = engine;
   const flags = registry.columns.flags[area.kind] ?? 0;
@@ -180,7 +180,7 @@ const enter = <G extends AreaTriggerTypes>(
 export const spawnArea = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   kind: AreaTriggerId,
-  spec: SpawnSpec<G>,
+  spec: SpawnSpec<G>
 ): AreaTriggerHandle => {
   const def = engine.registry.get(kind);
   const parent = spec.parent === undefined ? engine.current : engine.areaOf(spec.parent);

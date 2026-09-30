@@ -13,13 +13,13 @@ const ranked = () => {
     {
       glaive: spell({ activation: { kind: 'auto', interval: 1 }, release: (ctx) => [label(ctx)] }),
       nova: spell({ activation: { kind: 'trigger' }, release: (ctx) => [label(ctx)] }),
-      chain: spell({ activation: { kind: 'trigger' }, release: () => [castSpell<Game>('nova')] }),
+      chain: spell({ activation: { kind: 'trigger' }, release: () => [castSpell<Game>('nova')] })
     },
     {
       host: {
-        rankOf: (unit, spell) => ranks.get(`${unit.id}:${spell}`),
-      },
-    },
+        rankOf: (unit, spell) => ranks.get(`${unit.id}:${spell}`)
+      }
+    }
   );
 
   const hero = game.unit(1);

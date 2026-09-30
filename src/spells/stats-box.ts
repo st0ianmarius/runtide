@@ -4,7 +4,7 @@ import {
   type ScaledSnapshot,
   snapshotScaled,
   type StatTable,
-  type StatView,
+  type StatView
 } from '../modifiers/index.ts';
 import type { CompiledStats } from './compile-stats.ts';
 import type { SpellId } from './spell-types.ts';
@@ -66,7 +66,7 @@ export const takeTable = (
 
     /** The rank. */
     readonly rank: number;
-  },
+  }
 ): void => {
   const { keys, values } = compiled;
 

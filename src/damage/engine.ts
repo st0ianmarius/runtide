@@ -3,7 +3,7 @@ import {
   type AuraContext,
   type AuraPipelineHook,
   type AuraSystem,
-  NO_SOURCE,
+  NO_SOURCE
 } from '../auras/index.ts';
 import { createScratch, type Scratch } from '../core/index.ts';
 import { shareOf, type StatId, type StatView } from '../modifiers/index.ts';
@@ -17,7 +17,7 @@ import {
   HEAL_STAGES,
   orderOf,
   rowsOf,
-  type StageStats,
+  type StageStats
 } from './compile.ts';
 import type { BlowStop, DamageKindId, DamageTypes, RollSlot } from './damage-types.ts';
 import { DeathRecord } from './death.ts';
@@ -32,7 +32,7 @@ import type {
   ForceStage,
   ForceState,
   HealStage,
-  HealState,
+  HealState
 } from './options.ts';
 import { ROLL_EFFECTS, type RollTable } from './rolls.ts';
 import type { StageOrder } from './stage-order.ts';
@@ -124,7 +124,7 @@ export class DamageEngine<G extends DamageTypes> {
     this.order = orderOf(
       'Damage',
       { builtIn: damageStages.stages, boundary: 'health', groups: damageStages.groups },
-      options.stages,
+      options.stages
     );
     this.healOrder = orderOf('Heal', { builtIn: HEAL_STAGES, boundary: 'health' }, options.healStages);
     this.forceOrder = orderOf('Force', { builtIn: FORCE_STAGES, boundary: 'apply' }, options.forceStages);
@@ -132,7 +132,7 @@ export class DamageEngine<G extends DamageTypes> {
     this.rows = rowsOf(options, { bypass: this.bypass, order: this.order });
     this.rolls = options.rolls;
     this.unrolled = Uint8Array.from(options.kinds.ids, (kind) =>
-      (options.kinds.get(kind).unrolled ?? []).reduce((bits, effect) => bits | (1 << ROLL_EFFECTS.indexOf(effect)), 0),
+      (options.kinds.get(kind).unrolled ?? []).reduce((bits, effect) => bits | (1 << ROLL_EFFECTS.indexOf(effect)), 0)
     );
     this.isDead = options.isDead ?? isAtOrBelowZero;
     this.maxDepth = options.maxDepth ?? 8;
@@ -314,7 +314,7 @@ export class DamageEngine<G extends DamageTypes> {
   #visitOne<S>(
     walk: HookWalk<G, S>,
     subject: S,
-    at: { readonly unit: G['bearer']; readonly aura: ActiveAura<G> },
+    at: { readonly unit: G['bearer']; readonly aura: ActiveAura<G> }
   ): boolean {
     const ctx = this.auras.takeContext(at.unit, at.aura, walk.other?.(subject));
 
@@ -350,7 +350,7 @@ export interface HookWalk<G extends DamageTypes, S> {
 /** Sorts the first `count` auras of a walk's list by their place, stably (insertion: the lists are short). */
 const orderBy = <G extends DamageTypes>(
   list: (ActiveAura<G> | undefined)[],
-  [order, count]: readonly [ArrayLike<number>, number],
+  [order, count]: readonly [ArrayLike<number>, number]
 ): void => {
   for (let i = 1; i < count; i++) {
     const aura = list[i];

@@ -9,7 +9,7 @@ import {
   createAuraSystem,
   defineAura,
   defineAuras,
-  defineAuraTags,
+  defineAuraTags
 } from '../../src/auras/index.ts';
 import { createBus } from '../../src/core/index.ts';
 import { aura, makeGame, TAGS, type TestAuras } from '../helpers/aura-game.ts';
@@ -22,14 +22,18 @@ describe('aura lengths in whole steps', () => {
     const auras = createAuraSystem({
       registry,
       tags: defineAuraTags([]),
-      clocks: { world: { dt: 1 / 60 }, motion: { dt: 1 / 60 } },
+      clocks: { world: { dt: 1 / 60 }, motion: { dt: 1 / 60 } }
     });
 
     return { auras, id: registry.id, bearer: (): AuraBearer => ({ auras: auras.createState() }) };
   };
 
   it('run out on the step their seconds say, with no sliver for one more', () => {
-    const { auras, id, bearer } = game({ ward: defineAura({ duration: 3 }), jolt: defineAura({ duration: 0.1 }) });
+    const { auras, id, bearer } = game({
+      ward: defineAura({ duration: 3 }),
+      jolt: defineAura({ duration: 0.1 })
+    });
+
     const b = bearer();
 
     auras.apply(b, id.ward);
@@ -48,7 +52,7 @@ describe('aura lengths in whole steps', () => {
   it('extend and compare a highest in whole steps', () => {
     const { auras, id, bearer } = game({
       grace: defineAura({ duration: 2, stacking: 'extend' }),
-      chill: defineAura({ duration: 1, stacking: 'highest' }),
+      chill: defineAura({ duration: 1, stacking: 'highest' })
     });
 
     const b = bearer();
@@ -102,10 +106,10 @@ describe('causes and operations', () => {
             causes.push(ctx.cause);
 
             return undefined;
-          },
-        }),
+          }
+        })
       },
-      { events: { bus, changed: bus.kind.aura } },
+      { events: { bus, changed: bus.kind.aura } }
     );
 
     const u = unit();
@@ -143,7 +147,7 @@ describe('causes and operations', () => {
       'applied:apply',
       'expired:tick',
       'applied:apply',
-      'removed:remove',
+      'removed:remove'
     ]);
     assert.deepEqual(causes, ['tick', 'remove']);
   });

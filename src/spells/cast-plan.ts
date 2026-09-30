@@ -41,7 +41,7 @@ export const planOf = <G extends SpellTypes>(def: AnySpellDef<G>, name: string):
     channel: timeline?.channel?.seconds,
     every: timeline?.channel?.every,
     recover: timeline?.recover?.seconds,
-    reach: reachOf(def, name),
+    reach: reachOf(def, name)
   });
 };
 

@@ -24,7 +24,7 @@ export interface SpellEvent<G extends SpellTypes> {
 export const createSpellEvent = <G extends SpellTypes>(): SpellEvent<G> => ({
   cast: undefined,
   hit: undefined,
-  outcome: undefined,
+  outcome: undefined
 });
 
 /**
@@ -84,7 +84,7 @@ const codeIn =
  */
 export const spellTriggerEvent = <G extends SpellTypes & TriggerTypes>(
   kind: EventKind<SpellEvent<G>>,
-  spells: SpellRegistry<G>,
+  spells: SpellRegistry<G>
 ): TriggerEvent<G> =>
   Object.freeze({
     kind,
@@ -93,19 +93,19 @@ export const spellTriggerEvent = <G extends SpellTypes & TriggerTypes>(
     filters: Object.freeze({
       spell: {
         test: (event: SpellEvent<G>, id: number) => event.cast?.spell === id,
-        resolve: codeIn(spells.id, 'spell'),
+        resolve: codeIn(spells.id, 'spell')
       },
 
       tag: {
         test: (event: SpellEvent<G>, tag: number) =>
           event.cast !== undefined && spells.tagSets[event.cast.spell]?.has(tag) === true,
 
-        resolve: codeIn(spells.tags.id, 'spell tag'),
+        resolve: codeIn(spells.tags.id, 'spell tag')
       },
 
       outcome: {
         test: (event: SpellEvent<G>, code: number) => event.outcome === spells.outcomes[code],
-        resolve: outcomeCode(spells.outcomes),
-      },
-    }),
+        resolve: outcomeCode(spells.outcomes)
+      }
+    })
   });

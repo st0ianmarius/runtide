@@ -9,7 +9,7 @@ import type {
   SpellContext,
   SpellCooldown,
   StaticWorld,
-  StatsSource,
+  StatsSource
 } from '../../src/spells/index.ts';
 import { type AbilityGame, auraNamed, type Hero, makeAbilityGame, spell, STATS } from '../helpers/ability-game.ts';
 
@@ -35,7 +35,7 @@ const logRelease =
     const cooling = auras.remaining(hero, auraNamed('dodgeCooldown'));
 
     seen.lines.push(
-      `${name} at ${hero.at.x},${hero.at.z} input ${input} rank ${ctx.rank} cooling ${cooling} sprint ${auras.remaining(hero, auraNamed('sprint'))} charge ${auras.stacks(hero, auraNamed('charge'))}`,
+      `${name} at ${hero.at.x},${hero.at.z} input ${input} rank ${ctx.rank} cooling ${cooling} sprint ${auras.remaining(hero, auraNamed('sprint'))} charge ${auras.stacks(hero, auraNamed('charge'))}`
     );
 
     return undefined;
@@ -45,12 +45,12 @@ const logRelease =
 const button = (
   name: string,
   data: Omit<ButtonActivation<AbilityGame>, 'kind'> = {},
-  cooldown?: SpellCooldown<AbilityGame>,
+  cooldown?: SpellCooldown<AbilityGame>
 ) =>
   spell({
     activation: { kind: 'button', ...data },
     ...(cooldown === undefined ? {} : { cooldown }),
-    release: logRelease(name),
+    release: logRelease(name)
   });
 
 /** The dodge: a sprint, and a step along the heading from the input through the static world. */
@@ -63,12 +63,15 @@ const roll = button(
       seen.lines.push(`activate roll dt ${dt} duration ${stats?.total(STATS.id.duration)}`);
       bearer.heading = input ?? bearer.heading;
 
-      const to = { x: bearer.at.x + bearer.heading.x * 4 * dt, z: bearer.at.z + bearer.heading.z * 4 * dt };
+      const to = {
+        x: bearer.at.x + bearer.heading.x * 4 * dt,
+        z: bearer.at.z + bearer.heading.z * 4 * dt
+      };
 
       bearer.at = world.moveBody([bearer.at, to], 0.5).position;
-    },
+    }
   },
-  { aura: 'dodgeCooldown', seconds: 2 },
+  { aura: 'dodgeCooldown', seconds: 2 }
 );
 
 /** A test game over every test ability, in a static world (an open one when absent). */
@@ -83,19 +86,19 @@ const makeGame = (world?: StaticWorld) =>
         activation: { kind: 'button', cost: { aura: auraNamed('charge'), stacks: 2 } },
         stats: { cooldown: scaled(ranks(8, 6), haste(1)) },
         cooldown: { aura: 'skillCooldown', seconds: (ctx) => ctx.stats.cooldown },
-        release: logRelease('nova'),
+        release: logRelease('nova')
       }),
 
       blast: button(
         'blast',
         { cost: { aura: auraNamed('charge'), stacks: 2 } },
-        { aura: 'ultimateCooldown', seconds: 3 },
+        { aura: 'ultimateCooldown', seconds: 3 }
       ),
       timed: button('timed', {}, { aura: 'ultimateCooldown', seconds: (ctx) => ctx.caster.id + ctx.rank }),
       surge: button(
         'surge',
         { applies: [auraNamed('stance')], resets: ['cooldown.dodge'] },
-        { aura: 'ultimateCooldown', seconds: 30 },
+        { aura: 'ultimateCooldown', seconds: 30 }
       ),
       guard: button('guard', { requires: ['stance'] }),
       anchor: button('anchor', { applies: [auraNamed('root')] }),
@@ -105,17 +108,17 @@ const makeGame = (world?: StaticWorld) =>
         activation: { kind: 'button', commitsOn: 'cast', cost: { aura: auraNamed('charge') } },
         cooldown: { aura: 'skillCooldown', seconds: 5 },
         canCast: (ctx) => (ctx.input?.x ?? -1) >= 0,
-        release: logRelease('sentry'),
+        release: logRelease('sentry')
       }),
 
       wall: spell({
         activation: { kind: 'button' },
         cooldown: { aura: 'ultimateCooldown', seconds: 4 },
         canCast: () => false,
-        release: logRelease('wall'),
-      }),
+        release: logRelease('wall')
+      })
     },
-    world === undefined ? {} : { world },
+    world === undefined ? {} : { world }
   );
 
 /** A test game over every test ability, and a hero. */
@@ -194,7 +197,7 @@ describe('a press', () => {
     abilities.tryActivate(hero, abilities.bit(dodge), { input: { x: 0, z: 1 } });
     assert.deepEqual(seen.lines, [
       'activate roll dt 0.25 duration 1.5',
-      'roll at 1,1 input 0,1 rank 1 cooling 2 sprint 2 charge 0',
+      'roll at 1,1 input 0,1 rank 1 cooling 2 sprint 2 charge 0'
     ]);
     assert.deepEqual(hero.at, { x: 1, z: 1 });
     assert.equal(auras.remaining(hero, auraNamed('sprint')), 2);
@@ -206,7 +209,7 @@ describe('a press', () => {
       lineClear: () => false,
       isPositionClear: () => false,
       clamp: (p) => p,
-      moveBody: ([from]) => ({ position: from, hit: true, share: 0 }),
+      moveBody: ([from]) => ({ position: from, hit: true, share: 0 })
     };
 
     const { game, hero } = setUp(wall);
@@ -262,18 +265,18 @@ describe('a press', () => {
     assert.equal(abilities.tryActivate(hero, abilities.bit(skill), { input: { x: -1, z: 0 }, refusals }), 0);
     assert.deepEqual(
       [refusals[skill], abilities.cooldownLeft(hero, skill), auras.stacks(hero, auraNamed('charge'))],
-      ['canCast', 0, 2],
+      ['canCast', 0, 2]
     );
     assert.equal(abilities.tryActivate(hero, abilities.bit(skill), { input: { x: 1, z: 0 }, refusals }), 2);
     assert.deepEqual(
       [refusals[skill], abilities.cooldownLeft(hero, skill), auras.stacks(hero, auraNamed('charge'))],
-      [undefined, 5, 1],
+      [undefined, 5, 1]
     );
     assert.equal(abilities.tryActivate(hero, abilities.bit(ultimate), { refusals }), 4);
     assert.deepEqual([refusals[ultimate], abilities.cooldownLeft(hero, ultimate)], ['canCast', 4]);
     assert.deepEqual(
       seen.lines.map((line) => line.split(' ')[0]),
-      ['sentry'],
+      ['sentry']
     );
   });
 

@@ -109,7 +109,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.#streams = parts.streams;
     this.#resetExt = parts.resetExt;
     this.pool = createPool({
-      create: () => new AreaTrigger<G>(this, this.#pending ?? missing('an owner'), parts.createExt()),
+      create: () => new AreaTrigger<G>(this, this.#pending ?? missing('an owner'), parts.createExt())
     });
   }
 

@@ -10,7 +10,7 @@ import {
   type Modifier,
   mul,
   plus,
-  sourceMask,
+  sourceMask
 } from '../../src/modifiers/index.ts';
 
 /** A hero-like host: health and a world question the tests count. */
@@ -26,7 +26,7 @@ const host = (over: Partial<Host> = {}): Host => ({
   maxHp: 100,
   tags: [],
   world: { raised: false, asked: 0 },
-  ...over,
+  ...over
 });
 
 /** A small game: a handful of common stats, and six sources in the order it declares them. */
@@ -41,7 +41,7 @@ const game = () => {
     leechCap: { base: Infinity, kind: 'flat', min: 0 },
     reach: { base: 1, kind: 'multiplier' },
     area: { base: 1, kind: 'multiplier', derives: { from: 'reach', per: 0.125 } },
-    slots: { base: 3, kind: 'flat', min: 1 },
+    slots: { base: 3, kind: 'flat', min: 1 }
   });
 
   const sources = defineSources(['race', 'gear', 'banner', 'talents', 'auras', 'stance']);
@@ -55,7 +55,7 @@ const game = () => {
       at.world.asked += 1;
 
       return at.world.raised;
-    },
+    }
   });
 
   const system = createModifierSystem({ stats, sources, conditions });
@@ -64,8 +64,8 @@ const game = () => {
   const sheetWith = (
     entries: readonly (readonly [
       keyof typeof sources.id,
-      readonly Modifier<keyof typeof stats.id, 'healthBelow' | 'tag' | 'noTag' | 'bannerRaised', never>[],
-    ])[],
+      readonly Modifier<keyof typeof stats.id, 'healthBelow' | 'tag' | 'noTag' | 'bannerRaised', never>[]
+    ])[]
   ) => {
     const sheet = system.createSheet();
 
@@ -86,7 +86,7 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const sheet = sheetWith([
       ['race', [plus('armor', 10)]],
       ['gear', [mul('armor', 3)]],
-      ['talents', [plus('armor', 5)]],
+      ['talents', [plus('armor', 5)]]
     ]);
 
     assert.equal(system.resolve(sheet, id.armor), 45);
@@ -97,7 +97,7 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
 
     const chain = sheetWith([
       ['race', [plus('moveSpeed', 6.2)]],
-      ['stance', [mul('moveSpeed', 1.1), mul('moveSpeed', 1.3), mul('moveSpeed', 0.65)]],
+      ['stance', [mul('moveSpeed', 1.1), mul('moveSpeed', 1.3), mul('moveSpeed', 0.65)]]
     ]);
 
     assert.equal(system.resolve(chain, id.moveSpeed), 5.762900000000001);
@@ -105,13 +105,13 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const forward = sheetWith([
       ['race', [plus('moveSpeed', 6.2)]],
       ['gear', [mul('moveSpeed', 0.51)]],
-      ['talents', [mul('moveSpeed', 0.54)]],
+      ['talents', [mul('moveSpeed', 0.54)]]
     ]);
 
     const backward = sheetWith([
       ['race', [plus('moveSpeed', 6.2)]],
       ['gear', [mul('moveSpeed', 0.54)]],
-      ['talents', [mul('moveSpeed', 0.51)]],
+      ['talents', [mul('moveSpeed', 0.51)]]
     ]);
 
     // (6.2 × 0.51) × 0.54 and (6.2 × 0.54) × 0.51 differ in the last bit, and so does 6.2 × (0.51 × 0.54).
@@ -136,7 +136,7 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
 
     assert.deepEqual(
       stats.ids.map((stat) => system.resolve(sheet, stat)),
-      [1, 0, 0, 1, 0, 0, Infinity, 1, 1, 3],
+      [1, 0, 0, 1, 0, 0, Infinity, 1, 1, 3]
     );
   });
 
@@ -144,7 +144,7 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const { system, sheetWith, id } = game();
 
     const sheet = sheetWith([
-      ['talents', [plus('blockChance', 0.4), plus('cooldownReduction', 0.9), plus('maxHp', 10), mul('maxHp', 0)]],
+      ['talents', [plus('blockChance', 0.4), plus('cooldownReduction', 0.9), plus('maxHp', 10), mul('maxHp', 0)]]
     ]);
 
     assert.equal(system.resolve(sheet, id.blockChance), 0.35);
@@ -152,7 +152,7 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     assert.equal(system.resolve(sheet, id.maxHp), 1);
     assert.equal(
       system.resolve(sheetWith([['gear', [plus('cooldownReduction', -0.15)]]]), id.cooldownReduction),
-      -0.15,
+      -0.15
     );
   });
 
@@ -162,13 +162,13 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
     const below = sheetWith([
       ['race', [cap('armor', 25)]],
       ['gear', [mul('armor', 2)]],
-      ['talents', [plus('armor', 10), cap('armor', 30)]],
+      ['talents', [plus('armor', 10), cap('armor', 30)]]
     ]);
 
     const capped = sheetWith([
       ['race', [cap('armor', 25)]],
       ['gear', [mul('armor', 3)]],
-      ['talents', [plus('armor', 10), cap('armor', 30)]],
+      ['talents', [plus('armor', 10), cap('armor', 30)]]
     ]);
 
     assert.equal(system.resolve(below, id.armor), 20);
@@ -180,7 +180,7 @@ describe('the fold: (base + Σ add) × Π mul, then caps, then the clamp', () =>
 
     const sheet = sheetWith([
       ['stance', [cap('blockChance', -1)]],
-      ['gear', [cap('leechCap', 0.4, { when: { is: 'tag', arg: 7 } })]],
+      ['gear', [cap('leechCap', 0.4, { when: { is: 'tag', arg: 7 } })]]
     ]);
 
     assert.equal(system.resolve(sheet, id.blockChance), 0);
@@ -198,10 +198,10 @@ describe('conditions', () => {
         'gear',
         [
           mul('damage', 1.5, { when: { is: 'healthBelow', arg: 0.4 } }),
-          mul('damage', 0.9, { when: { is: 'noTag', arg: 3 } }),
-        ],
+          mul('damage', 0.9, { when: { is: 'noTag', arg: 3 } })
+        ]
       ],
-      ['auras', [mul('damage', 1.4, { when: { is: 'tag', arg: 5 } })]],
+      ['auras', [mul('damage', 1.4, { when: { is: 'tag', arg: 5 } })]]
     ]);
 
     assert.equal(system.resolve(sheet, id.damage), 1);
@@ -218,7 +218,7 @@ describe('conditions', () => {
     const sheet = sheetWith([
       ['race', [plus('moveSpeed', 6)]],
       ['banner', [mul('moveSpeed', 0.5, { when: { is: 'bannerRaised' } })]],
-      ['talents', [mul('moveSpeed', 1.2)]],
+      ['talents', [mul('moveSpeed', 1.2)]]
     ]);
 
     const idle = host();
@@ -241,7 +241,7 @@ describe('derived stats', () => {
 
     const sheet = sheetWith([
       ['talents', [plus('reach', 1), plus('area', 0.1)]],
-      ['auras', [mul('area', 2)]],
+      ['auras', [mul('area', 2)]]
     ]);
 
     assert.equal(system.resolve(sheet, id.area), 2.45);
@@ -261,7 +261,7 @@ describe('derived stats', () => {
 
     const sheet = sheetWith([
       ['talents', [plus('reach', 2)]],
-      ['gear', [cap('reach', 2)]],
+      ['gear', [cap('reach', 2)]]
     ]);
 
     assert.equal(system.resolve(sheet, id.reach), 2);

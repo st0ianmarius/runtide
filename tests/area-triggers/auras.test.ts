@@ -9,7 +9,7 @@ import { AREA_TAGS, aura, type Game, makeSpellGame } from '../helpers/spell-game
 const field = (spec: AreaAura<Game>, lifetime = 10): AnyAreaTriggerDef<Game> => ({
   shape: circle(2),
   lifetime,
-  auras: [spec],
+  auras: [spec]
 });
 
 /** A game with a field kind and the auras it keeps. */
@@ -18,15 +18,15 @@ const fieldGame = (spec: AreaAura<Game>, lifetime?: number) =>
     {},
     {
       auras: { chilled: aura({ duration: 'infinite' }), soothed: aura({ duration: 5 }) },
-      areaTriggers: { field: field(spec, lifetime) },
-    },
+      areaTriggers: { field: field(spec, lifetime) }
+    }
   );
 
 /** Steps a game's clock, its area triggers and a unit's auras `count` times. */
 const ticks = (
   game: ReturnType<typeof fieldGame>,
   count: number,
-  bearers: readonly Parameters<typeof game.place>[0][],
+  bearers: readonly Parameters<typeof game.place>[0][]
 ) => {
   for (let i = 0; i < count; i++) {
     game.step();
@@ -42,7 +42,11 @@ describe('area auras on enter and exit', () => {
   it('puts its aura on a foe that enters, takes it off as it leaves, and off every unit inside as it ends', () => {
     const game = fieldGame({ aura: 'chilled' });
     const [foe, ally, other] = [game.unit(100), game.unit(2), game.unit(101)];
-    const handle = game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+
+    const handle = game.areaTriggers.spawn(game.areaId.field, {
+      owner: game.unit(1),
+      at: vec2(0, 0)
+    });
 
     game.place(foe, vec2(1, 0));
     game.place(ally, vec2(0, 1));
@@ -77,7 +81,12 @@ describe('area auras on enter and exit', () => {
   });
 
   it('lets through only the units its filter keeps, and the side it names', () => {
-    const game = fieldGame({ aura: 'chilled', side: 'allies', unitFilter: (_c, unit) => unit.id !== 3 });
+    const game = fieldGame({
+      aura: 'chilled',
+      side: 'allies',
+      unitFilter: (_c, unit) => unit.id !== 3
+    });
+
     const [ally, filtered, foe] = [game.unit(2), game.unit(3), game.unit(100)];
 
     game.place(ally, vec2(1, 0));
@@ -87,7 +96,7 @@ describe('area auras on enter and exit', () => {
     ticks(game, 1, []);
     assert.deepEqual(
       [ally, filtered, foe].map((unit) => game.auras.has(unit, game.auraId.chilled)),
-      [true, false, false],
+      [true, false, false]
     );
   });
 });

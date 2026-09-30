@@ -3,7 +3,7 @@ import {
   type AbilityTypes,
   createAbilitySystem,
   defineSlots,
-  type LoadoutState,
+  type LoadoutState
 } from '../src/abilities/index.ts';
 import { type AuraState, createAuraSystem, defineAura, defineAuras, defineAuraTags } from '../src/auras/index.ts';
 import { createClock } from '../src/core/index.ts';
@@ -133,7 +133,7 @@ const AURAS = defineAuras<BenchGame, string>({
   dodgeCooldown: aura({ duration: 1, tags: ['cooldown.dodge'] }),
   skillCooldown: aura({ duration: 1, tags: ['cooldown.skill'] }),
   ultimateCooldown: aura({ duration: 1, tags: ['cooldown.ultimate'] }),
-  sprint: aura({ duration: 0.5, tags: ['sprinting'] }),
+  sprint: aura({ duration: 0.5, tags: ['sprinting'] })
 });
 
 /** A bench aura's id by name. */
@@ -153,32 +153,38 @@ const SPELLS = defineSpells<BenchGame, 'roll' | 'nova' | 'surge'>({
   roll: {
     activation: { kind: 'button', applies: [auraId('sprint')] },
     cooldown: { aura: auraId('dodgeCooldown'), seconds: 1 },
-    release: () => GRANT,
+    release: () => GRANT
   },
 
   nova: {
     activation: { kind: 'button', blockedBy: ['sprinting'] },
     cooldown: { aura: auraId('skillCooldown'), seconds: 2 },
-    release: () => GRANT,
+    release: () => GRANT
   },
 
   surge: {
     activation: { kind: 'button', resets: ['cooldown.dodge'] },
     cooldown: { aura: auraId('ultimateCooldown'), seconds: 4 },
-    release: () => GRANT,
-  },
+    release: () => GRANT
+  }
 });
 
 const CLOCK = createClock({ dt: 1 / 30 });
+
 const AURA_TAGS = defineAuraTags(['cooldown.dodge', 'cooldown.skill', 'cooldown.ultimate', 'sprinting']);
-const AURA_SYSTEM = createAuraSystem<BenchGame>({ registry: AURAS, tags: AURA_TAGS, clocks: { world: CLOCK } });
+
+const AURA_SYSTEM = createAuraSystem<BenchGame>({
+  registry: AURAS,
+  tags: AURA_TAGS,
+  clocks: { world: CLOCK }
+});
 
 const HOST = {
   idOf: (hero: Hero) => hero.id,
 
   grant: (_hero: Hero, _resource: number, amount: number) => {
     abilityCounter.granted += amount;
-  },
+  }
 };
 
 const late: { procs?: ReturnType<typeof createProcSystem<BenchGame>> } = {};
@@ -193,21 +199,21 @@ const SPELL_SYSTEM = createSpellSystem<BenchGame>({
   auras: AURA_SYSTEM,
   procs: () => late.procs ?? missing(),
   clock: CLOCK,
-  host: HOST,
+  host: HOST
 });
 
 const ABILITIES = createAbilitySystem<BenchGame>({
   spells: SPELL_SYSTEM,
   auras: AURA_SYSTEM,
   slots: SLOTS,
-  clock: CLOCK,
+  clock: CLOCK
 });
 
 late.procs = createProcSystem<BenchGame>({
   kinds: createProcRegistry<BenchGame>({ ...CORE_PROCS, ...SPELL_SYSTEM.procKinds }),
   auras: AURA_SYSTEM,
   host: HOST,
-  resources: ['focus'],
+  resources: ['focus']
 });
 
 /** The heroes, each with the three abilities equipped. */
@@ -217,7 +223,7 @@ const HERO_LIST: readonly Hero[] = Array.from({ length: HEROES }, (_unused, i) =
     auras: AURA_SYSTEM.createState(),
     casts: SPELL_SYSTEM.createCasterState(),
     loadout: ABILITIES.createLoadout(),
-    travelled: 0,
+    travelled: 0
   };
 
   ABILITIES.equip(hero, SLOTS.id.dodge, SPELLS.id.roll);
@@ -250,5 +256,5 @@ for (let i = 0; i < 300; i++) {
 
 /** The F9 ability benchmark tasks, and how many operations each call of its function is. */
 export const ABILITY_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['abilities: 1,000 heroes press 3 slots (tick)', pressTick, 1000],
+  ['abilities: 1,000 heroes press 3 slots (tick)', pressTick, 1000]
 ];

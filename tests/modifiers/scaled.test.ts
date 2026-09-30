@@ -17,7 +17,7 @@ import {
   shareOf,
   snapshotScaled,
   type StatTable,
-  type StatView,
+  type StatView
 } from '../../src/modifiers/index.ts';
 
 const STATS = defineStats({
@@ -28,7 +28,7 @@ const STATS = defineStats({
   level: { base: 1, kind: 'flat' },
   damage: { base: 1, kind: 'multiplier' },
   critDamage: { base: 1.75, kind: 'multiplier' },
-  armorPen: { base: 0, kind: 'multiplier', neutral: 0 },
+  armorPen: { base: 0, kind: 'multiplier', neutral: 0 }
 });
 
 const { id } = STATS;
@@ -36,7 +36,7 @@ const { id } = STATS;
 /** A unit's folded stats, by name, read live from `totals`; unnamed stats read their base. */
 const unit = (totals: Readonly<Record<string, number>>): StatView => ({
   total: (stat) => totals[STATS.names[stat] ?? ''] ?? STATS.columns.base[stat] ?? 0,
-  base: (stat) => STATS.columns.base[stat] ?? 0,
+  base: (stat) => STATS.columns.base[stat] ?? 0
 });
 
 describe('scaled values', () => {
@@ -47,9 +47,9 @@ describe('scaled values', () => {
         ranks(60, 95, 130),
         add('attackDamage', 1.2),
         add('abilityPower', 0.5),
-        add('maxHealth', 0.08, { from: 'target' }),
+        add('maxHealth', 0.08, { from: 'target' })
       ),
-      { ranks: 3 },
+      { ranks: 3 }
     );
 
     const caster = unit({ attackDamage: 100, abilityPower: 50 });
@@ -70,6 +70,7 @@ describe('scaled values', () => {
 
   it('evaluate in the fixed order (base + Σ add) × Π amp × curve(Σ curve terms)', () => {
     const value = compileScaled(STATS, scaled(10, add('attackDamage', 0.1), amp('damage', 1.1), haste(0.5)));
+
     const caster = unit({ attackDamage: 100, damage: 1.35, abilityHaste: 10 });
 
     assert.equal(evaluateScaled(value, { caster }), 26.380952380952383);
@@ -80,7 +81,7 @@ describe('scaled values', () => {
   it('read the bonus over the base for of: bonus, and a per-rank ratio at the rank', () => {
     const value = compileScaled(
       STATS,
-      scaled(0, add('attackDamage', 0.6, { of: 'bonus' }), add('abilityPower', ranks(0.5, 0.6, 0.7))),
+      scaled(0, add('attackDamage', 0.6, { of: 'bonus' }), add('abilityPower', ranks(0.5, 0.6, 0.7)))
     );
 
     const caster = unit({ attackDamage: 100, abilityPower: 100 });
@@ -110,7 +111,7 @@ describe('snapshots (decision 2)', () => {
   it('freeze the caster part at the cast and finish against each target with the full formula', () => {
     const value = compileScaled(
       STATS,
-      scaled(10, add('attackDamage', 1), add('maxHealth', 0.1, { from: 'target' }), amp('damage', 1.1)),
+      scaled(10, add('attackDamage', 1), add('maxHealth', 0.1, { from: 'target' }), amp('damage', 1.1))
     );
 
     const totals = { attackDamage: 100, damage: 1.35 };
@@ -124,7 +125,7 @@ describe('snapshots (decision 2)', () => {
 
     assert.equal(
       finishScaled(snapshot, first),
-      evaluateScaled(value, { caster: unit({ attackDamage: 100, damage: 1.35 }), target: first }),
+      evaluateScaled(value, { caster: unit({ attackDamage: 100, damage: 1.35 }), target: first })
     );
     assert.equal(finishScaled(snapshot, second), 193.90000000000003);
     assert.equal(finishScaled(snapshot), 152.35000000000002);
@@ -136,8 +137,8 @@ describe('snapshots (decision 2)', () => {
       base: 1,
       curve: {
         kind: hyperbolic({ k: scaled(400, add('level', 85)) }),
-        by: [{ stat: 'maxHealth', coef: 1, from: 'target' }],
-      },
+        by: [{ stat: 'maxHealth', coef: 1, from: 'target' }]
+      }
     });
 
     assert.deepEqual(value.casterStats, [id.level]);
@@ -155,7 +156,7 @@ describe('explanations', () => {
   it('give the base, each term with its ratio and reading, and the total, as data', () => {
     const value = compileScaled(
       STATS,
-      scaled(ranks(60, 95), add('attackDamage', 1.2), add('maxHealth', 0.08, { from: 'target' })),
+      scaled(ranks(60, 95), add('attackDamage', 1.2), add('maxHealth', 0.08, { from: 'target' }))
     );
 
     const preview = explainScaled(value, 2);
@@ -165,12 +166,19 @@ describe('explanations', () => {
       rank: 2,
       base: 95,
       terms: [
-        { op: 'add', stat: id.attackDamage, coef: 1.2, of: 'total', from: 'caster', value: undefined },
-        { op: 'add', stat: id.maxHealth, coef: 0.08, of: 'total', from: 'target', value: undefined },
+        {
+          op: 'add',
+          stat: id.attackDamage,
+          coef: 1.2,
+          of: 'total',
+          from: 'caster',
+          value: undefined
+        },
+        { op: 'add', stat: id.maxHealth, coef: 0.08, of: 'total', from: 'target', value: undefined }
       ],
       curve: undefined,
       total: undefined,
-      isPartial: false,
+      isPartial: false
     });
 
     const cast = explainScaled(value, 2, { caster: unit({ attackDamage: 100 }) });
@@ -192,11 +200,11 @@ describe('load-time checks', () => {
   it('refuse per-rank lists that do not match the ranks, or each other', () => {
     assert.throws(
       () => compileScaled(STATS, scaled(ranks(1, 2)), { ranks: 3 }),
-      /2 entries, which does not match its 3 ranks/,
+      /2 entries, which does not match its 3 ranks/
     );
     assert.throws(
       () => compileScaled(STATS, scaled(ranks(1, 2), add('attackDamage', ranks(1, 2, 3)))),
-      /3 entries, which does not match the other lists/,
+      /3 entries, which does not match the other lists/
     );
   });
 

@@ -10,7 +10,7 @@ import {
   CORE_ACTIVATIONS,
   defineActivationKind,
   defineActivations,
-  NO_CAST,
+  NO_CAST
 } from '../../src/spells/index.ts';
 import { aura, type Charged, CUES, type Game, makeSpellGame, mark, spell, STATS } from '../helpers/spell-game.ts';
 
@@ -19,7 +19,7 @@ const bolt = spell({
   activation: { kind: 'trigger' },
   begin: () => [mark('begin')],
   release: () => [mark('release')],
-  onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)],
+  onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)]
 });
 
 describe('the cast order', () => {
@@ -59,8 +59,8 @@ describe('the cast order', () => {
             order.push('release');
 
             return undefined;
-          },
-        }),
+          }
+        })
       },
       {
         host: {
@@ -68,9 +68,9 @@ describe('the cast order', () => {
             order.push('canAct');
 
             return true;
-          },
-        },
-      },
+          }
+        }
+      }
     );
 
     const [a, b] = [game.unit(1), game.unit(2)];
@@ -99,10 +99,10 @@ describe('the cast order', () => {
 
           canCast: () => canCast,
           target: (_ctx, input) => input,
-          release: () => [mark('release')],
-        }),
+          release: () => [mark('release')]
+        })
       },
-      { host: { canAct: () => canAct } },
+      { host: { canAct: () => canAct } }
     );
 
     const a = game.unit(1);
@@ -128,10 +128,10 @@ describe('the cast order', () => {
         slam: spell({
           activation: { kind: 'trigger' },
           canCast: () => 'noRage',
-          release: () => [mark('release')],
-        }),
+          release: () => [mark('release')]
+        })
       },
-      { host: { canAct: () => (silenced ? 'silenced' : true) } },
+      { host: { canAct: () => (silenced ? 'silenced' : true) } }
     );
 
     const a = game.unit(1);
@@ -143,12 +143,15 @@ describe('the cast order', () => {
   });
 
   it("asks the activation kind's gate after the host's", () => {
-    const charged = defineActivationKind<Charged, Game>({ gate: (activation, ctx) => ctx.rank >= activation.least });
+    const charged = defineActivationKind<Charged, Game>({
+      gate: (activation, ctx) => ctx.rank >= activation.least
+    });
+
     const activations = defineActivations<Game>({ ...CORE_ACTIVATIONS, charged });
 
     const game = makeSpellGame(
       { zap: spell({ activation: { kind: 'charged', least: 2 }, release: () => [mark('zap')] }) },
-      { activations },
+      { activations }
     );
 
     const a = game.unit(1);
@@ -157,7 +160,7 @@ describe('the cast order', () => {
     assert.equal(game.spells.cast(a, game.id.zap, { rank: 2 }).status, 'ended');
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('zap')),
-      ['zap@1'],
+      ['zap@1']
     );
   });
 
@@ -168,8 +171,8 @@ describe('the cast order', () => {
         cues: { start: () => ({ cue: CUES.id.cast, params: { size: 2 } }) },
         begin: () => [mark('begin')],
         release: () => [mark('release')],
-        onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)],
-      }),
+        onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)]
+      })
     });
 
     const a = game.unit(1);
@@ -181,7 +184,7 @@ describe('the cast order', () => {
       'release@1',
       'release bolt@1',
       'onEnd released@1',
-      'end bolt@1 released',
+      'end bolt@1 released'
     ]);
     assert.equal(game.cues.count, 1);
     assert.equal(game.cues.events[0]?.owner, 1);
@@ -211,10 +214,10 @@ describe('pooled casts', () => {
         release: (ctx) => [
           run('nest', () => {
             inner = game0.spells.cast(ctx.caster, game0.id.inner).handle;
-          }),
-        ],
+          })
+        ]
       }),
-      inner: spell({ activation: { kind: 'trigger' }, release: () => undefined }),
+      inner: spell({ activation: { kind: 'trigger' }, release: () => undefined })
     });
 
     const game0 = game;
@@ -239,10 +242,10 @@ describe('stats (decision 2)', () => {
       begin: (ctx) => [
         run('double', () => {
           ctx.caster.stats[STATS.id.power] = (ctx.caster.stats[STATS.id.power] ?? 0) * 2;
-        }),
+        })
       ],
 
-      release: (ctx) => [mark(`hit ${ctx.stats.hit} radius ${ctx.stats.radius}`)],
+      release: (ctx) => [mark(`hit ${ctx.stats.hit} radius ${ctx.stats.radius}`)]
     });
 
   it('takes the stats once, at the start: a change during the cast does not reach them', () => {
@@ -251,7 +254,7 @@ describe('stats (decision 2)', () => {
     game.spells.cast(game.unit(1), game.id.snap);
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('hit')),
-      ['hit 10 radius 3@1'],
+      ['hit 10 radius 3@1']
     );
   });
 
@@ -261,7 +264,7 @@ describe('stats (decision 2)', () => {
     game.spells.cast(game.unit(1), game.id.live);
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('hit')),
-      ['hit 20 radius 3@1'],
+      ['hit 20 radius 3@1']
     );
   });
 
@@ -271,8 +274,8 @@ describe('stats (decision 2)', () => {
         activation: { kind: 'trigger' },
         stats: { hit: scaled(5, add('power', 1), add('maxHealth', 0.1, { from: 'target' })) },
         target: (_ctx, input) => input,
-        release: (ctx, target) => [damage<Game>(ctx.scaled.hit, { to: target, spell: ctx.spell })],
-      }),
+        release: (ctx, target) => [damage<Game>(ctx.scaled.hit, { to: target, spell: ctx.spell })]
+      })
     });
 
     const [a, b] = [game.unit(1), game.unit(2)];
@@ -287,14 +290,14 @@ describe('stats (decision 2)', () => {
       plain: spell({
         activation: { kind: 'trigger' },
         target: (_ctx, input) => input,
-        release: (ctx, target) => [damage<Game>(10, { to: target, spell: ctx.spell })],
+        release: (ctx, target) => [damage<Game>(10, { to: target, spell: ctx.spell })]
       }),
       flat: spell({
         activation: { kind: 'trigger' },
         scaling: { damage: 0 },
         target: (_ctx, input) => input,
-        release: (ctx, target) => [damage<Game>(10, { to: target, spell: ctx.spell })],
-      }),
+        release: (ctx, target) => [damage<Game>(10, { to: target, spell: ctx.spell })]
+      })
     });
 
     const [a, b, c] = [game.unit(1), game.unit(2), game.unit(3)];
@@ -320,15 +323,15 @@ describe('keys and random streams', () => {
           keys.push([...ctx.key()], [...ctx.key(9, 2)]);
 
           return undefined;
-        },
-      }),
+        }
+      })
     });
 
     game.step(3);
     game.spells.cast(game.unit(4), game.id.bolt);
     assert.deepEqual(keys, [
       [3, 4, 0, 0, 0],
-      [3, 4, 0, 9, 2],
+      [3, 4, 0, 9, 2]
     ]);
   });
 
@@ -343,8 +346,8 @@ describe('keys and random streams', () => {
           draws.push(ctx.random('crit')(), ctx.random('main')());
 
           return undefined;
-        },
-      }),
+        }
+      })
     });
 
     const a = game.unit(1);
@@ -362,7 +365,7 @@ describe('spell events and the cast aura', () => {
     const game = makeSpellGame(
       {
         bolt: spell({ activation: { kind: 'trigger' }, tags: ['fire'], release: () => undefined }),
-        punch: spell({ activation: { kind: 'trigger' }, tags: ['melee'], release: () => undefined }),
+        punch: spell({ activation: { kind: 'trigger' }, tags: ['melee'], release: () => undefined })
       },
       {
         auras: {
@@ -374,14 +377,14 @@ describe('spell events and the cast aura', () => {
                 on: 'spellEnd',
                 when: [
                   { filter: 'spell', arg: 'punch' },
-                  { filter: 'outcome', arg: 'released' },
+                  { filter: 'outcome', arg: 'released' }
                 ],
-                do: [mark('punched')],
-              },
-            ],
-          }),
-        },
-      },
+                do: [mark('punched')]
+              }
+            ]
+          })
+        }
+      }
     );
 
     const a = game.unit(1);
@@ -391,7 +394,7 @@ describe('spell events and the cast aura', () => {
     game.spells.cast(a, game.id.punch);
     assert.deepEqual(
       game.log.filter((line) => line.includes('@1') && !line.includes(' ')),
-      ['fire@1', 'punched@1'],
+      ['fire@1', 'punched@1']
     );
   });
 });
@@ -407,15 +410,15 @@ describe('hooks and procs', () => {
           out.push(mark('three'));
 
           return undefined;
-        },
-      }),
+        }
+      })
     });
 
     const report = game.spells.cast(game.unit(1), game.id.pushed);
 
     assert.deepEqual(
       game.log.filter((line) => !line.includes(' ')),
-      ['one@1', 'two@1', 'three@1'],
+      ['one@1', 'two@1', 'three@1']
     );
     assert.equal(report.went, 1);
   });
@@ -431,8 +434,8 @@ describe('hooks and procs', () => {
           sources.push(ctx.apply(run('read', (proc) => sources.push(proc.source))).amount);
 
           return [run('read', (proc) => sources.push(proc.source))];
-        },
-      }),
+        }
+      })
     });
 
     game.spells.cast(game.unit(1), game.id.bolt, { source: 40 });

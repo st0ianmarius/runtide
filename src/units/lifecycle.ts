@@ -12,14 +12,14 @@ import type { Lifecycle, UnitTypes } from './unit-types.ts';
 const MOVES: Readonly<Record<Lifecycle, readonly Lifecycle[]>> = Object.freeze({
   alive: ['dead', 'despawned'],
   dead: ['alive', 'despawned'],
-  despawned: [],
+  despawned: []
 });
 
 /** Raises a unit event, when something hears it. */
 const raise = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   kind: EventKind<UnitEvent<G>> | undefined,
-  [unit, from, to, at, reason]: readonly [G['bearer'], Lifecycle, Lifecycle, Vec2 | undefined, string],
+  [unit, from, to, at, reason]: readonly [G['bearer'], Lifecycle, Lifecycle, Vec2 | undefined, string]
 ): void => {
   const bus = engine.options.events?.bus;
 
@@ -43,7 +43,7 @@ const raise = <G extends UnitTypes>(
 export const raiseSpawned = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   unit: G['bearer'],
-  at: Vec2 | undefined,
+  at: Vec2 | undefined
 ): void => {
   raise(engine, engine.options.events?.spawned, [unit, 'alive', 'alive', at, '']);
 };
@@ -73,7 +73,7 @@ export const changeSide = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
 const leaveFor = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
-  [from, to]: readonly [Lifecycle, Exclude<Lifecycle, 'alive'>],
+  [from, to]: readonly [Lifecycle, Exclude<Lifecycle, 'alive'>]
 ): void => {
   if (from === 'alive') {
     engine.options.spells.cancelAll(bearer);
@@ -96,7 +96,7 @@ const leaveFor = <G extends UnitTypes>(
 const despawned = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
-  [from, reason]: readonly [Lifecycle, string],
+  [from, reason]: readonly [Lifecycle, string]
 ): void => {
   const unit = unitOf<G>(bearer);
 
@@ -123,7 +123,7 @@ const despawned = <G extends UnitTypes>(
 export const moveTo = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
-  [to, health, reason]: readonly [Lifecycle, number | undefined, string?],
+  [to, health, reason]: readonly [Lifecycle, number | undefined, string?]
 ): boolean => {
   const unit = unitOf<G>(bearer);
   const from = unit.lifecycle;

@@ -85,7 +85,7 @@ const addTo = (channel: Channel, tier: 'handlers' | 'subscribers', listener: unk
 /** Whether a record of kind ids holds every factory's name, which types it as the bus's kinds. */
 const isKinds = <Factories>(
   record: Readonly<Record<string, EventKind<unknown>>>,
-  factories: Factories & object,
+  factories: Factories & object
 ): record is EventKinds<Factories> => Object.keys(factories).every((name) => Object.hasOwn(record, name));
 
 /** Calls every listener of a kind with its payload, in order. */
@@ -97,10 +97,10 @@ const callAll = <Payload>(kind: EventKind<Payload>, listeners: readonly unknown[
 
 /** The event kinds of a factory table, by name, in key order. */
 const kindsOf = <Factories extends Readonly<Record<string, () => object>>>(
-  factories: Factories,
+  factories: Factories
 ): EventKinds<Factories> => {
   const kinds = Object.freeze(
-    Object.fromEntries(Object.keys(factories).map((name, index) => [name, toEventKind<unknown>(index)])),
+    Object.fromEntries(Object.keys(factories).map((name, index) => [name, toEventKind<unknown>(index)]))
   );
 
   if (!isKinds(kinds, factories)) {
@@ -127,7 +127,7 @@ class EventBus<Factories extends Readonly<Record<string, () => object>>> impleme
       make,
       payloads: [],
       level: 0,
-      count: 0,
+      count: 0
     }));
   }
 
@@ -193,5 +193,5 @@ class EventBus<Factories extends Readonly<Record<string, () => object>>> impleme
  */
 export const createBus = <const Factories extends Readonly<Record<string, () => object>>>(
   factories: Factories,
-  options: BusOptions = {},
+  options: BusOptions = {}
 ): Bus<Factories> => new EventBus(factories, options.maxDepth ?? 3);

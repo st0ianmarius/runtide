@@ -14,5 +14,5 @@ export type AreaTagTable<Name extends string = string> = Registry<'areaTags', Ex
 export const defineAreaTags = <const Name extends string>(names: readonly Name[]): AreaTagTable<Name> =>
   createRegistry(
     recordOf(names, (): AreaTagDef => ({})),
-    { kind: 'areaTags' },
+    { kind: 'areaTags' }
   );

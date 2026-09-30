@@ -10,5 +10,5 @@ export {
   type PredictedReport,
   type PredictedRuleOptions,
   type ReadReason,
-  type UnpredictedRead,
+  type UnpredictedRead
 } from './predicted-rule.ts';

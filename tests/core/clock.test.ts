@@ -28,7 +28,7 @@ describe('stamps', () => {
       [0.1, 0.4],
       [1 / 60, 0.1],
       [1 / 60, 2.35],
-      [1 / 30, 17.2],
+      [1 / 30, 17.2]
     ] as const) {
       const clock = createClock({ dt });
       const stamp = clock.stampAt(seconds);

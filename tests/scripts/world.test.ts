@@ -11,7 +11,7 @@ const behaviour = defineBehaviour<UnitGame>();
 /** One bodiless template for every world script, and a rogue. */
 const TEMPLATES = {
   world: {},
-  rogue: {},
+  rogue: {}
 } satisfies Record<string, UnitDef<UnitGame>>;
 
 /**
@@ -29,8 +29,8 @@ const horde = behaviour({
 
   on: {
     changed: (ctx) =>
-      ctx.state.isActive && isEmpty(ctx.unit) ? [despawn<UnitGame>({ to: 'self', reason: 'ended' })] : undefined,
-  },
+      ctx.state.isActive && isEmpty(ctx.unit) ? [despawn<UnitGame>({ to: 'self', reason: 'ended' })] : undefined
+  }
 });
 
 /** The game's reading of a world unit's summons, set once the game is made. */
@@ -47,14 +47,14 @@ const march = behaviour({
     }
 
     return undefined;
-  },
+  }
 });
 
 /** The world scripts: a Blood Horde twice over (sharing one behaviour), and a formation. */
 const SCRIPTS = defineScripts<UnitGame, 'bloodHorde' | 'hordeAgain' | 'march'>({
   bloodHorde: [horde],
   hordeAgain: [horde],
-  march: [march],
+  march: [march]
 });
 
 /** A game with the world scripts, stepped a tick at a time. */
@@ -99,7 +99,7 @@ describe('world scripts: scripts on bodiless units', () => {
     assert.equal(rogues.length, 3);
     assert.deepEqual(
       rogues.map((rogue) => rogue.side),
-      [1, 1, 1],
+      [1, 1, 1]
     );
 
     for (const rogue of rogues.slice(0, 2)) {
@@ -118,7 +118,7 @@ describe('world scripts: scripts on bodiless units', () => {
     game.units.despawn(early);
     assert.deepEqual(
       game.units.summonsOf(early).map((rogue) => rogue.lifecycle),
-      ['alive', 'alive', 'alive'],
+      ['alive', 'alive', 'alive']
     );
   });
 
@@ -134,7 +134,7 @@ describe('world scripts: scripts on bodiless units', () => {
     game.units.despawn(c);
     assert.deepEqual(
       [game.scripts.count(id.bloodHorde), game.scripts.count(id.march), game.scripts.count(id.hordeAgain)],
-      [0, 0, 0],
+      [0, 0, 0]
     );
   });
 
@@ -146,14 +146,14 @@ describe('world scripts: scripts on bodiless units', () => {
     game.tick([group]);
     assert.deepEqual(
       game.units.summonsOf(group).map((member) => member.ext.marks),
-      [1, 1],
+      [1, 1]
     );
     const members = [...game.units.summonsOf(group)];
 
     game.units.despawn(group);
     assert.deepEqual(
       members.map((member) => member.lifecycle),
-      ['despawned', 'despawned'],
+      ['despawned', 'despawned']
     );
   });
 });

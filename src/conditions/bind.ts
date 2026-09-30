@@ -19,7 +19,7 @@ export interface BoundTables<Host> {
 /** A comparison bound to its read, one closure per op so a read does no dispatch on the op. */
 const compareWith = <Host>(
   read: ValueRead<Host>,
-  [op, arg, than, epsilon]: readonly [CompareOp, number, number, number],
+  [op, arg, than, epsilon]: readonly [CompareOp, number, number, number]
 ): Predicate<Host> => {
   switch (op) {
     case '<':
@@ -107,7 +107,10 @@ export interface BoundTest<Host> {
  */
 export const conditionTest = <Host>(tables: BoundTables<Host>, condition: CompiledCondition): BoundTest<Host> => {
   if (condition.kind === 'is') {
-    return { test: (tables.conditions ?? missing('conditions')).get(condition.condition).test, arg: condition.arg };
+    return {
+      test: (tables.conditions ?? missing('conditions')).get(condition.condition).test,
+      arg: condition.arg
+    };
   }
 
   const predicate = bindCondition(tables, condition);

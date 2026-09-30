@@ -23,7 +23,7 @@ export const isEnded = <G extends SpellTypes>(cast: Cast<G>): boolean => cast.st
 const initCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
-  parts: { readonly spell: SpellId; readonly options: CastOptions<G> },
+  parts: { readonly spell: SpellId; readonly options: CastOptions<G> }
 ): void => {
   const { options } = parts;
   const casterId = engine.host.idOf?.(cast.caster) ?? NO_SOURCE;
@@ -55,7 +55,7 @@ const initCast = <G extends SpellTypes>(
 /** The refusal a gate's answer makes: none for true or nothing, the gate's own for false, else the game's reason. */
 const refusalOf = <G extends SpellTypes>(
   answer: GateAnswer<G> | undefined,
-  plain: CastRefusal<G>,
+  plain: CastRefusal<G>
 ): CastRefusal<G> | undefined => {
   if (answer === undefined || answer === true) {
     return undefined;
@@ -68,7 +68,7 @@ const refusalOf = <G extends SpellTypes>(
 const passGates = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
-  def: AnySpellDef<G>,
+  def: AnySpellDef<G>
 ): CastRefusal<G> | undefined => {
   const byHost = refusalOf(engine.host.canAct?.(cast.caster, cast.spell), 'gate');
 
@@ -88,7 +88,7 @@ const passGates = <G extends SpellTypes>(
 const admit = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
-  def: AnySpellDef<G>,
+  def: AnySpellDef<G>
 ): CastRefusal<G> | undefined => {
   const gated = passGates(engine, cast, def);
 
@@ -197,7 +197,7 @@ export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast
 export const afterPayload = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
-  outcome: CastOutcome<G>,
+  outcome: CastOutcome<G>
 ): void => {
   cast.outcome = outcome;
 
@@ -310,7 +310,7 @@ const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, 
 export const startCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   request: CastRequest<G>,
-  report: Report<G>,
+  report: Report<G>
 ): Report<G> => {
   const def = engine.registry.get(request.spell);
   const cast = engine.acquire(request.caster);
@@ -356,7 +356,7 @@ export const startCast = <G extends SpellTypes>(
  */
 export const checkCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
-  request: CastRequest<G>,
+  request: CastRequest<G>
 ): CastRefusal<G> | undefined => {
   const def = engine.registry.get(request.spell);
   const cast = engine.acquire(request.caster);

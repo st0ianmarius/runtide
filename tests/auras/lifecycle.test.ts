@@ -12,7 +12,7 @@ const logged = (name: string) =>
     onRefreshed: () => [`refreshed:${name}`],
     onExpired: () => [`expired:${name}`],
     onRemoved: () => [`removed:${name}`],
-    onState: (_ctx: unknown, state: string) => [`${state}:${name}`],
+    onState: (_ctx: unknown, state: string) => [`${state}:${name}`]
   }) as const;
 
 const defs = {
@@ -22,7 +22,7 @@ const defs = {
   ward: aura({ duration: 6, tags: ['immune'], ...logged('ward') }),
   scald: aura({ duration: 3, tags: ['poison'], blockedBy: ['immune'], ...logged('scald') }),
   purge: aura({ duration: 1, removes: ['poison'], ...logged('purge') }),
-  echo: aura({ duration: 3, stacking: 'independent', maxStacks: 2, ...logged('echo') }),
+  echo: aura({ duration: 3, stacking: 'independent', maxStacks: 2, ...logged('echo') })
 };
 
 describe('lifecycle hooks and their raise rules', () => {
@@ -46,7 +46,7 @@ describe('lifecycle hooks and their raise rules', () => {
       'refreshed:chill@1',
       'applied:rend@1',
       'refreshed:rend@1',
-      'applied:ward@1',
+      'applied:ward@1'
     ]);
   });
 
@@ -77,7 +77,7 @@ describe('lifecycle hooks and their raise rules', () => {
       'applied:echo@1',
       'applied:echo@1',
       'removed:echo@1',
-      'applied:echo@1',
+      'applied:echo@1'
     ]);
   });
 
@@ -118,8 +118,8 @@ describe('lifecycle hooks and their raise rules', () => {
           seen.push([ctx.aura.isActive, ctx.bearer.auras.list.length]);
 
           return undefined;
-        },
-      }),
+        }
+      })
     });
 
     const u = unit();
@@ -145,13 +145,11 @@ describe('lifecycle hooks and their raise rules', () => {
       first: aura({
         duration: 0.125,
 
-        onExpired: (ctx): readonly string[] => [
-          auras.apply(ctx.bearer, registry.id.third).fresh ? 'nested' : 'refused',
-        ],
+        onExpired: (ctx): readonly string[] => [auras.apply(ctx.bearer, registry.id.third).fresh ? 'nested' : 'refused']
       }),
 
       second: aura({ duration: 0.125, ...logged('second') }),
-      third: aura({ duration: 5, ...logged('third') }),
+      third: aura({ duration: 5, ...logged('third') })
     });
 
     const u = unit();
@@ -182,7 +180,7 @@ describe('aura events on the bus', () => {
       'trigger:applied:0@1|1',
       'subscriber:applied:0@1|1',
       'trigger:removed:0@1|2',
-      'subscriber:removed:0@1|2',
+      'subscriber:removed:0@1|2'
     ]);
   });
 
@@ -202,12 +200,16 @@ describe('aura events on the bus', () => {
 
     const { auras, unit, id } = makeGame(
       {
-        curse: aura({ duration: 9, tags: ['magic'], onRemoved: (ctx) => void removers.push(ctx.remover) }),
+        curse: aura({
+          duration: 9,
+          tags: ['magic'],
+          onRemoved: (ctx) => void removers.push(ctx.remover)
+        }),
         hex: aura({ duration: 9, tags: ['magic'] }),
         blight: aura({ duration: 9, tags: ['magic'], value: 3 }),
-        ward: aura({ duration: 9, tags: ['boon'] }),
+        ward: aura({ duration: 9, tags: ['boon'] })
       },
-      { events: { bus, changed: bus.kind.aura } },
+      { events: { bus, changed: bus.kind.aura } }
     );
 
     const u = unit();
@@ -222,7 +224,15 @@ describe('aura events on the bus', () => {
       auras.apply(u, each);
     }
 
-    assert.equal(auras.dispel(u, { tag: TAGS.id.magic, limit: 2, filter: (active) => active.value === 0, by: 7 }), 2);
+    assert.equal(
+      auras.dispel(u, {
+        tag: TAGS.id.magic,
+        limit: 2,
+        filter: (active) => active.value === 0,
+        by: 7
+      }),
+      2
+    );
     assert.deepEqual(heard, ['dispel 0 by 7', 'dispel 1 by 7']);
     assert.deepEqual(removers, [7]);
     assert.equal(auras.dispel(u, { tag: TAGS.id.magic }), 1);

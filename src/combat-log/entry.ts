@@ -16,7 +16,7 @@ export const COMBAT_ENTRY_KINDS = [
   'castHit',
   'castEnd',
   'areaSpawned',
-  'areaEnded',
+  'areaEnded'
 ] as const;
 
 /** A kind of combat log entry. */
@@ -113,7 +113,7 @@ export const ENTRY_FIELDS = [
   'overflow',
   'flags',
   'reason',
-  'outcome',
+  'outcome'
 ] as const;
 
 /** An entry being written or read: a class for fast properties, reused. */

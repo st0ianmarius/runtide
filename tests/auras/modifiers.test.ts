@@ -12,7 +12,7 @@ const game = (everyGate = false) => {
   const stats = defineStats({
     damage: { base: 1, kind: 'multiplier' },
     armor: { base: 0, kind: 'flat' },
-    speed: { base: 6, kind: 'flat' },
+    speed: { base: 6, kind: 'flat' }
   });
 
   const sources = defineSources(['base', 'auras', 'late']);
@@ -21,19 +21,24 @@ const game = (everyGate = false) => {
     stats,
     sources,
     stacks: auraStacks,
-    ...(everyGate ? {} : { held: auraGates }),
+    ...(everyGate ? {} : { held: auraGates })
   });
 
   const registry = defineAuras({
     frenzy: aura({ duration: 10, fold: 'late', modifiers: [mul('damage', 0.9)] }),
-    might: aura({ duration: 10, stacking: 'stack', maxStacks: 5, modifiers: [plus('armor', 30), mul('damage', 1.1)] }),
+    might: aura({
+      duration: 10,
+      stacking: 'stack',
+      maxStacks: 5,
+      modifiers: [plus('armor', 30), mul('damage', 1.1)]
+    }),
     fury: aura({ duration: 10, modifiers: [mul('damage', 1.3)] }),
     stride: aura({
       duration: 10,
       stacking: 'stack',
       maxStacks: 3,
-      modifiers: [mul('speed', 1.07, { stacking: 'linear' })],
-    }),
+      modifiers: [mul('speed', 1.07, { stacking: 'linear' })]
+    })
   });
 
   const auras = createAuraSystem({
@@ -42,7 +47,7 @@ const game = (everyGate = false) => {
     clocks: CLOCKS,
     modifiers,
     fold: 'auras',
-    createExt: () => ({ snapshot: 0 }),
+    createExt: () => ({ snapshot: 0 })
   });
 
   const unit = (): Unit => ({ id: 1, hp: 100, auras: auras.createState() });
@@ -116,12 +121,12 @@ describe('aura modifiers in the fold', () => {
           return Object.values(one.stats.id).flatMap((stat) => [
             one.modifiers.resolve(one.sheet, stat, { host: u }),
             one.modifiers.resolve(one.sheet, stat, { host: u, whatIf: { gate, stacks } }),
-            one.modifiers.resolve(one.sheet, stat, { whatIf: { gate, stacks } }),
+            one.modifiers.resolve(one.sheet, stat, { whatIf: { gate, stacks } })
           ]);
         });
 
         assert.deepEqual(a, b);
-      }),
+      })
     );
   });
 
@@ -133,8 +138,8 @@ describe('aura modifiers in the fold', () => {
       explanation.modifiers.map((m) => [m.stat, m.op, m.landed]),
       [
         [stats.id.armor, 'add', 90],
-        [stats.id.damage, 'mul', 1.3310000000000004],
-      ],
+        [stats.id.damage, 'mul', 1.3310000000000004]
+      ]
     );
   });
 

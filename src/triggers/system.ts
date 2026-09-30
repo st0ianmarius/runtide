@@ -105,7 +105,7 @@ export const explainTrigger = (triggers: TriggerSystem, aura: AuraId, index: num
  * load (one error listing every invalid one), then listens to each answered event kind on the bus's capped tier.
  */
 export const createTriggerSystem = <G extends TriggerTypes, Host = never>(
-  options: TriggerSystemOptions<G, Host>,
+  options: TriggerSystemOptions<G, Host>
 ): TriggerSystem => {
   const events: Readonly<Record<string, TriggerEvent<G> | undefined>> = options.events;
   const tables = compileTriggers<G, Host>({ ...options, events, conditions: options.conditions });
@@ -116,17 +116,17 @@ export const createTriggerSystem = <G extends TriggerTypes, Host = never>(
     conditions: options.conditions,
     random: options.random,
     rollChance: options.rollChance,
-    cooldownSeconds: options.cooldownSeconds,
+    cooldownSeconds: options.cooldownSeconds
   });
 
   const answered = Object.values(events).filter(
-    (event): event is TriggerEvent<G> => event !== undefined && tables.byEvent[event.kind] !== undefined,
+    (event): event is TriggerEvent<G> => event !== undefined && tables.byEvent[event.kind] !== undefined
   );
 
   const stops = answered.map((event) =>
     options.bus.handle(event.kind, (payload) => {
       dispatch(event, payload);
-    }),
+    })
   );
 
   const system: TriggerSystem = Object.freeze({
@@ -140,11 +140,11 @@ export const createTriggerSystem = <G extends TriggerTypes, Host = never>(
       for (const stop of stops) {
         stop();
       }
-    },
+    }
   });
 
   EXPLAINERS.set(system, (aura) =>
-    (tables.byAura[aura] ?? []).map((trigger) => explainCompiled(options.procs, trigger)),
+    (tables.byAura[aura] ?? []).map((trigger) => explainCompiled(options.procs, trigger))
   );
 
   return system;

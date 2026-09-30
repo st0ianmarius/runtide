@@ -11,7 +11,7 @@ import {
   defineCue,
   defineCues,
   encodeCues,
-  fireCue,
+  fireCue
 } from '../../src/cues/index.ts';
 
 /** A neutral cue table: one cue per audience, a world cue claiming an owner audience, and two predicted cues. */
@@ -21,7 +21,7 @@ const CUES = defineCues({
   all: defineCue({ anchor: 'entity' }),
   horn: defineCue({ anchor: 'world', audience: 'owner' }),
   step: defineCue({ anchor: 'self', isPredicted: true }),
-  leap: defineCue({ anchor: 'target', isPredicted: true }),
+  leap: defineCue({ anchor: 'target', isPredicted: true })
 });
 
 /** Units 1 and 2 share a party; unit 3 is alone. */
@@ -33,7 +33,9 @@ const OWNED = { owner: 1, entity: 1, x: 0, z: 0 };
 describe('cueReaches', () => {
   it('routes by audience: the owner alone, the owner and its party, or everyone', () => {
     const out = createCueBuffer(CUES);
+
     const events = [CUES.id.mine, CUES.id.ours, CUES.id.all, CUES.id.horn].map((cue) => fireCue(out, { cue }, OWNED));
+
     const reach = (id: number) => events.map((event) => cueReaches(CUES, event, { id, sharesParty: sharesParty(id) }));
 
     assert.deepEqual(reach(1), [true, true, true, true]);
@@ -41,7 +43,7 @@ describe('cueReaches', () => {
     assert.deepEqual(reach(3), [false, false, true, true]);
     assert.deepEqual(
       events.map((event) => cueReaches(CUES, event, { id: 2 })),
-      [false, false, true, true],
+      [false, false, true, true]
     );
   });
 
@@ -83,12 +85,12 @@ describe('predicted cue echoes', () => {
       fireCue(server, { cue: CUES.id.step, key: 5 }, OWNED),
       fireCue(server, { cue: CUES.id.step, key: 6 }, OWNED),
       fireCue(server, { cue: CUES.id.leap, key: 6 }, { ...OWNED, owner: 2 }),
-      fireCue(server, { cue: CUES.id.leap, key: 6 }, OWNED),
+      fireCue(server, { cue: CUES.id.leap, key: 6 }, OWNED)
     ];
 
     assert.deepEqual(
       copies.map((event) => echoes.isEcho(event)),
-      [true, false, false, false, true],
+      [true, false, false, false, true]
     );
   });
 
@@ -105,7 +107,7 @@ describe('predicted cue echoes', () => {
     echoes.isEcho(fireCue(server, { cue: CUES.id.step, key: 3 }, OWNED));
     assert.equal(
       echoes.settle(4, (cue, owner, key) => missed.push(`${cue}@${owner}#${key}`)),
-      1,
+      1
     );
     assert.deepEqual(missed, [`${CUES.id.step}@${OWNED.owner}#4`]);
     assert.equal(echoes.settle(4), 0);
@@ -130,7 +132,7 @@ describe('predicted cue echoes', () => {
 
     assert.deepEqual(
       [1, 2, 3].map((key) => echoes.isEcho(fire(key))),
-      [false, true, true],
+      [false, true, true]
     );
 
     echoes.note(fire(4));

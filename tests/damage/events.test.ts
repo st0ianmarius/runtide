@@ -19,7 +19,7 @@ const AURAS = {
   pricked: aura({ duration: 3 }),
   thorny: aura({
     duration: 'infinite',
-    triggers: [{ on: 'taken', do: [applyAura<Game>('pricked', { to: 'other' })] }],
+    triggers: [{ on: 'taken', do: [applyAura<Game>('pricked', { to: 'other' })] }]
   }),
 
   listener: aura({
@@ -30,11 +30,15 @@ const AURAS = {
         on: 'taken',
         when: [
           { filter: 'minAmount', arg: 20 },
-          { filter: 'status', arg: 'landed' },
+          { filter: 'status', arg: 'landed' }
         ],
-        do: [applyAura<Game>('bruised')],
+        do: [applyAura<Game>('bruised')]
       },
-      { on: 'taken', when: [{ filter: 'damageKind', arg: 'fire' }], do: [applyAura<Game>('scorched')] },
+      {
+        on: 'taken',
+        when: [{ filter: 'damageKind', arg: 'fire' }],
+        do: [applyAura<Game>('scorched')]
+      },
       { on: 'kill', do: [applyAura<Game>('gorged')] },
       { on: 'kill', when: [{ filter: 'spell', arg: 'hexfire' }], do: [applyAura<Game>('hexed')] },
       { on: 'dealt', when: [{ filter: 'spell', arg: 4 }], do: [applyAura<Game>('seared')] },
@@ -42,10 +46,10 @@ const AURAS = {
       {
         on: 'dealt',
         when: [{ filter: 'damageKind', arg: 'fire' }],
-        do: [applyAura<Game>('poisoned', { to: 'other' })],
-      },
-    ],
-  }),
+        do: [applyAura<Game>('poisoned', { to: 'other' })]
+      }
+    ]
+  })
 } as const;
 
 /** The spell names the `spell` filters resolve through. */
@@ -61,12 +65,16 @@ const makeTriggerGame = (overrides: DamageOverrides = {}) => {
     procs: game.procs,
     bus,
     events: {
-      dealt: damageTriggerEvent(bus.kind.dealt, { about: 'attacker', kinds: KINDS, spells: SPELLS }),
+      dealt: damageTriggerEvent(bus.kind.dealt, {
+        about: 'attacker',
+        kinds: KINDS,
+        spells: SPELLS
+      }),
       taken: damageTriggerEvent(bus.kind.taken, { about: 'target', kinds: KINDS }),
       healed: healTriggerEvent(bus.kind.healed, 'target'),
       death: deathTriggerEvent(bus.kind.death, 'unit'),
-      kill: deathTriggerEvent(bus.kind.kill, 'killer', SPELLS),
-    },
+      kill: deathTriggerEvent(bus.kind.kill, 'killer', SPELLS)
+    }
   });
 
   const listening = (id: number) => {
@@ -83,7 +91,7 @@ const makeTriggerGame = (overrides: DamageOverrides = {}) => {
 describe('the damage events', () => {
   it('raise dealt about the attacker, then taken about the target, for every blow not skipped or ignored', () => {
     const { damage, unit, bus, log, auras, id } = makeDamageGame({
-      shield: aura({ duration: 'infinite', onIgnore: () => true }),
+      shield: aura({ duration: 'infinite', onIgnore: () => true })
     });
 
     const [target, attacker, immune] = [unit(1), unit(2), unit(3)];
@@ -145,7 +153,10 @@ describe('the damage trigger events', () => {
   });
 
   it('answer only a landed heal, not a blocked one', () => {
-    const game = makeTriggerGame({ healStages: { ward: { before: 'done', run: () => 'blocked' } } });
+    const game = makeTriggerGame({
+      healStages: { ward: { before: 'done', run: () => 'blocked' } }
+    });
+
     const target = game.listening(1);
     const event = { heal: game.damage.heal({ target, amount: 10 }) };
 

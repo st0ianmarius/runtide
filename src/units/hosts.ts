@@ -36,7 +36,7 @@ export const syncHealth = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
  * dead. A game spreads it into its damage host and adds the rest.
  */
 export const damageHostOf = <G extends UnitTypes>(
-  engine: UnitEngine<G>,
+  engine: UnitEngine<G>
 ): Pick<DamageHost<G>, 'health' | 'setHealth' | 'maxHealth' | 'statsOf' | 'idOf' | 'unitOf' | 'remove'> => ({
   health: (unit) => unitOf<G>(unit).health,
 
@@ -51,5 +51,5 @@ export const damageHostOf = <G extends UnitTypes>(
 
   remove: (unit) => {
     moveTo(engine, unit, ['dead', undefined]);
-  },
+  }
 });

@@ -41,7 +41,7 @@ describe('inside: the units a shape covers', () => {
       [3, 1, 0],
       [1, 0, 1],
       [2, 5, 0],
-      [4, -1, -1],
+      [4, -1, -1]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -57,7 +57,7 @@ describe('inside: the units a shape covers', () => {
 
     assert.deepEqual(
       names(out, count),
-      [...ids].sort((a, b) => a - b).map((id) => `m${id}`),
+      [...ids].sort((a, b) => a - b).map((id) => `m${id}`)
     );
     assert.throws(() => {
       world.add({ name: 'x' }, { id: -1, at: vec2(0, 0) });
@@ -70,7 +70,7 @@ describe('inside: the units a shape covers', () => {
   it('reaches bodies by their radius when measured to the edge', () => {
     const { world } = worldOf([
       [1, 3, 0, 0, 0.5],
-      [2, 3, 0.1, 0, 1.5],
+      [2, 3, 0.1, 0, 1.5]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -84,7 +84,7 @@ describe('inside: the units a shape covers', () => {
       [1, 0, 0, 0],
       [2, 1, 0, 1],
       [3, 0, 1, 0],
-      [4, 1, 1, 1],
+      [4, 1, 1, 1]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -108,7 +108,7 @@ describe('inside: the units a shape covers', () => {
         }
 
         return a === b ? 'friendly' : 'hostile';
-      },
+      }
     });
 
     const [hero, mob, hazard, other, critter] = [
@@ -116,7 +116,7 @@ describe('inside: the units a shape covers', () => {
       { name: 'm' },
       { name: 'z' },
       { name: 'o' },
-      { name: 'c' },
+      { name: 'c' }
     ];
 
     world.add(hero, { id: 1, at: vec2(0, 0), side: 0 });
@@ -137,7 +137,7 @@ describe('inside: the units a shape covers', () => {
     assert.deepEqual(query('allies', hazard), []);
     assert.deepEqual(
       [world.reactionOf(hero, mob), world.reactionOf(hero, hero), world.reactionOf(hero, critter)],
-      ['hostile', 'friendly', 'neutral'],
+      ['hostile', 'friendly', 'neutral']
     );
   });
 
@@ -145,7 +145,7 @@ describe('inside: the units a shape covers', () => {
     const { world, mob } = worldOf([
       [1, 0, 0, 0],
       [2, 1, 0, 1],
-      [3, 0, 1, 1],
+      [3, 0, 1, 1]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -154,14 +154,14 @@ describe('inside: the units a shape covers', () => {
     assert.deepEqual(names(out, world.inside(circle(5), { side: 'foes', of: mob(1) }, out)), ['m2']);
     assert.deepEqual(names(out, world.inside(circle(5), { side: 'foes', of: { name: 'x' }, ofSide: 1 }, out)), [
       'm1',
-      'm3',
+      'm3'
     ]);
   });
 
   it("leaves out whom the game's targeting rule says the asker may not pick", () => {
     const world = createMemoryWorld<Mob>({
       bounds: BOUNDS,
-      canTarget: (by, unit) => by.name === 'seer' || unit.name !== 'shade',
+      canTarget: (by, unit) => by.name === 'seer' || unit.name !== 'shade'
     });
 
     const [seer, grunt, shade] = [{ name: 'seer' }, { name: 'grunt' }, { name: 'shade' }];
@@ -181,7 +181,7 @@ describe('inside: the units a shape covers', () => {
     const { world, mob } = worldOf([
       [1, 0, 0],
       [2, 1, 0],
-      [3, 2, 0],
+      [3, 2, 0]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -195,7 +195,7 @@ describe('inside: the units a shape covers', () => {
       [4, 3, 0],
       [2, 1, 0],
       [3, -1, 0],
-      [1, 2, 0],
+      [1, 2, 0]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -208,7 +208,7 @@ describe('inside: the units a shape covers', () => {
       'm4',
       'm1',
       'm2',
-      'm3',
+      'm3'
     ]);
   });
 
@@ -218,7 +218,7 @@ describe('inside: the units a shape covers', () => {
       [2, 1, 0],
       [3, 2, 0],
       [4, 3, 0],
-      [5, 4, 0],
+      [5, 4, 0]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -230,7 +230,7 @@ describe('inside: the units a shape covers', () => {
   it('filters the whole world with no shape', () => {
     const { world } = worldOf([
       [2, 40, 40],
-      [1, -40, -40],
+      [1, -40, -40]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -246,7 +246,7 @@ describe('nearest', () => {
     const { world } = worldOf([
       [1, 3, 0],
       [2, 2, 0],
-      [3, 2, 0],
+      [3, 2, 0]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -262,7 +262,7 @@ describe('sweep: what a moving body touches', () => {
     const { world } = worldOf([
       [1, 8, 0, 0, 1],
       [2, 4, 0.5, 0, 1],
-      [3, 4, 5, 0, 1],
+      [3, 4, 5, 0, 1]
     ]);
 
     const out: (Mob | undefined)[] = [];
@@ -329,7 +329,7 @@ describe('motion and the point index', () => {
     const spot = fc.tuple(
       fc.integer({ min: -45, max: 45 }),
       fc.integer({ min: -45, max: 45 }),
-      fc.integer({ min: 0, max: 1 }),
+      fc.integer({ min: 0, max: 1 })
     );
 
     fc.assert(
@@ -344,9 +344,9 @@ describe('motion and the point index', () => {
         assert.deepEqual(names(a, grid.world.inside(shape, {}, a)), names(b, kd.world.inside(shape, {}, b)));
         assert.deepEqual(
           names(a, grid.world.nearest(vec2(0, 0), { range: r }, a)),
-          names(b, kd.world.nearest(vec2(0, 0), { range: r }, b)),
+          names(b, kd.world.nearest(vec2(0, 0), { range: r }, b))
         );
-      }),
+      })
     );
   });
 });
@@ -354,6 +354,7 @@ describe('motion and the point index', () => {
 describe('the memory world as a whole', () => {
   it('sorts long result lists the same as short ones', () => {
     const rows = Array.from({ length: 200 }, (_unused, i) => [199 - i, (i % 20) - 10, Math.floor(i / 20) - 5]);
+
     const { world } = worldOf(rows);
     const out: (Mob | undefined)[] = [];
     const count = world.all({}, out);
@@ -361,7 +362,7 @@ describe('the memory world as a whole', () => {
     assert.equal(count, 200);
     assert.deepEqual(
       names(out, count),
-      Array.from({ length: 200 }, (_unused, i) => `m${i}`),
+      Array.from({ length: 200 }, (_unused, i) => `m${i}`)
     );
   });
 
@@ -385,6 +386,7 @@ describe('the memory world as a whole', () => {
 describe('a limit of one and a count (no sort they do not need)', () => {
   it('keep the first unit the whole ordered query keeps, and count what it keeps, whatever the order', () => {
     const spot = fc.tuple(fc.integer({ min: -20, max: 20 }), fc.integer({ min: -20, max: 20 }), fc.nat(1));
+
     const order = fc.constantFrom('near', 'far', 'id' as const);
 
     fc.assert(
@@ -398,7 +400,7 @@ describe('a limit of one and a count (no sort they do not need)', () => {
         assert.equal(world.nearest(vec2(1, 2), { ...options, limit: 1 }, one), Math.min(kept, 1));
         assert.equal(one[0], kept === 0 ? undefined : all[0]);
         assert.equal(world.count(circle(9, vec2(3, -1)), {}), world.inside(circle(9, vec2(3, -1)), {}, all));
-      }),
+      })
     );
   });
 });

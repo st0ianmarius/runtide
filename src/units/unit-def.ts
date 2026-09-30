@@ -127,7 +127,7 @@ const NO_TAGS: UnitTagTable = createRegistry({}, { kind: 'unitTags' });
  */
 export const defineUnits = <G extends UnitTypes, const Name extends string>(
   defs: Readonly<Record<Name, UnitDef<G> | Tombstone>>,
-  options: UnitRegistryOptions<G>,
+  options: UnitRegistryOptions<G>
 ): UnitRegistry<G, Name> => {
   const byName = new Map(Object.entries<UnitDef<G> | Tombstone>(defs));
 
@@ -160,6 +160,6 @@ export const defineUnits = <G extends UnitTypes, const Name extends string>(
     stats: options.stats,
     tags,
     bases: Object.freeze(slots.map((def) => baseOf(def, options.stats))),
-    tagSets: Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => tagIds[tag] ?? 0)))),
+    tagSets: Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => tagIds[tag] ?? 0))))
   });
 };

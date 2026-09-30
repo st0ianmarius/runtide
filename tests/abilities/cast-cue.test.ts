@@ -28,22 +28,22 @@ const spells = {
     cues: {
       cast: ({ bearer, input, stats, dt, world }) => {
         lines.push(
-          `cast cue @${bearer.id} input ${input?.x},${input?.z} haste ${stats?.total(STATS.id.abilityHaste)} dt ${dt} clear ${world.lineClear({ x: 0, z: 0 }, { x: 1, z: 1 })}`,
+          `cast cue @${bearer.id} input ${input?.x},${input?.z} haste ${stats?.total(STATS.id.abilityHaste)} dt ${dt} clear ${world.lineClear({ x: 0, z: 0 }, { x: 1, z: 1 })}`
         );
 
         return { cue: CUES.id.swish, params: { size: 3 } };
       },
 
-      start: () => ({ cue: CUES.id.flash }),
+      start: () => ({ cue: CUES.id.flash })
     },
 
-    release: logRelease('blink'),
+    release: logRelease('blink')
   }),
 
   loud: spell({
     activation: { kind: 'button' },
     cues: { cast: () => ({ cue: CUES.id.flash }) },
-    release: logRelease('loud'),
+    release: logRelease('loud')
   }),
 
   plain: spell({ activation: { kind: 'button' }, release: logRelease('plain') }),
@@ -52,12 +52,12 @@ const spells = {
     activation: {
       kind: 'button',
       commitsOn: 'cast',
-      checkCast: ({ input, world }) => input !== undefined && world.isPositionClear(input, 0.5),
+      checkCast: ({ input, world }) => input !== undefined && world.isPositionClear(input, 0.5)
     },
     cooldown: { aura: 'skillCooldown', seconds: 2 },
     cues: { cast: () => ({ cue: CUES.id.swish }) },
-    release: logRelease('sentry'),
-  }),
+    release: logRelease('sentry')
+  })
 };
 
 /** A static world with a wall from x = 5 on: a sentry fits only west of it. */
@@ -66,7 +66,7 @@ const WALLED: StaticWorld = {
   lineClear: () => true,
   isPositionClear: (p, radius) => p.x + radius < 5,
   clamp: (p) => p,
-  moveBody: ([, to]) => ({ position: to, hit: false, share: 1 }),
+  moveBody: ([, to]) => ({ position: to, hit: false, share: 1 })
 };
 
 /** The cue ids and keys of a buffer's events, in firing order. */
@@ -113,7 +113,7 @@ describe('the mirror-safe cast cue', () => {
 
     assert.deepEqual(
       server.cues.events.map((event) => echoes.isEcho(event)),
-      [true, false],
+      [true, false]
     );
   });
 });
@@ -122,7 +122,7 @@ describe('presses on a prediction mirror', () => {
   it('land only the predicted auras a button applies; the server lands them all', () => {
     const rush = spell({
       activation: { kind: 'button', applies: [auraNamed('sprint'), auraNamed('stance')] },
-      release: logRelease('rush'),
+      release: logRelease('rush')
     });
 
     const landed = (mirror: boolean): boolean[] => {
@@ -163,7 +163,7 @@ describe('presses on a prediction mirror', () => {
       activation: { kind: 'button', commitsOn: 'cast', cost: { aura: auraNamed('charge') } },
       cooldown: { aura: 'skillCooldown', seconds: 3 },
       cues: { cast: () => ({ cue: CUES.id.swish }) },
-      release: logRelease('tether'),
+      release: logRelease('tether')
     });
 
     const game = makeAbilityGame({ tether }, { mirror: true });
@@ -176,7 +176,7 @@ describe('presses on a prediction mirror', () => {
     assert.equal(abilities.tryActivate(hero, abilities.bit(abilities.slots.id.skill), { refusals }), 0);
     assert.deepEqual(
       [refusals[abilities.slots.id.skill], game.cues.events.length, game.auras.stacks(hero, auraNamed('charge'))],
-      ['server', 0, 1],
+      ['server', 0, 1]
     );
   });
 
@@ -186,7 +186,7 @@ describe('presses on a prediction mirror', () => {
     const surge = spell({
       ranks: 3,
       activation: { kind: 'button', activate: ({ rank }) => void ranked.push(rank) },
-      release: logRelease('surge'),
+      release: logRelease('surge')
     });
 
     const game = makeAbilityGame({ surge }, { mirror: true });
@@ -204,7 +204,10 @@ describe('presses on a prediction mirror', () => {
     const { abilities } = game;
 
     abilities.equip(hero, abilities.slots.id.dodge, game.id.blink);
-    abilities.tryActivate(hero, abilities.bit(abilities.slots.id.dodge), { input: { x: 1, z: 0 }, key: 21 });
+    abilities.tryActivate(hero, abilities.bit(abilities.slots.id.dodge), {
+      input: { x: 1, z: 0 },
+      key: 21
+    });
     assert.deepEqual(firedOf(game.cues.events), ['swish@4 key 21', 'flash@4 key 0']);
     assert.equal(abilities.cooldownLeft(hero, abilities.slots.id.dodge), 2);
   });

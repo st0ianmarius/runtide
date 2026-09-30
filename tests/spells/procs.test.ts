@@ -16,8 +16,8 @@ describe('the castSpell proc', () => {
       swing: spell({ activation: { kind: 'trigger' }, release: () => [castSpell<Game>('stab')] }),
       stab: spell({
         activation: { kind: 'trigger' },
-        release: (ctx) => [mark(`stab rank ${ctx.rank} source ${ctx.source}`)],
-      }),
+        release: (ctx) => [mark(`stab rank ${ctx.rank} source ${ctx.source}`)]
+      })
     });
 
     game.spells.cast(game.unit(1), game.id.swing, { rank: 3, source: 40 });
@@ -28,7 +28,7 @@ describe('the castSpell proc', () => {
       'release stab@1',
       'end stab@1 released',
       'release swing@1',
-      'end swing@1 released',
+      'end swing@1 released'
     ]);
   });
 
@@ -39,16 +39,16 @@ describe('the castSpell proc', () => {
         nova: spell({
           activation: { kind: 'trigger' },
           cooldown: { aura: 'icd', seconds: 1 },
-          release: () => [mark('nova')],
+          release: () => [mark('nova')]
         }),
         refused: spell({
           activation: { kind: 'trigger' },
           cooldown: { aura: 'icd' },
           canCast: () => false,
-          release: () => undefined,
-        }),
+          release: () => undefined
+        })
       },
-      { auras: { icd: aura({ duration: 5 }) } },
+      { auras: { icd: aura({ duration: 5 }) } }
     );
 
     const hero = game.unit(1);
@@ -58,7 +58,7 @@ describe('the castSpell proc', () => {
     game.spells.cast(hero, game.id.proc);
     assert.deepEqual(
       game.log.filter((line) => line === 'nova@1'),
-      ['nova@1'],
+      ['nova@1']
     );
     assert.equal(game.auras.remaining(hero, icd), 1);
     assert.equal(game.spells.check(hero, game.id.nova), 'cooldown');
@@ -82,19 +82,23 @@ describe('the castSpell proc', () => {
             nova: spell({
               activation: { kind: 'trigger' },
               cooldown: { aura: 'icd', seconds: -1 },
-              release: () => undefined,
-            }),
+              release: () => undefined
+            })
           },
-          { auras: { icd: aura({ duration: 5 }) } },
+          { auras: { icd: aura({ duration: 5 }) } }
         ),
-      /its cooldown lasts a finite number of seconds from 0/,
+      /its cooldown lasts a finite number of seconds from 0/
     );
     assert.throws(
       () =>
         makeSpellGame({
-          nova: spell({ activation: { kind: 'trigger' }, cooldown: { aura: 'nope' }, release: () => undefined }),
+          nova: spell({
+            activation: { kind: 'trigger' },
+            cooldown: { aura: 'nope' },
+            release: () => undefined
+          })
         }),
-      /its cooldown aura nope is not a live aura/,
+      /its cooldown aura nope is not a live aura/
     );
   });
 
@@ -111,13 +115,13 @@ describe('the castSpell proc', () => {
           outcomes.push(ctx.apply(castSpell<Game>('aimed', { inputOf: () => target })).status);
 
           return undefined;
-        },
+        }
       }),
       aimed: spell({
         activation: { kind: 'trigger' },
         target: (_ctx, input) => input,
-        release: (_ctx, target) => [mark(`aimed at ${target.id}`)],
-      }),
+        release: (_ctx, target) => [mark(`aimed at ${target.id}`)]
+      })
     });
 
     game.spells.cast(game.unit(1), game.id.opener, { input: game.unit(2) });
@@ -126,7 +130,10 @@ describe('the castSpell proc', () => {
   });
 
   it('resolves its spell at load, refusing an unknown one, and explains itself', () => {
-    const game = makeSpellGame({ bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined }) });
+    const game = makeSpellGame({
+      bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined })
+    });
+
     const [prepared] = game.procs.prepare([castSpell<Game>('bolt', { rank: 2 })], 'combo');
 
     assert.deepEqual(prepared, { rank: 2, kind: 'castSpell', spell: game.id.bolt });
@@ -142,8 +149,9 @@ describe('delayed procs', () => {
       drop: spell({
         activation: { kind: 'trigger' },
         target: (_ctx, input) => input,
-        release: (_ctx, target) => [after<Game>(seconds, [...procs, damage<Game>(10, { to: target })])],
-      }),
+
+        release: (_ctx, target) => [after<Game>(seconds, [...procs, damage<Game>(10, { to: target })])]
+      })
     });
 
     return { ...game, a: game.unit(1), b: game.unit(2) };
@@ -181,8 +189,9 @@ describe('delayed procs', () => {
     const game = makeSpellGame({
       strike: spell({
         activation: { kind: 'trigger' },
-        release: () => [after<Game>(0.5, [mark('struck')], { bound: (owner) => standing.has(owner.id) })],
-      }),
+
+        release: () => [after<Game>(0.5, [mark('struck')], { bound: (owner) => standing.has(owner.id) })]
+      })
     });
 
     const a = game.unit(1);
@@ -198,7 +207,7 @@ describe('delayed procs', () => {
     assert.equal(game.spells.stepDelayed(), 0);
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('struck')),
-      ['struck@1'],
+      ['struck@1']
     );
     assert.equal(game.spells.get(handle), undefined);
     assert.equal(game.spells.delayed.pending, 0);
@@ -213,11 +222,13 @@ describe('delayed procs', () => {
 
         release: () => [
           after<Game>(0.3, [
-            after<Game>(0.3, [run('due', () => landed.push(`due t${game0.clock.tick}`))], { from: 'due' }),
-            after<Game>(0.3, [run('now', () => landed.push(`now t${game0.clock.tick}`))]),
-          ]),
-        ],
-      }),
+            after<Game>(0.3, [run('due', () => landed.push(`due t${game0.clock.tick}`))], {
+              from: 'due'
+            }),
+            after<Game>(0.3, [run('now', () => landed.push(`now t${game0.clock.tick}`))])
+          ])
+        ]
+      })
     });
 
     const game0 = game;
@@ -242,11 +253,11 @@ describe('delayed procs', () => {
           release: () => [
             after<Game>(0.25, [mark('late one')], { slot: SLOTS.id.late }),
             after<Game>(0.25, [mark('early one')]),
-            after<Game>(0.25, [mark('early two')], { slot: SLOTS.id.early }),
-          ],
-        }),
+            after<Game>(0.25, [mark('early two')], { slot: SLOTS.id.early })
+          ]
+        })
       },
-      { spells: { slots: SLOTS } },
+      { spells: { slots: SLOTS } }
     );
 
     game.spells.cast(game.unit(1), game.id.split);
@@ -257,7 +268,9 @@ describe('delayed procs', () => {
   });
 
   it('refuses seconds below 0 and a slot the system does not have, at load and when it applies', () => {
-    const game = makeSpellGame({ bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined }) });
+    const game = makeSpellGame({
+      bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined })
+    });
 
     assert.throws(() => game.procs.prepare([after<Game>(-1, [])], 'x'), /x: an after proc waits/);
     assert.throws(() => game.procs.prepare([after<Game>(1, [], { slot: SLOTS.id.late })], 'x'), /slot 1/);
@@ -284,7 +297,7 @@ describe('the escape report', () => {
 
     const game = makeSpellGame(
       { bolt: spell({ activation: { kind: 'charged', least: 1 }, release: () => undefined }) },
-      { activations: defineActivations<Game>({ ...CORE_ACTIVATIONS, charged }) },
+      { activations: defineActivations<Game>({ ...CORE_ACTIVATIONS, charged }) }
     );
 
     const { procs, damage, spells, areaTriggers } = game;

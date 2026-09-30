@@ -15,7 +15,7 @@ const NO_UNITS: readonly never[] = Object.freeze([]);
 export type HitHook<G extends AreaTriggerTypes> = (
   c: AreaTriggerContext<G>,
   hit: AreaHit<G>,
-  out: ProcOut<G>,
+  out: ProcOut<G>
 ) => ProcReturn<G>;
 
 /**

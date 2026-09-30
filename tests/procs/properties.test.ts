@@ -17,8 +17,11 @@ describe('chance invariants (fast-check)', () => {
         fc.array(fc.double({ min: 0, max: 0.999_999, noNaN: true }), { maxLength: 24 }),
         (odds, draws) => {
           const random = scripted(draws);
+
           const { procs, unit, log } = makeGame({ idle: aura({ duration: 1 }) }, { procs: { random } });
+
           const list = odds.map((chance, index) => grant<Game>('gold', index, chance === undefined ? {} : { chance }));
+
           const expected: string[] = [];
           let drawn = 0;
 
@@ -38,8 +41,8 @@ describe('chance invariants (fast-check)', () => {
           assert.equal(random.count(), drawn);
           assert.deepEqual(log, expected);
           assert.equal(went, expected.length);
-        },
-      ),
+        }
+      )
     );
   });
 });

@@ -32,7 +32,7 @@ const fail = (what: string | undefined, message: string): never => {
 const prepareList = <G extends ProcTypes>(
   parts: ResolverParts<G>,
   procs: readonly Proc<G>[],
-  resolve: ProcResolver<G>,
+  resolve: ProcResolver<G>
 ): readonly Proc<G>[] =>
   Object.freeze(
     procs.map((proc) => {
@@ -43,7 +43,7 @@ const prepareList = <G extends ProcTypes>(
       }
 
       return parts.kinds.defs[parts.kinds.kindOf(proc)]?.prepare?.(proc, resolve) ?? proc;
-    }),
+    })
   );
 
 /** An aura id checked against the registry at load: a live id, not a tombstone or a number outside it. */
@@ -65,7 +65,7 @@ const checkedCue = (cues: CueRegistry, id: CueId, what: string | undefined): Cue
  */
 export const createResolver = <G extends ProcTypes>(
   parts: ResolverParts<G>,
-  what: string | undefined,
+  what: string | undefined
 ): ProcResolver<G> => {
   const auraIds: Readonly<Record<string, AuraId | undefined>> = parts.auras.registry.id;
   const tagIds: Readonly<Record<string, AuraTagId | undefined>> = parts.auras.tags.id;
@@ -109,7 +109,7 @@ export const createResolver = <G extends ProcTypes>(
     },
 
     procs: (procs) => prepareList(parts, procs, resolve),
-    hatch: parts.noteHatch,
+    hatch: parts.noteHatch
   };
 
   return resolve;
@@ -119,13 +119,15 @@ export const createResolver = <G extends ProcTypes>(
 export const prepareProcs = <G extends ProcTypes>(
   parts: ResolverParts<G>,
   procs: readonly Proc<G>[],
-  what: string,
+  what: string
 ): readonly Proc<G>[] => {
   try {
     return prepareList(parts, procs, createResolver(parts, what));
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
 
-    throw new RangeError(message.startsWith(what) ? message : `${what}: ${message}`, { cause: error });
+    throw new RangeError(message.startsWith(what) ? message : `${what}: ${message}`, {
+      cause: error
+    });
   }
 };

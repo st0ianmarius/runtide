@@ -21,9 +21,9 @@ describe('periodic beats', () => {
             ticks.push(ctx.bearer.auras.clocks[0] ?? 0);
 
             return [`bleed×${ctx.aura.stacks}`];
-          },
-        },
-      }),
+          }
+        }
+      })
     });
 
     const u = unit();
@@ -49,9 +49,9 @@ describe('periodic beats', () => {
             beats += 1;
 
             return undefined;
-          },
-        },
-      }),
+          }
+        }
+      })
     });
 
     const u = unit();
@@ -78,9 +78,9 @@ describe('periodic beats', () => {
             beats += 1;
 
             return undefined;
-          },
-        },
-      }),
+          }
+        }
+      })
     });
 
     const u = unit();
@@ -101,8 +101,8 @@ describe('periodic beats', () => {
     const { auras, id, unit, run, log } = makeGame({
       heal: aura({
         duration: 'infinite',
-        periodic: { every: 1, onBeat: (ctx) => (ctx.bearer.hp >= 50 ? ['heal'] : undefined) },
-      }),
+        periodic: { every: 1, onBeat: (ctx) => (ctx.bearer.hp >= 50 ? ['heal'] : undefined) }
+      })
     });
 
     const u = unit();
@@ -131,9 +131,9 @@ describe('periodic beats', () => {
             ticks.push(ctx.bearer.auras.clocks[0] ?? 0);
 
             return undefined;
-          },
-        },
-      }),
+          }
+        }
+      })
     });
 
     const u = unit();
@@ -147,7 +147,7 @@ describe('periodic beats', () => {
 
   it('runs no beat on a silent bearer, which still counts and expires', () => {
     const { auras, id, unit, run, log } = makeGame({
-      dot: aura({ duration: 1, periodic: { every: 0.25, onBeat: () => ['tick'] } }),
+      dot: aura({ duration: 1, periodic: { every: 0.25, onBeat: () => ['tick'] } })
     });
 
     const u = unit(1, true);
@@ -160,7 +160,7 @@ describe('periodic beats', () => {
 
   it('refuses a live period that is not above 0', () => {
     const { auras, id, unit, run } = makeGame({
-      broken: aura({ duration: 5, periodic: { every: () => 0, onBeat: () => undefined } }),
+      broken: aura({ duration: 5, periodic: { every: () => 0, onBeat: () => undefined } })
     });
 
     const u = unit();

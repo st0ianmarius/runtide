@@ -43,5 +43,5 @@ export const defineTimers = <const Name extends string>(names: readonly Name[]):
 /** Whether a record has an id for every name. */
 const isComplete = <Name extends string>(
   record: Partial<Record<Name, TimerId>>,
-  names: readonly Name[],
+  names: readonly Name[]
 ): record is Record<Name, TimerId> => names.every((name) => record[name] !== undefined);

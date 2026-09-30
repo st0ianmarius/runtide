@@ -27,7 +27,7 @@ export interface AuraViewChange {
 export const auraLifecycle = (
   before: AuraView | undefined,
   after: AuraView | undefined,
-  clocks: ArrayLike<number>,
+  clocks: ArrayLike<number>
 ): AuraLifecycle | undefined => {
   if (before === undefined) {
     return after === undefined ? undefined : 'applied';
@@ -58,7 +58,7 @@ const keyOf = (view: AuraView): string => `${view.aura}:${view.serial}`;
 export const auraChanges = (
   before: readonly AuraView[],
   after: readonly AuraView[],
-  clocks: ArrayLike<number>,
+  clocks: ArrayLike<number>
 ): AuraViewChange[] => {
   const earlier = new Map(before.map((view) => [keyOf(view), view]));
   const later = new Set(after.map(keyOf));

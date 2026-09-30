@@ -8,7 +8,7 @@ import {
   type Pool,
   type Scratch,
   stepsUntil,
-  type TimingWheel,
+  type TimingWheel
 } from '../core/index.ts';
 import type { Proc, ProcContext, ProcOrigin } from '../procs/index.ts';
 import type { Cast } from './cast.ts';

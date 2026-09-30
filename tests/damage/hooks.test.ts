@@ -6,36 +6,45 @@ import { aura, KINDS, makeDamageGame } from '../helpers/damage-game.ts';
 
 /** The test auras: an immunity to all but fire, two absorbs, a damage-taken scale, a death escape, a leech. */
 const AURAS = {
-  invulnerable: aura({ duration: 'infinite', onIgnore: (_ctx, blow) => blow.kind !== KINDS.id.fire }),
+  invulnerable: aura({
+    duration: 'infinite',
+    onIgnore: (_ctx, blow) => blow.kind !== KINDS.id.fire
+  }),
 
   barrier: aura({
     duration: 10,
     value: 30,
     keepWhenDepleted: true,
-    onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) }),
+    onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) })
   }),
 
   ward: aura({
     duration: 10,
     value: 20,
-    onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) }),
+    onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) })
   }),
   halve: aura({ duration: 10, onIncomingDamage: () => ({ scale: 0.5 }) }),
-  escape: aura({ duration: 10, onLethal: () => ({ prevent: true, procs: [setHealth({ share: 0.3 })] }) }),
+  escape: aura({
+    duration: 10,
+    onLethal: () => ({ prevent: true, procs: [setHealth({ share: 0.3 })] })
+  }),
   leech: aura({ duration: 10, onDealt: (_ctx, blow) => [heal(blow.dealt / 2)] }),
-  venom: aura({ duration: 10, onDealt: (ctx) => (ctx.other === undefined ? undefined : [heal(1, { to: 'other' })]) }),
+  venom: aura({
+    duration: 10,
+    onDealt: (ctx) => (ctx.other === undefined ? undefined : [heal(1, { to: 'other' })])
+  }),
   pledge: aura({
     duration: 10,
     value: 20,
     perSource: true,
 
     onIncomingDamage: (ctx, blow) =>
-      ctx.aura.source === 2 ? { absorb: Math.min(ctx.aura.value, blow.amount) } : undefined,
+      ctx.aura.source === 2 ? { absorb: Math.min(ctx.aura.value, blow.amount) } : undefined
   }),
   executioner: aura({
     duration: 10,
-    onOutgoingDamage: (_ctx, blow) => (blow.target.hp < 50 ? { scale: 2 } : undefined),
-  }),
+    onOutgoingDamage: (_ctx, blow) => (blow.target.hp < 50 ? { scale: 2 } : undefined)
+  })
 } as const;
 
 describe('the outgoing hook (onOutgoingDamage)', () => {
@@ -102,8 +111,8 @@ describe('absorbs (onIncomingDamage)', () => {
       auras.list(target).map((each) => [each.source, each.value]),
       [
         [1, 10],
-        [2, 15],
-      ],
+        [2, 15]
+      ]
     );
   });
 
@@ -170,7 +179,7 @@ describe('the lethal stage (onLethal)', () => {
 
     assert.deepEqual(
       [blow.status, blow.isDeathPrevented, blow.prevented, blow.amount, blow.hasKilled],
-      ['landed', true, 60, 0, false],
+      ['landed', true, 60, 0, false]
     );
     assert.equal(target.hp, 30);
     assert.deepEqual(log, []);
@@ -194,18 +203,22 @@ describe('the order of the incoming hooks', () => {
         duration: 10,
         value: 20,
         incomingOrder: 1,
-        onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) }),
+        onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) })
       }),
-      stoneskin: aura({ duration: 10, incomingOrder: -1, onIncomingDamage: () => ({ scale: 0.5 }) }),
+      stoneskin: aura({
+        duration: 10,
+        incomingOrder: -1,
+        onIncomingDamage: () => ({ scale: 0.5 })
+      }),
       link: aura({
         duration: 10,
         incomingOrder: 2,
 
         onIncomingDamage: (_ctx, blow) => ({
           scale: 0.5,
-          procs: [heal(blow.amount / 2, { to: 'other' })],
-        }),
-      }),
+          procs: [heal(blow.amount / 2, { to: 'other' })]
+        })
+      })
     });
 
     const [target, attacker] = [unit(1), unit(2)];

@@ -118,7 +118,7 @@ const resolversOf = <G extends DamageTypes>(engine: DamageEngine<G>) => {
           throw new RangeError(`Unknown stat ${stat}.`);
         })()
       );
-    },
+    }
   };
 };
 
@@ -158,17 +158,17 @@ const damageKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: P
     prepare: (proc: DamageProc<G>, resolve: ProcResolver<G>): DamageProc<G> => ({
       ...proc,
       ...(proc.damageKind === undefined ? {} : { damageKind: names.kind(proc.damageKind) ?? proc.damageKind }),
-      ...(proc.andThen === undefined ? {} : { andThen: resolve.procs(proc.andThen) }),
+      ...(proc.andThen === undefined ? {} : { andThen: resolve.procs(proc.andThen) })
     }),
 
     explain: (proc: DamageProc<G>) => ({
       values: numbersOf({
         amount: typeof proc.amount === 'number' ? proc.amount : undefined,
-        damageKind: names.kind(proc.damageKind),
+        damageKind: names.kind(proc.damageKind)
       }),
 
-      ...(proc.andThen === undefined ? {} : { procs: proc.andThen }),
-    }),
+      ...(proc.andThen === undefined ? {} : { procs: proc.andThen })
+    })
   };
 };
 
@@ -204,9 +204,9 @@ const healKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: Pro
     explain: (proc: HealProc<G>) => ({
       values: numbersOf({
         amount: typeof proc.amount === 'number' ? proc.amount : undefined,
-        of: proc.of === undefined ? undefined : names.stat(proc.of),
-      }),
-    }),
+        of: proc.of === undefined ? undefined : names.stat(proc.of)
+      })
+    })
   };
 };
 
@@ -225,18 +225,18 @@ const setHealthKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines
   },
 
   explain: (proc: SetHealthProc<G>) => ({
-    values: typeof proc.health === 'number' ? { health: proc.health } : { share: proc.health.share },
-  }),
+    values: typeof proc.health === 'number' ? { health: proc.health } : { share: proc.health.share }
+  })
 });
 
 /** The damage system's proc kinds over its pipelines. */
 export const createDamageProcKinds = <G extends DamageTypes>(
   engine: DamageEngine<G>,
-  pipelines: ProcPipelines<G>,
+  pipelines: ProcPipelines<G>
 ): DamageProcKinds<G> =>
   Object.freeze({
     damage: damageKind(engine, pipelines),
     heal: healKind(engine, pipelines),
     setHealth: setHealthKind(engine, pipelines),
-    force: forceKind(pipelines.force),
+    force: forceKind(pipelines.force)
   });

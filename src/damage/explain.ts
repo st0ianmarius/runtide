@@ -41,7 +41,7 @@ export interface MitigationExplanation {
 /** Explains the rows covering a kind for an attacker's and a defender's stats. */
 export const explainRows = (
   rows: readonly CompiledRow[],
-  query: { readonly kind: DamageKindId; readonly caster: StatView; readonly target: StatView },
+  query: { readonly kind: DamageKindId; readonly caster: StatView; readonly target: StatView }
 ): MitigationExplanation => {
   const ctx = new RowContext();
 
@@ -62,14 +62,14 @@ export const explainRows = (
         value,
         penetrated: after,
         isAmplifying: isRating && isAmplifyingAt(row, after),
-        factor: rowFactor(row, ctx),
+        factor: rowFactor(row, ctx)
       };
     });
 
   return {
     kind: query.kind,
     rows: explained,
-    factor: explained.reduce((product, row) => product * row.factor, 1),
+    factor: explained.reduce((product, row) => product * row.factor, 1)
   };
 };
 
@@ -77,7 +77,7 @@ export const explainRows = (
 export const explainRolls = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   defender: G['bearer'],
-  query: RollQuery<G>,
+  query: RollQuery<G>
 ): RollExplanation[] => {
   const table = engine.rolls;
 
@@ -95,7 +95,7 @@ export const explainRolls = <G extends DamageTypes>(
     outcome: row.outcome,
     effect: ROLL_EFFECTS[row.effect] ?? 'scale',
     chance: chanceOf(row, views),
-    multiplier: row.multiplier === undefined ? undefined : valueOf(row.multiplier, views),
+    multiplier: row.multiplier === undefined ? undefined : valueOf(row.multiplier, views)
   }));
 
   views.shared.spell = undefined;

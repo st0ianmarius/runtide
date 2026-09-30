@@ -34,7 +34,7 @@ export interface AuraModifiers<G extends AuraTypes> {
 
       /** What is compiled, for messages. */
       readonly what?: string;
-    },
+    }
   ): ModifierList;
 
   /** Shares lists at one source in every sheet. */
@@ -151,7 +151,7 @@ const stateMask = (names: readonly string[], removedOn: readonly string[], what:
 const compileList = <G extends AuraTypes>(
   input: CompileInput<G>,
   at: { readonly id: number; readonly def: AuraDef<G>; readonly what: string },
-  bySource: Map<SourceId, ModifierList[]>,
+  bySource: Map<SourceId, ModifierList[]>
 ): ModifierList | undefined => {
   const { def, what } = at;
   const { modifiers } = input;
@@ -188,7 +188,7 @@ const emptyTables = <G extends AuraTypes>(input: CompileInput<G>, size: number) 
   lists: Array.from<ModifierList | undefined>({ length: size }),
   clocks: Object.values<AuraClock>(input.clocks),
   clockNames: Object.keys(input.clocks),
-  stateNames: [...(input.states ?? [])],
+  stateNames: [...(input.states ?? [])]
 });
 
 /** One aura's slot being filled. */
@@ -207,7 +207,7 @@ interface Slot<G extends AuraTypes> {
 const compileTags = <G extends AuraTypes>(
   input: CompileInput<G>,
   tables: ReturnType<typeof emptyTables>,
-  slot: Slot<G>,
+  slot: Slot<G>
 ): void => {
   const { id, def, what } = slot;
   const tags = tagIds(input, def.tags ?? [], what);
@@ -224,7 +224,11 @@ const compileTags = <G extends AuraTypes>(
 const compileOne = <G extends AuraTypes>(
   input: CompileInput<G>,
   tables: ReturnType<typeof emptyTables>,
-  at: { readonly id: number; readonly def: AuraDef<G>; readonly bySource: Map<SourceId, ModifierList[]> },
+  at: {
+    readonly id: number;
+    readonly def: AuraDef<G>;
+    readonly bySource: Map<SourceId, ModifierList[]>;
+  }
 ): void => {
   const { id, def } = at;
   const what = `Aura ${input.registry.names[id] ?? id}`;

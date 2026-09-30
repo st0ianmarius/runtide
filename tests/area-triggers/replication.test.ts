@@ -9,7 +9,7 @@ import { type Game, makeSpellGame } from '../helpers/spell-game.ts';
 const kind = (r: number, def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<Game> => ({
   shape: circle(r),
   lifetime: 4,
-  ...def,
+  ...def
 });
 
 /** A game whose kinds replicate their state, only their events, or nothing the client cannot derive. */
@@ -19,20 +19,23 @@ const replicationGame = () =>
     {
       areaTriggers: {
         pool: kind(2.5, {
-          replicate: { values: ['x', 'z', 'duration', 'age', 'charge'], rounding: { x: 0.5, charge: 0.25 } },
+          replicate: {
+            values: ['x', 'z', 'duration', 'age', 'charge'],
+            rounding: { x: 0.5, charge: 0.25 }
+          },
 
           view: (c) => ({
             x: c.position.x,
             z: c.position.z,
             duration: c.age + c.remaining,
             age: c.age,
-            charge: (c.input ?? 0) / 3,
-          }),
+            charge: (c.input ?? 0) / 3
+          })
         }),
         shot: kind(0.5),
-        ember: kind(1, { replicate: 'events-only' }),
-      },
-    },
+        ember: kind(1, { replicate: 'events-only' })
+      }
+    }
   );
 
 describe('area trigger replication', () => {
@@ -42,7 +45,7 @@ describe('area trigger replication', () => {
 
     assert.deepEqual(
       replication.map((spec) => spec.mode),
-      ['state', 'events-only', 'events-only'],
+      ['state', 'events-only', 'events-only']
     );
     assert.deepEqual(replication[game.areaId.pool]?.names, ['x', 'z', 'duration', 'age', 'charge']);
   });
@@ -68,8 +71,8 @@ describe('area trigger replication', () => {
       out.map((replica) => [replica.handle, replica.kind, ...replica.values]),
       [
         [first, game.areaId.pool, 1.5, -2, 4, 0.25, 0.75],
-        [second, game.areaId.pool, 4, 4, 4, 0.25, 0],
-      ],
+        [second, game.areaId.pool, 4, 4, 4, 0.25, 0]
+      ]
     );
 
     const kept = out[0];
@@ -91,7 +94,7 @@ describe('area trigger replication', () => {
 
     assert.equal(
       game.areaTriggers.replicate(out, (area) => Math.abs(area.position.x) > 20),
-      1,
+      1
     );
     assert.equal(out[0]?.handle, far);
   });

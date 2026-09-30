@@ -13,7 +13,7 @@ import {
   defineSpells,
   lockBefore,
   type SpellRegistryOptions,
-  type TrackContext,
+  type TrackContext
 } from '../../src/spells/index.ts';
 import { type Game, spell, SPELL_TAGS, STATS } from '../helpers/spell-game.ts';
 
@@ -30,7 +30,7 @@ const SPELLS = () =>
         timeline: { windup: { seconds: 1.2, track: lockBefore(0.3) }, recover: { seconds: 0.5 } },
         tags: ['area', 'melee'],
         target: (ctx) => ctx.input,
-        release,
+        release
       }),
       retired: TOMBSTONE,
       nova: spell({
@@ -41,10 +41,10 @@ const SPELLS = () =>
         scaling: { damage: 1.1 },
         timeline: { channel: { seconds: 2, every: 0.5, tick: () => undefined } },
         release,
-        onHit: () => undefined,
-      }),
+        onHit: () => undefined
+      })
     },
-    { tags: SPELL_TAGS, stats: STATS },
+    { tags: SPELL_TAGS, stats: STATS }
   );
 
 describe('the spell registry', () => {
@@ -73,7 +73,11 @@ describe('the spell registry', () => {
 
   it('reads a stage whose seconds are a function as NaN in its column', () => {
     const registry = defineSpells<Game, 'aimed'>({
-      aimed: spell({ activation: { kind: 'button' }, timeline: { windup: { seconds: () => 1 } }, release }),
+      aimed: spell({
+        activation: { kind: 'button' },
+        timeline: { windup: { seconds: () => 1 } },
+        release
+      })
     });
 
     assert.ok(Number.isNaN(registry.columns.windup[0]));
@@ -87,7 +91,7 @@ describe('the spell registry', () => {
     assert.notEqual(registry.hooks.target[1], undefined);
     assert.deepEqual(
       [0, 1, 3].filter((id) => registry.hooks.onHit[id] !== undefined),
-      [3],
+      [3]
     );
   });
 
@@ -159,11 +163,11 @@ describe('checks at load', () => {
   it('refuses an unknown activation kind, and data its kind refuses', () => {
     assert.throws(
       () => one(forged(loose({ activation: button, release }), 'activation', { kind: 'totem' })),
-      /Spell broken: unknown activation kind totem/,
+      /Spell broken: unknown activation kind totem/
     );
     assert.throws(
       () => one(loose({ activation: { kind: 'auto', interval: 0 }, release })),
-      /auto interval must be above 0/,
+      /auto interval must be above 0/
     );
   });
 
@@ -172,7 +176,7 @@ describe('checks at load', () => {
     assert.throws(() => one(loose({ activation: button, tags: ['frost'], release })), /unknown spell tag frost/);
     assert.throws(
       () => one(forged(loose({ activation: button, release }), 'release', 3)),
-      /release must be a function/,
+      /release must be a function/
     );
     assert.throws(() => one(forged(loose({ activation: button, release }), 'onHit', 3)), /onHit must be a function/);
   });
@@ -180,11 +184,11 @@ describe('checks at load', () => {
   it('refuses stage seconds below 0, a beat of 0, and an interrupt that neither pauses nor cancels', () => {
     assert.throws(
       () => one(loose({ activation: button, timeline: { recover: { seconds: -1 } }, release })),
-      /stage lasts/,
+      /stage lasts/
     );
     assert.throws(
       () => one(loose({ activation: button, timeline: { channel: { seconds: 1, every: 0 } }, release })),
-      /beat/,
+      /beat/
     );
 
     const interrupts = {};
@@ -196,25 +200,26 @@ describe('checks at load', () => {
   it('refuses a scaled stat without a stat table, a rank list of the wrong length, and an unknown share', () => {
     assert.throws(
       () => one(loose({ activation: button, stats: { hit: scaled(1, add('power', 1)) }, release })),
-      /stat table/,
+      /stat table/
     );
     assert.throws(
       () =>
         one(loose({ activation: button, ranks: 2, stats: { hit: scaled(ranks(1, 2, 3)) }, release }), { stats: STATS }),
-      /Spell broken, hit: a per-rank list has 3 entries/,
+      /Spell broken, hit: a per-rank list has 3 entries/
     );
     assert.throws(
       () => one(loose({ activation: button, scaling: { armor: 1 }, release }), { stats: STATS }),
-      /scaling names armor/,
+      /scaling names armor/
     );
   });
 
   it("takes a game's own activation kinds, checked by the kind", () => {
     const totem = defineActivationKind<Totem, Loose>({
-      check: (activation) => (activation.pulse > 0 ? undefined : 'a totem pulses.'),
+      check: (activation) => (activation.pulse > 0 ? undefined : 'a totem pulses.')
     });
 
     const activations = defineActivations<Loose>({ ...CORE_ACTIVATIONS, totem });
+
     const make = (pulse: number) => one(loose({ activation: { kind: 'totem', pulse }, release }), { activations });
 
     assert.equal(make(2).columns.activation[0], activations.id['totem']);
@@ -228,7 +233,7 @@ describe('tracking helpers', () => {
     stageSeconds: 1,
     remaining: 1 - elapsed,
     elapsed,
-    retarget: () => 9,
+    retarget: () => 9
   });
 
   it('lockBefore re-aims until that many seconds before the release', () => {

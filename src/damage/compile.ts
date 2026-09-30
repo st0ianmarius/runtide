@@ -21,7 +21,7 @@ export const DAMAGE_STAGES = Object.freeze([
   'health',
   'dealt',
   'outcome',
-  'death',
+  'death'
 ] as const);
 
 /**
@@ -78,7 +78,7 @@ export const compileStats = <G extends DamageTypes>(options: DamageSystemOptions
   return {
     outgoing: outgoing.filter((id): id is StatId => id !== undefined),
     healReceived: statIn(stats, options.heal?.received, true),
-    healDone: statIn(stats, options.heal?.done, true),
+    healDone: statIn(stats, options.heal?.done, true)
   };
 };
 
@@ -146,8 +146,11 @@ export const compileBypass = (kinds: DamageKindTable, order: StageOrder<unknown>
  * `mitigation` stage, which does nothing. The group, for anchors.
  */
 export const damageStagesOf = (
-  rowNames: readonly string[],
-): { readonly stages: readonly string[]; readonly groups: Readonly<Record<string, readonly string[]>> } => {
+  rowNames: readonly string[]
+): {
+  readonly stages: readonly string[];
+  readonly groups: Readonly<Record<string, readonly string[]>>;
+} => {
   if (rowNames.length === 0) {
     return { stages: DAMAGE_STAGES, groups: {} };
   }
@@ -156,7 +159,7 @@ export const damageStagesOf = (
 
   return {
     stages: DAMAGE_STAGES.flatMap((stage) => (stage === 'mitigation' ? rows : [stage])),
-    groups: { mitigation: rows },
+    groups: { mitigation: rows }
   };
 };
 
@@ -168,13 +171,13 @@ export const orderOf = <Run>(
     readonly boundary: string;
     readonly groups?: Readonly<Record<string, readonly string[]>>;
   },
-  game: Readonly<Record<string, StageDef<Run>>> | undefined,
+  game: Readonly<Record<string, StageDef<Run>>> | undefined
 ): StageOrder<Run> => compileStageOrder({ what, ...parts, game });
 
 /** Compiles the mitigation rows, if any, checking every kind that does not skip mitigation is covered. */
 export const rowsOf = <G extends DamageTypes>(
   options: DamageSystemOptions<G>,
-  parts: { readonly bypass: Uint8Array; readonly order: StageOrder<unknown> },
+  parts: { readonly bypass: Uint8Array; readonly order: StageOrder<unknown> }
 ): readonly CompiledRow[] => {
   const { mitigation, stats } = options;
 
@@ -183,11 +186,12 @@ export const rowsOf = <G extends DamageTypes>(
   }
 
   const size = parts.order.names.length;
+
   const rowStages = parts.order.names.flatMap((name, at) => (isNamed(name, 'mitigation') ? [at] : []));
 
   return compileMitigation(mitigation, {
     stats: stats ?? refuse('mitigation needs the game stat table (stats).'),
     kinds: options.kinds,
-    skips: (kind) => rowStages.every((at) => parts.bypass[kind * size + at] === 1),
+    skips: (kind) => rowStages.every((at) => parts.bypass[kind * size + at] === 1)
   });
 };

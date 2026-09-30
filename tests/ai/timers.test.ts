@@ -9,7 +9,9 @@ import { auraId, makeUnitGame, TIMERS, type UnitGame } from '../helpers/unit-gam
 /** A game with two grunts and a log of fired timers, stepped a tick at a time. */
 const timed = () => {
   const game = makeUnitGame({ grunt: {} });
+
   const [a, b] = [game.units.spawn(game.id.grunt, { side: 1 }), game.units.spawn(game.id.grunt, { side: 1 })];
+
   const fired: string[] = [];
 
   const fire = (unit: Unit<UnitGame>, timer: TimerId): void => {

@@ -27,7 +27,7 @@ const compileForceRuns = <G extends DamageTypes>(engine: DamageEngine<G>): reado
       }
 
       return false;
-    },
+    }
   };
 
   return engine.forceOrder.names.map((name, index): ForceRun<G> => {
@@ -53,7 +53,7 @@ const compileForceRuns = <G extends DamageTypes>(engine: DamageEngine<G>): reado
 const runForceStages = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   runs: readonly ForceRun<G>[],
-  force: ForceRecord<G>,
+  force: ForceRecord<G>
 ): void => {
   const { afterFrom } = engine.forceOrder;
   let i = 0;

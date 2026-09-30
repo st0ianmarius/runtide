@@ -65,7 +65,7 @@ const specOf = <Payload, G extends TriggerTypes>(filter: TriggerFilterOf<Payload
  */
 export const triggerEvent = <Payload, G extends TriggerTypes = TriggerTypes>(
   kind: EventKind<Payload>,
-  spec: TriggerEventSpec<Payload, G>,
+  spec: TriggerEventSpec<Payload, G>
 ): TriggerEvent<G> => {
   const written: Readonly<Record<string, TriggerFilterOf<Payload, G> | undefined>> = spec.filters ?? {};
 
@@ -75,9 +75,9 @@ export const triggerEvent = <Payload, G extends TriggerTypes = TriggerTypes>(
     ...(spec.other === undefined ? {} : { other: spec.other }),
     filters: Object.freeze(
       Object.fromEntries(
-        Object.entries(written).flatMap(([name, filter]) => (filter === undefined ? [] : [[name, specOf(filter)]])),
-      ),
-    ),
+        Object.entries(written).flatMap(([name, filter]) => (filter === undefined ? [] : [[name, specOf(filter)]]))
+      )
+    )
   });
 };
 
@@ -120,6 +120,9 @@ export const auraTriggerEvent = <G extends TriggerTypes>(kind: EventKind<AuraEve
 
     filters: Object.freeze({
       aura: { test: (event: AuraEvent<G>, id: number) => event.aura?.id === id, resolve: auraCode },
-      change: { test: (event: AuraEvent<G>, code: number) => CHANGES[code] === event.change, resolve: changeCode },
-    }),
+      change: {
+        test: (event: AuraEvent<G>, code: number) => CHANGES[code] === event.change,
+        resolve: changeCode
+      }
+    })
   });

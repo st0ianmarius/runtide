@@ -8,7 +8,7 @@ import { aura, makeGame, TAGS } from '../helpers/aura-game.ts';
 const viewsOf = <Bearer>(
   system: { readonly view: (bearer: Bearer, out: AuraView[], options?: ViewOptions) => number },
   bearer: Bearer,
-  options?: ViewOptions,
+  options?: ViewOptions
 ): AuraView[] => {
   const out: AuraView[] = [];
 
@@ -20,7 +20,7 @@ const defs = {
   sprint: aura({ duration: 3, predicted: true, stacking: 'stack', maxStacks: 5, value: 4 }),
   stance: aura({ duration: 'infinite', predicted: true }),
   glow: aura({ duration: 5 }),
-  spark: aura({ duration: 5, predicted: true, perSource: true, maxStacks: 8 }),
+  spark: aura({ duration: 5, predicted: true, perSource: true, maxStacks: 8 })
 };
 
 /** A server unit and a silent mirror of it. */
@@ -31,7 +31,7 @@ const setUp = () => {
   const mirror = {
     id: 1,
     hp: 100,
-    auras: game.auras.createState({ isSilent: true }),
+    auras: game.auras.createState({ isSilent: true })
   };
 
   return { ...game, server, mirror };
@@ -51,7 +51,7 @@ describe('seeding a prediction mirror', () => {
     const seeded = auras.seed(mirror, {
       views: viewsOf(auras, server, { for: 'owner' }),
       clocks: server.auras.clocks,
-      serials: server.auras.serials,
+      serials: server.auras.serials
     });
 
     assert.equal(seeded, 3);
@@ -61,13 +61,13 @@ describe('seeding a prediction mirror', () => {
         view.stacks,
         view.value,
         view.remaining,
-        view.source,
+        view.source
       ]),
       [
         [id.dash, 1, 0, 1.5, -1],
         [id.sprint, 3, 4, 2.5, 9],
-        [id.stance, 1, 0, Infinity, -1],
-      ],
+        [id.stance, 1, 0, Infinity, -1]
+      ]
     );
     assert.equal(auras.has(mirror, id.glow), false);
     assert.equal(auras.hasTag(mirror, TAGS.id.boon), true);
@@ -85,12 +85,16 @@ describe('seeding a prediction mirror', () => {
     auras.apply(server, id.sprint);
 
     assert.equal(
-      auras.seed(mirror, { views: viewsOf(auras, server), clocks: server.auras.clocks, serials: server.auras.serials }),
-      1,
+      auras.seed(mirror, {
+        views: viewsOf(auras, server),
+        clocks: server.auras.clocks,
+        serials: server.auras.serials
+      }),
+      1
     );
     assert.deepEqual(
       viewsOf(auras, mirror).map((view) => view.aura),
-      [id.sprint, id.glow],
+      [id.sprint, id.glow]
     );
     assert.equal(auras.hasTag(mirror, TAGS.id.boon), false);
   });
@@ -103,12 +107,16 @@ describe('seeding a prediction mirror', () => {
     auras.apply(server, { aura: id.spark, source: 1 });
     auras.apply(server, { aura: id.spark, source: 2 });
     auras.apply(server, { aura: id.spark, source: 3 });
-    auras.seed(mirror, { views: viewsOf(auras, server), clocks: server.auras.clocks, serials: server.auras.serials });
+    auras.seed(mirror, {
+      views: viewsOf(auras, server),
+      clocks: server.auras.clocks,
+      serials: server.auras.serials
+    });
     auras.apply(server, { aura: id.spark, source: 4 });
     auras.apply(mirror, { aura: id.spark, source: 4 });
     assert.deepEqual(
       [other, server, mirror].map((bearer) => bearer.auras.list.map((item) => item.serial)),
-      [[1], [1, 2, 3, 4], [1, 2, 3, 4]],
+      [[1], [1, 2, 3, 4], [1, 2, 3, 4]]
     );
   });
 
@@ -122,7 +130,7 @@ describe('seeding a prediction mirror', () => {
     assert.equal(auras.seed(mirror, { views: out, count: 1, clocks: server.auras.clocks, serials: 0 }), 1);
     assert.deepEqual(
       viewsOf(auras, mirror, { for: 'owner' }).map((view) => view.aura),
-      [id.dash],
+      [id.dash]
     );
   });
 

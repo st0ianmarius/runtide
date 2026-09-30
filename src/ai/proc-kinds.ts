@@ -53,7 +53,9 @@ const setTimerKind = <G extends AiTypes>(parts: KindParts<G>): ProcKindDef<SetTi
     return { ...proc, timer: timerIdOf(parts.timers, proc.timer) };
   },
 
-  explain: (proc) => ({ values: { timer: timerIdOf(parts.timers, proc.timer), seconds: proc.seconds } }),
+  explain: (proc) => ({
+    values: { timer: timerIdOf(parts.timers, proc.timer), seconds: proc.seconds }
+  })
 });
 
 /** The `cancelTimer` kind. */
@@ -65,7 +67,7 @@ const cancelTimerKind = <G extends AiTypes>(parts: KindParts<G>): ProcKindDef<Ca
       ? PROC_LANDED
       : PROC_SKIPPED,
 
-  prepare: (proc) => ({ ...proc, timer: timerIdOf(parts.timers, proc.timer) }),
+  prepare: (proc) => ({ ...proc, timer: timerIdOf(parts.timers, proc.timer) })
 });
 
 /** The entity id a `setFocus` proc focuses; −1 for none. */
@@ -103,9 +105,13 @@ const setFocusKind = <G extends AiTypes>(): ProcKindDef<SetFocusProc<G>, G> => (
     brainOf(unit.brain).focus = focusIdOf(proc, ctx);
 
     return PROC_LANDED;
-  },
+  }
 });
 
 /** Builds the AI system's proc kinds. */
 export const createAiProcKinds = <G extends AiTypes>(parts: KindParts<G>): AiProcKinds<G> =>
-  Object.freeze({ setTimer: setTimerKind(parts), cancelTimer: cancelTimerKind(parts), setFocus: setFocusKind<G>() });
+  Object.freeze({
+    setTimer: setTimerKind(parts),
+    cancelTimer: cancelTimerKind(parts),
+    setFocus: setFocusKind<G>()
+  });

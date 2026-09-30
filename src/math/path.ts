@@ -61,7 +61,7 @@ const push = (out: number[], count: number, [start, end]: readonly [number, numb
 /** The point a share of the way along a segment. */
 const along = (from: Vec2, to: Vec2, t: number): Vec2 => ({
   x: from.x + (to.x - from.x) * t,
-  z: from.z + (to.z - from.z) * t,
+  z: from.z + (to.z - from.z) * t
 });
 
 /**

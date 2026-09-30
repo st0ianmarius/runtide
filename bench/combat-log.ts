@@ -29,7 +29,7 @@ const BLOW: BlowView<Unit, number> = {
   isCrit: true,
   hasKilled: false,
   isDeathPrevented: false,
-  outcome: 'crit',
+  outcome: 'crit'
 };
 
 const CLOCK = createClock({ dt: 1 / 30 });
@@ -42,7 +42,7 @@ const logged = (withMeter: boolean) => {
     bus,
     clock: CLOCK,
     idOf: (unit) => unit.id,
-    damage: { taken: bus.kind.taken },
+    damage: { taken: bus.kind.taken }
   });
 
   const meter = withMeter ? createDamageMeter(log) : undefined;
@@ -58,5 +58,5 @@ const logged = (withMeter: boolean) => {
 /** The F11 combat log benchmark tasks, and how many operations each call of its function is. */
 export const LOG_TASKS: readonly (readonly [string, () => void, number])[] = [
   ['combat log: a blow raised and recorded', logged(false), 1],
-  ['combat log: a blow recorded, a meter subscribed', logged(true), 1],
+  ['combat log: a blow recorded, a meter subscribed', logged(true), 1]
 ];

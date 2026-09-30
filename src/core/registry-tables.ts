@@ -21,13 +21,13 @@ const COLUMN_ARRAYS = {
   i32: Int32Array,
   u32: Uint32Array,
   u16: Uint16Array,
-  u8: Uint8Array,
+  u8: Uint8Array
 } as const;
 
 /** Builds every typed column over the slots (a tombstone's slot is `undefined` and holds zero). */
 export const buildColumns = <Def, Name extends string>(
   slots: readonly (Def | undefined)[],
-  specs: Readonly<Record<Name, ColumnSpec<Def>>>,
+  specs: Readonly<Record<Name, ColumnSpec<Def>>>
 ): Readonly<Record<Name, Column>> =>
   recordOf(
     Object.keys(specs).filter((key): key is Name => Object.hasOwn(specs, key)),
@@ -42,5 +42,5 @@ export const buildColumns = <Def, Name extends string>(
       }
 
       return column;
-    },
+    }
   );

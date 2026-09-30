@@ -6,6 +6,7 @@
  */
 
 export { bindCondition, type BoundTables, type BoundTest, conditionTest, type Predicate } from './bind.ts';
+
 export { compileCondition, type ConditionTables, isMirrorSafe, readsWorld } from './compile.ts';
 
 export {
@@ -19,7 +20,7 @@ export {
   type ConditionExpr,
   type IsCondition,
   not,
-  type NotCondition,
+  type NotCondition
 } from './expr.ts';
 
 export {
@@ -28,7 +29,7 @@ export {
   type ConditionSpec,
   type ConditionTable,
   type ConditionTest,
-  defineConditions,
+  defineConditions
 } from './table.ts';
 
 export {
@@ -37,5 +38,5 @@ export {
   type ValueId,
   type ValueRead,
   type ValueSpec,
-  type ValueTable,
+  type ValueTable
 } from './values.ts';

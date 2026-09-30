@@ -16,13 +16,16 @@ import {
   encodeCueParams,
   encodeCues,
   fireCue,
-  NO_ENTITY,
+  NO_ENTITY
 } from '../../src/cues/index.ts';
 
 /** A neutral cue table: one cue per anchor, a predicted one, and params of every kind. */
 const CUES = defineCues({
   hurt: defineCue({ anchor: 'self', audience: 'owner', params: { amount: { kind: 'int' } } }),
-  struck: defineCue({ anchor: 'entity', params: { amount: { kind: 'int' }, heavy: { kind: 'uint8', default: 1 } } }),
+  struck: defineCue({
+    anchor: 'entity',
+    params: { amount: { kind: 'int' }, heavy: { kind: 'uint8', default: 1 } }
+  }),
   flare: defineCue({
     anchor: 'target',
     params: {
@@ -32,11 +35,11 @@ const CUES = defineCues({
       trail: { kind: 'vec2[]', scale: 10 },
       glow: { kind: 'f32' },
       spell: { kind: 'id' },
-      mark: { kind: 'entity' },
-    },
+      mark: { kind: 'entity' }
+    }
   }),
   gong: defineCue({ anchor: 'world' }),
-  step: defineCue({ anchor: 'self', isPredicted: true }),
+  step: defineCue({ anchor: 'self', isPredicted: true })
 });
 
 /** The five test events, one per cue, fired in order into a fresh buffer. */
@@ -56,14 +59,14 @@ const fireAll = () => {
         aim: { x: 0.5, z: -0.25 },
         trail: [
           { x: 1, z: 1 },
-          { x: 2.5, z: -3 },
+          { x: 2.5, z: -3 }
         ],
         glow: 0.1,
         spell: 4,
-        mark: 7,
-      },
+        mark: 7
+      }
     },
-    { owner: 3, entity: 9, x: 1, z: 2 },
+    { owner: 3, entity: 9, x: 1, z: 2 }
   );
 
   return out;
@@ -96,8 +99,8 @@ describe('the cue wire layout', () => {
         [1, 4, 10, 100, 200, 0],
         [3, 50, 0, 0],
         [4, 3, 0, 0, 42, 0],
-        [2, 4, 100, 200, 0b111_1101, 270, 50, -25, 2, 10, 10, 15, -40, Math.fround(0.1), 4, 8],
-      ].flat(),
+        [2, 4, 100, 200, 0b111_1101, 270, 50, -25, 2, 10, 10, 15, -40, Math.fround(0.1), 4, 8]
+      ].flat()
     );
   });
 
@@ -112,7 +115,7 @@ describe('the cue wire layout', () => {
 
     assert.deepEqual(
       Array.from(bytes.bytes()),
-      [[3], [3, 100, 0, 0], [0, 201, 1, 1, 0, 1, 215, 4], [2, 0, 0, 0, 0b1_0000, 0, 0, 0, 63]].flat(),
+      [[3], [3, 100, 0, 0], [0, 201, 1, 1, 0, 1, 215, 4], [2, 0, 0, 0, 0b1_0000, 0, 0, 0, 63]].flat()
     );
   });
 
@@ -132,14 +135,14 @@ describe('the cue wire layout', () => {
       [1, 3, 9, 1, 2, 0, 0, 1],
       [3, NO_ENTITY, NO_ENTITY, 0.5, 0, 0],
       [4, 2, 2, 0, 0, 42],
-      [2, 3, NO_ENTITY, 1, 2, 0, -Math.PI / 2, 2, 0.5, -0.25, 0, 2, Math.fround(0.1), 4, 7],
+      [2, 3, NO_ENTITY, 1, 2, 0, -Math.PI / 2, 2, 0.5, -0.25, 0, 2, Math.fround(0.1), 4, 7]
     ];
 
     assert.deepEqual(flatAll(fromNumbers), expected);
     assert.deepEqual(flatAll(fromBytes), expected);
     assert.deepEqual(cuePath(fromBytes.events[4] ?? fromBytes.emit(CUES.id.gong), CUES.params.flare.trail), [
       { x: 1, z: 1 },
-      { x: 2.5, z: -3 },
+      { x: 2.5, z: -3 }
     ]);
   });
 
@@ -147,6 +150,7 @@ describe('the cue wire layout', () => {
     const out = createCueBuffer(CUES);
     const numbers = createNumberWriter();
     const back = createCueBuffer(CUES);
+
     const event = fireCue(out, { cue: CUES.id.flare, params: { reach: 2.04, trail: [] } }, { ...ORIGIN });
 
     encodeCues(out, numbers);
@@ -161,7 +165,14 @@ describe('the cue wire layout', () => {
     const out = createCueBuffer(CUES);
     const back = createCueBuffer(CUES);
     const numbers = createNumberWriter();
-    const values = { spell: -2, mark: -5, facing: (3 * Math.PI) / 2, reach: Number.NaN, glow: Number.NaN };
+
+    const values = {
+      spell: -2,
+      mark: -5,
+      facing: (3 * Math.PI) / 2,
+      reach: Number.NaN,
+      glow: Number.NaN
+    };
 
     fireCue(out, { cue: CUES.id.struck, params: { amount: 2.5, heavy: 300 } }, { ...ORIGIN });
     fireCue(out, { cue: CUES.id.struck, params: { amount: -2.5, heavy: -3 } }, { ...ORIGIN });
@@ -181,7 +192,7 @@ describe('the cue wire layout', () => {
 
     assert.equal(
       encodeCues(fireAll(), numbers, (event) => event.owner === 2),
-      1,
+      1
     );
     decodeCues(createNumberReader(numbers.numbers()), back);
     assert.deepEqual(flatAll(back), [[4, 2, 2, 0, 0, 42]]);
@@ -230,6 +241,7 @@ describe('the cue wire layout', () => {
 describe('reading cue data it cannot trust', () => {
   it('refuses an unknown cue id, stray mask bits, and more events or points than the data holds', () => {
     const into = createCueBuffer(CUES);
+
     const read = (numbers: readonly number[]) => () => decodeCues(createNumberReader(numbers), into);
 
     assert.throws(read([1, 9, 0, 0, 0]), /Cue data names cue 9, which is not live/);

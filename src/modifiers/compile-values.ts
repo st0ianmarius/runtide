@@ -45,7 +45,7 @@ const rankCountOf = (lists: readonly PerRank[], state: Compiling): number => {
 /** A per-rank list as a typed array of `rankCount` entries (a single number is repeated). */
 const perRank = (list: PerRank, rankCount: number, what: string): Float64Array => {
   const values = Float64Array.from({ length: rankCount }, (_unused, rank) =>
-    typeof list === 'number' ? list : (list[rank] ?? Number.NaN),
+    typeof list === 'number' ? list : (list[rank] ?? Number.NaN)
   );
 
   if (values.some((value) => !Number.isFinite(value))) {
@@ -114,16 +114,26 @@ const checkTerm = (term: Omit<CompiledTerm, 'coef' | 'neutral'>, state: Compilin
 const compileTerm = (
   term: Term | CurveTerm,
   op: CompiledTerm['op'],
-  place: { readonly rankCount: number; readonly curve?: CurveRef | undefined; readonly state: Compiling },
+  place: {
+    readonly rankCount: number;
+    readonly curve?: CurveRef | undefined;
+    readonly state: Compiling;
+  }
 ): CompiledTerm => {
   const { state } = place;
+
   const name = op === 'curve' && place.curve !== undefined ? curveTermStat(term, place.curve, state) : term.stat;
+
   const stat = statNamed(name ?? '', state);
   const head = { op, stat, isBonus: term.of === 'bonus', isTarget: term.from === 'target' };
 
   checkTerm(head, state);
 
-  return { ...head, coef: perRank(term.coef, place.rankCount, state.what), neutral: state.index.neutralOf(stat) };
+  return {
+    ...head,
+    coef: perRank(term.coef, place.rankCount, state.what),
+    neutral: state.index.neutralOf(stat)
+  };
 };
 
 /** The caster stats a compiled parameter reads, and whether it reads the target. */
@@ -182,7 +192,7 @@ const compileScaledWith = (index: StatIndex, value: Scaled, options: CompileOpti
   const terms = [
     ...adds.map((term) => compileTerm(term, 'add', { rankCount, state })),
     ...amps.map((term) => compileTerm(term, 'amp', { rankCount, state })),
-    ...by.map((term) => compileTerm(term, 'curve', { rankCount, curve: curveRef, state })),
+    ...by.map((term) => compileTerm(term, 'curve', { rankCount, curve: curveRef, state }))
   ];
 
   const curve = curveRef === undefined ? undefined : compileCurveWith(index, curveRef, options);
@@ -196,7 +206,7 @@ const compileScaledWith = (index: StatIndex, value: Scaled, options: CompileOpti
     terms: Object.freeze(terms),
     curve,
     hasTarget: terms.some((term) => term.isTarget) || reads.some((read) => read.hasTarget),
-    casterStats: Object.freeze([...new Set([...own, ...reads.flatMap((read) => read.casters)])]),
+    casterStats: Object.freeze([...new Set([...own, ...reads.flatMap((read) => read.casters)])])
   });
 };
 
@@ -215,7 +225,7 @@ const compileLookup = (lookup: Extract<CurveParam, { kind: 'lookup' }>, state: C
     stat: statNamed(lookup.stat, state),
     isTarget,
     xs: Float64Array.from(lookup.points, ([x]) => x),
-    ys: Float64Array.from(lookup.points, ([, y]) => y),
+    ys: Float64Array.from(lookup.points, ([, y]) => y)
   };
 };
 
@@ -241,7 +251,13 @@ const compileCurveObject = (curve: Curve, id: CurveId | undefined, state: Compil
     case 'hyperbolic': {
       const cap = curve.cap === undefined ? undefined : param(curve.cap);
 
-      return { kind: 'hyperbolic', id, k: param(curve.k), cap, isAmplifying: curve.negative === 'amplify' };
+      return {
+        kind: 'hyperbolic',
+        id,
+        k: param(curve.k),
+        cap,
+        isAmplifying: curve.negative === 'amplify'
+      };
     }
 
     case 'haste': {
@@ -249,7 +265,13 @@ const compileCurveObject = (curve: Curve, id: CurveId | undefined, state: Compil
     }
 
     case 'avoidance': {
-      return { kind: 'avoidance', id, per: param(curve.per), cap: param(curve.cap), k: param(curve.k) };
+      return {
+        kind: 'avoidance',
+        id,
+        per: param(curve.per),
+        cap: param(curve.cap),
+        k: param(curve.k)
+      };
     }
 
     case 'stacking': {
@@ -295,12 +317,12 @@ export const compileCurveWith = (index: StatIndex, ref: CurveRef, options: Compi
 export const compileScaled = <S extends string>(
   stats: StatTable<S>,
   value: Scaled<S>,
-  options: CompileOptions = {},
+  options: CompileOptions = {}
 ): CompiledScaled => compileScaledWith(stats.index, value, options);
 
 /** Compiles a curve (a name in the game's curve table, or a curve object) against the game's stat table. */
 export const compileCurve = <S extends string>(
   stats: StatTable<S>,
   ref: CurveRef<S>,
-  options: CompileOptions = {},
+  options: CompileOptions = {}
 ): CompiledCurve => compileCurveWith(stats.index, ref, options);

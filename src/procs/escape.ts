@@ -120,6 +120,6 @@ export const escapeReport = <G extends ProcTypes>(registries: {
     runs: [...runs].map(([hatch, count]) => ({ hatch, count })),
     stages: damage?.gameStages ?? [],
     activationKinds: spells?.gameActivations ?? [],
-    queryExtensions: registries.world?.extensions ?? [],
+    queryExtensions: registries.world?.extensions ?? []
   };
 };

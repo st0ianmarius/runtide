@@ -47,7 +47,7 @@ export interface ScriptRegistryOptions {
 /** The indexes of the behaviours that declare a handler. */
 const having = <G extends ScriptTypes>(
   behaviours: readonly AnyBehaviour<G>[],
-  has: (behaviour: AnyBehaviour<G>) => boolean,
+  has: (behaviour: AnyBehaviour<G>) => boolean
 ): readonly number[] => Object.freeze(behaviours.flatMap((behaviour, index) => (has(behaviour) ? [index] : [])));
 
 /** Throws unless every handler a behaviour declares is a function. */
@@ -69,7 +69,7 @@ const checkBehaviour = <G extends ScriptTypes>(behaviour: AnyBehaviour<G>, where
 const compile = <G extends ScriptTypes>(
   name: string,
   behaviours: readonly AnyBehaviour<G>[],
-  freeze: boolean,
+  freeze: boolean
 ): CompiledScript<G> => {
   const events = new Set(behaviours.flatMap((behaviour) => Object.keys(behaviour.on ?? {})));
 
@@ -88,8 +88,8 @@ const compile = <G extends ScriptTypes>(
     tick: having(behaviours, (behaviour) => behaviour.tick !== undefined),
     timer: having(behaviours, (behaviour) => behaviour.timer !== undefined),
     on: new Map(
-      [...events].map((event) => [event, having(behaviours, (behaviour) => Object.hasOwn(behaviour.on ?? {}, event))]),
-    ),
+      [...events].map((event) => [event, having(behaviours, (behaviour) => Object.hasOwn(behaviour.on ?? {}, event))])
+    )
   });
 };
 
@@ -101,7 +101,7 @@ const compile = <G extends ScriptTypes>(
  */
 export const defineScripts = <G extends ScriptTypes, const Name extends string>(
   scripts: Readonly<Record<Name, readonly AnyBehaviour<G>[]>>,
-  options: ScriptRegistryOptions = {},
+  options: ScriptRegistryOptions = {}
 ): ScriptRegistry<G, Name> => {
   const names = Object.keys(scripts).filter((key): key is Name => Object.hasOwn(scripts, key));
   const compiled = names.map((name) => compile(name, scripts[name], options.freeze ?? true));
@@ -119,12 +119,12 @@ export const defineScripts = <G extends ScriptTypes, const Name extends string>(
     names: Object.freeze(names),
     id: Object.freeze(id),
     scripts: Object.freeze(compiled),
-    events: Object.freeze([...new Set(compiled.flatMap((script) => [...script.on.keys()]))]),
+    events: Object.freeze([...new Set(compiled.flatMap((script) => [...script.on.keys()]))])
   });
 };
 
 /** Whether a record has an id for every name. */
 const isComplete = <Name extends string>(
   record: Partial<Record<Name, ScriptId>>,
-  names: readonly Name[],
+  names: readonly Name[]
 ): record is Record<Name, ScriptId> => names.every((name) => record[name] !== undefined);

@@ -30,7 +30,7 @@ const land = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigg
 const runEndHook = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  reason: EndReason<G>,
+  reason: EndReason<G>
 ): void => {
   const { hooks } = engine.registry;
   const onExpire = hooks.onExpire[area.kind];
@@ -66,7 +66,7 @@ const runEndHook = <G extends AreaTriggerTypes>(
 export const endArea = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  end: { readonly reason: EndReason<G> },
+  end: { readonly reason: EndReason<G> }
 ): void => {
   if (area.isEnding) {
     return;

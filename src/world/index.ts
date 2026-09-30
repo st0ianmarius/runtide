@@ -9,7 +9,7 @@ export {
   createMemoryWorld,
   type MemoryWorld,
   type MemoryWorldOptions,
-  type QueryExtensions,
+  type QueryExtensions
 } from './memory-world.ts';
 
 export type {
@@ -22,7 +22,7 @@ export type {
   Reaction,
   SweepOptions,
   UnitSet,
-  WorldQuery,
+  WorldQuery
 } from './query.ts';
 
 export type { ReactionRule, TargetRule } from './selector.ts';

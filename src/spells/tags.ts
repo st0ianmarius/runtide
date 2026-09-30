@@ -19,5 +19,5 @@ export type SpellTagTable<Name extends string = string> = Registry<
 export const defineSpellTags = <const Name extends string>(names: readonly Name[]): SpellTagTable<Name> =>
   createRegistry(
     recordOf(names, (): SpellTagDef => ({})),
-    { kind: 'spellTags' },
+    { kind: 'spellTags' }
   );

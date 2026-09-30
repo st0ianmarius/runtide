@@ -9,7 +9,7 @@ import { aura, makeGame } from '../helpers/aura-game.ts';
 const viewsOf = <Bearer>(
   system: { readonly view: (bearer: Bearer, out: AuraView[], options?: ViewOptions) => number },
   bearer: Bearer,
-  options?: ViewOptions,
+  options?: ViewOptions
 ): AuraView[] => {
   const out: AuraView[] = [];
 
@@ -48,7 +48,7 @@ describe('aura lifecycle from views', () => {
   const { auras, id, unit, run } = makeGame({
     shield: aura({ duration: 1, stacking: 'stack', maxStacks: 3, value: 5 }),
     ward: aura({ duration: 2 }),
-    mark: aura({ duration: 'infinite' }),
+    mark: aura({ duration: 'infinite' })
   });
 
   it('tells an application, a refresh, a stack change, a value change, an expiry and a removal apart', () => {
@@ -68,7 +68,7 @@ describe('aura lifecycle from views', () => {
 
     assert.deepEqual(auraChanges(first, second, u.auras.clocks), [
       { aura: id.shield, serial: 0, change: 'refreshed' },
-      { aura: id.mark, serial: 0, change: 'removed' },
+      { aura: id.mark, serial: 0, change: 'removed' }
     ]);
 
     run(u, 8);
@@ -77,11 +77,11 @@ describe('aura lifecycle from views', () => {
 
     assert.deepEqual(auraChanges(second, third, u.auras.clocks), [
       { aura: id.shield, serial: 0, change: 'expired' },
-      { aura: id.ward, serial: 0, change: 'expired' },
+      { aura: id.ward, serial: 0, change: 'expired' }
     ]);
     assert.deepEqual(auraChanges([], second, u.auras.clocks), [
       { aura: id.shield, serial: 0, change: 'applied' },
-      { aura: id.ward, serial: 0, change: 'applied' },
+      { aura: id.ward, serial: 0, change: 'applied' }
     ]);
   });
 

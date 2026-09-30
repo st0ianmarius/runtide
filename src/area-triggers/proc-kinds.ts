@@ -6,7 +6,7 @@ import {
   type ProcContext,
   type ProcKindDef,
   type ProcOutcome,
-  procOutcome,
+  procOutcome
 } from '../procs/index.ts';
 import type { CastHandle } from '../spells/index.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
@@ -38,7 +38,7 @@ class ProcSpawnSpec<G extends AreaTriggerTypes> implements SpawnSpec<G> {
 const kindIdOf = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   areaTrigger: G['areaTriggerName'] | AreaTriggerId,
-  isChecked: boolean,
+  isChecked: boolean
 ): AreaTriggerId => {
   const { registry } = engine;
 
@@ -66,7 +66,7 @@ const kindIdOf = <G extends AreaTriggerTypes>(
 const pointOf = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   [proc, ctx, unit]: readonly [SpawnProc<G>, ProcContext<G>, G['bearer']],
-  point: MutableVec2,
+  point: MutableVec2
 ): Vec2 => proc.atOf?.(ctx) ?? proc.at ?? (engine.host.positionOf ?? engine.world.positionOf)(unit, point);
 
 /** The `spawn` kind: an area trigger owned by the list's self, at its point or on the unit it lands on. */
@@ -99,13 +99,13 @@ const spawnKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindD
 
     prepare: (proc) => ({ ...proc, areaTrigger: kindIdOf(engine, proc.areaTrigger, true) }),
 
-    explain: (proc) => ({ values: { areaTrigger: kindIdOf(engine, proc.areaTrigger, false) } }),
+    explain: (proc) => ({ values: { areaTrigger: kindIdOf(engine, proc.areaTrigger, false) } })
   };
 };
 
 /** The outcomes of a withdrawal of a few things, made once so a withdrawal allocates no outcome. */
 const WITHDRAWN: readonly ProcOutcome[] = Array.from({ length: 17 }, (_unused, amount) =>
-  procOutcome('landed', { amount }),
+  procOutcome('landed', { amount })
 );
 
 /** Throws for an area tag the registry does not have. */
@@ -141,10 +141,10 @@ const despawnOwnedKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): Pr
     }
 
     return proc;
-  },
+  }
 });
 
 /** Builds the area trigger system's proc kinds over its engine. */
 export const createAreaTriggerProcKinds = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
+  engine: AreaEngine<G>
 ): AreaTriggerProcKinds<G> => Object.freeze({ spawn: spawnKind(engine), despawnOwned: despawnOwnedKind(engine) });

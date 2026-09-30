@@ -55,7 +55,7 @@ export class Picker<G extends AiTypes> {
   first(
     caster: G['bearer'],
     spells: readonly SpellId[],
-    options: Pick<PickOptions<G>, 'input' | 'allows'> = {},
+    options: Pick<PickOptions<G>, 'input' | 'allows'> = {}
   ): SpellId | undefined {
     for (const spell of spells) {
       if (options.allows?.(caster, spell) !== false && this.#fits(caster, spell, options)) {

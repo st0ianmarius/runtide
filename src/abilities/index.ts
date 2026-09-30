@@ -5,6 +5,7 @@
  */
 
 export type { AbilityBearer, AbilityTypes, ButtonRefusal, PressRefusal, SlotId } from './ability-types.ts';
+
 export type { ButtonExplanation } from './explain.ts';
 export { type LoadoutState, NO_LOADOUT } from './loadout.ts';
 export { defineSlots, MAX_SLOTS, type SlotDef, type SlotTable } from './slots.ts';
@@ -15,5 +16,5 @@ export {
   createAbilitySystem,
   type Equipped,
   type MirrorReads,
-  type Press,
+  type Press
 } from './system.ts';

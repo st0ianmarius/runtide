@@ -34,7 +34,7 @@ export const createAuraEvent = <G extends AuraTypes = AuraTypes>(): AuraEvent<G>
   bearer: undefined,
   aura: undefined,
   state: undefined,
-  remover: -1,
+  remover: -1
 });
 
 /** The part of a bus the aura system raises its events on (a core `Bus` is one). */

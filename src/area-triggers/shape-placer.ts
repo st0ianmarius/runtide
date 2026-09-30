@@ -29,8 +29,17 @@ interface Pose {
 
 /** A placed shape a placer rewrites in place: the same kinds as `Shape`, writable, each holding its template. */
 type Placed =
-  | { readonly kind: 'point'; readonly at: Point; readonly template: Extract<Shape, { kind: 'point' }> }
-  | { readonly kind: 'circle'; readonly at: Point; r: number; readonly template: Extract<Shape, { kind: 'circle' }> }
+  | {
+      readonly kind: 'point';
+      readonly at: Point;
+      readonly template: Extract<Shape, { kind: 'point' }>;
+    }
+  | {
+      readonly kind: 'circle';
+      readonly at: Point;
+      r: number;
+      readonly template: Extract<Shape, { kind: 'circle' }>;
+    }
   | {
       readonly kind: 'ring';
       readonly at: Point;
@@ -88,7 +97,12 @@ const mirror = (template: Shape): Placed => {
     case 'lane':
       return { kind: 'lane', at, length: 0, width: 0, dir: 0, back: 0, template };
     case 'polygon':
-      return { kind: 'polygon', points: template.points.map(() => ({ x: 0, z: 0 })), band: 0, template };
+      return {
+        kind: 'polygon',
+        points: template.points.map(() => ({ x: 0, z: 0 })),
+        band: 0,
+        template
+      };
     case 'outside':
       return { kind: 'outside', shape: mirror(template.shape) };
     case 'union':

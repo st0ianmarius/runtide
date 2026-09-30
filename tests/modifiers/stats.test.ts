@@ -9,7 +9,7 @@ describe('the stat table', () => {
       attackDamage: { base: 60, kind: 'flat' },
       damage: { base: 1, kind: 'multiplier' },
       armorPen: { base: 0, kind: 'multiplier', neutral: 0 },
-      critChance: { base: 0, kind: 'flat', min: 0, max: 1 },
+      critChance: { base: 0, kind: 'flat', min: 0, max: 1 }
     });
 
     assert.deepEqual(stats.id, { attackDamage: 0, damage: 1, armorPen: 2, critChance: 3 });
@@ -24,7 +24,9 @@ describe('the stat table', () => {
     assert.throws(() => defineStats({ a: { base: 0, kind: 'flat', min: 2, max: 1 } }), /min 2 is above max 1/);
     assert.throws(() => defineStats({ a: { base: Number.NaN, kind: 'flat' } }), /must be numbers/);
     assert.throws(() => {
-      const table: Readonly<Record<string, StatDef>> = { a: { base: 0, kind: 'flat', derives: { from: 'b', per: 1 } } };
+      const table: Readonly<Record<string, StatDef>> = {
+        a: { base: 0, kind: 'flat', derives: { from: 'b', per: 1 } }
+      };
 
       return defineStats(table);
     }, /no stat named b/);
@@ -36,16 +38,22 @@ describe('the stat table', () => {
     assert.throws(
       () =>
         defineStats({
-          a: { base: 0, kind: 'flat', derives: { from: 'b', per: 1 }, converts: { to: 'c', curve: linear(1) } },
+          a: {
+            base: 0,
+            kind: 'flat',
+            derives: { from: 'b', per: 1 },
+            converts: { to: 'c', curve: linear(1) }
+          },
           b: { base: 0, kind: 'flat', derives: { from: 'c', per: 1 } },
-          c: { base: 0, kind: 'flat' },
+          c: { base: 0, kind: 'flat' }
         }),
-      /derives from itself/,
+      /derives from itself/
     );
   });
 
   it('names curves in the game’s curve table, haste alone by default', () => {
     const curves = defineCurves({ haste: hasteCurve(), soft: (x) => x / 2 });
+
     const stats = defineStats({ abilityHaste: { base: 0, kind: 'flat', curve: 'haste' } }, { curves });
 
     assert.deepEqual(curves.id, { haste: 0, soft: 1 });

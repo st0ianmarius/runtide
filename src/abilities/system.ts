@@ -121,7 +121,7 @@ const checkSlot = (slots: SlotTable, slot: SlotId): void => {
 const equipIn = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  [slot, spell, rank]: readonly [SlotId, SpellId | undefined, number],
+  [slot, spell, rank]: readonly [SlotId, SpellId | undefined, number]
 ): void => {
   checkSlot(engine.slots, slot);
 
@@ -172,7 +172,7 @@ const mirrorReadsOf = <G extends AbilityTypes>(engine: AbilityEngine<G>): Mirror
 
   return Object.freeze({
     auras: [...auras].toSorted((a, b) => a - b).map((aura) => toId<'auras'>(aura)),
-    tags: [...tags].toSorted((a, b) => a - b),
+    tags: [...tags].toSorted((a, b) => a - b)
   });
 };
 
@@ -230,6 +230,6 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
       return press(engine, bearer, [pressed, data?.refusals]);
     },
 
-    explain: (spell) => explainButton(engine, spell),
+    explain: (spell) => explainButton(engine, spell)
   };
 };

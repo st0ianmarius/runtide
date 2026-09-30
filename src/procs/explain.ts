@@ -61,6 +61,6 @@ export const explainProc = <G extends ProcTypes>(procs: ProcSystem<G>, proc: Pro
     chance: proc.chance ?? 1,
     to: isTargeted ? targetKind(def?.targetOf?.(proc)) : 'none',
     values: detail?.values ?? NONE,
-    procs: (detail?.procs ?? []).map((nested) => explainProc(procs, nested)),
+    procs: (detail?.procs ?? []).map((nested) => explainProc(procs, nested))
   };
 };

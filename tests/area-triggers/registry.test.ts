@@ -22,7 +22,7 @@ const KINDS = () =>
         tickIn: SLOTS.id.late,
         state: () => ({ passes: 0 }),
         move: () => undefined,
-        frame: () => undefined,
+        frame: () => undefined
       }),
       old: TOMBSTONE,
       shield: areaTrigger({
@@ -32,10 +32,10 @@ const KINDS = () =>
         anchor: 'owner',
         bound: { owner: 'present', suspendWhile: () => false },
         limit: { perOwner: (c) => c.rank, replace: 'refuse' },
-        onEnd: () => undefined,
-      }),
+        onEnd: () => undefined
+      })
     },
-    { tags: AREA_TAGS },
+    { tags: AREA_TAGS }
   );
 
 describe('the area trigger registry', () => {
@@ -70,12 +70,12 @@ describe('the area trigger registry', () => {
       'onContact',
       'onLand',
       'onExpire',
-      'onEnd',
+      'onEnd'
     ]);
     assert.equal(registry.hooks.frame[registry.id.wave], registry.get(registry.id.wave).frame);
     assert.deepEqual(
       registry.hooks.onEnd.flatMap((hook, id) => (hook === undefined ? [] : [id])),
-      [3],
+      [3]
     );
     assert.deepEqual(registry.tagSets[registry.id.pool]?.toArray(), [AREA_TAGS.id.pool]);
     assert.deepEqual(registry.tagSets[registry.id.shield]?.toArray(), [AREA_TAGS.id.dome]);

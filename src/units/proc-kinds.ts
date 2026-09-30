@@ -4,7 +4,7 @@ import {
   type ProcContext,
   type ProcKindDef,
   type ProcOutcome,
-  procOutcome,
+  procOutcome
 } from '../procs/index.ts';
 import { NO_CAST } from '../spells/index.ts';
 import { type SpawnUnit, type UnitEngine, unitOf } from './engine.ts';
@@ -28,7 +28,7 @@ export interface UnitKindParts<G extends UnitTypes> {
 
 /** The outcomes of a proc that did a few things, made once so none allocates one. */
 const COUNTED: readonly ProcOutcome[] = Array.from({ length: 17 }, (_unused, amount) =>
-  procOutcome('landed', { amount }),
+  procOutcome('landed', { amount })
 );
 
 /** The outcome of a proc that did `count` things: `skipped` for none. */
@@ -61,13 +61,13 @@ const reviveKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<R
     }
 
     return proc;
-  },
+  }
 });
 
 /** A summon's base stats: its own, then each inherited share of its owner's totals. */
 const summonStats = <G extends UnitTypes>(
   engine: UnitEngine<G>,
-  [proc, owner]: readonly [SummonProc<G>, G['bearer']],
+  [proc, owner]: readonly [SummonProc<G>, G['bearer']]
 ): Readonly<Partial<Record<G['stat'], number>>> | undefined => {
   if (proc.inherit === undefined) {
     return proc.stats;
@@ -95,15 +95,20 @@ const summonStats = <G extends UnitTypes>(
 const spawnSummon = <G extends UnitTypes>(
   parts: UnitKindParts<G>,
   [proc, ctx, owner]: readonly [SummonProc<G>, ProcContext<G>, G['bearer']],
-  [template, stats]: readonly [UnitId, Readonly<Partial<Record<G['stat'], number>>> | undefined],
+  [template, stats]: readonly [UnitId, Readonly<Partial<Record<G['stat'], number>>> | undefined]
 ): void => {
   const at = proc.atOf?.(ctx) ?? proc.at;
-  const spec: SpawnUnit<G> = { side: proc.side ?? unitOf<G>(owner).side, owner, isBound: proc.isBound !== false };
+
+  const spec: SpawnUnit<G> = {
+    side: proc.side ?? unitOf<G>(owner).side,
+    owner,
+    isBound: proc.isBound !== false
+  };
 
   const unit = parts.spawn(template, {
     ...spec,
     ...(stats === undefined ? {} : { stats }),
-    ...(at === undefined ? {} : { at }),
+    ...(at === undefined ? {} : { at })
   });
 
   const { spells } = parts.engine.options;
@@ -121,7 +126,7 @@ const spawnSummon = <G extends UnitTypes>(
 const admitSummon = <G extends UnitTypes>(
   parts: UnitKindParts<G>,
   [proc, owner]: readonly [SummonProc<G>, G['bearer']],
-  template: UnitId,
+  template: UnitId
 ): boolean => {
   const { limit } = proc;
 
@@ -187,7 +192,7 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
     }
 
     return { ...proc, unit: templateOf(parts.engine, proc.unit) };
-  },
+  }
 });
 
 /** The `despawn` kind. */
@@ -195,7 +200,7 @@ const despawnKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<
   targetOf: (proc) => proc.to,
 
   apply: (proc, _ctx, unit) =>
-    unit !== undefined && parts.despawn(unit, proc.reason ?? 'despawn') ? PROC_LANDED : PROC_SKIPPED,
+    unit !== undefined && parts.despawn(unit, proc.reason ?? 'despawn') ? PROC_LANDED : PROC_SKIPPED
 });
 
 /** The `despawnSummons` kind. */
@@ -222,7 +227,7 @@ const despawnSummonsKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcK
     return counted(count);
   },
 
-  prepare: (proc) => (proc.unit === undefined ? proc : { ...proc, unit: templateOf(parts.engine, proc.unit) }),
+  prepare: (proc) => (proc.unit === undefined ? proc : { ...proc, unit: templateOf(parts.engine, proc.unit) })
 });
 
 /** Builds the unit system's proc kinds. */
@@ -231,5 +236,5 @@ export const createUnitProcKinds = <G extends UnitTypes>(parts: UnitKindParts<G>
     revive: reviveKind(parts),
     summon: summonKind(parts),
     despawn: despawnKind(parts),
-    despawnSummons: despawnSummonsKind(parts),
+    despawnSummons: despawnSummonsKind(parts)
   });

@@ -11,7 +11,7 @@ import { type Game, makeSpellGame, mark, spell, STATS, type Unit } from '../help
  */
 const autoGame = <const Spell extends string>(
   defs: Readonly<Record<Spell, AnySpellDef<Game>>>,
-  host: Partial<SpellHost<Game>> = {},
+  host: Partial<SpellHost<Game>> = {}
 ) => {
   const game = makeSpellGame(defs, { host });
   const a = game.unit(1);
@@ -44,7 +44,7 @@ const autoGame = <const Spell extends string>(
 describe('auto clocks', () => {
   it('casts at once, then every interval, reset to the interval read at the cast with no carry-over', () => {
     const game = autoGame({
-      swing: spell({ activation: { kind: 'auto', interval: 0.3 }, release: () => [mark('swing')] }),
+      swing: spell({ activation: { kind: 'auto', interval: 0.3 }, release: () => [mark('swing')] })
     });
 
     game.advance(6);
@@ -57,8 +57,8 @@ describe('auto clocks', () => {
       volley: spell({
         activation: { kind: 'auto', interval: (ctx) => ctx.stats.interval },
         stats: { interval: scaled(1, haste(1)) },
-        release: () => [mark('volley')],
-      }),
+        release: () => [mark('volley')]
+      })
     });
 
     game.a.stats[STATS.id.abilityHaste] = 100;
@@ -68,7 +68,7 @@ describe('auto clocks', () => {
 
   it('steps only armed clocks: a disarmed spell stops, and one armed again casts at once, or after its seconds', () => {
     const game = autoGame({
-      swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('swing')] }),
+      swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('swing')] })
     });
 
     game.advance(1);
@@ -88,7 +88,7 @@ describe('auto clocks', () => {
   it('refuses to arm a spell that is not auto, or with seconds that are not a finite number from 0', () => {
     const game = autoGame({
       swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => undefined }),
-      bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined }),
+      bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined })
     });
 
     assert.throws(() => game.spells.arm(game.a, game.id.bolt), /not an auto spell/);
@@ -97,16 +97,21 @@ describe('auto clocks', () => {
 
   it("spends the whole interval on a refusal by the gates or canCast, or what the game's next says", () => {
     const game = autoGame({
-      held: spell({ activation: { kind: 'auto', interval: 1 }, canCast: () => false, release: () => undefined }),
+      held: spell({
+        activation: { kind: 'auto', interval: 1 },
+        canCast: () => false,
+        release: () => undefined
+      }),
       eager: spell({
         activation: {
           kind: 'auto',
           interval: 1,
-          next: (report, interval) => (report.refusal === 'canCast' ? 0.25 : autoNext(report, interval)),
+
+          next: (report, interval) => (report.refusal === 'canCast' ? 0.25 : autoNext(report, interval))
         },
         canCast: () => false,
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     game.advance(1);
@@ -127,13 +132,13 @@ describe('auto clocks', () => {
           return undefined;
         },
 
-        release: () => undefined,
+        release: () => undefined
       }),
       patient: spell({
         activation: { kind: 'auto', interval: 1, next: (_report, interval) => interval },
         target: () => undefined,
-        release: () => undefined,
-      }),
+        release: () => undefined
+      })
     });
 
     game.advance(3);
@@ -156,7 +161,7 @@ describe('auto clocks', () => {
             asked += 1;
 
             return isNear;
-          },
+          }
         },
 
         target: (ctx) => {
@@ -165,14 +170,14 @@ describe('auto clocks', () => {
           return ctx.caster;
         },
 
-        release: () => [mark('swing')],
-      }),
+        release: () => [mark('swing')]
+      })
     });
 
     game.advance(3);
     assert.deepEqual(
       [asked, aims, game.ticksOf('swing@1'), game.spells.autoClock(game.a, game.id.swing)],
-      [3, 0, [], 0],
+      [3, 0, [], 0]
     );
     isNear = true;
     game.advance(1);
@@ -184,15 +189,19 @@ describe('auto clocks', () => {
   it('spends the interval after a cast whose release set nothing off, unless the game’s next retries it', () => {
     const game = autoGame({
       whiff: spell({
-        activation: { kind: 'auto', interval: 1, next: (report, interval) => (report.went === 0 ? 0 : interval) },
-        release: () => [],
+        activation: {
+          kind: 'auto',
+          interval: 1,
+          next: (report, interval) => (report.went === 0 ? 0 : interval)
+        },
+        release: () => []
       }),
       stubborn: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [] }),
       windup: spell({
         activation: { kind: 'auto', interval: 1 },
         timeline: { windup: { seconds: 0.5 } },
-        release: () => [],
-      }),
+        release: () => []
+      })
     });
 
     game.advance(2);
@@ -204,7 +213,10 @@ describe('auto clocks', () => {
 
   it('refuses a next that is not seconds from 0, and a next that is not a function at load', () => {
     const game = autoGame({
-      broken: spell({ activation: { kind: 'auto', interval: 1, next: () => -1 }, release: () => undefined }),
+      broken: spell({
+        activation: { kind: 'auto', interval: 1, next: () => -1 },
+        release: () => undefined
+      })
     });
 
     const activation = { kind: 'auto', interval: 1 } as const;
@@ -228,10 +240,10 @@ describe('auto clocks', () => {
           late.arm?.();
 
           return [mark('opener')];
-        },
+        }
       }),
       swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('swing')] }),
-      volley: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('volley')] }),
+      volley: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('volley')] })
     });
 
     late.disarm = () => void game.spells.disarm(game.a, game.id.opener);
@@ -240,13 +252,15 @@ describe('auto clocks', () => {
     game.advance(1);
     assert.deepEqual(
       game.log.filter((line) => !line.includes(' ') && !line.startsWith('t')),
-      ['opener@1', 'swing@1'],
+      ['opener@1', 'swing@1']
     );
     assert.equal(game.spells.autoClock(game.a, game.id.volley), 0.25);
   });
 
   it('reads 0 for a spell that is not auto', () => {
-    const game = autoGame({ bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined }) });
+    const game = autoGame({
+      bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined })
+    });
 
     assert.equal(game.spells.autoClock(game.a, game.id.bolt), 0);
   });
@@ -258,8 +272,12 @@ describe('an auto clock after the caster’s other casts', () => {
 
     const game = autoGame({
       swing: spell({
-        activation: { kind: 'auto', interval: 1, ready: (caster) => late.isCasting?.(caster) !== true },
-        release: () => [mark('swing')],
+        activation: {
+          kind: 'auto',
+          interval: 1,
+          ready: (caster) => late.isCasting?.(caster) !== true
+        },
+        release: () => [mark('swing')]
       }),
       bolt: spell({ activation: { kind: 'auto', interval: 2 }, release: () => [mark('bolt')] }),
       roar: spell({
@@ -271,8 +289,8 @@ describe('an auto clock after the caster’s other casts', () => {
           late.reset?.(ctx.caster);
 
           return undefined;
-        },
-      }),
+        }
+      })
     });
 
     late.isCasting = (unit) => game.spells.isCasting(unit);
@@ -284,7 +302,7 @@ describe('an auto clock after the caster’s other casts', () => {
     game.advance(3);
     assert.deepEqual(
       game.log.filter((line) => line === 'swing@1'),
-      ['swing@1'],
+      ['swing@1']
     );
     assert.equal(game.spells.autoClock(game.a, game.id.swing), 0);
     game.advance(1);
@@ -295,7 +313,7 @@ describe('an auto clock after the caster’s other casts', () => {
   it('sets only an armed clock, to finite seconds from 0, and refuses a ready that is not a function', () => {
     const game = autoGame({
       swing: spell({ activation: { kind: 'auto', interval: 1 }, release: () => undefined }),
-      bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined }),
+      bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined })
     });
 
     const unready = { kind: 'auto', interval: 1 } as const;

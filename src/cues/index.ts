@@ -24,7 +24,7 @@ export {
   type CueUint8Param,
   type CueVec2ListParam,
   type CueVec2Param,
-  defineCue,
+  defineCue
 } from './cue-def.ts';
 
 export {
@@ -33,10 +33,11 @@ export {
   type CueRegistry,
   type CueRegistryOptions,
   type CueTable,
-  defineCues,
+  defineCues
 } from './define-cues.ts';
 
 export { decodeCue, decodeCueParams, decodeCues, encodeCue, encodeCueParams, encodeCues } from './encode.ts';
+
 export { type CueEvent, cuePath, NO_ENTITY, setCuePath } from './event.ts';
 export type { CueId, CueIdOf, CueParam } from './ids.ts';
 export { createCueEchoes, type CueEchoes, cueReaches, type CueRecipient } from './route.ts';
@@ -51,5 +52,5 @@ export {
   createNumberWriter,
   type CueReader,
   type CueWriter,
-  type NumberWriter,
+  type NumberWriter
 } from './wire.ts';

@@ -110,7 +110,7 @@ export interface RollTable<O extends string = string> {
  */
 export const defineRollTable = <S extends string, const O extends string>(
   stats: StatTable<S>,
-  spec: RollTableSpec<NoInfer<S>, O>,
+  spec: RollTableSpec<NoInfer<S>, O>
 ): RollTable<O> => {
   const names = Object.keys(spec.rows).filter((key): key is O => Object.hasOwn(spec.rows, key));
 
@@ -143,7 +143,7 @@ export const defineRollTable = <S extends string, const O extends string>(
       effect,
       chance: compile(row.chance, 'chance'),
       multiplier: row.multiplier === undefined ? undefined : compile(row.multiplier, 'multiplier'),
-      isCrit: row.isCrit === true,
+      isCrit: row.isCrit === true
     });
   });
 
