@@ -9,10 +9,6 @@ This guide documents the implementation exported by [`spellweave/modifiers`](../
 contracts an agent needs to preserve when integrating it into a game. The game owns the stat names, units of measure,
 numbers, conditions, source layout, scope ids, resource policies, presentation, and when reads happen.
 
-F22 begins with this system. This is deliberately a detailed integration reference, extending the plan's original short
-document format at the user's request. It describes existing behavior; examples use illustrative game content rather
-than built-in framework stats or tuning.
-
 ## Contents
 
 1. [Start here](#1-start-here)
