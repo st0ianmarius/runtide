@@ -4,15 +4,14 @@ import type { AuraSystem } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import {
   basesView,
-  type Modifier,
   type ModifierList,
   type ModifierSystem,
-  plus,
   type SourceId,
   type StatId,
   type StatView,
 } from '../modifiers/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
+import { UnitBases, type UnitVariant } from './bases.ts';
 import type { UnitEvents } from './events.ts';
 import type { InterruptingState, UnitStateTable } from './states.ts';
 import type { UnitRegistry } from './unit-def.ts';
@@ -121,8 +120,14 @@ export interface SpawnUnit<G extends UnitTypes> {
   /** Its entity id; the system's next when absent. */
   readonly id?: number;
 
-  /** Its own base stats, over its template's (a mob keeping its spawn wave's numbers). */
+  /** Its own base stats, over its template's (a one-off: a horde's shared numbers are a `variant`). */
   readonly stats?: Readonly<Partial<Record<G['stat'], number>>>;
+
+  /**
+   * Its template's variant (`units.variant`): base stats compiled once and shared by every unit spawned with it (a
+   * wave's scaled mobs, a level's elites), in place of `stats`.
+   */
+  readonly variant?: UnitVariant;
 
   /** Where it stands, handed to the `spawned` event for the game's world; none when absent. */
   readonly at?: Vec2;
@@ -161,8 +166,8 @@ export class UnitEngine<G extends UnitTypes> {
 
   readonly #createExt: UnitExtFactory<G>;
 
-  /** Each template's compiled base list, shared by every unit spawned with its template's stats alone. */
-  readonly #templateLists: (ModifierList | undefined)[] = [];
+  /** The units' base stats: each template's, and the variants'. */
+  readonly bases: UnitBases<G>;
 
   constructor(options: UnitSystemOptions<G>) {
     const { registry } = options;
@@ -171,6 +176,7 @@ export class UnitEngine<G extends UnitTypes> {
     this.options = options;
     this.registry = registry;
     this.#createExt = extFactory(options);
+    this.bases = new UnitBases(options);
     this.healthStat =
       registry.stats.index.idOf(options.health.stat) ??
       missing(`the health stat ${options.health.stat} is not in the stat table`);
@@ -188,7 +194,7 @@ export class UnitEngine<G extends UnitTypes> {
   /** A new unit of a template, alive at full health, with its own stats snapshotted. */
   create(template: UnitId, spawn: SpawnUnit<G>): G['bearer'] {
     const { options, registry } = this;
-    const base = this.#baseFor(template, spawn);
+    const base = this.bases.baseOf(template, spawn);
     const id = this.#idFor(spawn);
 
     const unit = new Unit<G>({
@@ -219,35 +225,12 @@ export class UnitEngine<G extends UnitTypes> {
       options.spells.arm(made, autoAttack);
     }
 
-    this.foldBases(made, [unit, spawn.stats === undefined]);
+    this.foldBases(made, [unit, this.bases.sharedListOf(template, spawn)]);
     unit.maxHealth = this.statsOf(made).total(this.healthStat);
     unit.health = unit.maxHealth;
     this.byId.set(id, made);
 
     return made;
-  }
-
-  /**
-   * A spawn's base stats: its template's, with the spawn's own on top in a copy; a spawn with none of its own shares its
-   * template's (a unit's bases are read-only, so a horde of one template holds one array).
-   */
-  #baseFor(template: UnitId, spawn: SpawnUnit<G>): ArrayLike<number> {
-    const { stats } = this.registry;
-    const shared = this.registry.bases[template] ?? stats.columns.base;
-
-    if (spawn.stats === undefined) {
-      return shared;
-    }
-
-    const base = Float64Array.from(shared);
-
-    for (const [stat, value] of Object.entries<number | undefined>(spawn.stats ?? {})) {
-      const id = stats.index.idOf(stat) ?? missing(`there is no stat named ${stat}`);
-
-      base[id] = value ?? base[id] ?? 0;
-    }
-
-    return base;
   }
 
   /** A spawn's entity id: its own, or the next; refuses one already live. */
@@ -263,8 +246,11 @@ export class UnitEngine<G extends UnitTypes> {
     return id;
   }
 
-  /** Puts a unit's own bases, over the stat table's, at the base source of its sheet. */
-  foldBases(bearer: G['bearer'], [unit, isTemplate]: readonly [Unit<G>, boolean]): void {
+  /**
+   * Puts a unit's own bases, over the stat table's, at the base source of its sheet: a shared compiled list (its
+   * template's or its variant's), or its own compiled now.
+   */
+  foldBases(bearer: G['bearer'], [unit, shared]: readonly [Unit<G>, ModifierList | undefined]): void {
     const modifiers = this.options.modifiers;
     const { sheet } = unit;
 
@@ -277,28 +263,11 @@ export class UnitEngine<G extends UnitTypes> {
     const { system } = modifiers;
     const sources: Readonly<Record<string, SourceId | undefined>> = system.sources.id;
     const source = sources[modifiers.base] ?? missing(`there is no modifier source named ${modifiers.base}`);
-    const shared = isTemplate ? this.#templateLists[unit.template] : undefined;
-    const list = shared ?? system.compile(this.#baseModifiers(unit.base));
 
-    if (isTemplate) {
-      this.#templateLists[unit.template] = list;
-    }
+    const list = shared ?? this.bases.compile(unit.base) ?? missing('a unit lost its modifier system');
 
     system.setSource(sheet, source, [list]);
     unit.view = system.view(sheet, { host: bearer });
-  }
-
-  /** The adds that move the stat table's bases to a unit's own. */
-  #baseModifiers(base: ArrayLike<number>): Modifier<G['stat'], G['condition'], G['valueKind']>[] {
-    const tableBase = this.registry.stats.columns.base;
-    const names: readonly G['stat'][] = this.registry.stats.names.filter((name): name is G['stat'] => name.length >= 0);
-
-    return Array.from(base).flatMap((value, stat) => {
-      const delta = value - (tableBase[stat] ?? 0);
-      const name = names[stat];
-
-      return delta === 0 || name === undefined ? [] : [plus(name, delta)];
-    });
   }
 
   /** A unit's stats. */

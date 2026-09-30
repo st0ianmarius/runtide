@@ -14,6 +14,7 @@ export {
   type UnitSystemOptions,
 } from './engine.ts';
 
+export { type UnitVariant } from './bases.ts';
 export { createUnitEvent, type UnitEvent, type UnitEvents } from './events.ts';
 
 export {

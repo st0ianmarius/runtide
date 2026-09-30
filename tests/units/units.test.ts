@@ -66,6 +66,39 @@ describe('spawning', () => {
   });
 });
 
+describe('variants', () => {
+  it('spawn every unit of a variant with its bases, shared, over its template’s', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const { units } = game;
+    const wave = units.variant(game.id.grunt, { maxHealth: 150, speed: 5 });
+
+    const [a, b] = [
+      units.spawn(game.id.grunt, { side: 1, variant: wave }),
+      units.spawn(game.id.grunt, { side: 1, variant: wave }),
+    ];
+
+    assert.deepEqual([a.health, b.health, units.statsOf(b).total(STATS.id.speed)], [150, 150, 5]);
+    assert.equal(a.base, b.base);
+    assert.equal(units.spawn(game.id.grunt, { side: 1 }).health, 100);
+  });
+
+  it('refuse a variant of another template, or one given with stats of the spawn’s own', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const { units } = game;
+    const wave = units.variant(game.id.grunt, { maxHealth: 150 });
+
+    assert.throws(() => units.spawn(game.id.elite, { side: 1, variant: wave }), /units.variant made for its template/);
+    assert.throws(
+      () => units.spawn(game.id.grunt, { side: 1, variant: wave, stats: { speed: 2 } }),
+      /in place of its own stats/,
+    );
+    const odd = {};
+
+    Reflect.set(odd, 'luck', 1);
+    assert.throws(() => units.variant(game.id.grunt, odd), /there is no stat named luck/);
+  });
+});
+
 describe('the lifecycle', () => {
   it('moves between states as each allows, entering the aura states and raising events', () => {
     const game = makeUnitGame(TEMPLATES);

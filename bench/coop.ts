@@ -278,8 +278,10 @@ const HASTE = AURAS.id.haste;
 const heroes: Unit<CoopGame>[] = [];
 const mobs: Unit<CoopGame>[] = [];
 
-/** Each wave's stats: every mob of a wave shares one object, as a wave scales its template. */
-const WAVES = [{ maxHealth: 40 }, { maxHealth: 55, power: 12 }, { maxHealth: 70, power: 14 }] as const;
+/** Each wave's variant of the grunt: every mob of a wave shares its scaled bases. */
+const WAVES = [{ maxHealth: 40 }, { maxHealth: 55, power: 12 }, { maxHealth: 70, power: 14 }].map((stats) =>
+  UNITS.variant(TEMPLATES.id.grunt, stats),
+);
 
 /** A point reused for every placement. */
 const AT: { x: number; z: number } = { x: 0, z: 0 };
@@ -287,7 +289,7 @@ const AT: { x: number; z: number } = { x: 0, z: 0 };
 /** Spawns a mob of the current wave on a ring 15–25 m out, into the world, hasted, chasing a hero. */
 const spawnMob = (): Unit<CoopGame> => {
   const wave = WAVES[Math.floor(CLOCK.tick / 600) % WAVES.length] ?? missing();
-  const mob = UNITS.spawn(TEMPLATES.id.grunt, { side: 1, stats: wave });
+  const mob = UNITS.spawn(TEMPLATES.id.grunt, { side: 1, variant: wave });
   const angle = DRAW() * 2 * Math.PI;
   const distance = 15 + 10 * DRAW();
 

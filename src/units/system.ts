@@ -1,5 +1,6 @@
 import type { StatView } from '../modifiers/index.ts';
 import type { SpellId } from '../spells/index.ts';
+import type { UnitVariant } from './bases.ts';
 import { type SpawnUnit, UnitEngine, unitOf, type UnitSystemOptions } from './engine.ts';
 import { damageHostOf, syncHealth } from './hosts.ts';
 import { syncStates } from './interrupts.ts';
@@ -24,6 +25,12 @@ export interface UnitSystem<G extends UnitTypes> {
 
   /** Spawns a unit of a template: alive, at full health, its stats its template's with the spawn's on top. */
   readonly spawn: (template: UnitId, spawn: SpawnUnit<G>) => G['bearer'];
+
+  /**
+   * A variant of a template with base stats of its own, compiled once: spawn a wave's mobs or a level's elites with it
+   * (`spawn(template, { side, variant })`) and they share its bases, where a spawn's own `stats` compile per unit.
+   */
+  readonly variant: (template: UnitId, stats: Readonly<Partial<Record<G['stat'], number>>>) => UnitVariant;
 
   /** A live unit by entity id; `undefined` for none. */
   readonly byId: (id: number) => G['bearer'] | undefined;
@@ -127,6 +134,12 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     live: () => engine.byId.size,
 
     spawn: spawnUnit,
+
+    variant: (template, stats) => {
+      registry.get(template);
+
+      return engine.bases.variant(template, stats);
+    },
 
     byId: (id) => engine.byId.get(id),
     despawn: despawnUnit,
