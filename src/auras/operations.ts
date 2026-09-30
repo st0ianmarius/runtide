@@ -18,7 +18,7 @@ import {
   spendStacks,
   spendValue
 } from './remove.ts';
-import { type AuraSeed, seedAuras } from './seed.ts';
+import { type AuraSeed, matchesSeed, seedAuras } from './seed.ts';
 import { setOf } from './state.ts';
 import type { AuraSystem } from './system.ts';
 import { changeTimeLeft } from './time-left.ts';
@@ -62,6 +62,7 @@ type Queries<G extends AuraTypes> = Pick<
   | 'scaleTimeLeft'
   | 'clampTimeLeft'
   | 'seed'
+  | 'matchesSeed'
 >;
 
 /** The operations that change a bearer's auras. */
@@ -159,5 +160,6 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
   clampTimeLeft: (bearer: G['bearer'], tag: AuraTagId, seconds: number) =>
     changeTimeLeft(engine, [bearer, tag], { factor: 1, cap: seconds }),
 
-  seed: (bearer: G['bearer'], seed: AuraSeed) => seedAuras(engine, bearer, seed)
+  seed: (bearer: G['bearer'], seed: AuraSeed) => seedAuras(engine, bearer, seed),
+  matchesSeed: (bearer: G['bearer'], seed: AuraSeed) => matchesSeed(engine, bearer, seed)
 });

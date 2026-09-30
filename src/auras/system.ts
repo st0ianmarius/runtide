@@ -226,6 +226,12 @@ export interface AuraSystem<G extends AuraTypes> {
    * serial count becomes the server's. Only a silent state may be seeded. Returns how many it seeded.
    */
   readonly seed: (bearer: G['bearer'], seed: AuraSeed) => number;
+
+  /**
+   * Whether a mirror's predicted auras already are what `seed` would make of a seed, reading only: a client seeds and
+   * replays only when they differ.
+   */
+  readonly matchesSeed: (bearer: G['bearer'], seed: AuraSeed) => boolean;
 }
 
 /** Whether `undefined` is the game's `ext`: true exactly when the options could leave `createExt` out. */

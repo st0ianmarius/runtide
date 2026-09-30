@@ -77,6 +77,30 @@ describe('seeding a prediction mirror', () => {
     assert.equal(auras.has(mirror, id.dash), false);
   });
 
+  it('tells whether a seed would change the mirror, reading only', () => {
+    const { auras, id, server, mirror, run } = setUp();
+
+    auras.apply(server, id.dash);
+    auras.apply(server, { aura: id.sprint, stacks: 3, source: 9 });
+    auras.apply(server, id.glow);
+    run(server, 4);
+
+    const seedOf = () => ({
+      views: viewsOf(auras, server, { for: 'owner' }),
+      clocks: server.auras.clocks,
+      serials: server.auras.serials
+    });
+
+    assert.equal(auras.matchesSeed(mirror, seedOf()), false);
+    auras.seed(mirror, seedOf());
+    assert.equal(auras.matchesSeed(mirror, seedOf()), true);
+    run(server, 1);
+    run(mirror, 1);
+    assert.equal(auras.matchesSeed(mirror, seedOf()), true);
+    auras.apply(server, { aura: id.sprint, stacks: 1 });
+    assert.equal(auras.matchesSeed(mirror, seedOf()), false);
+  });
+
   it('replaces the mirror’s predicted auras and keeps the ones it is not sent', () => {
     const { auras, id, server, mirror } = setUp();
 

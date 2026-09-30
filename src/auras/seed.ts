@@ -102,3 +102,65 @@ export const seedAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
 
   return seeded;
 };
+
+/** Whether a mirror's predicted aura is what a view would seed: the same aura, serial, stacks, value, source and end. */
+const isSeededAs = <G extends AuraTypes>(
+  [set, item, view]: readonly [AuraSet<G>, AuraItem<G>, AuraView],
+  serverNow: number
+): boolean => {
+  const end = Number.isFinite(view.end) ? (set.clocks[item.clock] ?? 0) + Math.max(0, view.end - serverNow) : Infinity;
+
+  return (
+    item.id === view.aura &&
+    item.serial === view.serial &&
+    item.stacks === view.stacks &&
+    item.value === view.value &&
+    item.source === view.source &&
+    item.end === end
+  );
+};
+
+/** Whether an aura is `predicted`. */
+const isPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, aura: number): boolean =>
+  ((engine.flags[aura] ?? 0) & PREDICTED) !== 0;
+
+/** The index of the first view of a predicted aura at or after `at`, or `count` for none. */
+const nextPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, seed: AuraSeed, at: number): number => {
+  const count = seed.count ?? seed.views.length;
+  let index = at;
+
+  while (index < count && !isPredicted(engine, seed.views[index]?.aura ?? 0)) {
+    index += 1;
+  }
+
+  return index;
+};
+
+/**
+ * Whether a prediction mirror's predicted auras already are what `seedAuras` would make of a seed (a correction
+ * that changes nothing): a client compares at each acknowledged step and replays its pending inputs only on a
+ * difference, as a seed and a replay otherwise cost every step. Reads only; seeds nothing.
+ */
+export const matchesSeed = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  seed: AuraSeed
+): boolean => {
+  const set = setOf<G>(bearer);
+  const count = seed.count ?? seed.views.length;
+  let at = nextPredicted(engine, seed, 0);
+
+  for (const item of set.items) {
+    if (isPredicted(engine, item.id)) {
+      const view = at < count ? seed.views[at] : undefined;
+
+      if (view === undefined || !isSeededAs([set, item, view], seed.clocks[item.clock] ?? 0)) {
+        return false;
+      }
+
+      at = nextPredicted(engine, seed, at + 1);
+    }
+  }
+
+  return at >= count && set.serials === seed.serials;
+};
