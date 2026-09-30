@@ -236,6 +236,7 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
       hit: this.hit,
       heal,
       setHealth: (unit, health, source) => setHealth(unit, health, { source }),
+      force,
     });
   }
 

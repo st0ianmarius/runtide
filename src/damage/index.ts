@@ -71,9 +71,12 @@ export {
   type DamageProc,
   type DamageProcKinds,
   type DamageProcs,
+  type ForceProc,
   heal,
   type HealProc,
   type ProcAmount,
+  pull,
+  push,
   setHealth,
   type SetHealthProc,
 } from './procs.ts';

@@ -1,7 +1,7 @@
 import type { Vec2 } from '../math/index.ts';
 import type { ScaledSnapshot, StatId } from '../modifiers/index.ts';
 import type { Proc, ProcKindDef, ProcShape, ProcTarget } from '../procs/index.ts';
-import type { BlowStatus, DamageKindId, DamageTypes } from './damage-types.ts';
+import type { BlowStatus, DamageKindId, DamageTypes, ForceKind } from './damage-types.ts';
 
 /** The damage part of a damage or heal proc: a number, or a scaled value's snapshot finished against each target. */
 export type ProcAmount = number | ScaledSnapshot;
@@ -90,10 +90,35 @@ export interface SetHealthProc<G extends DamageTypes> extends ProcShape {
   readonly to?: ProcTarget<G>;
 }
 
-/** The damage system's proc kinds, as a union a game adds to its `gameProc`. */
-export type DamageProcs<G extends DamageTypes> = DamageProc<G> | HealProc<G> | SetHealthProc<G>;
+/**
+ * Moves the unit it lands on through the force pipeline (§II.6 D4, P3): a push along a direction, a pull toward a
+ * point, a knock away from one, or one of the game's forces. The list's self causes it (a pull or knock without a
+ * `from` comes from where the host sees it stand); the host's `applyForce` moves the unit.
+ */
+export interface ForceProc<G extends DamageTypes> extends ProcShape {
+  /** The discriminant. */
+  readonly kind: 'force';
 
-/** The damage system's proc kinds (`damage`, `heal`, `setHealth`), which a game registers beside `CORE_PROCS`. */
+  /** What force it is. */
+  readonly force: ForceKind<G>;
+
+  /** How hard, above 0. */
+  readonly strength: number;
+
+  /** Whom; the list's target when absent. */
+  readonly to?: ProcTarget<G>;
+
+  /** The point it comes from (a pull toward it, a knock away from it). */
+  readonly from?: Vec2;
+
+  /** Its direction (a push's). */
+  readonly direction?: Vec2;
+}
+
+/** The damage system's proc kinds, as a union a game adds to its `gameProc`. */
+export type DamageProcs<G extends DamageTypes> = DamageProc<G> | HealProc<G> | SetHealthProc<G> | ForceProc<G>;
+
+/** The damage system's proc kinds (`damage`, `heal`, `setHealth`, `force`), which a game registers beside `CORE_PROCS`. */
 export interface DamageProcKinds<G extends DamageTypes> {
   /** Deals a blow. */
   readonly damage: ProcKindDef<DamageProc<G>, G>;
@@ -103,6 +128,9 @@ export interface DamageProcKinds<G extends DamageTypes> {
 
   /** Sets health. */
   readonly setHealth: ProcKindDef<SetHealthProc<G>, G>;
+
+  /** Pushes, pulls or knocks. */
+  readonly force: ProcKindDef<ForceProc<G>, G>;
 }
 
 /** A `damage` proc: `damage(40, { damageKind: 'fire', andThen: [applyAura('chilled')] })`. */
@@ -122,3 +150,15 @@ export const setHealth = <G extends DamageTypes = DamageTypes>(
   health: SetHealthProc<G>['health'],
   options: Omit<SetHealthProc<G>, 'kind' | 'health'> = {},
 ): SetHealthProc<G> => ({ ...options, kind: 'setHealth', health });
+
+/** A push along a direction: `push(3, { direction })`, or away from a point the game's `applyForce` reads. */
+export const push = <G extends DamageTypes = DamageTypes>(
+  strength: number,
+  options: Omit<ForceProc<G>, 'kind' | 'force' | 'strength'> = {},
+): ForceProc<G> => ({ ...options, kind: 'force', force: 'push', strength });
+
+/** A pull toward a point, or toward the list's self when the proc names none: `pull(2)`. */
+export const pull = <G extends DamageTypes = DamageTypes>(
+  strength: number,
+  options: Omit<ForceProc<G>, 'kind' | 'force' | 'strength'> = {},
+): ForceProc<G> => ({ ...options, kind: 'force', force: 'pull', strength });

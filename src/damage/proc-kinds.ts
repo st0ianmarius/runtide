@@ -4,6 +4,8 @@ import { PROC_SKIPPED, type ProcContext, procOutcome, type ProcOutcome, type Pro
 import type { Blow, BlowSpec } from './blow.ts';
 import type { BlowStatus, DamageKindId, DamageTypes } from './damage-types.ts';
 import type { DamageEngine } from './engine.ts';
+import { forceKind } from './force-kind.ts';
+import type { Force, ForceSpec } from './force.ts';
 import type { Heal, HealSpec } from './heal.ts';
 import type { DamageProc, DamageProcKinds, HealProc, ProcAmount, SetHealthProc } from './procs.ts';
 
@@ -17,6 +19,9 @@ export interface ProcPipelines<G extends DamageTypes> {
 
   /** Sets health, crediting a kill to `source`. */
   readonly setHealth: (unit: G['bearer'], health: number, source: number) => ProcOutcome;
+
+  /** The force pipeline. */
+  readonly force: (spec: ForceSpec<G>) => Force<G>;
 }
 
 /** The outcome of a `setHealth` that killed. */
@@ -229,4 +234,5 @@ export const createDamageProcKinds = <G extends DamageTypes>(
     damage: damageKind(engine, pipelines),
     heal: healKind(engine, pipelines),
     setHealth: setHealthKind(engine, pipelines),
+    force: forceKind(pipelines.force),
   });

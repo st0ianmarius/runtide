@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { damage, heal, setHealth } from '../../src/damage/index.ts';
+import { damage, heal, pull, push, setHealth } from '../../src/damage/index.ts';
 import { add, compileScaled, scaled, snapshotScaled } from '../../src/modifiers/index.ts';
 import { applyAura, escapeReport, explainProc, type Proc, run } from '../../src/procs/index.ts';
 import { aura, BLOCK, type Game, makeDamageGame, STATS } from '../helpers/damage-game.ts';
@@ -86,6 +86,29 @@ describe('the damage proc', () => {
   });
 });
 
+describe('the force procs (§II.6 D4, P3)', () => {
+  it('push or pull the unit they land on through the force pipeline, caused by the list’s self', () => {
+    const seen: string[] = [];
+
+    const game = makeDamageGame(
+      {},
+      {},
+      {
+        applyForce: (force) => {
+          seen.push(`${force.kind} ${force.amount} by ${force.attacker?.id} along ${force.direction?.x}`);
+        },
+      },
+    );
+
+    const [target, caster] = [game.unit(1), game.unit(2)];
+
+    game.procs.run([pull<Game>(2), push<Game>(3, { direction: { x: 1, z: 0 } })], { self: caster, target });
+    assert.deepEqual(seen, ['pull 2 by 2 along undefined', 'push 3 by 2 along 1']);
+    assert.deepEqual(explainProc(game.procs, pull<Game>(2)).values, { strength: 2 });
+    assert.throws(() => game.procs.prepare([push<Game>(0)], 'Test'), /push proc's strength is a finite number above 0/);
+  });
+});
+
 describe('outcome-gated procs (§II.6 P4)', () => {
   const gated = { chilled: aura({ duration: 3 }), rage: aura({ duration: 3 }) };
 
@@ -160,7 +183,7 @@ describe('the damage system’s proc kinds (§I.5.2, §I.5.6)', () => {
       activationKinds: [],
       queryExtensions: [],
     });
-    assert.deepEqual(escapeReport({ procs: game.procs }).procKinds, ['damage', 'heal', 'setHealth']);
+    assert.deepEqual(escapeReport({ procs: game.procs }).procKinds, ['damage', 'heal', 'setHealth', 'force']);
   });
 });
 
