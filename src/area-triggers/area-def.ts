@@ -199,7 +199,7 @@ export interface AreaCues<G extends AreaTriggerTypes, State = unknown> {
   /** It spawned. */
   spawn?(this: void, c: AreaTriggerContext<G, State>): CueSpec | undefined;
 
-  /** It ended (not for a silent end). */
+  /** It ended, for any reason; `undefined` for an end the game wants silent. */
   end?(this: void, c: AreaTriggerContext<G, State>, reason: EndReason<G>): CueSpec | undefined;
 }
 

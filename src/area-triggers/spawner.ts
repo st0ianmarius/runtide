@@ -112,8 +112,8 @@ const fill = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Whether the limit lets it in (§II.3.4): under it, yes; at it, the owner's oldest of the kind ends as `replaced`
- * (silently for `silent`), or the new one is refused (`refuse`).
+ * Whether the limit lets it in (§II.3.4): under it, yes; at it, the owner's oldest of the kind ends as `replaced`, or
+ * the new one is refused (`refuse`).
  */
 const admitLimit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,

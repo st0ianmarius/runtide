@@ -101,7 +101,7 @@ const auraCode = <G extends TriggerTypes>(name: string, auras: AuraRegistry<G>):
 /**
  * The aura lifecycle event (`createAuraEvent`) as a trigger event: it is about the aura's bearer, and carries two
  * filters, `aura` (the aura that changed, by name or id) and `change` (`applied`, `refreshed`, `expired`, `removed`
- * or `bearerDeath`). An aura's own triggers never hear its own end, since it is already off its bearer.
+ * or `stateEntered`). An aura's own triggers never hear its own end, since it is already off its bearer.
  */
 export const auraTriggerEvent = <G extends TriggerTypes>(kind: EventKind<AuraEvent<G>>): TriggerEvent<G> =>
   Object.freeze({

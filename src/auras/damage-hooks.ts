@@ -42,8 +42,8 @@ export interface LethalOutcome<Proc> {
 
 /**
  * The damage pipeline's aura hooks (§II.3.8): before a blow lands on a bearer, each of its auras with a hook sees it,
- * in registry order. They are declared here and built into the registry's hook tables; the damage pipeline (a later
- * phase) is what calls them.
+ * in registry order. They are declared here and built into the registry's hook tables; the damage system's pipelines
+ * call them.
  */
 export interface AuraDamageHooks<G extends AuraTypes> {
   /** The ignore stage: true lets the blow pass the bearer by (invulnerability, shelter, an immunity). */

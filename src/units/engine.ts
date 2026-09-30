@@ -193,7 +193,7 @@ export class UnitEngine<G extends UnitTypes> {
     });
   }
 
-  /** A new unit of a template, standing at full health, with its own stats snapshotted. */
+  /** A new unit of a template, alive at full health, with its own stats snapshotted. */
   create(template: UnitId, spawn: SpawnUnit<G>): G['bearer'] {
     const { options, registry } = this;
     const base = this.#baseFor(template, spawn);
