@@ -49,6 +49,35 @@ describe('units out of play', () => {
     assert.equal(log.filter((line) => line.startsWith('remove')).length, 1);
   });
 
+  it('ends a heal skipped when a hook’s blow killed its target, and never raises the corpse', () => {
+    const late: { game?: DamageGame<'necrotic'> } = {};
+
+    const game = makeDamageGame({
+      necrotic: aura({
+        duration: 5,
+        value: 10,
+        onIncomingHeal: (ctx, heal) => ({ absorb: Math.min(ctx.aura.value, heal.amount) }),
+
+        onRemoved: (ctx) => {
+          late.game?.damage.hit({ target: ctx.bearer, amount: 10 });
+
+          return undefined;
+        }
+      })
+    });
+
+    late.game = game;
+
+    const target = game.unit(1);
+
+    target.hp = 10;
+    game.auras.apply(target, game.id.necrotic);
+
+    const heal = game.damage.heal({ target, healer: game.unit(2), amount: 40 });
+
+    assert.deepEqual([heal.status, heal.amount, target.hp], ['skipped', 0, 0]);
+  });
+
   it('credits a setHealth proc that kills to the list’s attacker', () => {
     const { procs, bus, unit, log } = makeDamageGame({});
     const [target, killer] = [unit(1), unit(2)];

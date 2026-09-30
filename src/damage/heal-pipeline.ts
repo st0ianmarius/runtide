@@ -110,7 +110,10 @@ const compileHealRuns = <G extends DamageTypes>(engine: DamageEngine<G>): readon
   });
 };
 
-/** Runs a heal's stages: until one blocks it, then the after-stages. */
+/**
+ * Runs a heal's stages: until one blocks it, then the after-stages. A target that died while the heal ran (a hook's
+ * blow) ends it `skipped`, with no after-stages, as a blow's does.
+ */
 const runHealStages = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   runs: readonly HealRun<G>[],
@@ -120,6 +123,15 @@ const runHealStages = <G extends DamageTypes>(
   let i = 0;
 
   for (; i < afterFrom; i++) {
+    // A hook's blow killed the target: the rest of this heal never happened.
+    if (i > 0 && engine.isDeadNow(heal.target)) {
+      heal.status = 'skipped';
+      heal.overheal = 0;
+      heal.amount = 0;
+
+      return;
+    }
+
     if (runs[i]?.(heal) === 'blocked') {
       heal.status = 'blocked';
       heal.overheal = 0;
