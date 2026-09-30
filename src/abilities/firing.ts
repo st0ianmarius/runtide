@@ -111,7 +111,7 @@ const pay = <G extends AbilityTypes>(
 
 /**
  * Commits a press of a button: pays its cost, runs `activate`, starts its spell's cooldowns when it commits at the
- * press (and on a prediction mirror, whose casts never start), lands its `applies` in order, then clears its `resets`. A prediction mirror lands only the `predicted` auras
+ * press (and on a prediction mirror, whose casts never start, as the cast would: release ones after the windup), lands its `applies` in order, then clears its `resets`. A prediction mirror lands only the `predicted` auras
  * of `applies`: the rest touch nothing it steps, and its seed replaces predicted auras alone, so it would keep them.
  * `cooldown` when an earlier slot of the same press started a cooldown it shares (a global cooldown, a category), and
  * `cost` when one spent what it needed.
@@ -131,8 +131,10 @@ const commit = <G extends AbilityTypes>(
 
   button.def.activate?.(engine.mirrorFor(bearer, spell));
 
-  if (!button.commitsOnCast || engine.isMirror) {
+  if (!button.commitsOnCast) {
     engine.spells.startCooldowns(bearer, spell, engine.options);
+  } else if (engine.isMirror) {
+    engine.spells.predictCooldowns(bearer, spell, engine.options);
   }
 
   const { auras } = engine;

@@ -54,6 +54,16 @@ describe('a spell’s cooldowns', () => {
     assert.equal(game.spells.cooldownLeft(other, game.id.slam), 1);
   });
 
+  it('predict a cast’s cooldowns: those that start on the release that much later, by the windup', () => {
+    const game = cooldownGame();
+    const hero = game.unit(1);
+
+    game.spells.predictCooldowns(hero, game.id.slam);
+    assert.equal(game.spells.cooldownLeft(hero, game.id.slam), 1.5);
+    game.spells.predictCooldowns(hero, game.id.bolt);
+    assert.equal(game.spells.cooldownLeft(hero, game.id.bolt), 2);
+  });
+
   it('land none for a cooldown reduced to nothing', () => {
     const game = makeSpellGame(
       {

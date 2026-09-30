@@ -142,8 +142,11 @@ export class Cooldowns<G extends SpellTypes> {
     return false;
   }
 
-  /** Lands a cast's cooldowns of a moment on its caster, each for its seconds read from the cast, in order. */
-  start(cast: Cast<G>, moment: CooldownMoment): void {
+  /**
+   * Lands a cast's cooldowns of a moment on its caster, each for its seconds read from the cast, in order; those that
+   * start on the release `releaseAfter` seconds longer (a prediction of a cast's release).
+   */
+  start(cast: Cast<G>, moment: CooldownMoment, releaseAfter = 0): void {
     const list = this.of(cast.spell);
 
     for (let i = 0; i < list.length; i++) {
@@ -152,20 +155,23 @@ export class Cooldowns<G extends SpellTypes> {
       if (cooldown !== undefined && (moment === 'all' || cooldown.onRelease === (moment === 'release'))) {
         const { seconds } = cooldown;
 
-        this.#land(cast.caster, cooldown.aura, typeof seconds === 'function' ? seconds(cast) : seconds);
+        this.#land(cast.caster, cooldown, [typeof seconds === 'function' ? seconds(cast) : seconds, releaseAfter]);
       }
     }
   }
 
-  /** Lands every cooldown of a spell none of whose seconds read a cast (`readsCast` is false), in order. */
-  startConstant(caster: G['bearer'], spell: number): void {
+  /**
+   * Lands every cooldown of a spell none of whose seconds read a cast (`readsCast` is false), in order; those that
+   * start on the release `releaseAfter` seconds longer.
+   */
+  startConstant(caster: G['bearer'], spell: number, releaseAfter = 0): void {
     const list = this.of(spell);
 
     for (let i = 0; i < list.length; i++) {
       const cooldown = list[i];
 
       if (cooldown !== undefined && typeof cooldown.seconds !== 'function') {
-        this.#land(caster, cooldown.aura, cooldown.seconds);
+        this.#land(caster, cooldown, [cooldown.seconds, releaseAfter]);
       }
     }
   }
@@ -174,14 +180,23 @@ export class Cooldowns<G extends SpellTypes> {
    * Lands one cooldown aura for some seconds, or its own duration; none for 0 seconds or less (a cooldown reduced to
    * nothing), which would hold the spell until the next step.
    */
-  #land(caster: G['bearer'], aura: AuraId, seconds: number | undefined): void {
+  #land(
+    caster: G['bearer'],
+    cooldown: CompiledCooldown<G>,
+    [read, releaseAfter]: readonly [number | undefined, number]
+  ): void {
+    const seconds =
+      cooldown.onRelease && releaseAfter > 0
+        ? (read ?? this.#auras.lengthOf(cooldown.aura, caster)) + releaseAfter
+        : read;
+
     if (seconds !== undefined && seconds <= 0) {
       return;
     }
 
     const application = this.#application;
 
-    application.aura = aura;
+    application.aura = cooldown.aura;
     application.duration = seconds;
     this.#auras.apply(caster, application);
   }

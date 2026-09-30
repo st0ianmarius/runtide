@@ -382,11 +382,16 @@ export const checkCast = <G extends SpellTypes>(
  * Starts every cooldown of a spell on a caster now, read from a cast of it that goes no further than its stats (a press
  * that commits at once, on the server and a prediction mirror alike). Its casts then go with `committed`.
  */
-export const startCooldowns = <G extends SpellTypes>(engine: SpellEngine<G>, request: CastRequest<G>): void => {
+export const startCooldowns = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  request: CastRequest<G>,
+  asCast = false
+): void => {
   const def = engine.registry.get(request.spell);
+  const windup = asCast ? engine.plans[request.spell]?.windup : undefined;
 
-  if (!engine.cooldowns.readsCast(request.spell)) {
-    engine.cooldowns.startConstant(request.caster, request.spell);
+  if (!engine.cooldowns.readsCast(request.spell) && typeof windup !== 'function') {
+    engine.cooldowns.startConstant(request.caster, request.spell, windup ?? 0);
 
     return;
   }
@@ -397,7 +402,7 @@ export const startCooldowns = <G extends SpellTypes>(engine: SpellEngine<G>, req
 
   try {
     takeStats(engine, cast, def);
-    engine.cooldowns.start(cast, 'all');
+    engine.cooldowns.start(cast, 'all', typeof windup === 'function' ? windup(cast) : (windup ?? 0));
   } finally {
     cast.stage = 'ended';
     engine.unhold(cast);

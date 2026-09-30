@@ -73,6 +73,12 @@ export interface SpellSystem<G extends SpellTypes> {
    */
   readonly startCooldowns: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => void;
 
+  /**
+   * Starts every cooldown of a spell as a cast of it starting now would: those that start on the release that much
+   * later, by its windup. A prediction mirror, which casts nothing, predicts a button that commits on its cast so.
+   */
+  readonly predictCooldowns: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => void;
+
   /** A delivery of a cast caught units: `onHit` with all of them, its cue and event; how many procs went off. */
   readonly hit: (cast: CastHandle, hit: SpellHit<G>) => number;
 
@@ -172,7 +178,11 @@ export interface SpellSystem<G extends SpellTypes> {
   /** Cancels every cast a caster runs (its death), in the order they started; how many. */
   readonly cancelAll: (caster: G['bearer']) => number;
 
-  /** The cast whose procs are running now (a hook's, a delayed list's), which what they spawn belongs to; or none. */
+  /**
+   * The cast whose procs are running now (a hook's, a delayed list's), which what they spawn belongs to; or none. It is
+   * set while procs run, not in a hook's own body, which has its cast as `ctx.cast` (and names it in a spawn it makes
+   * itself).
+   */
   readonly current: CastHandle;
 
   /**
