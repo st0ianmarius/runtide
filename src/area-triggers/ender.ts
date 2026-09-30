@@ -6,7 +6,6 @@ import type { AreaEngine } from './engine.ts';
 import { catchIn, deliver, recordHit } from './hits.ts';
 import { closeLedgers } from './ledgers.ts';
 import { unlinkKind, unlinkTick } from './order.ts';
-import { leavePulses } from './pulses.ts';
 
 /** Its landing as it expires: the units in its shape, handed to `onLand` (and its cast, when it says). */
 const land = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
@@ -60,7 +59,7 @@ const runEndHook = <G extends AreaTriggerTypes>(
 
 /**
  * Ends an area trigger: its landing and `onExpire` for an expiry, its end cue (none when the cue answers none),
- * `onEnd` with the reason; then it leaves its shared clocks, the tick order and its kind's list, its owner aura comes
+ * `onEnd` with the reason; then it leaves the tick order and its kind's list, its owner aura comes
  * off when it was the last of its kind, the end event is raised, its cast is let go and its record goes back to the
  * pool. Ending one that is already ending does nothing.
  */
@@ -75,7 +74,6 @@ export const endArea = <G extends AreaTriggerTypes>(
 
   area.isEnding = true;
   runEndHook(engine, area, end.reason);
-  leavePulses(engine, area);
   dropAreaAuras(engine, area);
   closeLedgers(engine, area);
   unlinkTick(engine, area);

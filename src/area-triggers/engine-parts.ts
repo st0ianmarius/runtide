@@ -80,9 +80,6 @@ export interface AreaEngineParts<G extends AreaTriggerTypes> {
   /** Each kind's mask of the owner's interrupts it waits out (`bound.pausedBy`); 0 for none. */
   readonly pauseMasks: Int32Array;
 
-  /** Each kind's first slot among every kind's pulses. */
-  readonly pulseBase: readonly number[];
-
   /** Each kind's own spell, for a kind that casts. */
   readonly casterSpells: readonly (SpellId | undefined)[];
 

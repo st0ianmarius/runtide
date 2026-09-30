@@ -20,7 +20,6 @@ import { Catcher } from './hits.ts';
 import { type AreaTriggerHandle, toAreaTriggerHandle } from './ids.ts';
 import { LedgerBook, LedgerView } from './ledgers.ts';
 import { OwnerAreas } from './order.ts';
-import type { SharedClock } from './pulses.ts';
 import { AreaQueryApi } from './queries.ts';
 
 /**
@@ -61,17 +60,11 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   /** The queries over the area triggers, which hooks read as `c.areas`. */
   readonly queries: AreaQueryApi<G>;
 
-  /** Each kind's first slot among every kind's pulses, which a shared clock is found at. */
-  readonly pulseBase: readonly number[];
-
   /** Each kind's own spell, for a kind that casts. */
   readonly casterSpells: readonly (SpellId | undefined)[];
 
   /** The options an area trigger casts with, reused. */
   readonly castOptions = new AreaCastOptions<G>();
-
-  /** The clocks shared by every instance of a kind, by pulse slot. */
-  readonly globalClocks: (SharedClock | undefined)[] = [];
 
   /** The hit ledgers. */
   readonly ledgers = new LedgerBook();
@@ -96,7 +89,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
 
   /** Owner records given back as their owners' last area trigger ended, reused by the next owner to spawn one. */
   readonly #spareOwners: OwnerAreas<G>[] = [];
-  readonly #ownerClocks = new Map<G['bearer'], (SharedClock | undefined)[]>();
   readonly #lists: ProcList<G>[] = [];
   readonly #place = new AreaPlace();
   #depth = 0;
@@ -120,7 +112,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.slotKinds = parts.slotKinds;
     this.bindings = parts.bindings;
     this.pauseMasks = parts.pauseMasks;
-    this.pulseBase = parts.pulseBase;
     this.casterSpells = parts.casterSpells;
     this.areaAuras = parts.areaAuras;
     this.queries = new AreaQueryApi<G>(this);
@@ -195,18 +186,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.#nextId += 1;
 
     return id;
-  }
-
-  /** The clocks an owner's instances share, by pulse slot, made on first use. */
-  ownerClocks(owner: G['bearer']): (SharedClock | undefined)[] {
-    let clocks = this.#ownerClocks.get(owner);
-
-    if (clocks === undefined) {
-      clocks = [];
-      this.#ownerClocks.set(owner, clocks);
-    }
-
-    return clocks;
   }
 
   /** What an owner has live: its counts by kind and its tick-order lists; `undefined` for an owner with none. */

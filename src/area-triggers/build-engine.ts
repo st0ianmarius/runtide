@@ -110,21 +110,6 @@ const bindingOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G> | undef
   );
 };
 
-/** Each kind's first slot among every kind's pulses, in kind order. */
-const pulseBaseOf = <G extends AreaTriggerTypes>(registry: AreaTriggerRegistry<G>): readonly number[] => {
-  let next = 0;
-
-  return Object.freeze(
-    registry.defs.map((def) => {
-      const base = next;
-
-      next += def?.every?.length ?? 0;
-
-      return base;
-    }),
-  );
-};
-
 /** Checks at load that kinds with cues have a buffer to fire into. */
 const checkCues = <G extends AreaTriggerTypes>(options: AreaTriggerSystemOptions<G>): void => {
   const { registry } = options;
@@ -157,7 +142,6 @@ export const areaEngineOf = <G extends AreaTriggerTypes>(options: AreaTriggerSys
     slotKinds: slotKindsOf(registry, options.slots?.size ?? 1),
     bindings: Uint8Array.from(registry.defs, bindingOf),
     pauseMasks: Int32Array.from(registry.defs, (def) => options.spells.interruptMask(def?.bound?.pausedBy ?? [])),
-    pulseBase: pulseBaseOf(registry),
     areaAuras: registry.defs.map((def, id) => areaAurasOf(options.auras, def, registry.names[id] ?? '')),
     casterSpells: registry.defs.map((def, id) => casterSpellOf(options, def?.caster, registry.names[id] ?? '')),
     createExt: extFactory(options),

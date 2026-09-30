@@ -93,17 +93,15 @@ export interface AreaContact<G extends AreaTriggerTypes, State = unknown> extend
 }
 
 /**
- * A pulse: a beat on a clock that catches the units in its shape and hands them to `onPulse`. Its
- * clock is its own, or shared by its owner's instances of the kind, or by every instance of the kind. A shared clock
- * counts down in the step of its first member to step each tick and beats every member at once, in creation order,
- * from there (a member later in the order is seen as it stood before its own frame that tick); a unit several members
- * catch on that beat can go to the hottest only.
+ * A pulse: a beat on the area trigger's own clock that catches the units in its shape and hands them to `onPulse`. A
+ * clock several instances share (an owner's patches) is the game's: one owner-attached area trigger whose pulse reads
+ * the others through `c.areas`.
  */
 export interface AreaPulse<G extends AreaTriggerTypes, State = unknown> extends AreaCatch<G, State> {
   /** The seconds between beats: a number, or read from its stats at every reschedule. */
   readonly seconds: number | AreaFn<G, State, number>;
 
-  /** The seconds to its first beat (a shared clock's, from its first member); `seconds` by default. */
+  /** The seconds to its first beat; `seconds` by default. */
   readonly first?: number;
 
   /**
@@ -115,20 +113,8 @@ export interface AreaPulse<G extends AreaTriggerTypes, State = unknown> extends 
   /** Whether a step behind by several beats runs them all (true, the default) or one. */
   readonly catchUp?: boolean;
 
-  /** Whose clock it beats on: its own (the default), its owner's shared with the kind's, or the kind's. */
-  readonly clock?: 'own' | 'owner-shared' | 'global';
-
-  /** What a shared clock does once it has no members: starts again with the next (`reset`, the default) or keeps its time. */
-  readonly whenEmpty?: 'reset' | 'survive';
-
   /** What it catches: the units in its placed shape (the default), in a shape of its own (relative to it), or none. */
   readonly hits?: Shape | 'none';
-
-  /** Whether a unit several members catch on one shared beat goes to each (`all`, the default) or the hottest only. */
-  readonly pick?: 'all' | 'hottest';
-
-  /** How hot a member is, for `hottest`: the highest wins, the first on ties; its time left by default. */
-  heat?(this: void, c: AreaTriggerContext<G, State>): number;
 
   /** The beat: what it does to the units caught (none, when it catches none). */
   onPulse(this: void, c: AreaTriggerContext<G, State>, hit: AreaHit<G>, out: ProcOut<G>): ProcReturn<G>;

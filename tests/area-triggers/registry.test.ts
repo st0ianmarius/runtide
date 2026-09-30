@@ -137,13 +137,12 @@ describe('the load-time checks', () => {
     refuse({ ...base, caster: { spell: 'bolt', seconds: 0 } }, /it casts every/);
   });
 
-  it('refuse a pulse with bad seconds, an unknown mode, the hottest on its own clock, or no onPulse', () => {
+  it('refuse a pulse with bad seconds, an unknown reschedule, or no onPulse', () => {
     const onPulse = (): undefined => undefined;
 
     refuse({ ...base, every: [{ seconds: 0, onPulse }] }, /its pulse 0 beats every/);
     refuse({ ...base, every: [{ seconds: 1, first: -1, onPulse }] }, /its pulse 0 beats every/);
-    refuse(forged(base, 'every', [{ seconds: 1, clock: 'party', onPulse }]), /has an unknown clock/);
-    refuse({ ...base, every: [{ seconds: 1, pick: 'hottest', onPulse }] }, /picks the hottest only on a shared clock/);
+    refuse(forged(base, 'every', [{ seconds: 1, reschedule: 'party', onPulse }]), /has an unknown reschedule/);
     refuse(forged(base, 'every', [{ seconds: 1 }]), /needs an onPulse function/);
   });
 

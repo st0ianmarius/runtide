@@ -147,19 +147,8 @@ const checkBeat = <G extends AreaTriggerTypes>(
     return 'beats every finite number of seconds above 0, the first after seconds from 0.';
   }
 
-  const modes = [
-    isOneOf(pulse.clock, ['own', 'owner-shared', 'global']),
-    isOneOf(pulse.reschedule, ['cadence', 'restart']),
-    isOneOf(pulse.whenEmpty, ['reset', 'survive']),
-    isOneOf(pulse.pick, ['all', 'hottest']),
-  ];
-
-  if (modes.includes(false)) {
-    return 'has an unknown clock, reschedule, whenEmpty or pick.';
-  }
-
-  if (pulse.pick === 'hottest' && (pulse.clock ?? 'own') === 'own') {
-    return 'picks the hottest only on a shared clock.';
+  if (!isOneOf(pulse.reschedule, ['cadence', 'restart'])) {
+    return 'has an unknown reschedule.';
   }
 
   const isShape = pulse.hits === undefined || pulse.hits === 'none' || SHAPE_KINDS.has(pulse.hits.kind);
