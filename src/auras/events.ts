@@ -22,6 +22,10 @@ const isState = <G extends AuraTypes>(name: string | undefined): name is G['stat
 /** The code of `stateEntered`, whose hook is told the state. */
 const STATE_ENTERED = CHANGES.indexOf('stateEntered');
 
+/** The codes of the changes that end an aura, the only ones dispatched for an aura already off its bearer. */
+const EXPIRED = CHANGES.indexOf('expired');
+const REMOVED = CHANGES.indexOf('removed');
+
 /** What the queue dispatches with. */
 export interface EventParts<G extends AuraTypes> {
   /** The aura registry. */
@@ -256,9 +260,18 @@ export class AuraEvents<G extends AuraTypes> {
     }
   }
 
-  /** Dispatches queued lifecycle change `i`: the tag edge, the hook and its procs, then the bus. */
+  /**
+   * Dispatches queued lifecycle change `i`: the tag edge, the hook and its procs, then the bus. An application, refresh
+   * or state change of an aura an earlier event of the flush removed is dropped: its `onRemoved` already ran, and an
+   * `onApplied` after it would set up what nothing tears down.
+   */
   #change(i: number, bearer: G['bearer'], item: AuraItem<G>): void {
     const code = this.#codes[i] ?? 0;
+
+    if (code !== EXPIRED && code !== REMOVED && (!item.isActive || item.handle !== this.#handles[i])) {
+      return;
+    }
+
     if (isTagEdge(this.#parts, code, item.id)) {
       this.#parts.host.onTagsChanged?.(bearer);
     }

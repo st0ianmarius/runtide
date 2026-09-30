@@ -39,11 +39,14 @@ const ADD = MERGES.indexOf('add');
 /** The stacks an application adds: `max(1, floor(stacks))`. */
 export const addedStacks = (application: AuraApplication): number => Math.max(1, Math.floor(application.stacks ?? 1));
 
-/** The code of the stacking rule a re-application follows: its own built-in rule, else the definition's. */
-const codeOf = <G extends AuraTypes>(engine: AuraEngine<G>, at: Again<G>): number =>
-  at.application.stacking === undefined
-    ? (engine.stacking[at.item.id] ?? 0)
-    : STACKINGS.indexOf(at.application.stacking);
+/** The code of the stacking rule an application follows: its own built-in rule, else its aura's. */
+export const stackingOf = <G extends AuraTypes>(engine: AuraEngine<G>, application: AuraApplication<G>): number =>
+  application.stacking === undefined
+    ? (engine.stacking[application.aura] ?? 0)
+    : STACKINGS.indexOf(application.stacking);
+
+/** The code of the stacking rule a re-application follows. */
+const codeOf = <G extends AuraTypes>(engine: AuraEngine<G>, at: Again<G>): number => stackingOf(engine, at.application);
 
 /** `extend`: the new length's ticks added to the end; the duration becomes the new time left. */
 const extend = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): void => {

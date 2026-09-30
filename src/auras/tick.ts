@@ -117,15 +117,18 @@ export const tickAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
 
   const from = engine.events.open('tick');
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  try {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
 
-    if (item !== undefined && engine.tables.beatClock[item.id] === clock) {
-      countBeat(engine, bearer, item);
+      if (item !== undefined && engine.tables.beatClock[item.id] === clock) {
+        countBeat(engine, bearer, item);
+      }
     }
-  }
 
-  engine.events.finish(from);
-  expire(engine, bearer);
-  engine.events.close(from);
+    engine.events.finish(from);
+    expire(engine, bearer);
+  } finally {
+    engine.events.close(from);
+  }
 };

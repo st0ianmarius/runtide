@@ -95,6 +95,10 @@ export class AuraEngine<G extends AuraTypes> {
 
   /** Sets an aura's clock to run out `seconds` from now (an end stamp on its bearer's clock), and its duration with it. */
   setClock(set: AuraSet<G>, item: AuraItem<G>, seconds: number): void {
+    if (!(seconds >= 0)) {
+      throw new RangeError(`Aura ${this.registry.name(item.id)}: a length must be seconds from 0; got ${seconds}.`);
+    }
+
     item.duration = seconds;
     item.end = Number.isFinite(seconds) ? (set.clocks[item.clock] ?? 0) + this.stepsFor(item, seconds) : Infinity;
     set.noteEnd(item);

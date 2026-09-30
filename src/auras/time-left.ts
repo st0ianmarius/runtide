@@ -37,8 +37,10 @@ export const changeTimeLeft = <G extends AuraTypes>(
   [bearer, tag]: readonly [G['bearer'], AuraTagId],
   change: TimeChange
 ): number => {
-  if (!(change.factor >= 0) || !(change.cap >= 0)) {
-    throw new RangeError(`A time change takes a factor and a cap from 0; got ${change.factor} and ${change.cap}.`);
+  if (!(change.factor >= 0 && Number.isFinite(change.factor)) || !(change.cap >= 0)) {
+    throw new RangeError(
+      `A time change takes a finite factor and a cap from 0; got ${change.factor} and ${change.cap}.`
+    );
   }
 
   const set = setOf<G>(bearer);

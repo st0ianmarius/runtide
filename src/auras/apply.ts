@@ -4,10 +4,10 @@ import { type AuraItem, NO_SOURCE } from './active-aura.ts';
 import type { ApplyResult, AuraApplication } from './application.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 import { CHANGES } from './compile.ts';
-import { CREDIT_FIRST, PER_SOURCE, STACKINGS } from './define-auras.ts';
+import { CREDIT_FIRST, CUSTOM_STACKING, PER_SOURCE, STACKINGS } from './define-auras.ts';
 import type { AuraEngine } from './engine.ts';
 import { cleanse, evictFor } from './remove.ts';
-import { addedStacks, restack } from './restack.ts';
+import { addedStacks, restack, stackingOf } from './restack.ts';
 import { type AuraSet, setOf } from './state.ts';
 
 /** The change code of `applied`. */
@@ -118,14 +118,16 @@ const fresh = <G extends AuraTypes>(
   evictFor(engine, bearer, id);
   engine.events.setCause('apply');
   item.serial = isOwnInstance ? (set.serials += 1) : 0;
-  item.stacks = Math.min(maxStacks, engine.stacking[id] === STACK ? addedStacks(application) : 1);
+  const stacking = stackingOf(engine, application);
+
+  item.stacks = Math.min(maxStacks, stacking === STACK || stacking === CUSTOM_STACKING ? addedStacks(application) : 1);
   item.value = application.value ?? engine.registry.get(id).value ?? 0;
   item.source = application.source ?? NO_SOURCE;
   engine.setClock(set, item, seconds);
   engine.insert(set, item);
   engine.refreshTags(set);
-  item.nextBeat = firstBeat(engine, bearer, item);
   set.changes += 1;
+  item.nextBeat = firstBeat(engine, bearer, item);
 
   if (engine.registry.has.onLand.has(id)) {
     land(engine, { bearer, item }, application);
@@ -149,8 +151,14 @@ const again = <G extends AuraTypes>(
   const { item, application } = at;
   const isChanged = restack(engine, bearer, at);
 
-  if (application.source !== undefined && ((engine.flags[item.id] ?? 0) & CREDIT_FIRST) === 0) {
+  if (
+    application.source !== undefined &&
+    application.source !== item.source &&
+    ((engine.flags[item.id] ?? 0) & CREDIT_FIRST) === 0
+  ) {
+    // A new source alone is no refresh, but readers diffing the list (views, seeds) see it.
     item.source = application.source;
+    setOf<G>(bearer).changes += 1;
   }
 
   if (engine.registry.has.onLand.has(item.id)) {
@@ -195,20 +203,22 @@ const landAura = <G extends AuraTypes>(
   checkSeconds(engine, id, seconds);
 
   const from = engine.events.open('cleanse');
-
-  cleanse(engine, bearer, id);
-  engine.events.setCause('apply');
-
-  const existing = existingFor(engine, set, application);
   let result = FRESH;
 
-  if (existing === undefined) {
-    fresh(engine, bearer, { application, seconds });
-  } else {
-    result = again(engine, bearer, { item: existing, application, seconds }) ? CHANGED : UNCHANGED;
-  }
+  try {
+    cleanse(engine, bearer, id);
+    engine.events.setCause('apply');
 
-  engine.events.close(from);
+    const existing = existingFor(engine, set, application);
+
+    if (existing === undefined) {
+      fresh(engine, bearer, { application, seconds });
+    } else {
+      result = again(engine, bearer, { item: existing, application, seconds }) ? CHANGED : UNCHANGED;
+    }
+  } finally {
+    engine.events.close(from);
+  }
 
   return result;
 };

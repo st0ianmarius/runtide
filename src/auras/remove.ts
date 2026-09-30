@@ -114,11 +114,12 @@ const removeWhere = <G extends AuraTypes>(
   removal: Removal<G> & { readonly cause: AuraCause; readonly remover?: number }
 ): number => {
   const from = engine.events.open(removal.cause, removal.remover);
-  const removed = strip(engine, bearer, removal);
 
-  engine.events.close(from);
-
-  return removed;
+  try {
+    return strip(engine, bearer, removal);
+  } finally {
+    engine.events.close(from);
+  }
 };
 
 /** Removes every instance of an aura; true when there was one. */
@@ -147,15 +148,17 @@ export const enterState = <G extends AuraTypes>(
   const set = setOf<G>(bearer);
   const from = engine.events.open('enterState');
 
-  for (let i = 0; i < set.items.length; i++) {
-    const item = set.items[i];
+  try {
+    for (let i = 0; i < set.items.length; i++) {
+      const item = set.items[i];
 
-    if (item !== undefined) {
-      engine.events.raiseState(bearer, item, bit);
+      if (item !== undefined) {
+        engine.events.raiseState(bearer, item, bit);
+      }
     }
+  } finally {
+    engine.events.close(from);
   }
-
-  engine.events.close(from);
 
   return removeWhere(engine, bearer, { cause: 'enterState', match: byState, arg: bit });
 };
@@ -260,7 +263,11 @@ export const spendStacks = <G extends AuraTypes>(
   const set = setOf<G>(bearer);
   let left = spend.count;
 
-  if (!(left > 0)) {
+  if (!Number.isInteger(left)) {
+    throw new RangeError(`Stacks are spent whole; got ${left}.`);
+  }
+
+  if (left <= 0) {
     return true;
   }
 
@@ -369,18 +376,20 @@ export const refreshAura = <G extends AuraTypes>(
   const from = engine.events.open('refresh');
   let found = false;
 
-  for (let i = 0; i < set.items.length; i++) {
-    const item = set.items[i];
+  try {
+    for (let i = 0; i < set.items.length; i++) {
+      const item = set.items[i];
 
-    if (item?.id === refresh.id) {
-      engine.setClock(set, item, refresh.seconds ?? engine.lengthOf(refresh.id, bearer));
-      set.changes += 1;
-      engine.events.raise(REFRESHED, bearer, item);
-      found = true;
+      if (item?.id === refresh.id) {
+        engine.setClock(set, item, refresh.seconds ?? engine.lengthOf(refresh.id, bearer));
+        set.changes += 1;
+        engine.events.raise(REFRESHED, bearer, item);
+        found = true;
+      }
     }
+  } finally {
+    engine.events.close(from);
   }
-
-  engine.events.close(from);
 
   return found;
 };
