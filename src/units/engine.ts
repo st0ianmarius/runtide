@@ -28,7 +28,10 @@ import { Unit } from './unit.ts';
  * the new health.
  */
 export type HealthPolicy<G extends UnitTypes> =
-  'heal-gain-scale-loss' | 'scale' | 'keep' | ((unit: G['bearer'], before: number, after: number) => number);
+  | 'heal-gain-scale-loss'
+  | 'scale'
+  | 'keep'
+  | ((unit: G['bearer'], before: number, after: number) => number);
 
 /** What a unit system is built from. */
 export interface UnitSystemBase<G extends UnitTypes> {

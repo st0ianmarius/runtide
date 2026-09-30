@@ -31,7 +31,7 @@ npm run check         # typecheck, lint, format check, tests, build
 npm run knip          # no unused files, exports or dependencies
 npm run bundle:check  # src/ bundles for the browser without any Node built-in
 npm run bench         # tinybench benchmarks (bench/BASELINE.md), never part of npm test; CI runs them on master
-npm run format        # oxlint --fix, then prettier --write
+npm run format        # oxlint --fix, then oxfmt
 ```
 
 `npm ci` installs a pre-commit hook (`simple-git-hooks` running `lint-staged`) that lints and formats the staged files.

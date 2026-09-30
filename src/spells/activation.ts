@@ -184,11 +184,16 @@ export interface AiActivation {
 
 /** The framework's activation kinds, as a union. */
 export type CoreActivation<G extends SpellTypes = SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
-  AutoActivation<G, Source> | ButtonActivation<G> | PassiveActivation | TriggerActivation | AiActivation;
+  | AutoActivation<G, Source>
+  | ButtonActivation<G>
+  | PassiveActivation
+  | TriggerActivation
+  | AiActivation;
 
 /** One activation: a core kind or one of the game's; `Source` types the stats an `auto` interval reads. */
 export type Activation<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
-  CoreActivation<G, Source> | G['gameActivation'];
+  | CoreActivation<G, Source>
+  | G['gameActivation'];
 
 /** The timeline an activation kind supplies where the spell's own timeline says nothing. */
 export interface TimelineDefaults {

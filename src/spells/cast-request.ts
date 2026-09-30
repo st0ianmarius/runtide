@@ -8,7 +8,11 @@ import type { SpellId, SpellTypes } from './spell-types.ts';
  * `sight`, or no room at its point for a `placement`).
  */
 export type CastRefusal<G extends SpellTypes = SpellTypes> =
-  'gate' | 'canCast' | 'target' | ReachRefusal | G['refusal'];
+  | 'gate'
+  | 'canCast'
+  | 'target'
+  | ReachRefusal
+  | G['refusal'];
 
 /**
  * What a gate answers: true (or nothing) lets the cast on, false refuses it for the gate's default reason, and one of

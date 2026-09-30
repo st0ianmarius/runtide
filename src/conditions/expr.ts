@@ -57,7 +57,11 @@ export interface CompareCondition<V extends string = string> {
  * game tests (`is`), comparisons of game values (`value`), and their composition (`all`, `any`, `not`).
  */
 export type ConditionExpr<C extends string = string, V extends string = string> =
-  IsCondition<C> | AllCondition<C, V> | AnyCondition<C, V> | NotCondition<C, V> | CompareCondition<V>;
+  | IsCondition<C>
+  | AllCondition<C, V>
+  | AnyCondition<C, V>
+  | NotCondition<C, V>
+  | CompareCondition<V>;
 
 /**
  * A condition compiled at load: names resolved to ids, numbers checked, and in `all` and `any` the parts that

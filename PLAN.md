@@ -73,7 +73,7 @@ framework/                # a sibling of the swarm checkout, its own git reposit
   tsconfig.build.json     # extends tsconfig.src.json; emits dist/ (ESM JS + .d.ts) from src only
   .oxlintrc.json          # oxlint: the §I.4.2 rules, type-aware through oxlint-tsgolint
   oxlint-plugin.js        # the project's own lint rules, for what oxlint has no native rule for
-  .prettierrc.json        # the style of §I.4.2
+  .oxfmtrc.json           # the style of §I.4.2
   .editorconfig
   README.md               # the engine's model: spell, aura, proc, area trigger, cue; how a game plugs in
   docs/                   # one short document per system, written last (§I.7, F22)
@@ -115,15 +115,15 @@ framework/                # a sibling of the swarm checkout, its own git reposit
 - **TypeScript 7**, the native compiler, pinned exactly; its `typescript` package ships `tsc`. It has no JavaScript compiler API yet, so no tool here depends on one.
 - **Compiler options** (the strict end of what TypeScript 7 offers): `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (no enums, namespaces or parameter properties, so every source runs under Node's type stripping, which also fits §I.5.2), `module` and `moduleResolution` `nodenext`, `target` and `lib` at the newest ECMAScript year that the compiler, the Node LTS and the evergreen browsers all support. **`src/` sees neither Node nor the DOM**: `tsconfig.src.json` has `lib` ECMAScript only and `types: []`, so a stray `process`, `Buffer` or `window` fails the typecheck. The root `tsconfig.json` covers `src/`, `tests/` and `bench/` with Node types; `typecheck` runs both, and the linter reads the root one.
 - **Imports** use explicit `.ts` extensions (`allowImportingTsExtensions`), which Node runs as they are; the build rewrites them to `.js` (`rewriteRelativeImportExtensions`) and emits declarations.
-- **Scripts**: `typecheck` (`tsc -p tsconfig.json && tsc -p tsconfig.src.json`), `build` (`tsc -p tsconfig.build.json`), `test` (`node --test "tests/**/*.test.ts"`), `lint` (`oxlint`), `format` / `format:check` (`prettier`). No bundler, and no `tsx`: Node's type stripping runs the TypeScript directly.
+- **Scripts**: `typecheck` (`tsc -p tsconfig.json && tsc -p tsconfig.src.json`), `build` (`tsc -p tsconfig.build.json`), `test` (`node --test "tests/**/*.test.ts"`), `lint` (`oxlint`), `format` / `format:check` (`oxfmt`). No bundler, and no `tsx`: Node's type stripping runs the TypeScript directly.
 - **Lint**: oxlint, with the type-aware rules of `typescript-eslint`'s strict and stylistic type-checked presets that it has, run by `oxlint-tsgolint` (built on TypeScript 7's compiler), and the project's own rules in `oxlint-plugin.js` (doc blocks, naming, import order, blank lines, presentation fields). `typescript-eslint` does not support TypeScript 7, so ESLint is not used.
 
 ### I.4.2 Code quality and style
 
 The bar is code a reviewer reads without friction: one style everywhere, enforced by tools rather than by memory, and the same as swarm's, so moving between the two repositories costs nothing. CI fails on any finding: `lint` runs with `--max-warnings 0`, and `format:check`, `typecheck` and the tests must pass.
 
-- **Prettier owns formatting, entirely.** `.prettierrc.json` is swarm's: `singleQuote: true`, `printWidth: 120`, `trailingComma: 'all'`, `semi: true`. It formats `src/`, `tests/`, `bench/`, `docs/` and every Markdown file; the lint config enables no rule that would fight it, and `.editorconfig` matches it for editors.
-- **oxlint owns what Prettier cannot**, through its native `curly` and the project rules in `oxlint-plugin.js`, all autofixable:
+- **oxfmt owns formatting, entirely**, so the toolchain is oxc end to end. `.oxfmtrc.json` carries swarm's Prettier style: `singleQuote: true`, `printWidth: 120`, `trailingComma: 'all'`, `semi: true`. It formats `src/`, `tests/`, `bench/`, `docs/` and every Markdown file; the lint config enables no rule that would fight it, and `.editorconfig` matches it for editors.
+- **oxlint owns what oxfmt cannot**, through its native `curly` and the project rules in `oxlint-plugin.js`, all autofixable:
   - `curly: 'all'`;
   - a blank line before and after every function and every multi-line export (`padding-line-between-statements`), and between object-literal functions in factories and definitions;
   - a blank line after the import block and before a doc comment; never two blank lines in a row;
@@ -135,7 +135,7 @@ The bar is code a reviewer reads without friction: one style everywhere, enforce
 - **No noise.** No `console`, no commented-out code, no `TODO` without an issue reference, no dead exports (`knip` in CI).
 - **Doc blocks.** Every exported type, field, function and hook has a `/** */` block (a project lint rule, which also holds the form: full sentences) that says what it guarantees, in full sentences; inline comments explain only a non-obvious why.
 - **Tests follow the same rules**: one `describe` per contract, test names that state the behaviour (`'a refresh keeps the beat'`), literal expectations beside the assertion, and no state shared between tests.
-- **One command.** `npm run check` runs typecheck, lint, format check, tests and build, and passes before every commit; a pre-commit hook (`simple-git-hooks` with `lint-staged`) runs Prettier and oxlint on the staged files. `npm run format` fixes what can be fixed (`oxlint --fix`, then `prettier --write`).
+- **One command.** `npm run check` runs typecheck, lint, format check, tests and build, and passes before every commit; a pre-commit hook (`simple-git-hooks` with `lint-staged`) runs oxfmt and oxlint on the staged files. `npm run format` fixes what can be fixed (`oxlint --fix`, then `oxfmt`).
 
 ## I.5 How it stays generic, and exact
 
@@ -370,7 +370,7 @@ Each is summarised by what it must offer; Part II has the full model.
 
 Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` and `npm run format:check` clean, and `npm run build` emitting `dist/`.
 
-- **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (TypeScript 7 and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `.oxlintrc.json` and `oxlint-plugin.js` with every rule of §I.4.2 that oxlint can hold (doc blocks on exports, no presentation fields, no swarm imports, no Node built-ins or globals in `src/`), `.prettierrc.json`, `.editorconfig`, the pre-commit hook, `npm run check`, README skeleton, the CI workflow with `knip`. The Node-free rule (§I.5.5) is in place from the start: the split `tsconfig.json` / `tsconfig.src.json`, the lint bans on Node built-ins and globals in `src/`, and the CI browser-bundle check.
+- **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (TypeScript 7 and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `.oxlintrc.json` and `oxlint-plugin.js` with every rule of §I.4.2 that oxlint can hold (doc blocks on exports, no presentation fields, no swarm imports, no Node built-ins or globals in `src/`), `.oxfmtrc.json`, `.editorconfig`, the pre-commit hook, `npm run check`, README skeleton, the CI workflow with `knip`. The Node-free rule (§I.5.5) is in place from the start: the split `tsconfig.json` / `tsconfig.src.json`, the lint bans on Node built-ins and globals in `src/`, and the CI browser-bundle check.
 - **F1. Core and math.** Sequential streams (tested for determinism, range and salt independence, with a frozen literal table of their own draws), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock with its stamps and countdowns, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), bus, scope; shapes and sweeps. The registry's dense layout, typed columns, dispatch tables and bitsets, the pools, and the first `bench/` baselines land here, so every later system is built on them.
 - **F2. Modifiers.** Modelled on swarm's `packages/game/src/modifiers/`, generic and with no game content; tests pin the fold's documented float order with neutral stats and sources. Adds stat kinds, curves and scaled values (§II.3.13), tested on the fixed evaluation order, the share-of-1 rule, per-rank ratios, bonus and target terms, and the load-time checks.
 - **F3. Auras.** Modelled on swarm's `packages/game/src/effects/` and generalised to any bearer; add `value` / `merge` / `keepWhenDepleted`, lifecycle procs, damage hooks, and the hatches a game keeps its own timers and rules on (clock rules and countdown timing, stacking and merge functions, event causes).
@@ -451,7 +451,7 @@ The coverage audit (§II.6) widens F1–F19 as well: each catalogue entry names 
 
 - **Short and succinct.** Each document fits on a screen or two (about 150 lines at most) and follows one template: what the system is for (two or three sentences), its concepts, a minimal example, the guarantees it pins (order, clocks, randomness, parity rules), how a game extends it, and pitfalls. Reference detail stays in the `/** */` blocks, which the documents link to rather than repeat.
 - **Examples compile.** Every example is a `.ts` file under `docs/examples/`, typechecked and linted with the rest, and included in the Markdown; none is written only in prose.
-- **Kept true.** Review holds that every system under `src/` has a document, that no document links to a missing export and that every example typechecks; the documents are formatted by Prettier like the code.
+- **Kept true.** Review holds that every system under `src/` has a document, that no document links to a missing export and that every example typechecks; the documents are formatted by oxfmt like the code.
 
 **Tier 3, server infrastructure** (a separate server-side project or package beside the framework, never its core): interest management (area-of-interest grids, per-field visibility for owner, party and public); maps, instances and phasing; persistence with versioned migrations; content loading, validation and hot reload; server-side input validation and anti-cheat; party, raid, guild and chat. Party membership is the one piece the core needs, for `hears: 'party'` and later loot, and it takes it as a host fact.
 

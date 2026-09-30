@@ -29,7 +29,13 @@ import type { AreaReplication } from './replication.ts';
  * `source-gone` (its owner left the world), or one of the game's own, which it despawned it with.
  */
 export type EndReason<G extends AreaTriggerTypes = AreaTriggerTypes> =
-  'expired' | 'spent' | 'self' | 'bound' | 'replaced' | 'source-gone' | G['endReason'];
+  | 'expired'
+  | 'spent'
+  | 'self'
+  | 'bound'
+  | 'replaced'
+  | 'source-gone'
+  | G['endReason'];
 
 /**
  * A function of an area trigger, declared as a method so a function over a narrower state still fits a registry of
