@@ -107,6 +107,55 @@ describe('spawning', () => {
     assert.equal(game.areaTriggers.step(), 2);
   });
 
+  describe('while its spawned event spawns again through a proc', () => {
+    /**
+     * A game whose `nova` spawns a fork flying now, and whose `spark` spawns a shard; as a fork spawns, `onFork` runs
+     * with its handle, then the fork's owner casts `spark`, whose proc reuses the spawn proc's spec.
+     */
+    const forkGame = (onFork: (handle: AreaTriggerHandle) => void = () => undefined) => {
+      const game = makeSpellGame(
+        {
+          nova: spell({
+            activation: { kind: 'trigger' },
+            release: () => [spawn<Game>('fork', { at: vec2(0, 0), now: 0.1 })],
+          }),
+          spark: spell({ activation: { kind: 'trigger' }, release: () => [spawn<Game>('shard', { at: vec2(0, 0) })] }),
+        },
+        { areaTriggers: { fork: logged(), shard: logged() } },
+      );
+
+      game.bus.on(game.bus.kind.areaSpawned, ({ areaTrigger }) => {
+        if (areaTrigger?.kind === game.areaId.fork) {
+          onFork(areaTrigger.handle);
+          game.spells.cast(areaTrigger.owner, game.id.spark);
+        }
+      });
+
+      return game;
+    };
+
+    /** The spawn and frame lines of a game's log. */
+    const framesOf = (log: readonly string[]): string[] =>
+      log.filter((line) => line.startsWith('spawned') || line.startsWith('frame'));
+
+    it('still flies its own now', () => {
+      const game = forkGame();
+
+      game.spells.cast(game.unit(1), game.id.nova);
+      assert.deepEqual(framesOf(game.log), ['spawned fork@1', 'spawned shard@1', 'frame 0.1/0.1']);
+    });
+
+    it('returns its own handle and flies nothing when it ended first, even if the nested spawn took its record', () => {
+      const game = forkGame((handle) => game.areaTriggers.despawn(handle));
+      const handle = game.areaTriggers.spawn(game.areaId.fork, { owner: game.unit(1), at: vec2(0, 0), now: 0.1 });
+      const [shard] = allOf(game);
+
+      assert.equal(game.areaTriggers.get(handle), undefined);
+      assert.notEqual(shard?.handle, handle);
+      assert.deepEqual(framesOf(game.log), ['spawned fork@1', 'spawned shard@1']);
+    });
+  });
+
   it('keeps its own state per instance, a child’s apart from its parent’s', () => {
     const states: unknown[] = [];
 

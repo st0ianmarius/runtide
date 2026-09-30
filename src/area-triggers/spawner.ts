@@ -171,8 +171,10 @@ const enter = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Spawns an area trigger of a kind: its credit and cast captured, the limit applied, its entity id
- * allocated before `init`, linked last into its kind's tick order, and flying at once for `now` seconds when asked. Returns its handle, or `NO_AREA_TRIGGER` when the limit refused it.
+ * Spawns an area trigger of a kind: its credit and cast captured, the limit applied, its entity id allocated before
+ * `init`, linked last into its kind's tick order, and flying at once for `now` seconds when asked. Returns its handle,
+ * or `NO_AREA_TRIGGER` when the limit refused it. The spec is read before `enter`, whose hooks and events may spawn
+ * again with the same reused spec, or end this one and let a nested spawn take its record: it is found again by handle.
  */
 export const spawnArea = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -195,12 +197,15 @@ export const spawnArea = <G extends AreaTriggerTypes>(
     return NO_AREA_TRIGGER;
   }
 
+  const { handle } = area;
+  const { now } = spec;
+
   enter(engine, area, def);
 
-  const { handle } = area;
+  const live = engine.areaOf(handle);
 
-  if (spec.now !== undefined && spec.now > 0 && !area.isEnding) {
-    stepArea(engine, area, spec.now);
+  if (now !== undefined && now > 0 && live !== undefined) {
+    stepArea(engine, live, now);
   }
 
   return handle;
