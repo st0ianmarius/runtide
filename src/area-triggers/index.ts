@@ -64,8 +64,6 @@ export {
 export type { AreaInterception, AreaQueries, AreaQuery, CoverQuery } from './queries.ts';
 
 export {
-  AREA_FIELDS,
-  type AreaField,
   type AreaReplica,
   type AreaReplication,
   type AreaReplicationSpec,

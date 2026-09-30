@@ -19,12 +19,15 @@ const replicationGame = () =>
     {
       areaTriggers: {
         pool: kind(2.5, {
-          replicate: {
-            fields: ['x', 'z', 'radius', 'duration', 'age', 'started'],
-            extra: ['charge'],
-            rounding: { x: 0.5, charge: 0.25 },
-          },
-          view: (c) => ({ charge: (c.input ?? 0) / 3 }),
+          replicate: { values: ['x', 'z', 'duration', 'age', 'charge'], rounding: { x: 0.5, charge: 0.25 } },
+
+          view: (c) => ({
+            x: c.position.x,
+            z: c.position.z,
+            duration: c.age + c.remaining,
+            age: c.age,
+            charge: (c.input ?? 0) / 3,
+          }),
         }),
         shot: kind(0.5),
         ember: kind(1, { replicate: 'derived' }),
@@ -41,15 +44,7 @@ describe('area trigger replication', () => {
       replication.map((spec) => spec.mode),
       ['state', 'events-only', 'derived'],
     );
-    assert.deepEqual(replication[game.areaId.pool]?.names, [
-      'x',
-      'z',
-      'radius',
-      'duration',
-      'age',
-      'started',
-      'charge',
-    ]);
+    assert.deepEqual(replication[game.areaId.pool]?.names, ['x', 'z', 'duration', 'age', 'charge']);
   });
 
   it('writes every live state-replicating area trigger’s values, rounded, in kind then creation order', () => {
@@ -72,8 +67,8 @@ describe('area trigger replication', () => {
     assert.deepEqual(
       out.map((replica) => [replica.handle, replica.kind, ...replica.values]),
       [
-        [first, game.areaId.pool, 1.5, -2, 2.5, 4, 0.25, 2, 0.75],
-        [second, game.areaId.pool, 4, 4, 2.5, 4, 0.25, 2, 0],
+        [first, game.areaId.pool, 1.5, -2, 4, 0.25, 0.75],
+        [second, game.areaId.pool, 4, 4, 4, 0.25, 0],
       ],
     );
 
@@ -85,18 +80,16 @@ describe('area trigger replication', () => {
     assert.equal(out[0]?.handle, second);
   });
 
-  it('refuses unknown or repeated fields, view entries with no view, and bad rounding', () => {
+  it('refuses repeated or no entries, entries with no view, and bad rounding', () => {
+    const view = () => ({ x: 0 });
+
     const bad = (def: Partial<AnyAreaTriggerDef<Game>>) => () =>
       makeSpellGame({}, { areaTriggers: { bad: kind(1, def) } });
 
-    const forged: Partial<AnyAreaTriggerDef<Game>> = {};
-
-    Reflect.set(forged, 'replicate', { fields: ['x', 'colour'] });
-    assert.throws(bad(forged), /Area trigger bad: replicates known fields/);
-    assert.throws(bad({ replicate: { fields: ['x', 'x'] } }), /each once/);
-    assert.throws(bad({ replicate: { fields: [] } }), /at least one/);
-    assert.throws(bad({ replicate: { fields: ['x'], extra: ['goal'] } }), /declares no view/);
-    assert.throws(bad({ replicate: { fields: ['x'], rounding: { z: 1 } } }), /rounds z/);
-    assert.throws(bad({ replicate: { fields: ['x'], rounding: { x: 0 } } }), /quantum above 0/);
+    assert.throws(bad({ view, replicate: { values: ['x', 'x'] } }), /Area trigger bad: .*each once/);
+    assert.throws(bad({ view, replicate: { values: [] } }), /at least one/);
+    assert.throws(bad({ replicate: { values: ['x'] } }), /declares no view/);
+    assert.throws(bad({ view, replicate: { values: ['x'], rounding: { z: 1 } } }), /rounds z/);
+    assert.throws(bad({ view, replicate: { values: ['x'], rounding: { x: 0 } } }), /quantum above 0/);
   });
 });
