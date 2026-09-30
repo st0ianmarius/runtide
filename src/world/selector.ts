@@ -23,11 +23,28 @@ export interface SelectorRules<Unit> {
   readonly canTarget: TargetRule<Unit> | undefined;
 }
 
+/** Orders two sort keys: less first, equal (infinities included) as ties, NaN after every number. */
+const compareKeys = (x: number, y: number): number => {
+  if (x < y) {
+    return -1;
+  }
+
+  if (x > y) {
+    return 1;
+  }
+
+  if (x === y) {
+    return 0;
+  }
+
+  return Number(Number.isNaN(x)) - Number(Number.isNaN(y));
+};
+
 /**
  * Selects units for a memory world's queries: narrows by the point index, keeps the units that pass the
  * side, the exclusions, the filter and the exact test, orders them by their keys (lower id on ties) and caps them at
- * `limit`. Its scratch arrays are reused, so a query allocates nothing once warm; it
- * is not re-entrant, so a filter or an order function must not query the same world.
+ * `limit`. Its scratch arrays are reused, so a query allocates nothing once warm; it is not re-entrant, so a world
+ * keeps one per nesting level (a filter or `canTarget` that queries the world again takes the next).
  */
 export class Selector<Unit> {
   /** The largest body radius in the world, which an edge-measured query or a sweep widens its box by. */
@@ -354,15 +371,18 @@ export class Selector<Unit> {
     return key === 'near' ? d : -d;
   }
 
-  /** Compares two kept entries by their keys in turn, then by entity id. */
+  /**
+   * Compares two kept entries by their keys in turn, then by entity id: equal keys (infinities included) fall to the id,
+   * and a NaN key sorts after every number, so the order never depends on where the index kept the units.
+   */
   #compare(a: number, b: number): number {
     const count = this.#keyCount;
 
     for (let k = 0; k < count; k++) {
-      const difference = (this.#keys[a * count + k] ?? 0) - (this.#keys[b * count + k] ?? 0);
+      const order = compareKeys(this.#keys[a * count + k] ?? 0, this.#keys[b * count + k] ?? 0);
 
-      if (difference !== 0) {
-        return difference;
+      if (order !== 0) {
+        return order;
       }
     }
 

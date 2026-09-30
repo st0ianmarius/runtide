@@ -84,9 +84,13 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly pickPoint: (pick: PointPick) => Vec2 | undefined;
   readonly #table = new UnitTable<Unit>();
   readonly #index: PointIndex;
-  readonly #selector: Selector<Unit>;
-  readonly #selection = new Selection<Unit>();
-  readonly #parts: SearchParts<Unit>;
+  readonly #canTarget: TargetRule<Unit> | undefined;
+
+  /** A selector and a selection per nesting level: a filter or `canTarget` may query the world again. */
+  readonly #levels: SearchParts<Unit>[] = [];
+  #depth = 0;
+  #maxRadius = 0;
+  #maxMotion = 0;
   readonly #dt: number;
   readonly #reaction: ReactionRule;
   readonly #statics: StaticGeometry;
@@ -103,11 +107,7 @@ class World<Unit> implements MemoryWorld<Unit> {
         ? new KdIndex(this.#table)
         : new GridIndex(this.#table, { bounds: options.bounds, cell: options.cell ?? 4 });
     this.#reaction = options.reaction ?? bySides;
-    this.#selector = new Selector(this.#table, this.#index, {
-      reaction: this.#reaction,
-      canTarget: options.canTarget
-    });
-    this.#parts = { table: this.#table, selector: this.#selector, selection: this.#selection };
+    this.#canTarget = options.canTarget;
     this.isPositionClear = placement.isPositionClear;
     this.lineClear = placement.lineClear;
     this.clamp = placement.clamp;
@@ -124,7 +124,7 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly add = (unit: Unit, spec: UnitSpec): void => {
     const slot = this.#table.add(unit, spec);
 
-    this.#selector.maxRadius = Math.max(this.#selector.maxRadius, spec.radius ?? 0);
+    this.#maxRadius = Math.max(this.#maxRadius, spec.radius ?? 0);
     this.#index.insert(slot);
   };
 
@@ -145,7 +145,7 @@ class World<Unit> implements MemoryWorld<Unit> {
 
     table.x[slot] = at.x;
     table.z[slot] = at.z;
-    this.#selector.maxMotion = Math.max(this.#selector.maxMotion, motion);
+    this.#maxMotion = Math.max(this.#maxMotion, motion);
     this.#index.move(slot);
   };
 
@@ -154,7 +154,7 @@ class World<Unit> implements MemoryWorld<Unit> {
 
     table.px.set(table.x);
     table.pz.set(table.z);
-    this.#selector.maxMotion = 0;
+    this.#maxMotion = 0;
   };
 
   readonly positionOf = (unit: Unit, out: MutableVec2): Vec2 => {
@@ -198,20 +198,70 @@ class World<Unit> implements MemoryWorld<Unit> {
   };
   readonly idOf = (unit: Unit): number => this.#table.id[this.#table.slotOf(unit)] ?? 0;
 
-  readonly inside = (shape: Shape, options: QueryOptions<Unit>, out: (Unit | undefined)[]): number =>
-    this.#selector.write(this.#selection.over(shape, options), out);
+  readonly inside = (shape: Shape, options: QueryOptions<Unit>, out: (Unit | undefined)[]): number => {
+    const { selector, selection } = this.#enter();
 
-  readonly all = (options: QueryOptions<Unit>, out: (Unit | undefined)[]): number =>
-    this.#selector.write(this.#selection.over(undefined, options), out);
+    try {
+      return selector.write(selection.over(shape, options), out);
+    } finally {
+      this.#depth -= 1;
+    }
+  };
 
-  readonly count = (shape: Shape | undefined, options: QueryOptions<Unit>): number =>
-    this.#selector.count(this.#selection.over(shape, options));
+  readonly all = (options: QueryOptions<Unit>, out: (Unit | undefined)[]): number => {
+    const { selector, selection } = this.#enter();
 
-  readonly nearest = (from: Vec2, options: RangeOptions<Unit>, out: (Unit | undefined)[]): number =>
-    this.#selector.write(this.#selection.around(from, options), out);
+    try {
+      return selector.write(selection.over(undefined, options), out);
+    } finally {
+      this.#depth -= 1;
+    }
+  };
 
-  readonly sweep = (segment: readonly [Vec2, Vec2], options: SweepOptions<Unit>, out: (Unit | undefined)[]): number =>
-    sweep(this.#parts, [segment, options], out);
+  readonly count = (shape: Shape | undefined, options: QueryOptions<Unit>): number => {
+    const { selector, selection } = this.#enter();
+
+    try {
+      return selector.count(selection.over(shape, options));
+    } finally {
+      this.#depth -= 1;
+    }
+  };
+
+  readonly nearest = (from: Vec2, options: RangeOptions<Unit>, out: (Unit | undefined)[]): number => {
+    const { selector, selection } = this.#enter();
+
+    try {
+      return selector.write(selection.around(from, options), out);
+    } finally {
+      this.#depth -= 1;
+    }
+  };
+
+  readonly sweep = (segment: readonly [Vec2, Vec2], options: SweepOptions<Unit>, out: (Unit | undefined)[]): number => {
+    const parts = this.#enter();
+
+    try {
+      return sweep(parts, [segment, options], out);
+    } finally {
+      this.#depth -= 1;
+    }
+  };
+
+  /** Takes the next nesting level's selector and selection, brought up to the world's reach; `#depth -= 1` gives it back. */
+  #enter(): SearchParts<Unit> {
+    const parts = (this.#levels[this.#depth] ??= {
+      table: this.#table,
+      selector: new Selector(this.#table, this.#index, { reaction: this.#reaction, canTarget: this.#canTarget }),
+      selection: new Selection<Unit>()
+    });
+
+    parts.selector.maxRadius = this.#maxRadius;
+    parts.selector.maxMotion = this.#maxMotion;
+    this.#depth += 1;
+
+    return parts;
+  }
 }
 
 /** The game's own query extensions: named functions over the world. */

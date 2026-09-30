@@ -46,6 +46,7 @@ import {
   defineUnitStates,
   defineUnitTags,
   type HealthPolicy,
+  revive,
   type Unit,
   type UnitDef,
   type UnitEvent,
@@ -215,6 +216,11 @@ const AURAS = defineAuras<UnitGame, string>({
   vigour: aura({ duration: 'infinite', modifiers: [plus('maxHealth', 50)] }),
   frail: aura({ duration: 'infinite', modifiers: [mul('maxHealth', 0.5)] }),
   haste: aura({ duration: 'infinite', modifiers: [mul('speed', 2)] }),
+  lastStand: aura({
+    duration: 'infinite',
+    removedOn: ['dead'],
+    onState: (_ctx, state) => (state === 'dead' ? [revive<UnitGame>({ to: 'self', health: 50 })] : undefined)
+  }),
   mark: aura({
     duration: 'infinite',
     removedOn: ['dead', 'despawned'],
@@ -358,7 +364,8 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
       onIncomingAura: (unit, application) =>
         late.units === undefined ? undefined : options.onIncomingAura?.(late.units, unit, application),
 
-      onTagsChanged: (unit) => late.units?.syncStates(unit)
+      onTagsChanged: (unit) => late.units?.syncStates(unit),
+      run: (list, ctx) => holder.procs?.runAura(list, ctx)
     }
   });
 

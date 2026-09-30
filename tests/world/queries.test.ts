@@ -212,6 +212,39 @@ describe('inside: the units a shape covers', () => {
     ]);
   });
 
+  it('breaks ties of infinite scores by id and sorts NaN scores last, however the units were added', () => {
+    const spots = Array.from({ length: 40 }, (_unit, id) => [id, id % 3, 0]);
+    const forward = worldOf(spots).world;
+    const backward = worldOf([...spots].reverse()).world;
+
+    const score = (unit: Mob): number => {
+      const id = Number(unit.name.slice(1));
+
+      if (id % 5 === 0) {
+        return Number.NaN;
+      }
+
+      return id % 2 === 0 ? Infinity : 1;
+    };
+
+    const a: (Mob | undefined)[] = [];
+    const b: (Mob | undefined)[] = [];
+    const count = forward.all({ order: score }, a);
+
+    assert.deepEqual(names(a, count), names(b, backward.all({ order: score }, b)));
+    assert.deepEqual(names(a, 3), ['m1', 'm3', 'm7']);
+    assert.equal(a[count - 1]?.name, 'm35');
+  });
+
+  it('answers a query a filter runs inside another, each with its own scratch', () => {
+    const { world } = worldOf(Array.from({ length: 10 }, (_unit, id) => [id + 1, id * 2, 0]));
+    const out: (Mob | undefined)[] = [];
+
+    const count = world.inside(circle(40), { filter: () => world.count(circle(1, vec2(0, 0)), {}) === 1 }, out);
+
+    assert.equal(count, 10);
+  });
+
   it('caps the results at the limit, in order', () => {
     const { world } = worldOf([
       [1, 0, 0],

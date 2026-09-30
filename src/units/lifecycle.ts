@@ -117,13 +117,14 @@ const despawned = <G extends UnitTypes>(
  * runs cancelled, enters the aura system's matching bearer state (its auras' `onState`, then those
  * `removedOn` it go: a death burst is an aura's `onState` of `dead`), leaves its owner's summons and takes its bound
  * summons along; a revive sets health (the maximum by default) and rejoins its owner's summons, if its owner lives. Raises `changed`, or `despawned` with its
- * reason for a despawn, which also forgets the unit's entity id and frees its brain. False when the move is not
- * allowed.
+ * reason for a despawn, which also forgets the unit's entity id and frees its brain. A move asked for from its hooks or
+ * events (a revive from a death's `onState`) waits until this one is done, so its events follow this one's. False
+ * when the move is not allowed.
  */
 export const moveTo = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
-  [to, health, reason]: readonly [Lifecycle, number | undefined, string?]
+  [to, health, reason]: readonly [Lifecycle, number | undefined, (string | undefined)?]
 ): boolean => {
   const unit = unitOf<G>(bearer);
   const from = unit.lifecycle;
@@ -132,7 +133,38 @@ export const moveTo = <G extends UnitTypes>(
     return false;
   }
 
+  if (unit.isMoving) {
+    unit.nextMove = [to, health, reason];
+
+    return true;
+  }
+
+  unit.isMoving = true;
   unit.lifecycle = to;
+
+  try {
+    enter(engine, bearer, [from, to, health, reason]);
+  } finally {
+    unit.isMoving = false;
+  }
+
+  const next = unit.nextMove;
+
+  if (next !== undefined) {
+    unit.nextMove = undefined;
+    moveTo(engine, bearer, next);
+  }
+
+  return true;
+};
+
+/** Runs a move's work and events: what joining life, or leaving it, does. */
+const enter = <G extends UnitTypes>(
+  engine: UnitEngine<G>,
+  bearer: G['bearer'],
+  [from, to, health, reason]: readonly [Lifecycle, Lifecycle, number | undefined, string | undefined]
+): void => {
+  const unit = unitOf<G>(bearer);
 
   if (to === 'alive') {
     unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
@@ -146,6 +178,4 @@ export const moveTo = <G extends UnitTypes>(
   } else {
     raise(engine, engine.options.events?.changed, [bearer, from, to, undefined, '']);
   }
-
-  return true;
 };

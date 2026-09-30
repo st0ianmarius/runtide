@@ -167,6 +167,24 @@ describe('the lifecycle', () => {
   });
 });
 
+describe('a move asked for during a move', () => {
+  it('waits for the running one: a revive from a death’s onState follows the death, bound summons gone', () => {
+    const game = makeUnitGame({ ...TEMPLATES, pet: {} });
+    const { units, auras } = game;
+    const hero = units.spawn(game.id.hero, { side: 0 });
+    const pet = units.spawn(game.id.pet, { side: 0, owner: hero, isBound: true });
+
+    auras.apply(hero, auraId('lastStand'));
+    game.log.length = 0;
+    assert.equal(units.kill(hero), true);
+    assert.deepEqual([hero.lifecycle, hero.health, pet.lifecycle], ['alive', 50, 'despawned']);
+    assert.deepEqual(
+      game.log.filter((line) => line.startsWith('changed')),
+      ['changed 1 alive>dead', 'changed 1 dead>alive']
+    );
+  });
+});
+
 describe('bearer states on the lifecycle', () => {
   it("lets a unit's auras hear its death however it dies, and its despawn, before those removed on it go", () => {
     const game = makeUnitGame(TEMPLATES);

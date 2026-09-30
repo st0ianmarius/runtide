@@ -75,6 +75,12 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   readonly tags: Bitset;
 
   lifecycle: Lifecycle = 'alive';
+
+  /** Whether a lifecycle move of it is running its hooks and events. */
+  isMoving = false;
+
+  /** A move a hook asked for while one ran (a revive from a death's `onState`), made once that one is done. */
+  nextMove: readonly [Lifecycle, number | undefined, string | undefined] | undefined = undefined;
   health = 0;
 
   /** The maximum health the resource policy last saw. */
