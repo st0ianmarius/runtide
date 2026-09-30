@@ -43,30 +43,62 @@ export class Trail {
     this.#count = Math.min(this.#count + 1, this.#ticks.length);
   }
 
+  /** The oldest tick it holds, NaN when empty: a rewind to an older one (a claimed lag past the window) is the game's to refuse. */
+  get oldest(): number {
+    return this.#count === 0 ? Number.NaN : (this.#ticks[this.#slot(this.#count)] ?? Number.NaN);
+  }
+
+  /** The newest tick it holds, NaN when empty. */
+  get newest(): number {
+    return this.#count === 0 ? Number.NaN : (this.#ticks[this.#slot(1)] ?? Number.NaN);
+  }
+
   /**
-   * Where the unit stood on a tick, into `out`: the latest recorded at or before it (a tick with no record keeps the
-   * one before), the oldest held for one older than the trail. `undefined` for an empty trail.
+   * Where the unit stood at a tick, into `out`: between two records (a fractional render time, or a tick with no
+   * record), on the straight line between them; past the newest, the newest; before the oldest, the oldest (check
+   * `oldest` first to refuse it). `undefined` for an empty trail.
    */
   at(tick: number, out: MutableVec2): Vec2 | undefined {
-    const size = this.#ticks.length;
-    let found = -1;
+    let newer = -1;
 
     for (let i = 1; i <= this.#count; i++) {
-      const slot = (this.#next - i + size) % size;
+      const slot = this.#slot(i);
+      const at = this.#ticks[slot] ?? 0;
 
-      found = slot;
-
-      if ((this.#ticks[slot] ?? 0) <= tick) {
-        break;
+      if (at <= tick || i === this.#count) {
+        return this.#between([slot, newer], tick, out);
       }
+
+      newer = slot;
     }
 
-    if (found < 0) {
-      return undefined;
+    return undefined;
+  }
+
+  /** The slot `i` records back from the newest (1 for the newest). */
+  #slot(i: number): number {
+    const size = this.#ticks.length;
+
+    return (this.#next - i + size) % size;
+  }
+
+  /** The position at `tick` from the record in `slot` toward the newer one in `newer` (-1 for none). */
+  #between([slot, newer]: readonly [number, number], tick: number, out: MutableVec2): Vec2 {
+    const t0 = this.#ticks[slot] ?? 0;
+    const x0 = this.#xs[slot] ?? 0;
+    const z0 = this.#zs[slot] ?? 0;
+
+    if (newer < 0 || !(tick > t0)) {
+      out.x = x0;
+      out.z = z0;
+
+      return out;
     }
 
-    out.x = this.#xs[found] ?? 0;
-    out.z = this.#zs[found] ?? 0;
+    const share = (tick - t0) / ((this.#ticks[newer] ?? t0 + 1) - t0);
+
+    out.x = x0 + ((this.#xs[newer] ?? x0) - x0) * share;
+    out.z = z0 + ((this.#zs[newer] ?? z0) - z0) * share;
 
     return out;
   }

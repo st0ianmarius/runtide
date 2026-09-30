@@ -92,6 +92,12 @@ export class Selector<Unit> {
 
   /** Keeps the units that pass a selection's tests, unordered; returns how many. */
   gather(selection: Selection<Unit>): number {
+    const { limit } = selection.options;
+
+    if (limit !== undefined && !(Number.isInteger(limit) && limit >= 0)) {
+      throw new RangeError(`A query's limit is a whole number from 0; got ${limit}.`);
+    }
+
     return this.#keep(selection, this.#index.search(this.#boxOf(selection), this.#candidates));
   }
 

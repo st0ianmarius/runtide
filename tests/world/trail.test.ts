@@ -5,7 +5,7 @@ import { vec2 } from '../../src/math/index.ts';
 import { Trail } from '../../src/world/index.ts';
 
 describe('a trail of positions', () => {
-  it('answers where a unit stood on a tick, the one before for a tick it skipped, the oldest past its end', () => {
+  it('answers where a unit stood at a tick, between records on the line, the oldest past its end', () => {
     const trail = new Trail(3);
     const out = { x: 0, z: 0 };
 
@@ -17,7 +17,9 @@ describe('a trail of positions', () => {
 
     assert.equal(trail.size, 3);
     assert.deepEqual({ ...trail.at(5, out) }, { x: 50, z: 0 });
-    assert.deepEqual({ ...trail.at(3, out) }, { x: 20, z: 0 });
+    assert.deepEqual({ ...trail.at(3, out) }, { x: 30, z: 0 });
+    assert.deepEqual({ ...trail.at(4.5, out) }, { x: 45, z: 0 });
+    assert.deepEqual([trail.oldest, trail.newest], [2, 5]);
     assert.deepEqual({ ...trail.at(0, out) }, { x: 20, z: 0 });
     assert.deepEqual({ ...trail.at(9, out) }, { x: 50, z: 0 });
     assert.throws(() => {

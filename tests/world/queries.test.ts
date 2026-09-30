@@ -47,6 +47,10 @@ describe('inside: the units a shape covers', () => {
     const out: (Mob | undefined)[] = [];
 
     assert.deepEqual(names(out, world.inside(circle(2), {}, out)), ['m1', 'm3', 'm4']);
+
+    for (const limit of [-1, 1.5, Number.NaN]) {
+      assert.throws(() => world.inside(circle(2), { limit }, out), /limit is a whole number from 0/);
+    }
   });
 
   it('keeps a crowd in id order too, and refuses an id that is not a whole number from 0', () => {

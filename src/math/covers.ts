@@ -58,6 +58,17 @@ const coversLane = (shape: Lane, p: Vec2, margin: number): boolean => {
   return outAlong * outAlong + outAcross * outAcross <= margin * margin;
 };
 
+/** Whether a body reaching `margin` past `p` overlaps any of some shapes (a union's parts), with no closure made. */
+const coversAny = (shapes: readonly Shape[], p: Vec2, margin: number): boolean => {
+  for (const part of shapes) {
+    if (coversBy(part, p, margin)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 /** Whether a body reaching `margin` past `p` overlaps a polygon grown by its band: signed edge distance below the reach. */
 const coversPolygon = (shape: Polygon, p: Vec2, margin: number): boolean => {
   const edge = Math.sqrt(polygonEdgeDistanceSq(p, shape.points));
@@ -87,7 +98,7 @@ const coversBy = (shape: Shape, p: Vec2, margin: number): boolean => {
     case 'outside':
       return !coversBy(shape.shape, p, -margin);
     case 'union':
-      return shape.shapes.some((part) => coversBy(part, p, margin));
+      return coversAny(shape.shapes, p, margin);
     case 'difference':
       return coversBy(shape.base, p, margin) && !coversBy(shape.minus, p, -margin);
   }
