@@ -75,10 +75,14 @@ const land = <G extends AuraTypes>(
 
   const context = engine.events.take(at.bearer, at.item);
 
+  // Held, so an onLand that removes its own aura cannot hand its slot to one it applies before this one's event is raised.
+  engine.events.hold();
+
   try {
     onLand(context, application);
   } finally {
     engine.events.give();
+    engine.events.unhold();
   }
 };
 

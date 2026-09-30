@@ -33,6 +33,12 @@ export interface AuraSeed<G extends AuraTypes = AuraTypes> {
    * direction its `onLand` kept, which no view carries. Nothing is restored when absent.
    */
   readonly restore?: (aura: ActiveAura<G>, index: number) => void;
+
+  /**
+   * Whether a predicted aura's game fields already are what `restore` would fill from view `index`, for `matchesSeed`:
+   * a mirror that predicted a wrong direction then differs. Game fields are not compared when absent.
+   */
+  readonly isRestored?: (aura: ActiveAura<G>, index: number) => boolean;
 }
 
 /**
@@ -152,8 +158,8 @@ const nextPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, seed: AuraSee
 };
 
 /**
- * Whether a prediction mirror's predicted auras already are what `seedAuras` would make of a seed (a correction
- * that changes nothing): a client compares at each acknowledged step and replays its pending inputs only on a
+ * Whether a prediction mirror's predicted auras already are what `seedAuras` would make of a seed, game fields too
+ * when the seed says how to compare them (a correction that changes nothing): a client compares at each acknowledged step and replays its pending inputs only on a
  * difference, as a seed and a replay otherwise cost every step. Reads only; seeds nothing.
  */
 export const matchesSeed = <G extends AuraTypes>(
@@ -169,7 +175,11 @@ export const matchesSeed = <G extends AuraTypes>(
     if (isPredicted(engine, item.id)) {
       const view = at < count ? seed.views[at] : undefined;
 
-      if (view === undefined || !isSeededAs([set, item, view], seed.clocks[item.clock] ?? 0)) {
+      if (
+        view === undefined ||
+        !isSeededAs([set, item, view], seed.clocks[item.clock] ?? 0) ||
+        seed.isRestored?.(item, at) === false
+      ) {
         return false;
       }
 

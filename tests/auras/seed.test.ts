@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
-import { aura, makeGame, TAGS } from '../helpers/aura-game.ts';
+import type { ActiveAura, AuraView, ViewOptions } from '../../src/auras/index.ts';
+import { aura, makeGame, TAGS, type TestAuras } from '../helpers/aura-game.ts';
 
 /** A bearer's aura views, in a fresh array. */
 const viewsOf = <Bearer>(
@@ -159,6 +159,31 @@ describe('seeding a prediction mirror', () => {
       }
     });
     assert.equal(auras.find(mirror, id.dash)?.ext.snapshot, 7);
+  });
+
+  it('compares the restored fields too when the seed says how, so a wrong prediction of them differs', () => {
+    const { auras, id, server, mirror } = setUp();
+    const sent = [7];
+
+    auras.apply(server, id.dash);
+
+    const seed = {
+      views: viewsOf(auras, server, { for: 'owner' }),
+      clocks: server.auras.clocks,
+      serials: server.auras.serials,
+
+      restore: (aura: ActiveAura<TestAuras>, index: number) => {
+        aura.ext.snapshot = sent[index] ?? 0;
+      },
+
+      isRestored: (aura: ActiveAura<TestAuras>, index: number) => aura.ext.snapshot === sent[index]
+    };
+
+    auras.seed(mirror, seed);
+    assert.equal(auras.matchesSeed(mirror, seed), true);
+    sent[0] = 9;
+    assert.equal(auras.matchesSeed(mirror, seed), false);
+    assert.equal(auras.matchesSeed(mirror, { views: seed.views, clocks: seed.clocks, serials: seed.serials }), true);
   });
 
   it('seeds only the first count views when given one', () => {

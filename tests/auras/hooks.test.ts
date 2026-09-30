@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { ActiveAura } from '../../src/auras/index.ts';
 import { defineStats } from '../../src/modifiers/index.ts';
-import { aura, makeGame, type TestAuras } from '../helpers/aura-game.ts';
+import { aura, type Game, makeGame, type TestAuras } from '../helpers/aura-game.ts';
 
 describe('game fields and landing', () => {
   it('capture an application payload into the aura own fields on every landing, and clear them on release', () => {
@@ -25,6 +25,45 @@ describe('game fields and landing', () => {
     auras.remove(u, id.brand);
     auras.apply(u, id.brand);
     assert.equal(auras.find(u, id.brand)?.ext.snapshot, 0, 'the reused slot came back cleared');
+  });
+
+  it('raise nothing for an aura its own onLand swapped for another, and one applied for the other', () => {
+    const seen: string[] = [];
+    const late: { game?: Game<'charge' | 'surge'> } = {};
+
+    const game = makeGame({
+      charge: aura({
+        duration: 4,
+
+        onLand: (ctx) => {
+          late.game?.auras.remove(ctx.bearer, late.game.id.charge);
+          late.game?.auras.apply(ctx.bearer, late.game.id.surge);
+        },
+
+        onApplied: () => {
+          seen.push('charge');
+
+          return undefined;
+        }
+      }),
+      surge: aura({
+        duration: 4,
+
+        onApplied: () => {
+          seen.push('surge');
+
+          return undefined;
+        }
+      })
+    });
+
+    late.game = game;
+
+    const u = game.unit();
+
+    game.auras.apply(u, game.id.charge);
+    assert.deepEqual(seen, ['surge']);
+    assert.deepEqual([game.auras.has(u, game.id.charge), game.auras.has(u, game.id.surge)], [false, true]);
   });
 
   it('hand hooks the bearer stats the host reports', () => {
