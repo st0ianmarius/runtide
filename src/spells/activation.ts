@@ -88,7 +88,7 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
 
   /**
    * When the cooldown starts: `activation` (as it fires, the default) or `cast`, only once its cast was not refused (a
-   * placement the cast's gate checks).
+   * placement `checkCast` checks). A prediction mirror starts a `cast` cooldown only for a button with `checkCast`.
    */
   readonly startsOn?: 'activation' | 'cast';
 
@@ -115,6 +115,14 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
    * Mirror-safe: it reads only its `MirrorCtx`.
    */
   activate?(this: void, ctx: MirrorCtx<G>): void;
+
+  /**
+   * Whether its cast may go ahead, asked as it casts, after `activate`, its cost, `applies` and `resets`: a sentry's
+   * placement against the static world, from the press's input. Mirror-safe: it reads only its `MirrorCtx`, so the
+   * server and a prediction mirror answer alike. False refuses the cast with no cast cue and no `cast` cooldown; true
+   * lets a mirror predict the cast cue and start a `cast` cooldown. The spell's own gates still run on the server.
+   */
+  checkCast?(this: void, ctx: MirrorCtx<G>): boolean;
 }
 
 /**
@@ -207,6 +215,10 @@ const BUTTON: ActivationKindDef<ButtonActivation, never> = {
 
     if (startsOn !== undefined && startsOn !== 'activation' && startsOn !== 'cast') {
       return "a button cooldown starts on 'activation' or 'cast'.";
+    }
+
+    if (activation.checkCast !== undefined && typeof activation.checkCast !== 'function') {
+      return "a button's checkCast is a function.";
     }
 
     return isCost(activation.cost) ? undefined : 'a button costs a whole number of stacks from 1.';

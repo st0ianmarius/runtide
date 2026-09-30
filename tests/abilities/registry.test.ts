@@ -27,6 +27,7 @@ describe('button activation data', () => {
   it('refuses a negative cooldown, an unknown start and a cost that is not whole stacks', () => {
     assert.throws(() => makeAbilityGame({ bad: button({ cooldown: -1 }) }), /button cooldown takes seconds/);
     assert.throws(() => makeAbilityGame({ bad: forged('startsOn', 'release') }), /starts on 'activation' or 'cast'/);
+    assert.throws(() => makeAbilityGame({ bad: forged('checkCast', true) }), /checkCast is a function/);
 
     assert.throws(
       () => makeAbilityGame({ bad: button({ cost: { aura: auraNamed('charge'), stacks: 1.5 } }) }),

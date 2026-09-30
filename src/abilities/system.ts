@@ -89,8 +89,8 @@ export interface AbilitySystem<G extends AbilityTypes> {
    * A press: every pressed slot (a mask of `bit`s) is decided against the bearer before any fires, then each
    * accepted one fires in slot order: pays its cost, runs `activate` (with a `MirrorCtx` of the press's input and the
    * clock's step), starts its slot's cooldown (on `activation`),
-   * lands `applies` then `resets`, and casts its spell with the press's input and key (a no-windup spell releases here, before the
-   * game moves the bearer), starting a `cast` cooldown once the cast was not refused. Returns the mask of the slots that
+   * lands `applies` then `resets`, asks `checkCast`, and casts its spell with the press's input and key (a no-windup spell
+   * releases here, before the game moves the bearer), starting a `cast` cooldown once the cast was not refused. Returns the mask of the slots that
    * fired. The game calls it inside its motion step, on the server and on a prediction mirror alike.
    */
   readonly tryActivate: (bearer: G['bearer'], pressed: number, press?: Press<G>) => number;

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { createCueEchoes, type CueEvent } from '../../src/cues/index.ts';
-import type { SpellContext } from '../../src/spells/index.ts';
+import type { SpellContext, StaticWorld } from '../../src/spells/index.ts';
 import { type AbilityGame, auraNamed, CUES, makeAbilityGame, spell, STATS } from '../helpers/ability-game.ts';
 
 /** What the mirror-safe cast cue hooks saw, and what the releases did. */
@@ -45,6 +45,26 @@ const spells = {
   }),
 
   plain: spell({ activation: { kind: 'button' }, release: logRelease('plain') }),
+
+  sentry: spell({
+    activation: {
+      kind: 'button',
+      cooldown: 2,
+      startsOn: 'cast',
+      checkCast: ({ input, world }) => input !== undefined && world.isPositionClear(input, 0.5),
+    },
+    cues: { cast: () => ({ cue: CUES.id.swish }) },
+    release: logRelease('sentry'),
+  }),
+};
+
+/** A static world with a wall from x = 5 on: a sentry fits only west of it. */
+const WALLED: StaticWorld = {
+  bounds: { minX: -10, minZ: -10, maxX: 10, maxZ: 10 },
+  lineClear: () => true,
+  isPositionClear: (p, radius) => p.x + radius < 5,
+  clamp: (p) => p,
+  moveBody: ([, to]) => ({ position: to, hit: false, share: 1 }),
 };
 
 /** The cue ids and keys of a buffer's events, in firing order. */
@@ -124,5 +144,32 @@ describe('presses on a prediction mirror', () => {
     abilities.tryActivate(hero, abilities.bit(abilities.slots.id.dodge), { input: { x: 1, z: 0 }, key: 21 });
     assert.deepEqual(firedOf(game.cues.events), ['swish@4 key 21', 'flash@4 key 0']);
     assert.equal(abilities.cooldownLeft(hero, abilities.slots.id.dodge), 2);
+  });
+});
+
+describe('a button’s checkCast (a sentry’s placement)', () => {
+  /** Presses the sentry on the skill slot at a point: the cues fired, the slot's cooldown, and whether it casts. */
+  const place = (mirror: boolean, at: { x: number; z: number }) => {
+    lines.length = 0;
+
+    const game = makeAbilityGame(spells, { world: WALLED, mirror });
+    const hero = game.hero(4);
+    const { abilities } = game;
+    const { skill } = abilities.slots.id;
+
+    abilities.equip(hero, skill, game.id.sentry);
+    abilities.tryActivate(hero, abilities.bit(skill), { input: at, key: 3 });
+
+    return [firedOf(game.cues.events), abilities.cooldownLeft(hero, skill), game.spells.isCasting(hero), [...lines]];
+  };
+
+  it('lets a clear placement cast and start its cast cooldown, on the server and the mirror alike', () => {
+    assert.deepEqual(place(false, { x: 1, z: 0 }), [['swish@4 key 3'], 2, false, ['release sentry']]);
+    assert.deepEqual(place(true, { x: 1, z: 0 }), [['swish@4 key 3'], 2, false, []]);
+  });
+
+  it('refuses a blocked placement with no cue and no cooldown, on the server and the mirror alike', () => {
+    assert.deepEqual(place(false, { x: 9, z: 0 }), [[], 0, false, []]);
+    assert.deepEqual(place(true, { x: 9, z: 0 }), [[], 0, false, []]);
   });
 });

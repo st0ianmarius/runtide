@@ -142,16 +142,45 @@ const land = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
   }
 };
 
+/** Asks a button's `checkCast` with a `MirrorCtx` of the press's input; true for a button with none. */
+const passesCheck = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  [spell, input]: readonly [SpellId, G['input'] | undefined],
+): boolean => {
+  const check = engine.buttons[spell]?.def.checkCast;
+
+  if (check === undefined) {
+    return true;
+  }
+
+  const mirror = engine.mirrorFor(bearer, spell);
+
+  mirror.input = input;
+  mirror.dt = engine.dt;
+
+  const isClear = check(mirror);
+
+  mirror.input = undefined;
+
+  return isClear;
+};
+
 /**
- * Casts a button's spell with an input at a rank and the press's key; whether the cast was refused. On a prediction
- * mirror it fires only the spell's cast cue (`spells.predictCast`) and counts as refused, so no `cast` cooldown starts
- * there: the mirror takes that one from the wire.
+ * Casts a button's spell with an input at a rank and the press's key; whether the cast was refused. Its `checkCast`
+ * refuses it first, with no cue, on either host. On a prediction mirror it fires only the spell's cast cue
+ * (`spells.predictCast`), and counts as refused unless the button has a `checkCast` that let it through, so a `cast`
+ * cooldown starts there only for a cast both hosts judge alike; otherwise the mirror takes it from the wire.
  */
 const castButton = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
   [spell, rank, input]: readonly [SpellId, number, G['input'] | undefined],
 ): boolean => {
+  if (!passesCheck(engine, bearer, [spell, input])) {
+    return true;
+  }
+
   const { options } = engine;
 
   options.input = input;
@@ -162,6 +191,7 @@ const castButton = <G extends AbilityTypes>(
 
   if (engine.isMirror) {
     engine.spells.predictCast(bearer, spell, options);
+    isRefused = engine.buttons[spell]?.def.checkCast === undefined;
   } else {
     isRefused = engine.spells.cast(bearer, spell, options).status === 'refused';
   }
