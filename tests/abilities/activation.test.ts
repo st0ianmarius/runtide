@@ -109,12 +109,12 @@ describe('a press (§II.6 S4)', () => {
     abilities.equip(hero, dodge, game.id.roll);
     assert.equal(abilities.tryActivate(hero, abilities.bit(dodge)), 1);
     assert.equal(abilities.cooldownLeft(hero, dodge), 2);
-    assert.equal(abilities.canActivate(hero, dodge), false);
+    assert.equal(abilities.check(hero, dodge), 'cooldown');
     assert.equal(abilities.tryActivate(hero, abilities.bit(dodge)), 0);
     game.step(7);
     assert.equal(abilities.cooldownLeft(hero, dodge), 0.25);
     game.step();
-    assert.equal(abilities.canActivate(hero, dodge), true);
+    assert.equal(abilities.check(hero, dodge), undefined);
     assert.equal(abilities.tryActivate(hero, 0), 0);
     assert.equal(seen.lines.filter((line) => line.startsWith('roll')).length, 1);
   });
@@ -146,14 +146,14 @@ describe('a press (§II.6 S4)', () => {
     assert.equal(abilities.tryActivate(hero, all), abilities.bit(dodge) | abilities.bit(ultimate));
     assert.equal(abilities.cooldownLeft(hero, dodge), 0);
     assert.equal(abilities.cooldownLeft(hero, ultimate), 30);
-    assert.equal(abilities.canActivate(hero, skill), true);
+    assert.equal(abilities.check(hero, skill), undefined);
 
     const other = game.hero(2);
 
     abilities.equip(other, skill, game.id.anchor);
     abilities.equip(other, ultimate, game.id.flee);
     assert.equal(abilities.tryActivate(other, all), abilities.bit(skill) | abilities.bit(ultimate));
-    assert.equal(abilities.canActivate(other, ultimate), false);
+    assert.equal(abilities.check(other, ultimate), 'blocked');
   });
 
   it('pays, moves, cools and lands before its cast, which releases before the bearer travels', () => {
@@ -200,8 +200,9 @@ describe('a press (§II.6 S4)', () => {
     abilities.equip(hero, skill, game.id.nova);
     abilities.equip(hero, ultimate, game.id.blast);
     assert.equal(abilities.tryActivate(hero, both), 0);
+    assert.equal(abilities.check(hero, ultimate), 'cost');
     auras.apply(hero, { aura: auraNamed('charge'), stacks: 3 });
-    assert.equal(abilities.canActivate(hero, ultimate), true);
+    assert.equal(abilities.check(hero, ultimate), undefined);
     assert.equal(abilities.tryActivate(hero, both), abilities.bit(skill));
     assert.equal(auras.stacks(hero, auraNamed('charge')), 1);
     assert.equal(abilities.cooldownLeft(hero, ultimate), 0);
@@ -212,14 +213,15 @@ describe('a press (§II.6 S4)', () => {
     const { abilities, auras } = game;
     const { skill, ultimate } = abilities.slots.id;
 
+    assert.equal(abilities.check(hero, skill), 'empty');
     abilities.equip(hero, skill, game.id.guard);
     abilities.equip(hero, ultimate, game.id.flee);
-    assert.equal(abilities.canActivate(hero, skill), false);
+    assert.equal(abilities.check(hero, skill), 'requires');
     auras.apply(hero, auraNamed('stance'));
-    assert.equal(abilities.canActivate(hero, skill), true);
-    assert.equal(abilities.canActivate(hero, ultimate), true);
+    assert.equal(abilities.check(hero, skill), undefined);
+    assert.equal(abilities.check(hero, ultimate), undefined);
     auras.apply(hero, auraNamed('root'));
-    assert.equal(abilities.canActivate(hero, ultimate), false);
+    assert.equal(abilities.check(hero, ultimate), 'blocked');
   });
 
   it('starts a cast cooldown only once the cast was not refused, and an activation cooldown either way', () => {
@@ -249,7 +251,7 @@ describe('a press (§II.6 S4)', () => {
     abilities.equip(hero, dodge, game.id.roll);
     abilities.tryActivate(hero, abilities.bit(dodge));
     abilities.equip(hero, dodge, game.id.hop);
-    assert.equal(abilities.canActivate(hero, dodge), false);
+    assert.equal(abilities.check(hero, dodge), 'cooldown');
     assert.equal(abilities.cooldownLeft(hero, dodge), 2);
   });
 });

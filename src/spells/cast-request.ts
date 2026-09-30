@@ -3,13 +3,21 @@ import type { ReachRefusal } from './reach.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 
 /**
- * Why a cast was refused: the gates (the host's `canAct`, the activation kind's), `canCast`, no target, or a reach
- * rule (§I.7.1 F16: the target out of `range`, out of `sight`, or no room at its point for a `placement`).
+ * Why a cast was refused: a gate's own reason (the game's), a plain false from the gates (the host's `canAct`, the
+ * activation kind's) or from `canCast`, no target, or a reach rule (§I.7.1 F16: the target out of `range`, out of
+ * `sight`, or no room at its point for a `placement`).
  */
-export type CastRefusal = 'gate' | 'canCast' | 'target' | ReachRefusal;
+export type CastRefusal<G extends SpellTypes = SpellTypes> =
+  'gate' | 'canCast' | 'target' | ReachRefusal | G['refusal'];
+
+/**
+ * What a gate answers: true (or nothing) lets the cast on, false refuses it for the gate's default reason, and one of
+ * the game's reasons refuses it for that reason.
+ */
+export type GateAnswer<G extends SpellTypes> = boolean | G['refusal'];
 
 /** What starting a cast did (`spells.cast`), reused between calls, so read it at once. */
-export interface CastReport {
+export interface CastReport<G extends SpellTypes = SpellTypes> {
   /** The cast's handle; stale at once for a cast that ended within the call; `NO_CAST` for a refusal. */
   readonly handle: CastHandle;
 
@@ -17,7 +25,7 @@ export interface CastReport {
   readonly status: 'refused' | 'running' | 'ended';
 
   /** Why it was refused; `undefined` when it started. */
-  readonly refusal: CastRefusal | undefined;
+  readonly refusal: CastRefusal<G> | undefined;
 
   /** How many of its release procs went off; 0 when it has not released yet (or was refused). */
   readonly went: number;
@@ -63,10 +71,10 @@ export interface CastRequest<G extends SpellTypes> {
 }
 
 /** The one report of a system, rewritten by every cast. */
-export class Report implements CastReport {
+export class Report<G extends SpellTypes = SpellTypes> implements CastReport<G> {
   handle: CastHandle = NO_CAST;
   status: CastReport['status'] = 'refused';
-  refusal: CastRefusal | undefined = undefined;
+  refusal: CastRefusal<G> | undefined = undefined;
   went = 0;
   hasReleased = false;
 

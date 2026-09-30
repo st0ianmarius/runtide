@@ -3,7 +3,7 @@ import { isRunOut } from '../core/index.ts';
 import type { ActivationKindDef, CastSeconds } from './activation.ts';
 import { resetAfterCast } from './auto.ts';
 import { fireCastCue } from './cast-cue.ts';
-import type { CastOptions, CastRefusal, CastRequest, Report } from './cast-request.ts';
+import type { CastOptions, CastRefusal, CastRequest, GateAnswer, Report } from './cast-request.ts';
 import type { Cast } from './cast.ts';
 import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
@@ -52,10 +52,28 @@ const initCast = <G extends SpellTypes>(
   cast.hasStats = false;
 };
 
-/** The gates, then the stats: the host's `canAct`, then the activation kind's `gate`. */
-const passesGates = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def: AnySpellDef<G>): boolean => {
-  if (engine.host.canAct?.(cast.caster, cast.spell) === false) {
-    return false;
+/** The refusal a gate's answer makes: none for true or nothing, the gate's own for false, else the game's reason. */
+const refusalOf = <G extends SpellTypes>(
+  answer: GateAnswer<G> | undefined,
+  plain: CastRefusal<G>,
+): CastRefusal<G> | undefined => {
+  if (answer === undefined || answer === true) {
+    return undefined;
+  }
+
+  return answer === false ? plain : answer;
+};
+
+/** The gates: the host's `canAct`, then the activation kind's `gate`. The refusal, or `undefined`. */
+const passGates = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  cast: Cast<G>,
+  def: AnySpellDef<G>,
+): CastRefusal<G> | undefined => {
+  const byHost = refusalOf(engine.host.canAct?.(cast.caster, cast.spell), 'gate');
+
+  if (byHost !== undefined) {
+    return byHost;
   }
 
   const { registry } = engine;
@@ -63,7 +81,7 @@ const passesGates = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>
   const kind: ActivationKindDef<ActivationShape, G> | undefined =
     registry.activations.defs[registry.columns.activation[cast.spell] ?? 0];
 
-  return kind?.gate?.(def.activation, cast) !== false;
+  return refusalOf(kind?.gate?.(def.activation, cast), 'gate');
 };
 
 /** The cast order up to `begin` (§II.3.1): gates, stats, `canCast`, target, reach. The refusal, or `undefined`. */
@@ -71,17 +89,20 @@ const admit = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
   def: AnySpellDef<G>,
-): CastRefusal | undefined => {
-  if (!passesGates(engine, cast, def)) {
-    return 'gate';
+): CastRefusal<G> | undefined => {
+  const gated = passGates(engine, cast, def);
+
+  if (gated !== undefined) {
+    return gated;
   }
 
   takeStats(engine, cast, def);
 
   const { hooks } = engine.registry;
+  const refused = refusalOf(hooks.canCast[cast.spell]?.(cast), 'canCast');
 
-  if (hooks.canCast[cast.spell]?.(cast) === false) {
-    return 'canCast';
+  if (refused !== undefined) {
+    return refused;
   }
 
   const target = hooks.target[cast.spell];
@@ -290,8 +311,8 @@ const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, 
 export const startCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   request: CastRequest<G>,
-  report: Report,
-): Report => {
+  report: Report<G>,
+): Report<G> => {
   const def = engine.registry.get(request.spell);
   const cast = engine.acquire(request.caster);
 
@@ -337,7 +358,7 @@ export const startCast = <G extends SpellTypes>(
 export const checkCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   request: CastRequest<G>,
-): CastRefusal | undefined => {
+): CastRefusal<G> | undefined => {
   const def = engine.registry.get(request.spell);
   const cast = engine.acquire(request.caster);
 

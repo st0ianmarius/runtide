@@ -78,13 +78,13 @@ export interface SpellSystem<G extends SpellTypes> {
    * Starts a cast (§II.3.1): the gates (the host's `canAct`, the activation kind's), the stats, `canCast`, the target,
    * then `begin`, and the release at once for a spell with no windup. Returns the system's reused report.
    */
-  readonly cast: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => CastReport;
+  readonly cast: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => CastReport<G>;
 
   /**
    * Whether a cast would start (§I.7.1 F16), asked without starting it: the cast order up to `begin` (the gates, the
    * stats, `canCast`, the target and its reach). The refusal, or `undefined` when it would start. A picker reads it.
    */
-  readonly check: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => CastRefusal | undefined;
+  readonly check: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => CastRefusal<G> | undefined;
 
   /** A delivery of a cast caught units: `onHit` with all of them, its cue and event; how many procs went off. */
   readonly hit: (cast: CastHandle, hit: SpellHit<G>) => number;
@@ -239,7 +239,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly procKinds: SpellProcKinds<G>;
   readonly gameActivations: readonly string[];
   readonly #engine: SpellEngine<G>;
-  readonly #report = new Report();
+  readonly #report = new Report<G>();
   #request: MutableRequest<G> | undefined = undefined;
 
   constructor(engine: SpellEngine<G>) {
@@ -270,11 +270,11 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
   readonly createCasterState = (): CasterState => new CasterRecord();
 
-  readonly cast = (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>): CastReport =>
+  readonly cast = (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>): CastReport<G> =>
     startCast(this.#engine, this.#requestOf(caster, spell, options), this.#report);
 
   /** An auto clock's cast: the system's report, with the interval the clock reads. */
-  readonly #castAuto = (caster: G['bearer'], spell: SpellId): Report =>
+  readonly #castAuto = (caster: G['bearer'], spell: SpellId): Report<G> =>
     startCast(this.#engine, this.#requestOf(caster, spell, undefined), this.#report);
 
   /** The system's one request, rewritten: the cast order reads it before any hook runs, so a nested cast may reuse it. */
@@ -288,7 +288,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     return request;
   }
 
-  readonly check = (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>): CastRefusal | undefined =>
+  readonly check = (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>): CastRefusal<G> | undefined =>
     checkCast(this.#engine, this.#requestOf(caster, spell, options));
 
   readonly hit = (cast: CastHandle, hit: SpellHit<G>): number => hitCast(this.#engine, cast, hit);

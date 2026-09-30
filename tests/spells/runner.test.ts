@@ -120,6 +120,28 @@ describe('the cast order (§II.3.1)', () => {
     assert.equal(game.spells.pool.live, 0);
   });
 
+  it("refuses for a gate's own reason when it answers one in place of false", () => {
+    let silenced = true;
+
+    const game = makeSpellGame(
+      {
+        slam: spell({
+          activation: { kind: 'trigger' },
+          canCast: () => 'noRage',
+          release: () => [mark('release')],
+        }),
+      },
+      { host: { canAct: () => (silenced ? 'silenced' : true) } },
+    );
+
+    const a = game.unit(1);
+
+    assert.equal(game.spells.cast(a, game.id.slam).refusal, 'silenced');
+    silenced = false;
+    assert.equal(game.spells.check(a, game.id.slam), 'noRage');
+    assert.deepEqual(game.log, []);
+  });
+
   it("asks the activation kind's gate after the host's", () => {
     const charged = defineActivationKind<Charged, Game>({ gate: (activation, ctx) => ctx.rank >= activation.least });
     const activations = defineActivations<Game>({ ...CORE_ACTIVATIONS, charged });

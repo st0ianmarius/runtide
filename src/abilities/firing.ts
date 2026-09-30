@@ -4,7 +4,7 @@ import type { AuraTagId } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
 import { evaluateScaled } from '../modifiers/index.ts';
 import type { SpellId } from '../spells/index.ts';
-import type { AbilityBearer, AbilityTypes, SlotId } from './ability-types.ts';
+import type { AbilityBearer, AbilityTypes, ButtonRefusal, SlotId } from './ability-types.ts';
 import type { CompiledButton } from './buttons.ts';
 import type { AbilityEngine } from './engine.ts';
 import { loadoutOf, type LoadoutRecord } from './loadout.ts';
@@ -56,15 +56,24 @@ const holds = <G extends AbilityTypes>(
   return every;
 };
 
-/** Whether a caster meets a button's own rules: every `requires` tag held, no `blockedBy` tag, its cost affordable. */
-const meetsRules = <G extends AbilityTypes>(
+/** Which of a button's own rules a caster fails: a `requires` tag missing, a `blockedBy` tag held, its cost unpaid. */
+const failedRule = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
   button: CompiledButton<G>,
-): boolean =>
-  (button.requires.length === 0 || holds(engine, bearer, [button.requires, true])) &&
-  (button.blockedBy.length === 0 || !holds(engine, bearer, [button.blockedBy, false])) &&
-  (button.costAura < 0 || engine.auras.stacks(bearer, toId<'auras'>(button.costAura)) >= button.costStacks);
+): ButtonRefusal | undefined => {
+  if (button.requires.length > 0 && !holds(engine, bearer, [button.requires, true])) {
+    return 'requires';
+  }
+
+  if (button.blockedBy.length > 0 && holds(engine, bearer, [button.blockedBy, false])) {
+    return 'blocked';
+  }
+
+  return button.costAura >= 0 && engine.auras.stacks(bearer, toId<'auras'>(button.costAura)) < button.costStacks
+    ? 'cost'
+    : undefined;
+};
 
 /** Whether a slot's cooldown aura is on its bearer. */
 const isCooling = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], slot: number): boolean => {
@@ -74,18 +83,23 @@ const isCooling = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['
 };
 
 /**
- * Whether the ability in a slot may fire now (§II.6 S4): the slot holds one, its cooldown aura is not on the bearer,
- * and the ability's own rules hold. Reads only the bearer, so a server and a prediction mirror agree.
+ * Why the ability in a slot may not fire now (§II.6 S4), or `undefined` when it may: the slot holds none (`empty`),
+ * its cooldown aura is on the bearer (`cooldown`), or one of the ability's own rules fails. Reads only the bearer, so a
+ * server and a prediction mirror agree.
  */
-export const canFire = <G extends AbilityTypes>(
+export const refusalAt = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
   slot: number,
-): boolean => {
+): ButtonRefusal | undefined => {
   const spell = spellAt(loadoutOf(bearer), slot);
   const button = spell === undefined ? undefined : engine.buttons[spell];
 
-  return button !== undefined && !isCooling(engine, bearer, slot) && meetsRules(engine, bearer, button);
+  if (button === undefined) {
+    return 'empty';
+  }
+
+  return isCooling(engine, bearer, slot) ? 'cooldown' : failedRule(engine, bearer, button);
 };
 
 /** Starts a slot's cooldown for the ability in it: its cooldown aura for the seconds read now; none for 0 or less. */
@@ -227,7 +241,7 @@ export const press = <G extends AbilityTypes>(
   for (let slot = 0; slot < count && pressed !== 0; slot++) {
     const bit = 1 << slot;
 
-    if ((pressed & bit) !== 0 && canFire(engine, bearer, slot)) {
+    if ((pressed & bit) !== 0 && refusalAt(engine, bearer, slot) === undefined) {
       accepted |= bit;
     }
   }
@@ -269,7 +283,7 @@ export const triggerButton = <G extends AbilityTypes>(
 ): boolean => {
   const button = engine.buttons[spell];
 
-  if (button === undefined || !meetsRules(engine, bearer, button) || !pay(engine, bearer, button)) {
+  if (button === undefined || failedRule(engine, bearer, button) !== undefined || !pay(engine, bearer, button)) {
     return false;
   }
 

@@ -1,6 +1,7 @@
 import type { Vec2 } from '../math/index.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { ProcHost } from '../procs/index.ts';
+import type { GateAnswer } from './cast-request.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 
 /**
@@ -16,9 +17,10 @@ export interface SpellHost<G extends SpellTypes> extends ProcHost<G> {
 
   /**
    * The game's own cast rules (§II.6 S5, F16: a stunned or dead caster casts nothing), asked first in the cast order,
-   * before the activation kind's gate; a false refuses the cast. Every cast may start when absent.
+   * before the activation kind's gate; a false refuses the cast as `gate`, one of the game's reasons refuses it for
+   * that reason. Every cast may start when absent.
    */
-  readonly canAct?: (caster: G['bearer'], spell: SpellId) => boolean;
+  readonly canAct?: (caster: G['bearer'], spell: SpellId) => GateAnswer<G>;
 
   /**
    * The point of a cast's target, for its reach rules (§I.7.1 F16): a unit's position, a placement's point. A spell's

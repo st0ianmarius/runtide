@@ -22,7 +22,7 @@ interface KindParts<G extends SpellTypes> {
   readonly engine: SpellEngine<G>;
 
   /** Starts a cast. */
-  readonly cast: (caster: G['bearer'], spell: SpellId, options: CastOptions<G>) => CastReport;
+  readonly cast: (caster: G['bearer'], spell: SpellId, options: CastOptions<G>) => CastReport<G>;
 }
 
 /** A spell's id from its name or id: checked live at load (`isChecked`), looked up by name when it applies. */

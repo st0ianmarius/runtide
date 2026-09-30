@@ -120,7 +120,7 @@ describe('loadouts (§I.6 Abilities)', () => {
     lone.abilities.equip(hero, skill, lone.id.free);
     lone.abilities.equip(hero, dodge, lone.id.roll);
     assert.equal(lone.abilities.cooldownLeft(hero, skill), 0);
-    assert.throws(() => lone.abilities.canActivate({ ...hero, loadout: stray }, dodge), /abilities.createLoadout/);
+    assert.throws(() => lone.abilities.check({ ...hero, loadout: stray }, dodge), /abilities.createLoadout/);
   });
 
   it('refuses a slot cooling on an aura that is not live, by id or by name', () => {

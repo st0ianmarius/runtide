@@ -4,7 +4,7 @@
  * (`defineSlots`), and a press fires them (`abilities.tryActivate`), with each slot's cooldown an aura.
  */
 
-export type { AbilityBearer, AbilityTypes, SlotId } from './ability-types.ts';
+export type { AbilityBearer, AbilityTypes, ButtonRefusal, SlotId } from './ability-types.ts';
 export type { ButtonApplyExplanation, ButtonExplanation } from './explain.ts';
 export { type LoadoutState, NO_LOADOUT } from './loadout.ts';
 export { type AbilityProcKinds, type AbilityProcs, useAbility, type UseAbilityProc } from './procs.ts';

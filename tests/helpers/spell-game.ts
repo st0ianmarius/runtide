@@ -224,6 +224,9 @@ export interface Game extends AreaTriggerTypes, DamageTypes, TriggerTypes {
   /** No game data on spells. */
   readonly spellData: undefined;
 
+  /** The game's own reasons a gate refuses a cast. */
+  readonly refusal: 'silenced' | 'noRage';
+
   /** Area trigger names are open strings. */
   readonly areaTriggerName: string;
 

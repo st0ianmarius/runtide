@@ -1,10 +1,10 @@
 import type { AuraId, AuraTagId } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
 import type { SpellId } from '../spells/index.ts';
-import type { AbilityTypes, SlotId } from './ability-types.ts';
+import type { AbilityTypes, ButtonRefusal, SlotId } from './ability-types.ts';
 import { AbilityEngine, type AbilityParts } from './engine.ts';
 import { type ButtonExplanation, explainButton } from './explain.ts';
-import { canFire, cooldownSeconds, press, slotHolding, spellAt, travel, triggerButton } from './firing.ts';
+import { cooldownSeconds, press, refusalAt, slotHolding, spellAt, travel, triggerButton } from './firing.ts';
 import { loadoutOf, LoadoutRecord, type LoadoutState } from './loadout.ts';
 import { createAbilityProcKinds } from './proc-kinds.ts';
 import type { AbilityProcKinds } from './procs.ts';
@@ -81,10 +81,11 @@ export interface AbilitySystem<G extends AbilityTypes> {
   readonly bit: (slot: SlotId) => number;
 
   /**
-   * Whether the ability in a slot may fire now: the slot holds one, its cooldown aura is not on the bearer, every
-   * `requires` tag is and no `blockedBy` tag is, and the cost is affordable. Reads only the bearer.
+   * Whether the ability in a slot may fire now: `undefined` when it may, else why not: the slot holds none (`empty`),
+   * its cooldown aura is on the bearer (`cooldown`), a `requires` tag is missing (`requires`), a `blockedBy` tag is
+   * held (`blocked`), or the cost is not affordable (`cost`). Reads only the bearer.
    */
-  readonly canActivate: (bearer: G['bearer'], slot: SlotId) => boolean;
+  readonly check: (bearer: G['bearer'], slot: SlotId) => ButtonRefusal | undefined;
 
   /** The seconds left on a slot's cooldown; 0 when it is ready or has no cooldown. */
   readonly cooldownLeft: (bearer: G['bearer'], slot: SlotId) => number;
@@ -229,10 +230,10 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
       return 1 << slot;
     },
 
-    canActivate: (bearer, slot) => {
+    check: (bearer, slot) => {
       checkSlot(slots, slot);
 
-      return canFire(engine, bearer, slot);
+      return refusalAt(engine, bearer, slot);
     },
 
     cooldownLeft: (bearer, slot) => {

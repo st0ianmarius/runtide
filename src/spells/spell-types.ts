@@ -48,6 +48,12 @@ export interface SpellTypes extends ProcTypes {
   /** What the system that pulls a spell's trigger hands its cast: an aim point, a direction, a unit. */
   readonly input: unknown;
 
+  /**
+   * The game's own reasons a gate refuses a cast (`silenced`, `noRage`), which the host's `canAct`, an activation
+   * kind's `gate` and a spell's `canCast` may answer with in place of a plain false (§I.7.1 F16).
+   */
+  readonly refusal: string;
+
   /** The reasons a cast can be interrupted (`stun`, `freeze`, `death`), which a timeline maps to pause or cancel. */
   readonly interrupt: string;
 

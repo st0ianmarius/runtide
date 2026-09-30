@@ -1,6 +1,7 @@
 import type { AuraId } from '../auras/index.ts';
 import { createRegistry, type Registry } from '../core/index.ts';
 import type { Scaled } from '../modifiers/index.ts';
+import type { GateAnswer } from './cast-request.ts';
 import type { MirrorCtx } from './mirror.ts';
 import type { ReachDefaults } from './reach.ts';
 import type { GateContext, SpellContext, StatsSource } from './spell-def.ts';
@@ -217,8 +218,11 @@ export interface ActivationKindDef<A extends ActivationShape = ActivationShape, 
   /** The reach rules the kind supplies where the spell declares none (§I.7.1 F16). */
   reach?(this: void, activation: A): ReachDefaults | undefined;
 
-  /** The kind's own gate, asked after the host's `canAct` and before the stats; a false refuses the cast. */
-  gate?(this: void, activation: A, ctx: GateContext<G>): boolean;
+  /**
+   * The kind's own gate, asked after the host's `canAct` and before the stats; a false refuses the cast as `gate`, one
+   * of the game's reasons for that reason.
+   */
+  gate?(this: void, activation: A, ctx: GateContext<G>): GateAnswer<G>;
 
   /** The activation's numbers as data (§I.5.3); its own numeric fields when absent. */
   explain?(this: void, activation: A): Readonly<Record<string, number>>;

@@ -6,6 +6,12 @@ import type { LoadoutState } from './loadout.ts';
 export type SlotId = Id<'slots'>;
 
 /**
+ * Why the ability in a slot may not fire (`abilities.check`): the slot holds none, its cooldown runs, a `requires` tag
+ * is missing, a `blockedBy` tag is held, or its cost is not affordable.
+ */
+export type ButtonRefusal = 'empty' | 'cooldown' | 'requires' | 'blocked' | 'cost';
+
+/**
  * A unit with buttons: a caster that also holds a loadout (`abilities.createLoadout()`), where the ability system
  * keeps which ability sits in each slot, so every per-unit read is a field read.
  */

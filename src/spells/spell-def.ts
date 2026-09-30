@@ -5,6 +5,7 @@ import type { Shape, Vec2 } from '../math/index.ts';
 import type { Scaled, ScaledSnapshot, StatView } from '../modifiers/index.ts';
 import type { Proc, ProcOutcome } from '../procs/index.ts';
 import type { Activation } from './activation.ts';
+import type { GateAnswer } from './cast-request.ts';
 import type { CastHandle } from './ids.ts';
 import type { MirrorCtx } from './mirror.ts';
 import type { ProcOut } from './proc-out.ts';
@@ -276,8 +277,8 @@ export interface SpellDef<
   /** Makes a cast's own state, once per cast (`ctx.state`); `undefined` when absent. */
   state?(this: void): State;
 
-  /** The gate after the activation's own: false refuses the cast. */
-  canCast?(this: void, ctx: SpellContext<G, Source, Target, State>): boolean;
+  /** The gate after the activation's own: false refuses the cast as `canCast`, one of the game's reasons for that reason. */
+  canCast?(this: void, ctx: SpellContext<G, Source, Target, State>): GateAnswer<G>;
 
   /** Where the cast goes, from the activation's input; `undefined` refuses it. Absent: the cast needs no target. */
   target?(this: void, ctx: SpellContext<G, Source, unknown, State>, input: G['input'] | undefined): Target | undefined;

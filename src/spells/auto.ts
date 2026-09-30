@@ -19,7 +19,7 @@ const isReachRefusal = (refusal: CastReport['refusal']): boolean =>
  * hook holds it), an instant cast whose release set nothing off `onMiss` (retry), and
  * any other cast spends.
  */
-const costOf = <G extends SpellTypes>(activation: AutoActivation<G>, report: CastReport): Cost => {
+const costOf = <G extends SpellTypes>(activation: AutoActivation<G>, report: CastReport<G>): Cost => {
   if (report.refusal === 'target' || isReachRefusal(report.refusal)) {
     return activation.onNoTarget ?? 'retry';
   }
@@ -55,7 +55,7 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
 export const stepAutoClocks = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  cast: (caster: G['bearer'], spell: SpellId) => Report,
+  cast: (caster: G['bearer'], spell: SpellId) => Report<G>,
 ): void => {
   const record = recordOf(caster);
   const { autos, clocks } = record;
