@@ -210,9 +210,20 @@ export const catchAlong = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hi
 
 /** The ledger a hit's spec names, as its area trigger holds it; none for a catch that names none. */
 const ledgerOf = <G extends AreaTriggerTypes>(hit: Hit<G>): Ledger | undefined => {
-  const name = hit.spec?.ledger;
+  const { area, spec } = hit;
+  const name = spec?.ledgerOf !== undefined && area !== undefined ? spec.ledgerOf(area) : spec?.ledger;
 
-  return name === undefined ? undefined : hit.area?.ledgers.get(name);
+  if (name === undefined) {
+    return undefined;
+  }
+
+  const ledger = area?.ledgers.get(name);
+
+  if (ledger === undefined) {
+    throw new RangeError(`An area trigger's catch picked ledger ${name}, which its kind does not declare.`);
+  }
+
+  return ledger;
 };
 
 /**

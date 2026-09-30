@@ -2,6 +2,7 @@ import type { AuraId, AuraSystem } from '../auras/index.ts';
 import { toHandle } from '../core/ids.ts';
 import { createPool, createScratch, type Pool, type Random, type Scratch } from '../core/index.ts';
 import { type CueBuffer, type CueSpec, fireCue } from '../cues/index.ts';
+import type { Vec2 } from '../math/index.ts';
 import type { Proc, ProcOutcome, ProcSystem } from '../procs/index.ts';
 import type { ProcReturn, SpellClock, SpellSystem } from '../spells/index.ts';
 import { ProcList } from '../spells/proc-out.ts';
@@ -268,6 +269,25 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.placer.clear();
     this.pool.release(toHandle<AreaTrigger<G>>(area.handle));
   }
+
+  /** Sweeps an area trigger's contact along its piece from `previous` to `position`: set by the frame module. */
+  contactAlong: (area: AreaTrigger<G>) => void = () => undefined;
+
+  readonly advanceFor = (area: AreaTrigger<G>, to: Vec2): void => {
+    const from = area.position;
+
+    if (!(Number.isFinite(to.x) && Number.isFinite(to.z))) {
+      throw new RangeError(`An area trigger advances to a finite point; got ${to.x}, ${to.z}.`);
+    }
+
+    area.previous.x = from.x;
+    area.previous.z = from.z;
+    area.moveTo(to);
+    this.contactAlong(area);
+    area.previous.x = area.position.x;
+    area.previous.z = area.position.z;
+    area.hasAdvanced = true;
+  };
 
   readonly applyFor = (area: AreaTrigger<G>, proc: Proc<G>): ProcOutcome => {
     const outer = this.current;

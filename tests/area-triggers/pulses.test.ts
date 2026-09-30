@@ -183,6 +183,43 @@ describe('contacts and landings', () => {
     );
   });
 
+  it('sweeps each piece a move advances along, in order, each in the ledger it picks (a glaive out and back)', () => {
+    const phase = { name: 'out' };
+
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          glaive: missile({
+            lifetime: 1,
+            contact: {
+              radius: 0.5,
+              ledger: 'out',
+              ledgerOf: () => phase.name
+            },
+            ledgers: { out: { policy: 'once' }, back: { policy: 'once' } },
+
+            move: (c) => {
+              phase.name = 'out';
+              c.advance({ x: 4, z: 0 });
+              phase.name = 'back';
+              c.advance({ x: 0, z: 0 });
+            }
+          })
+        }
+      }
+    );
+
+    game.place(game.unit(100), vec2(2, 0));
+    game.world.tick();
+    game.areaTriggers.spawn(game.areaId.glaive, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 1);
+    assert.deepEqual(
+      game.log.filter((line) => line.startsWith('contact')),
+      ['contact 0.25: 100', 'contact 0.25: 100']
+    );
+  });
+
   it('sweeps an owner-anchored contact along its owner’s move (a charge’s hitbox)', () => {
     const game = makeSpellGame(
       {},

@@ -99,7 +99,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** The heading it faces, as `atan2(x, z)`: its shape turns with it. Its own to change. */
   heading: number;
 
-  /** Where it was at the start of this frame. */
+  /** Where it was at the start of this frame, or where its last `advance` piece began. */
   readonly previous: Vec2;
 
   /** Its shape, placed at its position and turned to its heading once its own motion this frame is done. */
@@ -156,6 +156,14 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
 
   /** Ends it once the running hook returns: as `self` by default, `spent`, or one of the game's reasons. */
   readonly despawn: (reason?: 'self' | 'spent' | G['endReason']) => void;
+
+  /**
+   * Moves it along one straight piece of its path to `to`, its contact sweeping that piece now, in order: a curve drawn
+   * as several pieces a frame (a chakram's arc), a bounce as two (a glaive off a wall), a teleport as none (move it
+   * with `position` instead, and nothing between is swept). For a `move` or `frame` hook; the frame's own contact
+   * sweeps only what is left after the last piece. Nothing is swept for a kind with no `contact`.
+   */
+  readonly advance: (to: Vec2) => void;
 
   /**
    * Sets the seconds left of its lifetime (a recast refreshing a pool, a kill extending it, a haste), counted from

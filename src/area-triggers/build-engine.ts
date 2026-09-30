@@ -3,6 +3,7 @@ import type { AnyAreaTriggerDef } from './area-def.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import { AreaEngine } from './engine.ts';
+import { runContact } from './frame.ts';
 import type { AreaTriggerSystemOptions } from './system-options.ts';
 
 /** Whether `undefined` is the game's `areaExt`: true exactly when the options could leave `createExt` out. */
@@ -111,7 +112,7 @@ export const areaEngineOf = <G extends AreaTriggerTypes>(options: AreaTriggerSys
 
   checkCues(options);
 
-  return new AreaEngine<G>({
+  const engine = new AreaEngine<G>({
     registry,
     spells: options.spells,
     auras: options.auras,
@@ -129,4 +130,10 @@ export const areaEngineOf = <G extends AreaTriggerTypes>(options: AreaTriggerSys
     createExt: extFactory(options),
     resetExt: options.resetExt
   });
+
+  engine.contactAlong = (area) => {
+    runContact(engine, area);
+  };
+
+  return engine;
 };

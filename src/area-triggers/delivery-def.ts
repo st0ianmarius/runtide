@@ -76,6 +76,12 @@ export interface AreaCatch<G extends AreaTriggerTypes, State = unknown> {
   /** The hit ledger it records in and is filtered by, by name; none (every catch lands whole) when absent. */
   readonly ledger?: string;
 
+  /**
+   * Picks the ledger per catch, in place of `ledger` (a chakram's `out` ledger on the way out, `back` on the way
+   * back): a name the kind declares, checked as it is picked.
+   */
+  ledgerOf?(this: void, c: AreaTriggerContext<G, State>): string;
+
   /** A condition a unit must meet (line of sight from it, not branded yet). */
   unitFilter?(this: void, c: AreaTriggerContext<G, State>, unit: G['bearer']): boolean;
 }

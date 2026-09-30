@@ -35,8 +35,11 @@ const runFrame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
   }
 };
 
-/** Sweeps its body along this frame's move and hands what it reached to `onContact`. */
-const runContact = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
+/**
+ * Sweeps its body along its move (this frame's, or one `advance` piece) and hands what it reached to `onContact`. The
+ * frame's own sweep is skipped when an `advance` already swept up to where it stands.
+ */
+export const runContact = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const { contact } = engine.registry.get(area.kind);
 
   if (contact === undefined) {
@@ -68,7 +71,10 @@ const runPhase = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
       placeShape(engine, area);
       break;
     case 'contact':
-      runContact(engine, area);
+      if (!(area.hasAdvanced && area.previous.x === area.position.x && area.previous.z === area.position.z)) {
+        runContact(engine, area);
+      }
+
       break;
     case 'frame':
       runFrame(engine, area, dt);
@@ -91,6 +97,7 @@ export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: A
   const { registry } = engine;
 
   area.age += dt;
+  area.hasAdvanced = false;
   // Noted before an owner-anchored one follows its owner, so its contact sweeps the owner's move (a charge's hitbox).
   area.previous.x = area.position.x;
   area.previous.z = area.position.z;
