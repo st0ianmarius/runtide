@@ -38,7 +38,10 @@ export interface ApplyResult {
   /** True when it made a fresh instance. */
   readonly fresh: boolean;
 
-  /** True when anything about the aura changed (a losing `highest` changes nothing). */
+  /**
+   * True when anything about the aura changed: its clock, its stacks or its value. A losing `highest` changes nothing
+   * unless its value merge does (the value merges independently of the clock: a strongest-wins slow is `merge: 'max'`).
+   */
   readonly changed: boolean;
 }
 

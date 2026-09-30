@@ -11,7 +11,8 @@ import type { AuraDamageHooks } from './damage-hooks.ts';
  * - `refresh`: the clock restarts at the new length (shorter or longer); stacks stay.
  * - `extend`: the new length is added to what is left.
  * - `stack`: one more stack (or the application's count), up to `maxStacks`, and the clock restarts.
- * - `highest`: the clock becomes the longer of what is left and the new length; a shorter one changes nothing.
+ * - `highest`: the clock becomes the longer of what is left and the new length; a shorter one leaves the clock (its
+ *   value still merges, by `merge`).
  * - `independent`: every application is its own instance with its own clock, `maxStacks` of them at most (at the
  *   cap the one with least time left makes way, the first of equals).
  */

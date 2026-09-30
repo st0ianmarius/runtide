@@ -178,9 +178,17 @@ export interface AuraSystem<G extends AuraTypes> {
   /**
    * Writes the bearer's auras that have a pipeline hook into `out` from index 0, in list order, and returns how many.
    * `out` keeps its storage (it is never shrunk, so a reused array allocates nothing); entries past the count that an
-   * earlier call wrote are cleared to `undefined`, so it keeps no references.
+   * earlier call wrote are cleared to `undefined`, so it keeps no references. A walk over them whose hooks may remove
+   * and apply auras runs between `hold` and `unhold`, so a removed one stays itself (`isActive` false) and a later
+   * application never takes its slot mid-walk.
    */
   readonly collect: (bearer: G['bearer'], hook: CollectedHook<G>, out: (ActiveAura<G> | undefined)[]) => number;
+
+  /** Keeps removed auras' slots out of the pool until the matching `unhold`. Calls nest. */
+  readonly hold: () => void;
+
+  /** Lets go of a `hold`; the outermost gives back the slots of the auras removed meanwhile. */
+  readonly unhold: () => void;
 
   /** A context for calling one aura's hook from a pipeline; a new object, which the caller may keep for the call. */
   readonly context: (bearer: G['bearer'], aura: ActiveAura<G>) => AuraContext<G>;

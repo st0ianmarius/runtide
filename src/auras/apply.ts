@@ -31,7 +31,7 @@ const FRESH: ApplyResult = Object.freeze({ applied: true, fresh: true, changed: 
 /** A re-application that changed the instance. */
 const CHANGED: ApplyResult = Object.freeze({ applied: true, fresh: false, changed: true });
 
-/** A re-application that changed nothing (a losing `highest`). */
+/** A re-application that changed nothing (a losing `highest` whose value merge changed nothing too). */
 const UNCHANGED: ApplyResult = Object.freeze({ applied: true, fresh: false, changed: false });
 
 /** The instance an application lands on: the one shared instance, or the source's own; none for `independent`. */

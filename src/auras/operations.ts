@@ -52,6 +52,8 @@ type Queries<G extends AuraTypes> = Pick<
   | 'hasTag'
   | 'lengthOf'
   | 'collect'
+  | 'hold'
+  | 'unhold'
   | 'context'
   | 'takeContext'
   | 'giveContext'
@@ -134,6 +136,14 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
 
   collect: (bearer: G['bearer'], hook: CollectedHook<G>, out: (ActiveAura<G> | undefined)[]) =>
     collectIn(engine, bearer, { hook, out }),
+
+  hold: () => {
+    engine.events.hold();
+  },
+
+  unhold: () => {
+    engine.events.unhold();
+  },
 
   context: (bearer: G['bearer'], aura: ActiveAura<G>): AuraContext<G> => {
     const context = new MutableContext<G>(bearer, aura);

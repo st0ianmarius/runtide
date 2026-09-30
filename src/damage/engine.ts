@@ -220,8 +220,9 @@ export class DamageEngine<G extends DamageTypes> {
 
   /**
    * Walks the auras of a subject's unit that have one pipeline hook, in list order, each with a reused hook context,
-   * until a step returns true; returns whether one did. The list is gathered first, so hooks that remove auras are
-   * safe, and an aura gone before its turn is passed over. Nothing is allocated.
+   * until a step returns true; returns whether one did. The list is gathered first and the auras' slots held through
+   * the walk, so hooks that remove and apply auras are safe, and an aura gone before its turn is passed over. Nothing
+   * is allocated.
    */
   eachHook<S>(walk: HookWalk<G, S>, subject: S): boolean {
     const unit = walk.unit(subject);
@@ -237,6 +238,8 @@ export class DamageEngine<G extends DamageTypes> {
       orderBy(list, [walk.order, count]);
     }
 
+    this.auras.hold();
+
     try {
       for (let i = 0; i < count; i++) {
         const aura = list[i];
@@ -248,6 +251,7 @@ export class DamageEngine<G extends DamageTypes> {
 
       return false;
     } finally {
+      this.auras.unhold();
       this.lists.give(count);
     }
   }

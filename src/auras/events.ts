@@ -137,6 +137,20 @@ export class AuraEvents<G extends AuraTypes> {
     this.#retiredCount += 1;
   }
 
+  /** Keeps retired slots out of the pool until the matching `unhold`, as a dispatch does. Calls nest. */
+  hold(): void {
+    this.#dispatching += 1;
+  }
+
+  /** Lets go of a `hold`; the outermost gives back the slots retired meanwhile. */
+  unhold(): void {
+    this.#dispatching -= 1;
+
+    if (this.#dispatching === 0 && this.#retiredCount > 0) {
+      this.#releaseRetired();
+    }
+  }
+
   /**
    * Dispatches everything queued since `from`, in order, then gives back the retired slots if nothing else runs. An
    * operation that queued nothing and retired nothing costs two comparisons.

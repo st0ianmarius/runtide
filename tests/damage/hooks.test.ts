@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { heal, setHealth } from '../../src/damage/index.ts';
+import { applyAura, removeAura } from '../../src/procs/index.ts';
 import { aura, KINDS, makeDamageGame } from '../helpers/damage-game.ts';
 
 /** The test auras: an immunity to all but fire, two absorbs, a damage-taken scale, a death escape, a leech. */
@@ -230,6 +231,51 @@ describe('the order of the incoming hooks', () => {
     assert.equal(damage.hit({ target, attacker, amount: 60 }).amount, 5);
     assert.equal(attacker.hp, 55);
     assert.throws(() => makeDamageGame({ bad: aura({ duration: 1, incomingOrder: Number.NaN }) }), /incomingOrder/);
+  });
+});
+
+describe('a hook walk that removes and applies auras', () => {
+  it('passes over an aura removed before its turn, even when an application in the walk would take its slot', () => {
+    const seen: string[] = [];
+
+    const game = makeDamageGame({
+      shatter: aura({
+        duration: 10,
+
+        onIncomingDamage: () => ({
+          procs: [removeAura('frozen', { to: 'self' }), applyAura('chilled', { to: 'other' })]
+        })
+      }),
+
+      frozen: aura({
+        duration: 10,
+
+        onIncomingDamage: (ctx) => {
+          seen.push(`frozen@${ctx.bearer.id}`);
+
+          return { scale: 2 };
+        }
+      }),
+
+      chilled: aura({
+        duration: 10,
+
+        onIncomingDamage: (ctx) => {
+          seen.push(`chilled@${ctx.bearer.id}`);
+
+          return { scale: 0 };
+        }
+      })
+    });
+
+    const [target, attacker] = [game.unit(1), game.unit(2)];
+
+    game.auras.apply(target, game.id.shatter);
+    game.auras.apply(target, game.id.frozen);
+
+    const blow = game.damage.hit({ target, attacker, amount: 10 });
+
+    assert.deepEqual([seen, blow.amount, game.auras.has(attacker, game.id.chilled)], [[], 10, true]);
   });
 });
 
