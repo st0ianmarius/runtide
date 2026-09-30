@@ -23,6 +23,9 @@ export interface AuraSeed {
 
   /** The server bearer's steps on each clock, by clock id, as the views were taken. */
   readonly clocks: ArrayLike<number>;
+
+  /** The serials the server's bearer had handed out (`AuraState.serials`), which the mirror's count goes on from. */
+  readonly serials: number;
 }
 
 /**
@@ -42,8 +45,9 @@ const setSeededClock = <G extends AuraTypes>(
 /**
  * Seeds a prediction mirror's auras from the wire (`auras.seed`): every `predicted` aura on the bearer is
  * dropped, and every view of a `predicted` aura is put back with its serial, stacks, value, duration and source, its
- * clock set by the stamp contract; the rest of the bearer's auras, and views of auras that are not predicted, are left
- * alone. Only a silent state (a mirror's, `createState({ isSilent: true })`) may be seeded, so nothing is raised.
+ * clock set by the stamp contract, and the bearer's serial count set to the server's; the rest of the bearer's auras,
+ * and views of auras that are not predicted, are left alone. A silent state dispatches no beats, so a seeded aura has
+ * none due. Only a silent state (a mirror's, `createState({ isSilent: true })`) may be seeded, so nothing is raised.
  * Returns how many auras it seeded.
  */
 export const seedAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], seed: AuraSeed): number => {
@@ -73,12 +77,14 @@ export const seedAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
         item.stacks = view.stacks;
         item.value = view.value;
         item.source = view.source;
+        item.nextBeat = Number.POSITIVE_INFINITY;
         setSeededClock([set, item, view], seed.clocks[item.clock] ?? 0);
         engine.insert(set, item);
         seeded += 1;
       }
     }
 
+    set.serials = seed.serials;
     engine.refreshTags(set);
     set.changes += 1;
   } finally {

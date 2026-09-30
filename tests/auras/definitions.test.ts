@@ -94,7 +94,7 @@ describe('createAuraSystem', () => {
 
   it('refuses a state made by another hand, and a system with no clock', () => {
     const { auras, id } = makeGame({ a: aura({ duration: 1 }) });
-    const forged = { list: [], tags: createBitset(), clocks: [], changes: 0, isSilent: false };
+    const forged = { list: [], tags: createBitset(), clocks: [], changes: 0, isSilent: false, serials: 0 };
 
     assert.throws(() => auras.has({ id: 1, hp: 1, auras: forged }, id.a), /createState/);
     assert.throws(

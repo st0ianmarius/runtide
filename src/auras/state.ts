@@ -27,6 +27,12 @@ export interface AuraState {
 
   /** Whether it runs no hooks and raises no events (a preview or a prediction copy of a bearer). */
   readonly isSilent: boolean;
+
+  /**
+   * The serials handed out on this bearer so far: an instance of its own (`independent`, `perSource`) takes the next.
+   * Counted per bearer, so a prediction mirror seeded with it hands out the serials the server does.
+   */
+  readonly serials: number;
 }
 
 /** Anything auras land on: a unit, or anything else that holds an aura state made by an aura system. */
@@ -42,6 +48,7 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
   readonly clocks: Float64Array;
   readonly isSilent: boolean;
   changes = 0;
+  serials = 0;
 
   constructor(clocks: number, isSilent: boolean) {
     this.clocks = new Float64Array(clocks);
@@ -84,9 +91,9 @@ export const setOf = <G extends AuraTypes>(bearer: AuraBearer): AuraSet<G> => {
 };
 
 /**
- * The stacks a bearer holds of an aura, summed over its instances, or 0 while the aura's `activeWhile` says its
- * modifiers do not count: the stacks report a modifier system reads its aura gates through
- * (`createModifierSystem({ …, stacks: auraStacks })`), so an aura's modifiers count exactly while it is held.
+ * The stacks a bearer holds of an aura, summed over its instances: the stacks report a modifier system reads its aura
+ * gates through (`createModifierSystem({ …, stacks: auraStacks })`), so an aura's modifiers count exactly while it is
+ * held.
  */
 export const auraStacks = (bearer: AuraBearer, gate: number): number => setOf<AuraTypes>(bearer).stacksFor(gate);
 

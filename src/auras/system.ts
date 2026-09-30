@@ -204,8 +204,8 @@ export interface AuraSystem<G extends AuraTypes> {
 
   /**
    * Seeds a prediction mirror's `predicted` auras from the server's views of the bearer: they replace the
-   * mirror's, each clock set by the stamp contract (the server's stamp distance, or the seconds left walked again
-   * where the mirror counts the clock by another rule). Only a silent state may be seeded. Returns how many it seeded.
+   * mirror's, each ending as far past the mirror's count of its clock as it ended past the server's, and the mirror's
+   * serial count becomes the server's. Only a silent state may be seeded. Returns how many it seeded.
    */
   readonly seed: (bearer: G['bearer'], seed: AuraSeed) => number;
 }

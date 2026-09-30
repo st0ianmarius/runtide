@@ -34,7 +34,6 @@ export class AuraEngine<G extends AuraTypes> {
   readonly flags: ArrayLike<number>;
   readonly #applications: AuraApplication<G>[] = [];
   readonly #resetExt: ((ext: G['ext']) => void) | undefined;
-  serials = 0;
 
   constructor(parts: EngineParts<G>) {
     const { registry } = parts;

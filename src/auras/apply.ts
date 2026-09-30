@@ -115,7 +115,7 @@ const fresh = <G extends AuraTypes>(
   engine.events.setCause('evict');
   evictFor(engine, bearer, id);
   engine.events.setCause('apply');
-  item.serial = isOwnInstance ? (engine.serials += 1) : 0;
+  item.serial = isOwnInstance ? (set.serials += 1) : 0;
   item.stacks = Math.min(maxStacks, engine.stacking[id] === STACK ? addedStacks(application) : 1);
   item.value = application.value ?? engine.registry.get(id).value ?? 0;
   item.source = application.source ?? NO_SOURCE;

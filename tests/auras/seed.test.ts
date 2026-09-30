@@ -8,6 +8,7 @@ const defs = {
   sprint: aura({ duration: 3, predicted: true, stacking: 'stack', maxStacks: 5, value: 4 }),
   stance: aura({ duration: 'infinite', predicted: true }),
   glow: aura({ duration: 5 }),
+  spark: aura({ duration: 5, predicted: true, perSource: true, maxStacks: 8 }),
 };
 
 /** A server unit and a silent mirror of it. */
@@ -35,7 +36,11 @@ describe('seeding a prediction mirror', () => {
     run(server, 4);
     run(mirror, 10);
 
-    const seeded = auras.seed(mirror, { views: auras.view(server, { forOwner: true }), clocks: server.auras.clocks });
+    const seeded = auras.seed(mirror, {
+      views: auras.view(server, { forOwner: true }),
+      clocks: server.auras.clocks,
+      serials: server.auras.serials,
+    });
 
     assert.equal(seeded, 3);
     assert.deepEqual(
@@ -63,7 +68,10 @@ describe('seeding a prediction mirror', () => {
     auras.apply(mirror, id.glow);
     auras.apply(server, id.sprint);
 
-    assert.equal(auras.seed(mirror, { views: auras.view(server), clocks: server.auras.clocks }), 1);
+    assert.equal(
+      auras.seed(mirror, { views: auras.view(server), clocks: server.auras.clocks, serials: server.auras.serials }),
+      1,
+    );
     assert.deepEqual(
       auras.view(mirror).map((view) => view.aura),
       [id.sprint, id.glow],
@@ -71,11 +79,28 @@ describe('seeding a prediction mirror', () => {
     assert.equal(auras.hasTag(mirror, TAGS.id.boon), false);
   });
 
+  it('counts serials per bearer, and goes on from the server’s count once seeded', () => {
+    const { auras, id, server, mirror, unit } = setUp();
+    const other = unit(2);
+
+    auras.apply(other, { aura: id.spark, source: 1 });
+    auras.apply(server, { aura: id.spark, source: 1 });
+    auras.apply(server, { aura: id.spark, source: 2 });
+    auras.apply(server, { aura: id.spark, source: 3 });
+    auras.seed(mirror, { views: auras.view(server), clocks: server.auras.clocks, serials: server.auras.serials });
+    auras.apply(server, { aura: id.spark, source: 4 });
+    auras.apply(mirror, { aura: id.spark, source: 4 });
+    assert.deepEqual(
+      [other, server, mirror].map((bearer) => bearer.auras.list.map((item) => item.serial)),
+      [[1], [1, 2, 3, 4], [1, 2, 3, 4]],
+    );
+  });
+
   it('says which auras are predicted, and seeds only a silent state', () => {
     const { auras, id, server } = setUp();
 
     assert.equal(auras.isPredicted(id.dash), true);
     assert.equal(auras.isPredicted(id.glow), false);
-    assert.throws(() => auras.seed(server, { views: [], clocks: [] }), /Only a silent aura state/);
+    assert.throws(() => auras.seed(server, { views: [], clocks: [], serials: 0 }), /Only a silent aura state/);
   });
 });
