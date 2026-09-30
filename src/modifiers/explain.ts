@@ -181,7 +181,7 @@ const totalOf = (parts: Omit<StatExplanation, 'kind' | 'stat' | 'clamp' | 'total
 /** Explains a built sheet's stat for its current read; the system wraps it as `explainStat`. */
 export const explainSheetStat = <Host>(sheet: Sheet<Host>, stat: StatId): StatExplanation => {
   const parts = {
-    base: sheet.tables.base[stat] ?? 0,
+    base: sheet.bases[stat] ?? 0,
     adds: contributions(sheet, entriesInOrder(sheet, stat, 'adds')),
     derived: derivedOf(sheet, stat),
     muls: contributions(sheet, entriesInOrder(sheet, stat, 'muls')),

@@ -87,6 +87,14 @@ describe('variants', () => {
     assert.equal(units.spawn(game.id.grunt, { side: 1 }).health, 100);
   });
 
+  it('read their own bases as their base, so a template’s strength is no bonus', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const brute = game.units.spawn(game.id.grunt, { side: 1, stats: { power: 40 } });
+    const view = game.units.statsOf(brute);
+
+    assert.deepEqual([view.base(STATS.id.power), view.total(STATS.id.power)], [40, 40]);
+  });
+
   it('refuse a variant of another template, or one given with stats of the spawn’s own', () => {
     const game = makeUnitGame(TEMPLATES);
     const { units } = game;

@@ -114,7 +114,7 @@ export interface UnitSystem<G extends UnitTypes> {
 
 /**
  * Creates a unit system over the game's templates and the systems a unit bears: `createUnitSystem({ registry:
- * UNITS, auras, spells, abilities, modifiers: { system, base: 'base' }, health: { stat: 'maxHealth' }, states })`.
+ * UNITS, auras, spells, abilities, modifiers: { system }, health: { stat: 'maxHealth' }, states })`.
  */
 export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions<G>): UnitSystem<G> => {
   const engine = new UnitEngine<G>(options);

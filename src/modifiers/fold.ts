@@ -177,7 +177,7 @@ const walkList = <Host>(sheet: Sheet<Host>, list: readonly Entry<Host>[], value:
 
 /** The gain a `derives` term applies its share to: how far the followed stat's total sits above its base. */
 export const derivedGain = <Host>(sheet: Sheet<Host>, derivation: Extract<Derivation, { kind: 'derives' }>): number =>
-  foldStat(sheet, derivation.from) - (sheet.tables.base[derivation.from] ?? 0);
+  foldStat(sheet, derivation.from) - (sheet.bases[derivation.from] ?? 0);
 
 /**
  * A stat's derived terms added onto `value`, in order: `per × max(0, gain(from))` for `derives`, then each rating's
@@ -268,7 +268,7 @@ const foldMins = <Host>(sheet: Sheet<Host>, mins: readonly Entry<Host>[], value:
 export const foldStat = <Host>(sheet: Sheet<Host>, stat: number): number => {
   const lists = sheet.compiled[stat];
   const how = sheet.how;
-  let value = sheet.tables.base[stat] ?? 0;
+  let value = sheet.bases[stat] ?? 0;
 
   sheet.how = ADD;
   value = lists === undefined ? value : foldAdds(sheet, lists.adds, value);

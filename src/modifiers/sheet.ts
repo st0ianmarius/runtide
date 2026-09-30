@@ -196,7 +196,7 @@ export class SheetView<Host> implements StatView, ScaledContext {
   }
 
   base(stat: StatId): number {
-    return this.sheet.tables.base[stat] ?? 0;
+    return this.sheet.bases[stat] ?? 0;
   }
 }
 
@@ -221,6 +221,9 @@ export class Sheet<Host> implements StatSheet {
   /** The host revision each kept total was folded at; NaN for none. */
   readonly stamps: Float64Array;
 
+  /** Its bearer's base stats: the stat table's, or its own (`setBases`: a unit template's). */
+  bases: ArrayLike<number>;
+
   /** The host the kept totals were folded for: revisions count per host, so another host's may match by chance. */
   stampHost: Host | undefined = undefined;
 
@@ -228,6 +231,7 @@ export class Sheet<Host> implements StatSheet {
 
   constructor(tables: FoldTables<Host>, resolve: Resolve<Host>) {
     this.tables = tables;
+    this.bases = tables.base;
     this.lists = tables.sourceIds.map(() => []);
     this.totals = new Float64Array(tables.base.length);
     this.stamps = new Float64Array(tables.base.length).fill(Number.NaN);

@@ -83,6 +83,12 @@ export interface ModifierSystem<Host, S extends string, C extends string, V exte
   readonly setSource: (sheet: StatSheet, source: SourceId, lists: readonly ModifierList[]) => void;
 
   /**
+   * Gives a sheet base stats of its own (a unit template's), one per stat, in place of the stat table's: every fold
+   * starts from them, and `base`, `bonus` terms and `derives` gains read them. Kept by reference, never copied.
+   */
+  readonly setBases: (sheet: StatSheet, bases: ArrayLike<number>) => void;
+
+  /**
    * Replaces the lists every sheet folds at one source after its own lists there: the aura registry's gated lists at
    * their chosen fold position, in ascending gate order. They are compiled once for the system and never copied into
    * a sheet (a sheet points at a stat's few shared entries, or holds one marker where there are many), so an aura
@@ -278,6 +284,17 @@ export const createModifierSystem = <
       own.isDirty = true;
     },
 
+    setBases: (sheet, bases) => {
+      const own = sheetOf<Host>(sheet);
+
+      if (bases.length !== tables.base.length) {
+        throw new RangeError(`A sheet's bases hold one number per stat (${tables.base.length}); got ${bases.length}.`);
+      }
+
+      own.bases = bases;
+      own.stamps.fill(Number.NaN);
+    },
+
     share: (source, lists) => {
       shared[source] = checkedLists(options.sources, { source, hasStacks }, lists);
       compileShared(tables, shared, tables.shared);
@@ -288,7 +305,7 @@ export const createModifierSystem = <
 
     view: (sheet, read) => ({
       total: (stat) => foldFor(built(sheet), stat, read),
-      base: (stat) => tables.base[stat] ?? 0
+      base: (stat) => sheetOf<Host>(sheet).bases[stat] ?? 0
     })
   };
 };

@@ -409,7 +409,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     auras,
     ai,
     spells,
-    ...(options.folds === false ? {} : { modifiers: { system: modifiers, base: 'base' as const } }),
+    ...(options.folds === false ? {} : { modifiers: { system: modifiers } }),
     health: {
       stat: 'maxHealth',
       ...(options.policy === undefined ? {} : { policy: options.policy })

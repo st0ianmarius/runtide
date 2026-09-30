@@ -225,7 +225,7 @@ const UNITS = createUnitSystem<BenchGame>({
   ai: AI,
   auras: AURA_SYSTEM,
   spells: SPELLS,
-  modifiers: { system: MODIFIERS, base: 'base' },
+  modifiers: { system: MODIFIERS },
   health: { stat: 'maxHealth' },
   states: defineUnitStates(TAGS, {
     stunned: { tags: ['stun'], blocks: ['act', 'move'] },

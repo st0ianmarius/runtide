@@ -2,14 +2,7 @@ import { type AbilitySystem, NO_LOADOUT } from '../abilities/index.ts';
 import { type AiSystem, NO_BRAIN } from '../ai/index.ts';
 import type { AuraSystem } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
-import {
-  basesView,
-  type ModifierList,
-  type ModifierSystem,
-  type SourceId,
-  type StatId,
-  type StatView
-} from '../modifiers/index.ts';
+import { basesView, type ModifierSystem, type StatId, type StatView } from '../modifiers/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
 import { UnitBases, type UnitVariant } from './bases.ts';
 import type { UnitEvents } from './events.ts';
@@ -55,15 +48,12 @@ export interface UnitSystemBase<G extends UnitTypes> {
   readonly abilities?: AbilitySystem<G>;
 
   /**
-   * The modifier system every unit folds its stats through, and the source its per-instance base stats sit
-   * at; stats are the snapshotted bases alone when absent.
+   * The modifier system every unit folds its stats through, from its own base stats (its template's and its spawn's
+   * over the table's, `setBases`); stats are the snapshotted bases alone when absent.
    */
   readonly modifiers?: {
     /** The modifier system, whose fold's host is the unit. */
     readonly system: ModifierSystem<G['bearer'], G['stat'], G['condition'], G['valueKind'], G['source']>;
-
-    /** The source a unit's base stats (its template's and its spawn's over the table's) are folded at. */
-    readonly base: G['source'];
   };
 
   /** Health: the stat that is a unit's maximum, and what health does when it moves (`scale`). */
@@ -231,7 +221,7 @@ export class UnitEngine<G extends UnitTypes> {
       options.spells.arm(made, autoAttack);
     }
 
-    this.foldBases(made, [unit, this.bases.sharedListOf(template, spawn)]);
+    this.foldBases(made, unit);
     unit.maxHealth = this.statsOf(made).total(this.healthStat);
     unit.health = unit.maxHealth;
     this.byId.set(id, made);
@@ -252,11 +242,8 @@ export class UnitEngine<G extends UnitTypes> {
     return id;
   }
 
-  /**
-   * Puts a unit's own bases, over the stat table's, at the base source of its sheet: a shared compiled list (its
-   * template's or its variant's), or its own compiled now.
-   */
-  foldBases(bearer: G['bearer'], [unit, shared]: readonly [Unit<G>, ModifierList | undefined]): void {
+  /** Starts a unit's sheet from its own bases, and makes its stat view. */
+  foldBases(bearer: G['bearer'], unit: Unit<G>): void {
     const modifiers = this.options.modifiers;
     const { sheet } = unit;
 
@@ -266,15 +253,8 @@ export class UnitEngine<G extends UnitTypes> {
       return;
     }
 
-    const { system } = modifiers;
-    const sources: Readonly<Record<string, SourceId | undefined>> = system.sources.id;
-
-    const source = sources[modifiers.base] ?? missing(`there is no modifier source named ${modifiers.base}`);
-
-    const list = shared ?? this.bases.compile(unit.base) ?? missing('a unit lost its modifier system');
-
-    system.setSource(sheet, source, [list]);
-    unit.view = system.view(sheet, { host: bearer });
+    modifiers.system.setBases(sheet, unit.base);
+    unit.view = modifiers.system.view(sheet, { host: bearer });
   }
 
   /** A unit's stats. */
