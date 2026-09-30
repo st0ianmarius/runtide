@@ -40,8 +40,8 @@ export interface MemoryWorldOptions {
 }
 
 /**
- * A reference world (§I.6): every `WorldQuery` over units the host adds, moves and removes, with a point index for the
- * moving units and an R-tree for static geometry (§I.5.4). For tests and small games; a game with a world of its own
+ * A reference world: every `WorldQuery` over units the host adds, moves and removes, with a point index for the
+ * moving units and an R-tree for static geometry. For tests and small games; a game with a world of its own
  * implements `WorldQuery` over it instead. The host calls `tick` at the start of each tick, so previous positions and
  * velocities cover the tick's moves.
  */
@@ -195,7 +195,7 @@ class World<Unit> implements MemoryWorld<Unit> {
     leadPoint([this.positionOf(unit), this.velocityOf(unit)], from, speed);
 }
 
-/** The game's own query extensions: named functions over the world (§I.5.6 hatch 5). */
+/** The game's own query extensions: named functions over the world. */
 export type QueryExtensions = Readonly<Record<string, (...args: never[]) => unknown>>;
 
 /** `createMemoryWorld`'s two forms: without extensions, and with the game's own. */
@@ -218,7 +218,7 @@ const isExtended = <Unit, Ext extends QueryExtensions>(
   ext === undefined || Object.keys(ext).every((name) => Object.hasOwn(world, name));
 
 /**
- * Creates a memory world (§I.6): `createMemoryWorld<Unit>({ bounds })`, or with the game's own query extensions
+ * Creates a memory world: `createMemoryWorld<Unit>({ bounds })`, or with the game's own query extensions
  * (`WorldQuery & GameQuery`: a passage search, a site reservation), made over the world and listed by name in its
  * `extensions` for the escape report: `createMemoryWorld({ bounds }, (world) => ({ squareClear: … }))`.
  */

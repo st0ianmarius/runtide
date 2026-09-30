@@ -23,7 +23,7 @@ const forged = (field: string, value: unknown): AnySpellDef<AbilityGame> => {
   return spell({ activation, release });
 };
 
-describe('button activation data (§II.3.2)', () => {
+describe('button activation data', () => {
   it('refuses a negative cooldown, an unknown start and a cost that is not whole stacks', () => {
     assert.throws(() => makeAbilityGame({ bad: button({ cooldown: -1 }) }), /button cooldown takes seconds/);
     assert.throws(() => makeAbilityGame({ bad: forged('startsOn', 'release') }), /starts on 'activation' or 'cast'/);
@@ -69,7 +69,7 @@ describe('button activation data (§II.3.2)', () => {
   });
 });
 
-describe('loadouts (§I.6 Abilities)', () => {
+describe('loadouts', () => {
   const game = makeAbilityGame({
     roll: button({ cooldown: 2 }),
     nova: spell({ ranks: 2, activation: { kind: 'button', cooldown: scaled(ranks(6, 5), add('power', 0)) }, release }),

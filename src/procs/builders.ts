@@ -48,7 +48,7 @@ export const removeByTag = <G extends ProcTypes = ProcTypes>(
 ): RemoveByTagProc<G> => ({ ...options, kind: 'removeByTag', tag });
 
 /**
- * A `timeLeft` proc (§II.6 P3): `timeLeft('cooldown.skill', { factor: 0.5 })` halves what is left of a cooldown,
+ * A `timeLeft` proc: `timeLeft('cooldown.skill', { factor: 0.5 })` halves what is left of a cooldown,
  * `timeLeft('cooldown', { max: 2 })` leaves none of them more than 2 s.
  */
 export const timeLeft = <G extends ProcTypes = ProcTypes>(

@@ -41,7 +41,7 @@ const autoGame = <const Spell extends string>(
   return { ...game, a, advance, ticksOf };
 };
 
-describe('auto clocks (§II.3.2, §II.6 S2)', () => {
+describe('auto clocks', () => {
   it('casts at once, then every interval, reset to the interval read at the cast with no carry-over', () => {
     const game = autoGame({
       swing: spell({ activation: { kind: 'auto', interval: 0.3 }, release: () => [mark('swing')] }),
@@ -223,7 +223,7 @@ describe('auto clocks (§II.3.2, §II.6 S2)', () => {
   });
 });
 
-describe('an auto clock after the caster’s other casts (§II.6 S3)', () => {
+describe('an auto clock after the caster’s other casts', () => {
   it('waits out the caster’s casts and resets to its interval as each ends, when it says so', () => {
     const game = autoGame({
       swing: spell({ activation: { kind: 'auto', interval: 1, afterCast: 'reset' }, release: () => [mark('swing')] }),

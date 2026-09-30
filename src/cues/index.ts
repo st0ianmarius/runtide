@@ -1,9 +1,9 @@
 /**
- * Cues (§I.6, §II.3.9, §II.6 R1–R2): what the simulation asks the client to show, as ids and numbers only. A registry
+ * Cues: what the simulation asks the client to show, as ids and numbers only. A registry
  * (`defineCues`) gives each cue a dense id and a schema of numeric params with declared defaults and quantisation; a
  * buffer (`createCueBuffer`) collects a tick's pooled events in firing order; the wire encoding (`encodeCues`,
  * `decodeCues`) carries each event's id, placement and only the params that differ from their defaults, as bytes or as a
- * plain number array. Nothing in the engine reads a cue, and what one looks and sounds like is the client's (§I.5.3).
+ * plain number array. Nothing in the engine reads a cue, and what one looks and sounds like is the client's.
  */
 
 export { createCueBuffer, type CueBuffer } from './buffer.ts';

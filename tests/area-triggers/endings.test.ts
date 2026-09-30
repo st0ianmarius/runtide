@@ -29,7 +29,7 @@ const ending = (def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<G
 /** The lines a game logged, without the spawn lines. */
 const linesOf = (log: readonly string[]): string[] => log.filter((line) => !line.startsWith('spawned'));
 
-describe('ending (§II.6 W1)', () => {
+describe('ending', () => {
   it('expires with onExpire, then onEnd, then the end event', () => {
     const game = makeSpellGame({}, { areaTriggers: { pool: ending({ lifetime: 0.25 }) } });
 
@@ -87,7 +87,7 @@ describe('ending (§II.6 W1)', () => {
   });
 });
 
-describe('bounds (§II.6 W1)', () => {
+describe('bounds', () => {
   /** A game whose host says who is present and who is standing. */
   const boundGame = (bound: AnyAreaTriggerDef<Game>['bound'], lifetime: AnyAreaTriggerDef<Game>['lifetime'] = 5) => {
     const gone = new Set<number>();
@@ -164,7 +164,7 @@ describe('bounds (§II.6 W1)', () => {
   });
 });
 
-describe('limits (§II.3.4, §II.6 W5)', () => {
+describe('limits', () => {
   /** A game with a pool limited per owner under a replace rule. */
   const limitGame = (replace: 'oldest' | 'refuse', quietOn?: 'replaced') =>
     makeSpellGame(
@@ -218,7 +218,7 @@ describe('limits (§II.3.4, §II.6 W5)', () => {
   });
 });
 
-describe('place and shape (§II.3.5)', () => {
+describe('place and shape', () => {
   it('places its shape at its position, turned to its heading', () => {
     const game = makeSpellGame(
       {},
@@ -268,7 +268,7 @@ describe('place and shape (§II.3.5)', () => {
   });
 });
 
-describe('the owner aura, cues and events (§II.3.7)', () => {
+describe('the owner aura, cues and events', () => {
   it('holds its kind’s owner aura while any instance lives', () => {
     const game = makeSpellGame(
       {},
@@ -352,7 +352,7 @@ describe('the owner aura, cues and events (§II.3.7)', () => {
   });
 });
 
-describe('procs and keys (§II.2, §I.5)', () => {
+describe('procs and keys', () => {
   it('runs its hooks’ procs as its owner’s, credited to its source, its cast current', () => {
     const seen: string[] = [];
 

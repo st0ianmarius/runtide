@@ -247,7 +247,7 @@ for (let i = 0; i < 100; i++) {
 }
 
 /**
- * One tick stepped owner by owner (§II.6.1 rule 1: a game stepping each unit's area triggers in its own movement
+ * One tick stepped owner by owner (a game stepping each unit's area triggers in its own movement
  * loop): every foe, which owns none, then the ten owners.
  */
 const ownerTick = (): void => {

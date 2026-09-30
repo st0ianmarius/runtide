@@ -9,7 +9,7 @@ export type TickSlotId = Id<'tickSlots'>;
 export type TickSlotDef = Readonly<Record<never, never>>;
 
 /**
- * Declares the game's tick slots (§II.6.1 rule 1, §II.6 K1) as a registry like any other: `defineTickSlots(['movement',
+ * Declares the game's tick slots as a registry like any other: `defineTickSlots(['movement',
  * 'attack'])` gives `movement` id 0 and `attack` id 1. Stepped things name their slot by id; the host calls the
  * steppers inside its own loops, so the framework never runs a fixed "tick everything" pass.
  */

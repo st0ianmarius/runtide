@@ -78,7 +78,7 @@ describe('tags, immunities and cleanses', () => {
   });
 });
 
-describe('removal and suppression (§II.6 A6, A14)', () => {
+describe('removal and suppression', () => {
   it('removes the auras a bearer state names as it enters it', () => {
     const { auras, id, unit } = makeGame(defs);
     const u = unit();
@@ -133,7 +133,7 @@ describe('removal and suppression (§II.6 A6, A14)', () => {
   });
 });
 
-describe("the host's application policy (§II.6 A2)", () => {
+describe("the host's application policy", () => {
   it('refuses, substitutes, scales and arms more after, and a refusal raises nothing', () => {
     const { auras, id, unit, log } = makeGame(
       { ...defs, slow: aura({ duration: 4, onApplied: () => ['slowed'] }) },

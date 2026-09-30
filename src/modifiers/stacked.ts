@@ -22,7 +22,7 @@ export const stackedAdd = (value: number, stacks: number): number => (stacks <= 
 
 /**
  * A mul at `stacks` stacks: the authored float at one stack or fewer, else `value ^ stacks`, or `1 + (value − 1) ×
- * stacks` for linear stacking (§II.6 M4).
+ * stacks` for linear stacking.
  */
 export const stackedMul = (entry: { readonly isLinear: boolean }, value: number, stacks: number): number => {
   if (stacks <= 1) {

@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): every blow that is not true damage walks the rows, so the loops are indexed.
+// Hot path: every blow that is not true damage walks the rows, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import { createRegistry, type Registry } from '../core/index.ts';
 import {
@@ -30,7 +30,7 @@ export const percent = <const S extends string>(stat: S): Penetration<S> => ({ k
 export const flat = <const S extends string>(stat: S): Penetration<S> => ({ kind: 'flat', stat });
 
 /**
- * One defence of the mitigation rows (§II.3.14): a rating the defender holds, lowered by the attacker's penetration in
+ * One defence of the mitigation rows: a rating the defender holds, lowered by the attacker's penetration in
  * order and turned into a reduction by a curve (`amount × (1 − reduction)`, or the curve's multiplier when an
  * amplifying curve reads a negative rating), or a plain multiplier stat (`amount × stat`), for the blow kinds listed.
  */
@@ -179,7 +179,7 @@ const compileRow = <S extends string, K extends string>(
 };
 
 /**
- * Compiles the rows against the game's tables and checks them (§II.3.14): every stat known and of the right kind,
+ * Compiles the rows against the game's tables and checks them: every stat known and of the right kind,
  * curve parameters in range, and every damage kind that does not skip mitigation covered by at least one row.
  */
 export const compileMitigation = <S extends string, K extends string>(

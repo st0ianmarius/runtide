@@ -14,7 +14,7 @@ import {
 import { createBus } from '../../src/core/index.ts';
 import { aura, makeGame, TAGS, type TestAuras } from '../helpers/aura-game.ts';
 
-describe('aura lengths in whole steps (§II.6.1 rule 4)', () => {
+describe('aura lengths in whole steps', () => {
   /** A 1/60 s game over `defs`, with a `world` clock and a `motion` clock. */
   const game = <const Name extends string>(defs: Readonly<Record<Name, AuraDef>>) => {
     const registry = defineAuras(defs);

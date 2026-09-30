@@ -29,7 +29,7 @@ const LIFETIME_KINDS = ['seconds', 'owner', 'spent', 'function'] as const;
 /** The expiry modes, in the order of their codes in the `expiry` column. */
 const EXPIRY_MODES = ['after', 'before', 'clip'] as const;
 
-/** The hooks every area trigger registry builds dispatch tables for (§I.5.4). */
+/** The hooks every area trigger registry builds dispatch tables for. */
 const AREA_TRIGGER_HOOKS = ['state', 'init', 'move', 'frame', 'onContact', 'onLand', 'onExpire', 'onEnd'] as const;
 
 /** The name of one hook an area trigger registry dispatches. */
@@ -49,7 +49,7 @@ export type AreaTriggerHookTables<G extends AreaTriggerTypes> = {
 
 /**
  * The game's area trigger registry (`defineAreaTriggers`): ids by key order (the pinned kind order they tick in,
- * §II.6.1 rule 1), the definitions, typed columns, a dispatch table per hook (§I.5.4), and each
+ *), the definitions, typed columns, a dispatch table per hook, and each
  * kind's tags as a bitset.
  */
 export interface AreaTriggerRegistry<
@@ -206,7 +206,7 @@ const buildHooks = <G extends AreaTriggerTypes>(
 const NO_TAGS: AreaTagTable = createRegistry({}, { kind: 'areaTags' });
 
 /**
- * Registers the game's area trigger kinds (§I.5.2, §II.3.4): `defineAreaTriggers({ cyclone, pool }, { tags })` gives
+ * Registers the game's area trigger kinds: `defineAreaTriggers({ cyclone, pool }, { tags })` gives
  * each its dense id by key order (its wire id, and the kind order they tick in within a slot), checks every definition
  * at load, freezes it, and builds the typed columns, hook tables and tag bitsets the system reads. `TOMBSTONE` keeps a
  * retired slot.

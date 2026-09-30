@@ -1,5 +1,5 @@
 /**
- * The world (§I.6, §II.3.5): `WorldQuery`, the one read API a spell or an area trigger asks the world through (unit
+ * The world: `WorldQuery`, the one read API a spell or an area trigger asks the world through (unit
  * queries with sides, orders and filters, sweeps, lines of sight, placement), and `createMemoryWorld`, a reference
  * implementation over a uniform grid (or a k-d tree) for moving units and an R-tree for static geometry.
  */

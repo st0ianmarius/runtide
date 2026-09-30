@@ -40,7 +40,7 @@ export interface CueRegistryOptions {
   /** Steps per unit of every event's position and of points whose param declares none; 100 (centimetres) when absent. */
   readonly positionScale?: number;
 
-  /** The pinned order of the names, when it is not the key order (§I.5). */
+  /** The pinned order of the names, when it is not the key order. */
   readonly order?: readonly string[];
 }
 
@@ -91,7 +91,7 @@ const isParamTable = <Table extends CueTable>(
 ): record is CueRegistry<Table>['params'] => names.every((name) => Object.hasOwn(record, name));
 
 /**
- * Declares the game's cues (§I.6, §II.6 R1): `defineCues({ hurt: { anchor: 'self', audience: 'owner', params: { amount:
+ * Declares the game's cues: `defineCues({ hurt: { anchor: 'self', audience: 'owner', params: { amount:
  * { kind: 'int' } } }, … })`. Each cue gets a dense id by key order, which is what crosses the wire, so the table only
  * grows (retire a cue with `TOMBSTONE`). Every anchor, audience, param kind, scale and default is checked here.
  */

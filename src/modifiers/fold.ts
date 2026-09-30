@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): indexed loops, since an iterator over a frozen list was measured to allocate here.
+// Hot path: indexed loops, since an iterator over a frozen list was measured to allocate here.
 /* oxlint-disable typescript/prefer-for-of */
 import { evaluateCurve } from './evaluate.ts';
 import { liveStacks } from './live.ts';
@@ -8,11 +8,11 @@ import { clampStat, stackedAdd, stackedMul } from './stacked.ts';
 import type { Derivation } from './stats.ts';
 
 /**
- * The fold (§I.5), hand-written for its documented float order (§I.5.1): `clamp(min((base + Σ add + derived) × Π mul,
+ * The fold, hand-written for its documented float order: `clamp(min((base + Σ add + derived) × Π mul,
  * …caps))`, additions summed left to right in source order, multipliers applied one at a time in source order, caps in
  * turn, the clamp last. Every function here reads the sheet's current read (`sheet.view.read`), which the system sets
  * around each top-level read, and allocates nothing: the loops are indexed, since an iterator over a frozen list was
- * measured to allocate on this path (§I.5.4). A game's own gain measure is the one exception: it is handed a fresh
+ * measured to allocate on this path. A game's own gain measure is the one exception: it is handed a fresh
  * parts object on each call. The shared (aura) lists are walked by the gates the host holds, so a read costs what the
  * bearer holds and never grows with the number of gated lists the game defines.
  */
@@ -240,7 +240,7 @@ export const derivedGain = <Host>(sheet: Sheet<Host>, derivation: Extract<Deriva
 
 /**
  * A stat's derived terms added onto `value`, in order: `per × max(0, gain(from))` for `derives`, then each rating's
- * `curve(total(from))` (§II.6 M1, §II.3.14).
+ * `curve(total(from))`.
  */
 const addDerived = <Host>(sheet: Sheet<Host>, stat: number, value: number): number => {
   const derivations = sheet.tables.derivations[stat] ?? NONE;
@@ -259,7 +259,7 @@ const addDerived = <Host>(sheet: Sheet<Host>, stat: number, value: number): numb
   return result;
 };
 
-// The fold's own loops, one per list, as plain as the float order allows (§I.5.4): each walks a marker's shared
+// The fold's own loops, one per list, as plain as the float order allows: each walks a marker's shared
 // entries (`walkShared`, for which the caller set `sheet.how`) and counts every other entry itself.
 
 /** Every live addition of a list summed onto `value`, in order. */
@@ -346,7 +346,7 @@ export const foldStat = <Host>(sheet: Sheet<Host>, stat: number): number => {
 
 /**
  * The product of the live scoped multipliers of a stat, in source order (1 when there are none): the part a read with
- * `scopedMuls: 'skip'` leaves out, for a caller that applies it at its own place in its own formula (§II.6 M5).
+ * `scopedMuls: 'skip'` leaves out, for a caller that applies it at its own place in its own formula.
  */
 export const scopedProduct = <Host>(sheet: Sheet<Host>, stat: number): number => {
   const how = sheet.how;

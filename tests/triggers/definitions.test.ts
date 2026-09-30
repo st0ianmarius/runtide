@@ -40,7 +40,7 @@ const bare = (defs: Readonly<Record<string, AuraDef<Game>>>, hasConditions = tru
     : createTriggerSystem<Game, Unit>(base);
 };
 
-describe('validation at load (§II.6 P7)', () => {
+describe('validation at load', () => {
   it('refuses every invalid trigger at once, each named by its address', () => {
     const noop = mark('x');
 
@@ -138,7 +138,7 @@ describe('validation at load (§II.6 P7)', () => {
   });
 });
 
-describe('internal cooldowns as derived auras (§II.3.11, §II.6 K5)', () => {
+describe('internal cooldowns as derived auras', () => {
   const noop = mark('x');
 
   const authored = {
@@ -192,7 +192,7 @@ describe('internal cooldowns as derived auras (§II.3.11, §II.6 K5)', () => {
   });
 });
 
-describe('explainTrigger (§I.5.3, §II.6 P7)', () => {
+describe('explainTrigger', () => {
   it('explains a trigger as data, with its address, odds, cooldown, conditions and procs', () => {
     const game = makeGame(
       {

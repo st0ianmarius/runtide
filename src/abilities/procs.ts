@@ -3,7 +3,7 @@ import type { SpellId } from '../spells/index.ts';
 import type { AbilityTypes } from './ability-types.ts';
 
 /**
- * Fires a button spell by the trigger path (§II.6 S4): its own rules, cost, `applies` and `resets`, then its cast, for
+ * Fires a button spell by the trigger path: its own rules, cost, `applies` and `resets`, then its cast, for
  * the unit it lands on (the list's self when absent), with no slot cooldown. It lands when the ability fires and is
  * refused when its rules or cost refuse it. `castSpell` casts the same spell without its button's rules.
  */

@@ -16,11 +16,11 @@ export interface DamageTypes extends ProcTypes {
 
   /**
    * What a blow names as the spell it comes from: opaque to the damage system, which hands it to the host to look up
-   * the spell's outgoing-multiplier shares (§II.3.13). Spells hand over their id; `undefined` when a blow has none.
+   * the spell's outgoing-multiplier shares. Spells hand over their id; `undefined` when a blow has none.
    */
   readonly spell: unknown;
 
-  /** The game's own fields on a blow (§I.5.6 hatch 4), which the framework never reads. */
+  /** The game's own fields on a blow, which the framework never reads. */
   readonly blowExt: unknown;
 
   /** The game's own kinds of force (`fling`, `vortex`), which its stages and host tell apart; `never` for none. */
@@ -39,7 +39,7 @@ export type BlowStatus = 'skipped' | 'ignored' | 'blocked' | 'absorbed' | 'lande
 export type BlowStop = 'ignored' | 'blocked' | 'avoided';
 
 /**
- * A roll slot of the damage pipeline (§II.3.14): an outcome row's name in `independent` mode, `table` for the one draw
+ * A roll slot of the damage pipeline: an outcome row's name in `independent` mode, `table` for the one draw
  * of `single` mode. The host's `roll` and the options' `rollChance` receive it.
  */
 export type RollSlot = string;

@@ -100,7 +100,7 @@ const setUp = (world?: StaticWorld): { game: ReturnType<typeof makeGame>; hero: 
   return { game, hero: game.hero(1) };
 };
 
-describe('a press (§II.6 S4)', () => {
+describe('a press', () => {
   it('fires, starts its slot’s cooldown aura and is refused until it runs out', () => {
     const { game, hero } = setUp();
     const { abilities } = game;

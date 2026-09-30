@@ -22,14 +22,14 @@ export interface AiSystemOptions<G extends AiTypes> {
   readonly timers: TimerTable<G['timerName']>;
 
   /**
-   * The interrupts that hold a brain's timers while its unit holds them (§II.3.12: a stun or a freeze holds a
+   * The interrupts that hold a brain's timers while its unit holds them (a stun or a freeze holds a
    * creature's timers as it pauses its cast), raised through `ai.interrupt`. None when absent.
    */
   readonly heldBy?: readonly G['interrupt'][];
 }
 
 /**
- * An AI system (§I.7.1 F17): the toolkit every brain is built from, and nothing more. Named timers on a timing wheel
+ * An AI system: the toolkit every brain is built from, and nothing more. Named timers on a timing wheel
  * (TrinityCore's `EventMap`), one weighted anti-repeat spell picker that reads each spell's own cast rules, a focus
  * the procs may set. What a brain decides with them (its reactions, its budget, its target policy, its movement) is
  * the game's.
@@ -73,7 +73,7 @@ export interface AiSystem<G extends AiTypes> {
   readonly step: (fire: (unit: G['bearer'], timer: TimerId) => void) => number;
 
   /**
-   * The game's own hold on a brain's timers (§II.3.12: stages such as an intro or a blink hold them): while on, they
+   * The game's own hold on a brain's timers (stages such as an intro or a blink hold them): while on, they
    * stop counting; returns whether the brain is held now, by this or an interrupt.
    */
   readonly hold: (unit: G['bearer'], isOn: boolean) => boolean;
@@ -84,10 +84,10 @@ export interface AiSystem<G extends AiTypes> {
    */
   readonly interrupt: (unit: G['bearer'], reason: G['interrupt'], isOn: boolean) => boolean;
 
-  /** Picks a spell from a pool (§II.6 C3), weighted, the last pick left out while another fits; `undefined` for none. */
+  /** Picks a spell from a pool, weighted, the last pick left out while another fits; `undefined` for none. */
   readonly pick: (caster: G['bearer'], pool: readonly SpellId[], options: PickOptions<G>) => SpellId | undefined;
 
-  /** The first spell of an ordered list that would start now (§II.6 C2, a reaction); `undefined` for none. */
+  /** The first spell of an ordered list that would start now (a reaction); `undefined` for none. */
   readonly first: (
     caster: G['bearer'],
     spells: readonly SpellId[],

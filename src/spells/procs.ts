@@ -4,7 +4,7 @@ import type { ChanceOption, Proc, ProcContext, ProcKindDef, ProcShape, ProcTarge
 import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 
 /**
- * Casts a spell (§II.3.6, §II.6 P3): through the whole cast order, gates included, for the unit it lands on (the
+ * Casts a spell: through the whole cast order, gates included, for the unit it lands on (the
  * list's self when absent), credited to the list's source. It lands when the cast starts and is refused when the cast
  * is. Chains are this proc: a swing's release returning `castSpell('stab')`.
  */
@@ -28,7 +28,7 @@ export interface CastSpellProc<G extends SpellTypes> extends ProcShape {
   readonly rank?: number;
 
   /**
-   * Its own cooldown (§II.6 P3, §I.7.1 F16: an internal cooldown on a chained or triggered cast): an aura on the
+   * Its own cooldown (an internal cooldown on a chained or triggered cast): an aura on the
    * caster that refuses the proc while held, landed once a cast started. None when absent.
    */
   readonly cooldown?: CastCooldown<G>;
@@ -44,9 +44,9 @@ export interface CastCooldown<G extends SpellTypes> {
 }
 
 /**
- * Procs that land later (§II.3.4: the lightest area trigger, `after(seconds, procs)`), on the spell system's timing
+ * Procs that land later (the lightest area trigger, `after(seconds, procs)`), on the spell system's timing
  * wheel for their tick slot. They land for the origin they were scheduled with (self, target, event unit, credit),
- * as the procs of the cast that scheduled them, which stays alive until they land (§II.6 S6).
+ * as the procs of the cast that scheduled them, which stays alive until they land.
  */
 export interface AfterProc<G extends SpellTypes> extends ProcShape {
   /** The discriminant. */
@@ -59,7 +59,7 @@ export interface AfterProc<G extends SpellTypes> extends ProcShape {
   readonly procs: readonly Proc<G>[];
 
   /**
-   * What the delay counts from (§II.6 P5): `now` (the default), or `due`, the due time of the delayed list landing
+   * What the delay counts from: `now` (the default), or `due`, the due time of the delayed list landing
    * now, so an aftershock is due at its parent's time plus its own seconds (`now` outside a landing).
    */
   readonly from?: 'now' | 'due';
@@ -81,7 +81,7 @@ export type DelayBound<G extends SpellTypes> = {
 }['bivarianceHack'];
 
 /**
- * Rescales the clocks of the unit it lands on (§II.6 A13, P3, §I.7.1 F15): its `auto` clocks still counting in scope
+ * Rescales the clocks of the unit it lands on: its `auto` clocks still counting in scope
  * (a spell tag, or every one), times the factor; with `clocks: 'all'` its running casts' stage time left too.
  */
 export interface RescaleClocksProc<G extends SpellTypes> extends ProcShape {

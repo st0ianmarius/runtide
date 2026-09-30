@@ -4,7 +4,7 @@ import type { AuraCause, AuraChange } from './aura-def.ts';
 import type { AuraTypes } from './aura-types.ts';
 
 /**
- * The payload of an aura event on the bus (§II.6 A1): what changed, on which bearer, and the aura. It is reused
+ * The payload of an aura event on the bus: what changed, on which bearer, and the aura. It is reused
  * between raises (the bus's payload reuse), so a listener reads it while it runs and never keeps it.
  */
 export interface AuraEvent<G extends AuraTypes = AuraTypes> {

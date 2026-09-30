@@ -1,5 +1,5 @@
 /**
- * The countdown epsilon, in seconds (§II.6.1 rule 4): a microsecond, far below any step a game runs at and far above
+ * The countdown epsilon, in seconds: a microsecond, far below any step a game runs at and far above
  * the rounding a float countdown collects on its way down, so a length runs out on the step its seconds say (0.1 s at
  * 1/60 s on the sixth step) instead of leaving a sliver for one more. Every clock and every countdown uses it.
  */

@@ -1,5 +1,5 @@
 /**
- * Geometry on the ground plane (§I.6): `Vec2`, angles, shapes as data with `covers`, shape algebra, bounds, the
+ * Geometry on the ground plane: `Vec2`, angles, shapes as data with `covers`, shape algebra, bounds, the
  * segment-circle sweep, the swept path tests, polygon tests and point patterns. Nothing here reads a world; the world
  * query builds on it.
  */

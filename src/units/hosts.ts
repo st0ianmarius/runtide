@@ -7,7 +7,7 @@ import { HOLDS_GROUND, IMMOVABLE, INERT, PULL_IMMUNE } from './unit-def.ts';
 import type { UnitTypes } from './unit-types.ts';
 
 /**
- * A unit's maximum health moved (§II.6 M7): its health follows by the system's policy. Returns the health after. A
+ * A unit's maximum health moved: its health follows by the system's policy. Returns the health after. A
  * game calls it where maximum health can change (an aura landing or leaving, gear), or from a stat watch.
  */
 export const syncHealth = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer']): number => {
@@ -40,8 +40,8 @@ export const syncHealth = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
 };
 
 /**
- * The damage host a unit system provides (§I.5): health, maximum health, stats, ids, inert units (no rewards, no kill
- * event: §II.6 D5), and a death that leaves the unit dead. A game spreads it into its damage host and adds the rest.
+ * The damage host a unit system provides: health, maximum health, stats, ids, inert units (no rewards, no kill
+ * event:), and a death that leaves the unit dead. A game spreads it into its damage host and adds the rest.
  */
 export const damageHostOf = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -67,7 +67,7 @@ export const damageHostOf = <G extends UnitTypes>(
 });
 
 /**
- * The force stage a unit system provides (§II.6 D4), run before the force moves its target: an immovable unit is not
+ * The force stage a unit system provides, run before the force moves its target: an immovable unit is not
  * moved, nor a pull-immune one pulled, nor one that holds its ground while it casts; any other takes its template's
  * share of the strength, capped. Add it to the damage system's `forceStages`.
  */
@@ -97,7 +97,7 @@ export const forceStageOf = <G extends UnitTypes>(engine: UnitEngine<G>): StageD
 });
 
 /**
- * An application rule (§II.6 A2): what happens when an aura lands on a unit of some classes. The first rule whose aura
+ * An application rule: what happens when an aura lands on a unit of some classes. The first rule whose aura
  * and classes match decides: it refuses the aura, or lands another in its place, scales and caps its length, and arms
  * an immunity aura for a share of the length it landed with (a diminishing return).
  */
@@ -162,7 +162,7 @@ export const compileRules = <G extends UnitTypes>(
 };
 
 /**
- * The application policy of a unit system's rules (§II.6 A2): the aura host's `onIncomingAura`. `undefined` accepts
+ * The application policy of a unit system's rules: the aura host's `onIncomingAura`. `undefined` accepts
  * the application as it is.
  */
 export const decideAura = <G extends UnitTypes>(

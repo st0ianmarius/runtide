@@ -12,7 +12,7 @@ const TEMPLATES = {
   wall: { traits: { immovable: true, inert: true } },
 } satisfies Record<string, UnitDef<UnitGame>>;
 
-describe('every unit folds (§II.6 M9)', () => {
+describe('every unit folds', () => {
   it('folds its snapshotted bases with its auras’ modifiers, the unit as the host', () => {
     const game = makeUnitGame(TEMPLATES);
     const grunt = game.units.spawn(game.id.grunt, { side: 1, stats: { speed: 3 } });
@@ -31,7 +31,7 @@ describe('every unit folds (§II.6 M9)', () => {
   });
 });
 
-describe('the resource policy (§II.6 M7)', () => {
+describe('the resource policy', () => {
   it('heals a gain through the heal pipeline and scales a loss, by default', () => {
     const game = makeUnitGame(TEMPLATES);
     const hero = game.units.spawn(game.id.hero, { side: 0 });
@@ -66,7 +66,7 @@ describe('the resource policy (§II.6 M7)', () => {
   });
 });
 
-describe('the damage host (§II.6 D5)', () => {
+describe('the damage host', () => {
   it('takes blows off health, and a lethal one leaves the unit dead with a death and a kill', () => {
     const game = makeUnitGame(TEMPLATES);
     const hero = game.units.spawn(game.id.hero, { side: 0 });
@@ -90,7 +90,7 @@ describe('the damage host (§II.6 D5)', () => {
   });
 });
 
-describe('forces and traits (§II.6 D4)', () => {
+describe('forces and traits', () => {
   it('leaves an immovable unit, pulls no pull-immune one, and scales and caps a resisting one', () => {
     const game = makeUnitGame(TEMPLATES);
 
@@ -118,7 +118,7 @@ describe('forces and traits (§II.6 D4)', () => {
   });
 });
 
-describe('aura application rules (§II.6 A2)', () => {
+describe('aura application rules', () => {
   it('refuses, substitutes, scales and caps by class, and arms an immunity window', () => {
     const game = makeUnitGame(TEMPLATES, {
       rules: [

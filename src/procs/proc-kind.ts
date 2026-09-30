@@ -30,7 +30,7 @@ export interface ProcResolver<G extends ProcTypes> {
   readonly hatch: (name: string) => void;
 }
 
-/** A proc's own numbers explained as data (§I.5.3), and the procs nested in it. */
+/** A proc's own numbers explained as data, and the procs nested in it. */
 export interface ProcDetail<G extends ProcTypes> {
   /** Its numbers by field (`aura`, `stacks`, `duration`, `amount`), ids resolved. */
   readonly values?: Readonly<Record<string, number>>;
@@ -40,7 +40,7 @@ export interface ProcDetail<G extends ProcTypes> {
 }
 
 /**
- * One proc kind (§II.3.6): how a proc of it applies, and optionally where it lands, how its names resolve at load,
+ * One proc kind: how a proc of it applies, and optionally where it lands, how its names resolve at load,
  * and how it explains itself. A new kind is one of these, one registry line and, if it touches the world, one host
  * method taking its data. Its functions are standalone: the runner may call them detached.
  */
@@ -56,7 +56,7 @@ export interface ProcKindDef<P extends ProcShape, G extends ProcTypes> {
   apply(this: void, proc: P, ctx: ProcContext<G>, target: G['bearer'] | undefined): ProcOutcome | undefined;
 
   /**
-   * The procs that follow this one in the same list, decided from its outcome (§II.6 P4: outcome-gated procs, such as
+   * The procs that follow this one in the same list, decided from its outcome (outcome-gated procs, such as
    * a slow that lands only if the hit did), for a kind that acts on a unit. The runner applies them right after it,
    * once its kill is noted, aimed at the unit it landed on in place of the list's target; `undefined` for none.
    */

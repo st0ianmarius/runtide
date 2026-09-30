@@ -14,7 +14,7 @@ export interface TriggerBus {
   readonly handle: <Payload>(kind: EventKind<Payload>, handler: Listener<Payload>) => () => void;
 }
 
-/** What a trigger system is built from (§I.5). */
+/** What a trigger system is built from. */
 export interface TriggerSystemOptions<G extends TriggerTypes, Host = never> {
   /** The aura system, whose registry holds the triggers (`AuraDef.triggers`) and their cooldown auras. */
   readonly auras: AuraSystem<G>;
@@ -41,7 +41,7 @@ export interface TriggerSystemOptions<G extends TriggerTypes, Host = never> {
   readonly random?: Random;
 
   /**
-   * A game's own chance rule (§I.5.6 hatch 2), in place of one draw on `random` below `chance`: a keyed roll over the
+   * A game's own chance rule, in place of one draw on `random` below `chance`: a keyed roll over the
    * context, a proc-per-minute rate. Called only for a trigger whose chance is below 1, after its conditions and once
    * its cooldown is known to be over.
    */
@@ -52,7 +52,7 @@ export interface TriggerSystemOptions<G extends TriggerTypes, Host = never> {
 }
 
 /**
- * A trigger system (§I.6, §II.3.7): every trigger on the game's auras, compiled at load and answering the bus's
+ * A trigger system: every trigger on the game's auras, compiled at load and answering the bus's
  * events through its capped tier, for the bearers that hold the auras.
  */
 export interface TriggerSystem {
@@ -79,7 +79,7 @@ export interface TriggerSystem {
 const EXPLAINERS = new WeakMap<TriggerSystem, (aura: AuraId) => readonly TriggerExplanation[]>();
 
 /**
- * An aura's triggers explained as data (§I.5.3), in authored order: each with its address, odds, cooldown,
+ * An aura's triggers explained as data, in authored order: each with its address, odds, cooldown,
  * conditions and procs, for the client to phrase (a pact's card line, a buff's tooltip).
  */
 export const explainTriggers = (triggers: TriggerSystem, aura: AuraId): readonly TriggerExplanation[] => {
@@ -92,7 +92,7 @@ export const explainTriggers = (triggers: TriggerSystem, aura: AuraId): readonly
   return explain(aura);
 };
 
-/** One trigger explained as data (§I.5.3), by its aura and index there. Throws when the aura has no such trigger. */
+/** One trigger explained as data, by its aura and index there. Throws when the aura has no such trigger. */
 export const explainTrigger = (triggers: TriggerSystem, aura: AuraId, index: number): TriggerExplanation =>
   explainTriggers(triggers, aura)[index] ??
   ((): never => {
@@ -100,7 +100,7 @@ export const explainTrigger = (triggers: TriggerSystem, aura: AuraId, index: num
   })();
 
 /**
- * Creates the trigger system (§I.5): `createTriggerSystem({ auras, procs, bus, events: { hit: triggerEvent(…), aura:
+ * Creates the trigger system: `createTriggerSystem({ auras, procs, bus, events: { hit: triggerEvent(…), aura:
  * auraTriggerEvent(bus.kind.aura) }, random: stream(seed, TRIGGER_SALT) })`. Compiles and validates every trigger at
  * load (one error listing every invalid one), then listens to each answered event kind on the bus's capped tier.
  */

@@ -24,7 +24,7 @@ export const isTagEdge = <G extends AuraTypes>(parts: EventParts<G>, code: numbe
   parts.host.onTagsChanged !== undefined &&
   parts.tables.tagBits[id]?.isEmpty() === false;
 
-/** The clock rescale an aura declares on this edge (§II.6 A13), for the host; `undefined` when it declares none. */
+/** The clock rescale an aura declares on this edge, for the host; `undefined` when it declares none. */
 export const rescaleOn = <G extends AuraTypes>(
   parts: EventParts<G>,
   code: number,

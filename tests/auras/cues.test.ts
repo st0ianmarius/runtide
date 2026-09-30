@@ -15,7 +15,7 @@ const CUES = defineCues({
   gone: TOMBSTONE,
 });
 
-describe('aura lifecycle cues (§II.3.9, §II.6 A7)', () => {
+describe('aura lifecycle cues', () => {
   it('reads the cue an aura declares for a change, and none for the others', () => {
     const auras = defineAuras({
       ward: aura({ duration: 2, cues: { applied: CUES.id.glow, expired: CUES.id.fade } }),

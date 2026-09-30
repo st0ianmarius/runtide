@@ -6,7 +6,7 @@ import type { Proc } from './proc-data.ts';
 
 /**
  * The fields every proc has, whatever its kind: what the runner reads before it hands the proc to its kind. A game's
- * own proc kinds (§I.5.6 hatch 1) are shaped like this: `{ kind: 'shoot', chance?: 0.5, …its data }`.
+ * own proc kinds are shaped like this: `{ kind: 'shoot', chance?: 0.5, …its data }`.
  */
 export interface ProcShape {
   /** The kind's name in the proc registry: the discriminant, a developer identifier. */
@@ -37,7 +37,7 @@ export interface ProcTypes extends AuraTypes {
   /** The names of the random streams a `pickOne` may draw from (the host's stream table). */
   readonly stream: string;
 
-  /** The game's own services, which its proc kinds reach through `ctx.host` (§I.5.6 hatch 5). */
+  /** The game's own services, which its proc kinds reach through `ctx.host`. */
   readonly host: unknown;
 
   /** The data of the game's own proc kinds, as a union (`never` when it has none). */
@@ -59,7 +59,7 @@ export type ProcTarget<G extends ProcTypes> = 'self' | 'target' | 'eventUnit' | 
  */
 export type ProcStatus = 'skipped' | 'refused' | 'ignored' | 'blocked' | 'absorbed' | 'landed' | 'avoided';
 
-/** What applying one proc did (§II.6.1 rule 2), which `ctx.apply` returns and the runner reads. */
+/** What applying one proc did, which `ctx.apply` returns and the runner reads. */
 export interface ProcOutcome {
   /** What became of it. */
   readonly status: ProcStatus;

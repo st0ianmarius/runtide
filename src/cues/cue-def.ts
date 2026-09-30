@@ -1,7 +1,7 @@
 import type { Vec2 } from '../math/index.ts';
 
 /**
- * Where a cue sits and whose it is (§II.6 R1), which decides what of its placement crosses the wire:
+ * Where a cue sits and whose it is, which decides what of its placement crosses the wire:
  *
  * - `self`: on the acting unit, and that unit's: the event's `entity` is its `owner` (a cast, being hurt, an aura's
  *   landing on its bearer).
@@ -13,7 +13,7 @@ import type { Vec2 } from '../math/index.ts';
 export type CueAnchor = 'self' | 'entity' | 'target' | 'world';
 
 /**
- * Who receives a cue (§II.6 R1), which the server routes by (`cueReaches`): its `owner` alone, the owner's party, or
+ * Who receives a cue, which the server routes by (`cueReaches`): its `owner` alone, the owner's party, or
  * every client that sees the world. A `world` cue has no owner, so it reaches everyone whatever it declares.
  */
 export type CueAudience = 'owner' | 'party' | 'all';
@@ -101,7 +101,7 @@ export interface CueVec2ListParam {
 
 /**
  * An entity id (a unit, an area trigger), `NO_ENTITY` for none, which is also its default. A predicted cue may not
- * have one: server-allocated ids are unknown to a predicting client (§II.6 R2).
+ * have one: server-allocated ids are unknown to a predicting client.
  */
 export interface CueEntityParam {
   /** The discriminant. */
@@ -118,7 +118,7 @@ export interface CueIdParam {
 }
 
 /**
- * One numeric param of a cue (§I.5.3, §II.6 R1): its kind decides its value's type and its wire quantisation. There is
+ * One numeric param of a cue: its kind decides its value's type and its wire quantisation. There is
  * no string kind: words, colours and sounds are the client's, keyed by the cue id and these numbers.
  */
 export type CueParamDef =
@@ -143,8 +143,8 @@ export type CueParamValue<Def extends CueParamDef = CueParamDef> = Def extends C
     : number;
 
 /**
- * One cue (§I.6): which numeric params it takes, their defaults and quantisation, where it sits and who receives it.
- * Nothing else: what it looks and sounds like is the client's table, keyed by its id (§I.5.3). It carries no id; the
+ * One cue: which numeric params it takes, their defaults and quantisation, where it sits and who receives it.
+ * Nothing else: what it looks and sounds like is the client's table, keyed by its id. It carries no id; the
  * registry key is its developer name and its position is its id.
  */
 export interface CueDef {
@@ -155,7 +155,7 @@ export interface CueDef {
   readonly audience?: CueAudience;
 
   /**
-   * Whether a client may fire it ahead of the server (§II.6 R2): its events carry a key the server's copy repeats, so
+   * Whether a client may fire it ahead of the server: its events carry a key the server's copy repeats, so
    * the client drops the echo (`createCueEchoes`). It may have no `entity` anchor or param.
    */
   readonly isPredicted?: boolean;

@@ -3,7 +3,7 @@ import type { Proc } from './proc-data.ts';
 import type { ProcKindDef, ProcKinds } from './proc-kind.ts';
 import type { ProcShape, ProcTypes } from './proc-types.ts';
 
-/** The id of a proc kind: its position in the proc registry, what the runner dispatches on (§I.5.4). */
+/** The id of a proc kind: its position in the proc registry, what the runner dispatches on. */
 export type ProcKindId = Id<'procs'>;
 
 /**
@@ -31,7 +31,7 @@ export interface ProcRegistry<G extends ProcTypes> {
 const hasTarget = <G extends ProcTypes>(def: ProcKindDef<Proc<G>, G>): boolean => Object.hasOwn(def, 'targetOf');
 
 /**
- * Registers the proc kinds (§I.5, §I.5.6 hatch 1): `createProcRegistry({ ...CORE_PROCS, ...GAME_PROCS })` gives each
+ * Registers the proc kinds: `createProcRegistry({ ...CORE_PROCS, ...GAME_PROCS })` gives each
  * kind its id by key order, freezes the definitions, and builds the dispatch table. A game adds kinds by listing them,
  * and may replace a core kind with its own (the escape report lists both).
  */

@@ -1,5 +1,5 @@
 /**
- * The cue registry's branded ids (§I.5): plain numbers at runtime. This file is one of the few that may cast (§I.4.2),
+ * The cue registry's branded ids: plain numbers at runtime. This file is one of the few that may cast,
  * because a brand can only be put on a number by an assertion.
  */
 import type { Id } from '../core/index.ts';

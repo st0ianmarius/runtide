@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { applyAura, raise, removeAura } from '../../src/procs/index.ts';
 import { aura, defined, type Game, type HitEvent, KINDS, makeGame, mark, scripted } from '../helpers/trigger-game.ts';
 
-describe('dispatch order (§I.5)', () => {
+describe('dispatch order', () => {
   it('runs the owner, then each party listener in party order; in a bearer, aura order then authored order', () => {
     const game = makeGame({
       alpha: aura({
@@ -113,7 +113,7 @@ describe('dispatch order (§I.5)', () => {
   });
 });
 
-describe('one trigger: conditions, cooldown, chance, then its procs (§I.5, §II.6 P1)', () => {
+describe('one trigger: conditions, cooldown, chance, then its procs', () => {
   it('tests filters and conditions in order, and a filter the event does not carry fails', () => {
     const game = makeGame({
       keen: aura({
@@ -225,7 +225,7 @@ describe('one trigger: conditions, cooldown, chance, then its procs (§I.5, §II
     assert.deepEqual(game.log, ['echo@1', 'echo@1']);
   });
 
-  it('lets the game decide chance and cooldown length (§I.5.6 hatch 2)', () => {
+  it('lets the game decide chance and cooldown length', () => {
     const seen: string[] = [];
 
     const game = makeGame(
@@ -261,7 +261,7 @@ describe('one trigger: conditions, cooldown, chance, then its procs (§I.5, §II
   });
 });
 
-describe('aura events and nesting (§I.5, §II.6 A1)', () => {
+describe('aura events and nesting', () => {
   it('hears aura changes, with aura and change filters, but never its own aura ending', () => {
     const game = makeGame({
       grief: aura({

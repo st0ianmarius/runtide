@@ -367,7 +367,7 @@ describe('the memory world as a whole', () => {
   });
 });
 
-describe('a limit of one and a count (§I.5.4: no sort they do not need)', () => {
+describe('a limit of one and a count (no sort they do not need)', () => {
   it('keep the first unit the whole ordered query keeps, and count what it keeps, whatever the order', () => {
     const spot = fc.tuple(fc.integer({ min: -20, max: 20 }), fc.integer({ min: -20, max: 20 }), fc.nat(1));
     const order = fc.constantFrom('near', 'far', 'id' as const);

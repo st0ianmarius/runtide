@@ -3,7 +3,7 @@ import type { ChanceOption, ProcContext, ProcKindDef, ProcShape, ProcTarget } fr
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
 /**
- * Revives the unit it lands on (§II.6 P3, U3): a dead unit lives again, at a health or at its maximum. `skipped` for a
+ * Revives the unit it lands on: a dead unit lives again, at a health or at its maximum. `skipped` for a
  * unit that is alive or despawned. Standing a downed hero back up is the game's own: its down aura removed.
  */
 export interface ReviveProc<G extends UnitTypes> extends ProcShape {
@@ -17,7 +17,7 @@ export interface ReviveProc<G extends UnitTypes> extends ProcShape {
   readonly health?: number;
 }
 
-/** Where a summon stands around its owner (§II.6 C8): a point picked in an annulus, clear of walls, in a few tries. */
+/** Where a summon stands around its owner: a point picked in an annulus, clear of walls, in a few tries. */
 export interface SummonPlacement {
   /** The nearest it stands to its owner; 0 when absent. */
   readonly min?: number;
@@ -33,8 +33,8 @@ export interface SummonPlacement {
 }
 
 /**
- * Summons units (§II.6 P3, C8, §I.7.1 F18): spawns `count` units of a template owned by the unit it lands on (the
- * list's self by default), on its side, credited to it, held by the cast whose procs are running (§II.6 S6), and
+ * Summons units: spawns `count` units of a template owned by the unit it lands on (the
+ * list's self by default), on its side, credited to it, held by the cast whose procs are running, and
  * despawned with it unless `isBound` is false. Each stands at `at`, `atOf`'s point, or a point picked `around` its
  * owner, which the `spawned` event hands the game's world. Its amount is how many it summoned.
  */
@@ -76,7 +76,7 @@ export interface SummonProc<G extends UnitTypes> extends ProcShape {
   readonly side?: number;
 }
 
-/** Despawns the unit it lands on (§II.6 P3 `despawn(reason)`): removed without dying; `skipped` when already gone. */
+/** Despawns the unit it lands on: removed without dying; `skipped` when already gone. */
 export interface DespawnProc<G extends UnitTypes> extends ProcShape {
   /** The discriminant. */
   readonly kind: 'despawn';
@@ -89,7 +89,7 @@ export interface DespawnProc<G extends UnitTypes> extends ProcShape {
 }
 
 /**
- * Despawns the summons of the unit it lands on (§II.6 C8: an add list despawned with a phase), those of a template or
+ * Despawns the summons of the unit it lands on (an add list despawned with a phase), those of a template or
  * every one, in the order they spawned. Its amount is how many; `skipped` for none.
  */
 export interface DespawnSummonsProc<G extends UnitTypes> extends ProcShape {

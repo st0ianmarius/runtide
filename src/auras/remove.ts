@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): removals walk the bearer's list, so the loops are indexed.
+// Hot path: removals walk the bearer's list, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import type { AuraItem } from './active-aura.ts';
 import type { AuraCause } from './aura-def.ts';
@@ -48,7 +48,7 @@ export const takeOff = <G extends AuraTypes>(
 
 /**
  * Whether a removal takes an aura, given the removal's numeric argument. Matchers are module-level functions with the
- * argument passed in, so a removal allocates no closure (§I.5.4).
+ * argument passed in, so a removal allocates no closure.
  */
 type Match<G extends AuraTypes> = (engine: AuraEngine<G>, item: AuraItem<G>, arg: number) => boolean;
 

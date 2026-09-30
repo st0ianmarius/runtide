@@ -115,7 +115,7 @@ const interruptBitsOf = <G extends SpellTypes>(
   return new Map([...names].map((name, index) => [name, 2 ** (index + 1)]));
 };
 
-/** 1 for each auto spell whose clock resets after the caster's other casts (§II.6 S3), by spell id. */
+/** 1 for each auto spell whose clock resets after the caster's other casts, by spell id. */
 const resetsAfterCastOf = <G extends SpellTypes>(registry: SpellRegistry<G>): Uint8Array =>
   Uint8Array.from(registry.defs, (def) =>
     def !== undefined && isAuto(def.activation) && def.activation.afterCast === 'reset' ? 1 : 0,
@@ -158,6 +158,6 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
 /** The framework's activation kinds, by name. */
 const CORE_KINDS: Readonly<Record<string, object | undefined>> = CORE_ACTIVATIONS;
 
-/** The activation kinds that are not the framework's own of that name: the game's (§I.5.6 hatch 2). */
+/** The activation kinds that are not the framework's own of that name: the game's. */
 export const gameActivationsOf = <G extends SpellTypes>(activations: ActivationRegistry<G>): readonly string[] =>
   Object.freeze(activations.names.filter((name, id) => CORE_KINDS[name] !== activations.defs[id]));

@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): a pipeline collects auras on every blow, so the loops are indexed.
+// Hot path: a pipeline collects auras on every blow, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import type { ActiveAura } from './active-aura.ts';
 import type { AuraTypes } from './aura-types.ts';

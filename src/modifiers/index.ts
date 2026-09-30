@@ -1,5 +1,5 @@
 /**
- * Modifiers (§I.6, §II.3.13, §II.3.14): the stat table with flat and multiplier stats, derived stats and rating
+ * Modifiers: the stat table with flat and multiplier stats, derived stats and rating
  * conversions; modifiers, game conditions and value kinds, sources in fold order and the fold with its caps, cached per
  * bearer; structured explanations; the curve library; and scaled values with their evaluation, snapshots and
  * explanations.

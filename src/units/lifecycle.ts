@@ -6,7 +6,7 @@ import { despawnBound, leaveOwner } from './summons.ts';
 import type { Lifecycle, UnitTypes } from './unit-types.ts';
 
 /**
- * The moves each lifecycle state allows (§II.6 U3): a living unit dies or despawns; a dead one is revived or
+ * The moves each lifecycle state allows: a living unit dies or despawns; a dead one is revived or
  * despawns; a despawned one is gone for good.
  */
 const MOVES: Readonly<Record<Lifecycle, readonly Lifecycle[]>> = Object.freeze({
@@ -95,10 +95,10 @@ const despawned = <G extends UnitTypes>(
 };
 
 /**
- * Moves a unit to a lifecycle state (§II.6 U3), when its state allows the move: a unit leaving life has every cast it
- * runs cancelled (§I.7.1 F16), enters the aura system's matching bearer state (its auras' `onState`, then those
+ * Moves a unit to a lifecycle state, when its state allows the move: a unit leaving life has every cast it
+ * runs cancelled, enters the aura system's matching bearer state (its auras' `onState`, then those
  * `removedOn` it go: a death burst is an aura's `onState` of `dead`), leaves its owner's summons and takes its bound
- * summons along (§I.7.1 F18); a revive sets health (the maximum by default). Raises `changed`, or `despawned` with its
+ * summons along; a revive sets health (the maximum by default). Raises `changed`, or `despawned` with its
  * reason for a despawn, which also forgets the unit's entity id and frees its brain. False when the move is not
  * allowed.
  */

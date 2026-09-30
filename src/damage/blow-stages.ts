@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): every blow runs these, so the loops are indexed.
+// Hot path: every blow runs these, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import type { ActiveAura, AuraContext, BlowChange } from '../auras/index.ts';
 import type { BlowRecord } from './blow.ts';
@@ -132,7 +132,7 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
   };
 };
 
-/** The attacker's outgoing multipliers, in order, each at its spell's share (§II.3.13). */
+/** The attacker's outgoing multipliers, in order, each at its spell's share. */
 const outgoingStats = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
   const stats = engine.stats.outgoing;
 
@@ -154,7 +154,7 @@ const outgoingStats = <G extends DamageTypes>(engine: DamageEngine<G>, blow: Blo
 };
 
 /**
- * The outgoing stage (§II.3.13, §II.6 D2): the attacker's outgoing multipliers, then its auras' `onOutgoingDamage`
+ * The outgoing stage: the attacker's outgoing multipliers, then its auras' `onOutgoingDamage`
  * hooks in list order. A game whose auras have no such hook walks none.
  */
 export const outgoingStage = <G extends DamageTypes>(engine: DamageEngine<G>, walks: BlowWalks<G>): BuiltInStage<G> => {
@@ -257,7 +257,7 @@ const rollIndependent = <G extends DamageTypes>(
 };
 
 /**
- * The roll stage (§II.3.14, §I.7.1 F14): the game's outcome rows, read with the attacker's stats by the blow's
+ * The roll stage: the game's outcome rows, read with the attacker's stats by the blow's
  * spell's shares and the defender's, in the table's mode. A world blow (no attacker) reads empty attacker stats.
  */
 export const rollStage = <G extends DamageTypes>(
@@ -284,7 +284,7 @@ export const rollStage = <G extends DamageTypes>(
   return stop;
 };
 
-/** The mitigation rows that cover the blow's kind, in order (§II.3.14). */
+/** The mitigation rows that cover the blow's kind, in order. */
 export const mitigationStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
   if (engine.rows.length === 0) {
     return undefined;

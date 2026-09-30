@@ -41,7 +41,7 @@ const makeCueGame = () => {
 /** An event's cue name, owner, entity and point. */
 const placed = (event: CueEvent) => [CUES.name(event.cue), event.owner, event.entity, event.x, event.z];
 
-describe('the cue proc kind (§II.3.9)', () => {
+describe('the cue proc kind', () => {
   it("places a self cue on the procs' self, as that unit's", () => {
     const { run } = makeCueGame();
 
@@ -139,7 +139,7 @@ describe('the cue proc kind (§II.3.9)', () => {
   });
 });
 
-describe('cue proc validation (§II.6 P7)', () => {
+describe('cue proc validation', () => {
   it('prepares a cue proc to its id', () => {
     const { procs } = makeCueGame();
 

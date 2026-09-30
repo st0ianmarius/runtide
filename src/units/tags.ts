@@ -8,7 +8,7 @@ export type UnitTagDef = Readonly<Record<never, never>>;
 export type UnitTagTable<Name extends string = string> = Registry<'unitTags', Extract<Name, string>, UnitTagDef, never>;
 
 /**
- * Declares the game's unit class tags (§II.6 U1): `defineUnitTags(['horde', 'elite', 'boss', 'objective'])`, which
+ * Declares the game's unit class tags: `defineUnitTags(['horde', 'elite', 'boss', 'objective'])`, which
  * templates carry and application rules and conditions read. Append-only, like any registry.
  */
 export const defineUnitTags = <const Name extends string>(names: readonly Name[]): UnitTagTable<Name> =>

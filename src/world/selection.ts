@@ -6,7 +6,7 @@ import type { UnitTable } from './unit-table.ts';
 export type SortKey<Unit> = QueryOrder<Unit> | 'contact';
 
 /**
- * What one selection tests its candidates against, reused (§I.5.4): a shape, a range around a point, a swept segment,
+ * What one selection tests its candidates against, reused: a shape, a range around a point, a swept segment,
  * or nothing (the whole world); plus slots it skips (a chain's links so far).
  */
 export class Selection<Unit> {

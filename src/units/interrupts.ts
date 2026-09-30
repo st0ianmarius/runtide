@@ -2,7 +2,7 @@ import { type UnitEngine, unitOf } from './engine.ts';
 import type { UnitTypes } from './unit-types.ts';
 
 /**
- * Brings a unit's interrupts in line with its derived states (§I.7.1 F16): each interrupting state it entered raises
+ * Brings a unit's interrupts in line with its derived states: each interrupting state it entered raises
  * its interrupt on the unit's casts (`spells.interrupt`: a stun pausing or cancelling them) and on its brain (`ai.interrupt`:
  * its timers held), and each it left ends it.
  * The aura host's `onTagsChanged` calls it on every tagged aura's edge. Returns how many states it found changed.

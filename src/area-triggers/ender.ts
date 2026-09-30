@@ -8,7 +8,7 @@ import { closeLedgers } from './ledgers.ts';
 import { unlinkKind, unlinkTick } from './order.ts';
 import { leavePulses } from './pulses.ts';
 
-/** Its landing as it expires (§II.3.4): the units in its shape, handed to `onLand` (and its cast, when it says). */
+/** Its landing as it expires: the units in its shape, handed to `onLand` (and its cast, when it says). */
 const land = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const def = engine.registry.get(area.kind);
 
@@ -59,7 +59,7 @@ const runEndHook = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Ends an area trigger (§II.6 W1): its landing and `onExpire` for an expiry, its end cue (none when the cue answers none),
+ * Ends an area trigger: its landing and `onExpire` for an expiry, its end cue (none when the cue answers none),
  * `onEnd` with the reason; then it leaves its shared clocks, the tick order and its kind's list, its owner aura comes
  * off when it was the last of its kind, the end event is raised, its cast is let go and its record goes back to the
  * pool. Ending one that is already ending does nothing.

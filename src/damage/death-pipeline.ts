@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): every death walks its reward slots, so the loops are indexed.
+// Hot path: every death walks its reward slots, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import type { EventKind } from '../core/index.ts';
 import type { DamageTypes } from './damage-types.ts';
@@ -42,7 +42,7 @@ const runSteps = <G extends DamageTypes>(
 };
 
 /**
- * The death pipeline (§II.6 D5): the rewards before the death event (souls), the `death` event about the unit and the
+ * The death pipeline: the rewards before the death event (souls), the `death` event about the unit and the
  * `kill` event about its killer, the rewards after them (a loot roll), and last the host takes the unit out: a unit
  * system kills it, whose auras hear the `dead` state then (a death burst is an aura's `onState`). An inert unit (an
  * objective, a wall) runs no rewards and raises no event. A despawn is not a death and never comes here.

@@ -7,7 +7,7 @@ import { rescaleClocks } from '../../src/spells/index.ts';
 import { type AbilityGame, auraNamed, makeAbilityGame } from '../helpers/ability-game.ts';
 import { type Game, makeSpellGame, mark, spell, SPELL_TAGS, STATS } from '../helpers/spell-game.ts';
 
-describe('time left on cooldown auras (§II.6 P3, §I.7.1 F15)', () => {
+describe('time left on cooldown auras', () => {
   it('scales and caps what is left of every aura with a tag, keeping its duration', () => {
     const game = makeAbilityGame({});
     const { auras } = game;
@@ -71,7 +71,7 @@ const clockGame = () =>
     }),
   });
 
-describe('rescaling clocks (§II.6 A13, §I.7.1 F15)', () => {
+describe('rescaling clocks', () => {
   it('rescales the auto clocks still counting in a tag’s scope, or every one', () => {
     const game = clockGame();
     const hero = game.unit(1);

@@ -2,7 +2,7 @@ import type { ChanceOption, ProcKindDef, ProcShape, ProcTarget } from '../procs/
 import type { AiTypes, TimerId } from './ai-types.ts';
 
 /**
- * Starts (or restarts) a timer on the brain of the unit it lands on (§II.6 P3: `setPickDelay` and `resetTimer` are
+ * Starts (or restarts) a timer on the brain of the unit it lands on (`setPickDelay` and `resetTimer` are
  * this proc on the game's pick timer and its named timers): due `seconds` from now.
  */
 export interface SetTimerProc<G extends AiTypes> extends ProcShape {
@@ -32,7 +32,7 @@ export interface CancelTimerProc<G extends AiTypes> extends ProcShape {
 }
 
 /**
- * Sets the focus of the unit it lands on (§II.6 P3 `setFocus`, C5: a spell fixing its caster's target, the tether):
+ * Sets the focus of the unit it lands on (a spell fixing its caster's target, the tether):
  * the list's target, its event unit, or none. The game's target policy reads the focus (`ai.focusOf`).
  */
 export interface SetFocusProc<G extends AiTypes> extends ProcShape {

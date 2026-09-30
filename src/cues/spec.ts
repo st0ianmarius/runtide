@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): every cue fired from a spec writes its params here, so the loop is indexed.
+// Hot path: every cue fired from a spec writes its params here, so the loop is indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import type { Vec2 } from '../math/index.ts';
 import type { CueBuffer } from './buffer.ts';
@@ -10,7 +10,7 @@ import { VEC2, VEC2_LIST } from './quantise.ts';
 import type { CueField } from './schema.ts';
 
 /**
- * What a hook asks to show (§II.3.9): a cue, its params by name, and optionally the point it sits at and a predicted
+ * What a hook asks to show: a cue, its params by name, and optionally the point it sits at and a predicted
  * cue's key. It says nothing about whose it is or which entity it sits on: whoever fires it knows that (the procs'
  * unit, a spell's caster) and hands it over as a `CuePlace`. It is plain data, so a hook may return a reused one.
  */
@@ -24,7 +24,7 @@ export interface CueSpec {
   /** The point it sits at, in place of the place's own. */
   readonly at?: Vec2 | undefined;
 
-  /** A predicted cue's key (§II.6 R2); 0 when absent. */
+  /** A predicted cue's key; 0 when absent. */
   readonly key?: number | undefined;
 }
 
@@ -111,7 +111,7 @@ const writeParams = (event: CueEvent, registry: CueRegistry, params: Readonly<Re
 };
 
 /**
- * Fires a spec into a buffer at a place (§II.3.9): appends the event, placed by the cue's anchor (a `self` cue on its
+ * Fires a spec into a buffer at a place: appends the event, placed by the cue's anchor (a `self` cue on its
  * owner, a `world` cue nobody's, the spec's `at` over the place's point), with the spec's key and params. Returns the
  * event, still writable. Throws a `TypeError` for a param value of the wrong kind; unknown names are ignored here, and
  * refused at load by `checkCueSpec`.
@@ -153,7 +153,7 @@ const suits = (def: CueParamDef, value: unknown): boolean => {
 };
 
 /**
- * Checks a spec at load (§II.6 P7): a live cue, every param one it declares with a value of its kind, and a key only on
+ * Checks a spec at load: a live cue, every param one it declares with a value of its kind, and a key only on
  * a predicted cue. Throws a `RangeError` naming `what`.
  */
 export const checkCueSpec = (

@@ -3,7 +3,7 @@ import { evaluateScaled } from './evaluate.ts';
 import type { StatId } from './stat-id.ts';
 
 /**
- * A scaled value with its caster part taken at the cast (§II.3.13, decision 2): every caster stat it reads is frozen,
+ * A scaled value with its caster part taken at the cast (decision 2): every caster stat it reads is frozen,
  * and its target terms wait for the hit. `finishScaled` evaluates it against each target in the fixed order, so the
  * result is the float a full evaluation at the cast would give with that target.
  */
@@ -64,7 +64,7 @@ export const snapshotScaled = (
 
   snapshot.rank = ctx.rank ?? 1;
 
-  // An indexed loop: every cast start takes this, and an iterator over the frozen list allocates (§I.5.4).
+  // An indexed loop: every cast start takes this, and an iterator over the frozen list allocates.
   // oxlint-disable-next-line typescript/prefer-for-of
   for (let i = 0; i < value.casterStats.length; i++) {
     const stat = value.casterStats[i];

@@ -13,7 +13,7 @@ const SLOT_MASK = SLOT_SPAN - 1;
 /**
  * How many generations a slot counts before it wraps (to 1: generation 0 is never handed out, so `NO_HANDLE` never
  * points at anything). Slot and generation fit 31 bits, so a handle stays a small integer, which V8 keeps unboxed and
- * reads with bit operations; a larger handle would be a heap number read through float division (§I.5.4).
+ * reads with bit operations; a larger handle would be a heap number read through float division.
  */
 const GENERATIONS = 2 ** (31 - SLOT_BITS) - 1;
 
@@ -30,7 +30,7 @@ export interface PoolOptions<Item> {
 }
 
 /**
- * A pool of reusable items with generational handles (§I.5.4): a released slot is reused, and its generation rises,
+ * A pool of reusable items with generational handles: a released slot is reused, and its generation rises,
  * so a handle kept past its release is detected as stale and never reaches the slot's next occupant. Released slots
  * are reused oldest first, so a slot comes round again only after every other free slot, and its generation wraps
  * after 2,047 reuses: a handle kept that long after its release could read as live again, so keep a handle no longer

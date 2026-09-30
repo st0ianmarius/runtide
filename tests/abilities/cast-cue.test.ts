@@ -51,7 +51,7 @@ const spells = {
 const firedOf = (events: readonly CueEvent[]): string[] =>
   events.map((event) => `${CUES.name(event.cue)}@${event.owner} key ${event.key}`);
 
-describe('the mirror-safe cast cue (§II.6 R2, §II.3.9)', () => {
+describe('the mirror-safe cast cue', () => {
   it('fires on the server as the cast starts, before the start cue, with the cast’s key', () => {
     lines.length = 0;
 

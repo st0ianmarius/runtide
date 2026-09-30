@@ -15,7 +15,7 @@ import {
 export type StaticShape = Circle | Polygon;
 
 /**
- * The static geometry of a memory world in a packed R-tree (`flatbush`, §I.5.1), built once: what bodies are swept
+ * The static geometry of a memory world in a packed R-tree (`flatbush`), built once: what bodies are swept
  * against and lines of sight are tested through. Contact follows `covers`, so a body touches a pillar when their
  * edges overlap.
  */

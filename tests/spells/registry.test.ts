@@ -48,7 +48,7 @@ const SPELLS = () =>
     { tags: SPELL_TAGS, stats: STATS },
   );
 
-describe('the spell registry (§I.5.2, §I.5.4)', () => {
+describe('the spell registry', () => {
   it('gives each spell its id by key order, a retired slot kept as a tombstone', () => {
     const registry = SPELLS();
 
@@ -225,7 +225,7 @@ describe('checks at load', () => {
   });
 });
 
-describe('tracking helpers (§II.3.3)', () => {
+describe('tracking helpers', () => {
   /** A windup of 1 s at `elapsed`, re-aiming at 9. */
   const at = (elapsed: number): TrackContext<number> => ({
     stageSeconds: 1,

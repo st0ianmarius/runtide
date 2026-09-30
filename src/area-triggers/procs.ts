@@ -4,7 +4,7 @@ import type { EndReason } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 
 /**
- * Spawns an area trigger (§II.3.4, §II.3.6): owned by the list's self, credited to its source, belonging to the cast
+ * Spawns an area trigger: owned by the list's self, credited to its source, belonging to the cast
  * whose procs are running and to the area trigger whose procs are running (its parent). It lands when the area trigger
  * spawns, and is refused when its kind's limit refuses it.
  */
@@ -44,7 +44,7 @@ export interface SpawnProc<G extends AreaTriggerTypes> extends ProcShape {
 }
 
 /**
- * Withdraws what a unit owns and has not fired (§II.6 P3, §I.7.1 F16: an elite's enrage withdrawing its own
+ * Withdraws what a unit owns and has not fired (an elite's enrage withdrawing its own
  * telegraphs, from casts that already ended too): its live area triggers (those with a tag, or every one), ended with
  * a reason, and its delayed lists that have not landed. Its amount is how many it withdrew; `skipped` for none.
  */

@@ -2,7 +2,7 @@ import { NO_SOURCE } from '../auras/index.ts';
 import type { ProcOutcome } from '../procs/index.ts';
 import type { DamageTypes, HealStatus } from './damage-types.ts';
 
-/** What a caller asks the heal pipeline for (§II.6 D3): health back for one unit. */
+/** What a caller asks the heal pipeline for: health back for one unit. */
 export interface HealSpec<G extends DamageTypes> {
   /** Who is healed. */
   readonly target: G['bearer'];

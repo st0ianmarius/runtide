@@ -49,7 +49,7 @@ const LOOSE: ConditionTables = TABLES;
 const bound = (expr: ConditionExpr<keyof typeof CONDITIONS.id, keyof typeof VALUES.id>) =>
   bindCondition(TABLES, compileCondition(TABLES, expr));
 
-describe('compiling a condition (§I.7.1 F12, §II.6 M8)', () => {
+describe('compiling a condition', () => {
   it('resolves names to ids, keeps arguments, and moves world tests after the rest in all and any', () => {
     const compiled = compileCondition(
       TABLES,
@@ -141,7 +141,7 @@ describe('evaluating a condition', () => {
   });
 });
 
-describe('mirror safety (§II.6 M8, R3)', () => {
+describe('mirror safety', () => {
   it('holds only when every test and value in the condition is flagged mirror-safe', () => {
     const safe = (expr: ConditionExpr<keyof typeof CONDITIONS.id, keyof typeof VALUES.id>) =>
       isMirrorSafe(TABLES, compileCondition(TABLES, expr));

@@ -27,7 +27,7 @@ const setTimeLeft = <G extends AuraTypes>(
 };
 
 /**
- * Changes the time left on every finite aura granting a tag (§II.6 P3: a cooldown's `scale` and `clamp`), keeping
+ * Changes the time left on every finite aura granting a tag (a cooldown's `scale` and `clamp`), keeping
  * each one's duration: `left × factor`, capped at `cap`. It raises nothing (a cooldown shortened is not a refresh),
  * and counts as a change of the bearer's list for its readers. Returns how many auras it changed.
  */

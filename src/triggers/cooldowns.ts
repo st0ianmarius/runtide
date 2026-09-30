@@ -5,7 +5,7 @@ import { isTriggerDef, type TriggerTypes } from './trigger-types.ts';
 /** The name of an internal-cooldown aura. */
 export type CooldownName = `icd.aura.${string}`;
 
-/** A trigger's developer id: its aura's name and its index there (`aura.<name>.<index>`, §II.3.11). */
+/** A trigger's developer id: its aura's name and its index there (`aura.<name>.<index>`). */
 export const triggerName = (aura: string, index: number): string => `aura.${aura}.${index}`;
 
 /** The name of a trigger's internal-cooldown aura: `icd.` and the trigger's id. */
@@ -14,7 +14,7 @@ export const cooldownName = (aura: string, index: number): CooldownName => `icd.
 /** How the internal-cooldown auras are built. */
 export interface CooldownOptions<G extends TriggerTypes> {
   /**
-   * Their pinned order (§II.6 K5): the cooldown auras' own append-only list. A pinned name no trigger derives any
+   * Their pinned order: the cooldown auras' own append-only list. A pinned name no trigger derives any
    * more keeps its slot as a tombstone; a derived one not pinned yet is appended after the pinned ones, in aura order
    * then trigger order. Pin the list in a test (`checkOrder`), so a new cooldown never moves another's id.
    */
@@ -68,7 +68,7 @@ const derive = <G extends TriggerTypes>(
 };
 
 /**
- * Adds the internal-cooldown auras of every trigger with an `icd` to the authored auras (§II.3.11, §II.6 K5):
+ * Adds the internal-cooldown auras of every trigger with an `icd` to the authored auras:
  * `const all = withTriggerCooldowns(AUTHORED, { order: ICD_ORDER, tags: ['cooldown'] })`, then
  * `defineAuras(all.defs, { order: all.order })`. Each is `icd.aura.<name>.<index>`, the trigger's `icd` long,
  * `refresh`, owner-only, with the given clock and tags; their ids follow the authored ones, in their own pinned order.

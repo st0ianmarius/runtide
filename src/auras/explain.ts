@@ -13,7 +13,7 @@ import {
 import type { AuraEngine } from './engine.ts';
 
 /**
- * An aura explained as data (§I.5.3): its rules, tags and modifiers at a stack count, with every number the
+ * An aura explained as data: its rules, tags and modifiers at a stack count, with every number the
  * simulation uses. The client phrases it (a tooltip, a card) in its own words; nothing here is text.
  */
 export interface AuraExplanation {

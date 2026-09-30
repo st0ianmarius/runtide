@@ -41,7 +41,7 @@ const valueFields = (value: CompiledValue): ValueFields => {
   return { ...plain, valueKind: FROM_HOST, readId: value.value, readArg: value.arg };
 };
 
-/** The fold entry of one compiled modifier from one source, every field present (one hidden class, §I.5.4). */
+/** The fold entry of one compiled modifier from one source, every field present (one hidden class). */
 export const entryOf = <Host>(
   tables: FoldTables<Host>,
   modifier: CompiledModifier,
@@ -199,7 +199,7 @@ const isSameLists = (a: readonly (readonly ModifierList[])[], b: readonly (reado
   });
 
 /**
- * The compiled caches of a system's sheets by the lists they hold (§I.5.4): sheets holding the same compiled lists (a
+ * The compiled caches of a system's sheets by the lists they hold: sheets holding the same compiled lists (a
  * template's units, each given its template's base list) share one cache, built by the first. Keyed weakly by the
  * first list a sheet holds, so a list no sheet holds any more takes its caches with it.
  */

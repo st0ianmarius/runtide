@@ -8,7 +8,7 @@ export interface WireSource {
 }
 
 /**
- * A registry's wire table (§I.6 Replication): the append-only mapping between the ids the wire carries and the names
+ * A registry's wire table: the append-only mapping between the ids the wire carries and the names
  * they stand for, with a checksum a client and a server compare at the handshake, so both sides agree on every id.
  */
 export interface WireTable {
@@ -48,7 +48,7 @@ export const wireTableOf = (registry: WireSource): WireTable => {
 };
 
 /**
- * Checks that a registry only appended to a pinned wire table (a test helper, §I.5.2): every pinned name must keep its
+ * Checks that a registry only appended to a pinned wire table (a test helper): every pinned name must keep its
  * id, and new names may only follow them. Throws a `RangeError` naming the first name that moved or went; a table
  * with more names than the pin passes, so pinning the current list in a test catches any reordering.
  */

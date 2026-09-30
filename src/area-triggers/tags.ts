@@ -4,7 +4,7 @@ import { recordOf } from '../core/records.ts';
 /** An area trigger tag's definition: a tag is a name and an id, nothing more. */
 export type AreaTagDef = Readonly<Record<never, never>>;
 
-/** The game's area trigger tags: dense ids, so an area trigger kind's tags are a bitset (§I.5.4). */
+/** The game's area trigger tags: dense ids, so an area trigger kind's tags are a bitset. */
 export type AreaTagTable<Name extends string = string> = Registry<'areaTags', Extract<Name, string>, AreaTagDef, never>;
 
 /**

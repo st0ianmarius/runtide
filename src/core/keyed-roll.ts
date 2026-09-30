@@ -62,7 +62,7 @@ export const rollKey = (seed: number, salt: number, key: readonly number[]): num
 /**
  * A keyed roll: a float in `[0, 1)` that depends only on the run's seed, the stream's salt and the key (integers the
  * simulation owns, such as tick, caster id, spell id, target id and hit index), never on how many rolls came before.
- * A Murmur3-finalizer chain over 32-bit integers (§I.9 decision 6), identical on every platform. Throws a
+ * A Murmur3-finalizer chain over 32-bit integers, identical on every platform. Throws a
  * `RangeError` for a part that is not a 32-bit integer. Frozen: the unit tests hold a literal table of its results.
  */
 export const roll = (seed: number, salt: number, ...key: readonly number[]): number => rollKey(seed, salt, key);

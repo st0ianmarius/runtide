@@ -6,14 +6,14 @@ export interface ProjectionSpec<S extends string, Src extends string> {
   readonly stats: readonly S[];
 
   /**
-   * The sources folded; every source when absent. A partial fold is the synced base of a split fold (§II.6 R3): the
+   * The sources folded; every source when absent. A partial fold is the synced base of a split fold: the
    * server sends the stats folded without the sources a mirror evaluates itself, and the mirror multiplies its own in.
    */
   readonly sources?: readonly Src[];
 }
 
 /**
- * A declared stat projection (§II.6 M7, R4): the stats the wire and a prediction mirror read of a bearer, folded over
+ * A declared stat projection: the stats the wire and a prediction mirror read of a bearer, folded over
  * the chosen sources, written as plain numbers. Built once at load; writing it allocates nothing.
  */
 export interface StatProjection<Host> {
@@ -41,7 +41,7 @@ class ProjectionRead<Host> implements FoldRead<Host> {
 }
 
 /**
- * Declares a stat projection over a modifier system (§II.6 M7): `defineProjection(modifiers, { stats: ['moveSpeed',
+ * Declares a stat projection over a modifier system: `defineProjection(modifiers, { stats: ['moveSpeed',
  * 'dashSpeed'], sources: ['base', 'gear'] })`. Throws for a stat the table does not have.
  */
 export const defineProjection = <Host, S extends string, C extends string, V extends string, Src extends string>(
@@ -69,7 +69,7 @@ export const defineProjection = <Host, S extends string, C extends string, V ext
     write: <Out extends Record<number, number>>(sheet: StatSheet, out: Out, host?: Host): Out => {
       read.host = host;
 
-      // Indexed, as a projection is written per bearer per snapshot (§I.5.4).
+      // Indexed, as a projection is written per bearer per snapshot.
       for (let i = 0; i < stats.length; i++) {
         const stat = stats[i];
 

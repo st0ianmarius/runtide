@@ -1,5 +1,5 @@
 /**
- * The kinds of combat log entry (§I.7.1 F11), by code: a blow (`damage`), a blow the target's ignore stage ignored
+ * The kinds of combat log entry, by code: a blow (`damage`), a blow the target's ignore stage ignored
  * (`immune`), a heal, a death, an aura's lifecycle, a cast's four moments, and an area trigger's two.
  */
 export const COMBAT_ENTRY_KINDS = [
@@ -32,7 +32,7 @@ export const ENTRY_KILLED = 2;
 export const ENTRY_DEATH_PREVENTED = 4;
 
 /**
- * One combat log entry: ids and numbers only (§I.5.3), so it digests, crosses a wire and feeds a meter as it is. A
+ * One combat log entry: ids and numbers only, so it digests, crosses a wire and feeds a meter as it is. A
  * field that does not apply to its kind is −1 (an id) or 0 (an amount). Entries handed to subscribers and filled by
  * `read` are reused: read them at once.
  */

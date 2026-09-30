@@ -5,7 +5,7 @@ import { type CompiledRow, isAmplifyingAt, penetrated, RowContext, rowFactor } f
 import { chanceOf, ROLL_EFFECTS, valueOf } from './rolls.ts';
 import type { RollExplanation, RollQuery } from './system.ts';
 
-/** One mitigation row as data (§II.3.14, §I.5.3), for the client to phrase ("Armor 120: 54.5% less damage"). */
+/** One mitigation row as data, for the client to phrase ("Armor 120: 54.5% less damage"). */
 export interface MitigationRowExplanation {
   /** The row's developer name. */
   readonly row: string;

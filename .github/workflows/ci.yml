@@ -37,7 +37,7 @@ jobs:
 
   bench:
     # The benchmarks on every push to master, on one fixed machine type, kept as an artifact beside the baseline
-    # (bench/BASELINE.md). They report; they do not fail the build until CI sets budgets from their history (§I.5.4).
+    # (bench/BASELINE.md). They report; they do not fail the build until CI sets budgets from their history.
     name: bench
     if: github.event_name == 'push'
     needs: check

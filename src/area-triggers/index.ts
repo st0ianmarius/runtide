@@ -1,5 +1,5 @@
 /**
- * Area triggers (§I.6, §II.3.4): what a spell leaves in the world, with a position, a shape, a lifetime and hooks
+ * Area triggers: what a spell leaves in the world, with a position, a shape, a lifetime and hooks
  * (hazards, projectiles, cyclones, wells, domes, fields, sentries). A kind is plain data and standalone hooks
  * (`defineAreaTrigger`), registered by name (`defineAreaTriggers`) in the kind order they tick in.
  */

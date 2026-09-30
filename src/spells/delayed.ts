@@ -21,9 +21,9 @@ import type { SpellTypes } from './spell-types.ts';
 const NO_PROCS: readonly never[] = Object.freeze([]);
 
 /**
- * One delayed list of procs (§II.3.4: the lightest area trigger), pooled: the origin captured when it was scheduled
- * (self, target, event unit, credit), the procs, the cast it belongs to (held alive until it lands, §II.6 S6), and its
- * due time as an anchor tick plus seconds, so a chained delay is due from its parent's due time (§II.6 P5).
+ * One delayed list of procs (the lightest area trigger), pooled: the origin captured when it was scheduled
+ * (self, target, event unit, credit), the procs, the cast it belongs to (held alive until it lands), and its
+ * due time as an anchor tick plus seconds, so a chained delay is due from its parent's due time.
  */
 class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
   self: G['bearer'];
@@ -72,7 +72,7 @@ export interface DelaySpec<G extends SpellTypes> {
 }
 
 /**
- * The delayed procs of one spell system (§I.5.4, §II.3.4): pooled records on one timing wheel per tick slot, so lists
+ * The delayed procs of one spell system: pooled records on one timing wheel per tick slot, so lists
  * due on the same tick land in the order they were scheduled, the host landing each slot where its loop needs it.
  */
 export class DelayedProcs<G extends SpellTypes> {
@@ -181,7 +181,7 @@ export class DelayedProcs<G extends SpellTypes> {
   }
 
   /**
-   * Withdraws every list a unit owns that has not landed (§II.6 P3 `despawnOwned`): those its casts scheduled, and those
+   * Withdraws every list a unit owns that has not landed (`despawnOwned`): those its casts scheduled, and those
    * scheduled for it outside a cast. None of their procs run; returns how many it withdrew.
    */
   withdraw(owner: G['bearer']): number {

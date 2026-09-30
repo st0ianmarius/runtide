@@ -13,7 +13,7 @@ import type { AuraView } from './view.ts';
 const REMOVED = CHANGES.indexOf('removed');
 
 /**
- * What a prediction mirror is seeded from (§II.6 R3): a bearer's aura views as the server sent them, and the steps the
+ * What a prediction mirror is seeded from: a bearer's aura views as the server sent them, and the steps the
  * server's bearer had taken on each clock when they were taken (`AuraState.clocks`), which the views' end stamps count
  * against.
  */
@@ -40,7 +40,7 @@ const setSeededClock = <G extends AuraTypes>(
 };
 
 /**
- * Seeds a prediction mirror's auras from the wire (§II.6 R3, `auras.seed`): every `predicted` aura on the bearer is
+ * Seeds a prediction mirror's auras from the wire (`auras.seed`): every `predicted` aura on the bearer is
  * dropped, and every view of a `predicted` aura is put back with its serial, stacks, value, duration and source, its
  * clock set by the stamp contract; the rest of the bearer's auras, and views of auras that are not predicted, are left
  * alone. Only a silent state (a mirror's, `createState({ isSilent: true })`) may be seeded, so nothing is raised.

@@ -1,5 +1,5 @@
 /**
- * Reusable scratch storage, one array per nesting level (§I.5.4): a caller takes the array for its level, fills it
+ * Reusable scratch storage, one array per nesting level: a caller takes the array for its level, fills it
  * by index while counting how many entries it wrote, reads those entries, and gives it back, so a nested caller (a
  * trigger that raises an event that runs triggers) gets its own array. An array keeps its storage between uses (it is
  * never shrunk, since shrinking an array to 0 drops its backing store and the next fill allocates it again), so

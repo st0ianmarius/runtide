@@ -39,7 +39,7 @@ const unit = (totals: Readonly<Record<string, number>>): StatView => ({
   base: (stat) => STATS.columns.base[stat] ?? 0,
 });
 
-describe('scaled values (§II.3.13)', () => {
+describe('scaled values', () => {
   it('evaluate a LoL-style ratio: base per rank + 120% AD + 50% AP + 8% of the target’s maximum health', () => {
     const damage = compileScaled(
       STATS,

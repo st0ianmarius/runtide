@@ -4,14 +4,14 @@ import type { UnitTagTable } from './tags.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
 /**
- * A unit's traits (§II.6 U2): what the framework's own pipelines read about it instead of its id or class (the force
+ * A unit's traits: what the framework's own pipelines read about it instead of its id or class (the force
  * pipeline, the death pipeline). What only a game's rules read (a heavy body, an objective) is a class tag.
  */
 export interface UnitTraits {
   /** Never moved by a force. */
   readonly immovable?: boolean;
 
-  /** No rewards and no kill event when it dies (§II.6 D5): a wall, a totem. */
+  /** No rewards and no kill event when it dies: a wall, a totem. */
   readonly inert?: boolean;
 
   /** Never pulled (a boss); knockbacks and pushes still move it. */
@@ -31,7 +31,7 @@ export interface UnitTraits {
 }
 
 /**
- * A unit template (§II.6 U1): its base stats, class tags, traits, auto-attack spell and the game's own data. A
+ * A unit template: its base stats, class tags, traits, auto-attack spell and the game's own data. A
  * spawned unit snapshots its template's stats (with the spawn's own on top), so a later change to the template does
  * not reach it.
  */
@@ -46,16 +46,16 @@ export interface UnitDef<G extends UnitTypes = UnitTypes> {
   readonly traits?: UnitTraits;
 
   /**
-   * Its auto-attack spell, by name (an `auto` spell), for a creature's melee swing (§II.6 S3): armed on every unit
+   * Its auto-attack spell, by name (an `auto` spell), for a creature's melee swing: armed on every unit
    * spawned (`spells.arm`), so `spells.stepAuto` steps it. Optional, and absent for most heroes: the game arms their
    * attacks as they gain them (their cards), not a template.
    */
   readonly autoAttack?: G['spellName'];
 
-  /** Its script, by name (§I.7.1 F19): the behaviours every unit of it runs; none when absent. */
+  /** Its script, by name: the behaviours every unit of it runs; none when absent. */
   readonly script?: G['scriptName'];
 
-  /** The game's own data (§I.5.6 hatch 4: rewards, a roster's rules), typed by the game; the framework never reads it. */
+  /** The game's own data (rewards, a roster's rules), typed by the game; the framework never reads it. */
   readonly data?: G['unitData'];
 }
 
@@ -77,7 +77,7 @@ export const PULL_IMMUNE = 4;
 /** Trait bit: holds its ground while casting. */
 export const HOLDS_GROUND = 8;
 
-/** The game's unit templates, compiled (§I.5.4): ids by key order, base stat vectors, trait bits and tag bitsets. */
+/** The game's unit templates, compiled: ids by key order, base stat vectors, trait bits and tag bitsets. */
 export interface UnitRegistry<G extends UnitTypes = UnitTypes, Name extends string = string> extends Registry<
   'units',
   Name,
@@ -190,7 +190,7 @@ const isDef = <G extends UnitTypes>(entry: UnitDef<G> | Tombstone): entry is Uni
 const NO_TAGS: UnitTagTable = createRegistry({}, { kind: 'unitTags' });
 
 /**
- * Registers the game's unit templates (§II.6 U1): `defineUnits({ grunt, brute, totem }, { stats: STATS, tags:
+ * Registers the game's unit templates: `defineUnits({ grunt, brute, totem }, { stats: STATS, tags:
  * UNIT_TAGS })` gives each its dense id by key order, checks it at load, and lays out its base stats, trait bits and
  * class tags for the unit system. `TOMBSTONE` keeps a retired slot.
  */

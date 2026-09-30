@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): indexed loops, which allocate no iterator.
+// Hot path: indexed loops, which allocate no iterator.
 /* oxlint-disable typescript/prefer-for-of */
 import type {
   CompiledCurve,
@@ -10,7 +10,7 @@ import type {
 } from './compiled.ts';
 
 /**
- * The share-of-1 rule (§II.3.13): a share of a multiplier stat's bonus, `1 + share × (M − neutral)`, except that a
+ * The share-of-1 rule: a share of a multiplier stat's bonus, `1 + share × (M − neutral)`, except that a
  * share of exactly 1 of a stat whose neutral is 1 reads the stat as it is, since `1 + 1 × (M − 1)` can differ from `M`
  * in the last bit. A share of 0 ignores the stat. The damage pipeline's outgoing multipliers and `amp` terms use it.
  */
@@ -149,7 +149,7 @@ const avoidanceAt = (curve: Extract<CompiledCurve, { kind: 'avoidance' }>, x: nu
 };
 
 /**
- * Evaluates a compiled curve at `x` (§II.3.14). Parameters that are scaled values or lookups read the context's caster
+ * Evaluates a compiled curve at `x`. Parameters that are scaled values or lookups read the context's caster
  * and target. For a `hyperbolic` curve that amplifies, a negative `x` gives a damage multiplier rather than a
  * reduction; every other result is the curve's formula as written.
  */

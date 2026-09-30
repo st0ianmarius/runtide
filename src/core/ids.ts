@@ -1,6 +1,6 @@
 /**
  * Branded ids: plain numbers at runtime, told apart by the compiler. This file and the adapters are the only places
- * that may cast (§I.4.2), because a brand can only be put on a number by an assertion.
+ * that may cast, because a brand can only be put on a number by an assertion.
  */
 
 declare const registryBrand: unique symbol;

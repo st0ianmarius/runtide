@@ -10,7 +10,7 @@ import { aura, type Charged, type Game, makeSpellGame, mark, spell } from '../he
 /** The test tick slots: delayed procs land in either. */
 const SLOTS = defineTickSlots(['early', 'late']);
 
-describe('the castSpell proc (§II.3.6, §II.6 P3)', () => {
+describe('the castSpell proc', () => {
   it('casts a chained spell through the whole cast order, at the running cast’s rank, credited to its source', () => {
     const game = makeSpellGame({
       swing: spell({ activation: { kind: 'trigger' }, release: () => [castSpell<Game>('stab')] }),
@@ -115,7 +115,7 @@ describe('the castSpell proc (§II.3.6, §II.6 P3)', () => {
   });
 });
 
-describe('delayed procs (§II.3.4, §II.6 P5, S6)', () => {
+describe('delayed procs', () => {
   /** A game whose `drop` spell schedules its procs later, and a unit that casts it. */
   const dropping = (procs: Parameters<typeof after<Game>>[1], seconds = 0.5) => {
     const game = makeSpellGame({
@@ -258,7 +258,7 @@ describe('delayed procs (§II.3.4, §II.6 P5, S6)', () => {
   });
 });
 
-describe('the escape report (§I.5.6)', () => {
+describe('the escape report', () => {
   it('counts the spell kinds as the framework’s own, and lists the game’s activation kinds', () => {
     const charged = defineActivationKind<Charged, Game>({});
 

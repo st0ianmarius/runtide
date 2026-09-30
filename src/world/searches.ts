@@ -38,7 +38,7 @@ const centroid = <Unit>(parts: SearchParts<Unit>, count: number, out: Cluster<Un
 };
 
 /**
- * The densest cluster (§II.6 W10): the candidates within `range` of `from`, in the query's order (nearest first), up
+ * The densest cluster: the candidates within `range` of `from`, in the query's order (nearest first), up
  * to `cap`, each scored by the units within `radius` of it that pass the same options; the first highest wins, and its
  * cluster's centroid is written with it. An empty cluster when nothing is in range.
  */
@@ -78,7 +78,7 @@ export const densest = <Unit>(
 };
 
 /**
- * A chain (§II.6 W10): the first link is `first` when given (taken as it is), else the nearest unit within `range` of
+ * A chain: the first link is `first` when given (taken as it is), else the nearest unit within `range` of
  * `from`; each next link is the unit within `range` of the last link that comes first in the query's order (nearest
  * by default), never one already in the chain; it stops at `jumps` links or when no unit is left in range.
  */

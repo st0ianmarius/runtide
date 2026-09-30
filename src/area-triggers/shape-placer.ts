@@ -176,7 +176,7 @@ const write = (placed: Placed, pose: Pose): void => {
 };
 
 /**
- * Places an area trigger's shape (§II.3.5): a template relative to the area trigger (the origin at its position, its
+ * Places an area trigger's shape: a template relative to the area trigger (the origin at its position, its
  * headings turned by its heading, a polygon's points turned with it) written into a placed copy it keeps, so placing
  * the same template again allocates nothing. A new template (a shape function's new result) builds a new copy.
  */

@@ -84,7 +84,7 @@ const world = () => {
   return { ...game, tick, start };
 };
 
-describe('world scripts: scripts on bodiless units (§I.7.1 F21)', () => {
+describe('world scripts: scripts on bodiless units', () => {
   it('start from one bodiless template, the spawn naming the script', () => {
     const game = world();
     const event = game.start('bloodHorde');

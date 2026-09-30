@@ -1,6 +1,6 @@
 /**
- * The spell system's branded handles (§I.5): plain numbers at runtime. This file is one of the few that may cast
- * (§I.4.2), because a brand can only be put on a number by an assertion.
+ * The spell system's branded handles: plain numbers at runtime. This file is one of the few that may cast
+ *, because a brand can only be put on a number by an assertion.
  */
 import type { Handle } from '../core/index.ts';
 

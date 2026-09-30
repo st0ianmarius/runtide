@@ -8,7 +8,7 @@ import { catchIn, deliver, type Hit, recordHit } from './hits.ts';
 /** No pulses. */
 const NO_PULSES: readonly never[] = Object.freeze([]);
 
-/** A clock shared by several area triggers (§II.6 W2): its owner's instances of a kind, or all of the kind. */
+/** A clock shared by several area triggers: its owner's instances of a kind, or all of the kind. */
 export class SharedClock {
   /** The seconds to its next beat. */
   remaining = 0;
@@ -100,7 +100,7 @@ interface Caught<Unit> {
 
 /**
  * Marks, for every caught entry, whether it is its unit's hottest catch (the first of the hottest on ties): one pass
- * that keeps each unit's best entry, then one that marks it (§I.5.4: a pairwise check was quadratic in the catches).
+ * that keeps each unit's best entry, then one that marks it (a pairwise check was quadratic in the catches).
  */
 const markHottest = <Unit>(caught: Caught<Unit>, kept: boolean[]): void => {
   const best = new Map<Unit, number>();
@@ -189,7 +189,7 @@ const deliverMember = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, member
 };
 
 /**
- * One shared beat (§II.6 W2, §II.3.4's `hottest-per-owner-clock`): every member (judged now, in creation order) catches
+ * One shared beat (`hottest-per-owner-clock`): every member (judged now, in creation order) catches
  * its units; with `hottest`, a unit several members caught goes only to the hottest of them; then each member's
  * `onPulse` runs with what it kept.
  */
@@ -263,7 +263,7 @@ const sharedBeats = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Ar
 };
 
 /**
- * Runs an area trigger's pulses for a frame of `dt` (§II.6 W2), in their order: an own clock counts down and beats;
+ * Runs an area trigger's pulses for a frame of `dt`, in their order: an own clock counts down and beats;
  * a shared clock counts down once per tick, from its first member to step, and beats every member at once.
  */
 export const stepPulses = <G extends AreaTriggerTypes>(

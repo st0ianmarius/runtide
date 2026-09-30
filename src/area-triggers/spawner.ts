@@ -14,7 +14,7 @@ import { linkKind, linkTick } from './order.ts';
 import { joinPulses } from './pulses.ts';
 import { stepArea } from './stepper.ts';
 
-/** What a spawn is asked with (§II.3.4): who owns it, where, and what it starts with. */
+/** What a spawn is asked with: who owns it, where, and what it starts with. */
 export interface SpawnSpec<G extends AreaTriggerTypes> {
   /** Who spawns it: its procs run as theirs. */
   readonly owner: G['bearer'];
@@ -38,7 +38,7 @@ export interface SpawnSpec<G extends AreaTriggerTypes> {
   readonly parent?: AreaTriggerHandle | undefined;
 
   /**
-   * The seconds of this frame it flies at once (§II.3.4: a fork flying on with its parent's leftover time); without it
+   * The seconds of this frame it flies at once (a fork flying on with its parent's leftover time); without it
    * its first frame is the next tick's.
    */
   readonly now?: number | undefined;
@@ -60,7 +60,7 @@ const secondsOf = (name: string, lifetime: Lifetime): number => {
   return lifetime;
 };
 
-/** Fills a new area trigger's cast, held alive while it lives (§II.6 S6), and what it reads from it. */
+/** Fills a new area trigger's cast, held alive while it lives, and what it reads from it. */
 const bindCast = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, spec: SpawnSpec<G>) => {
   const cast = spec.cast ?? engine.spells.current;
   const context = engine.spells.retain(cast) ? engine.spells.get(cast) : undefined;
@@ -112,7 +112,7 @@ const fill = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Whether the limit lets it in (§II.3.4): under it, yes; at it, the owner's oldest of the kind ends as `replaced`, or
+ * Whether the limit lets it in: under it, yes; at it, the owner's oldest of the kind ends as `replaced`, or
  * the new one is refused (`refuse`).
  */
 const admitLimit = <G extends AreaTriggerTypes>(
@@ -179,7 +179,7 @@ const enter = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Spawns an area trigger of a kind (§II.3.4, §II.6 W4): its credit and cast captured, the limit applied, its entity id
+ * Spawns an area trigger of a kind: its credit and cast captured, the limit applied, its entity id
  * allocated before `init`, linked into the tick order (after its parent when its kind says so), and flying at once for
  * `now` seconds when asked. Returns its handle, or `NO_AREA_TRIGGER` when the limit refused it.
  */

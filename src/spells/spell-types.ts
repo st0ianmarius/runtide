@@ -23,7 +23,7 @@ export interface SpellCaster extends AuraBearer {
 
 /**
  * The fields every activation has, whatever its kind: the kind's name in the activation registry. A game's own kinds
- * (§I.5.6 hatch 2) are shaped like this: `{ kind: 'totem', pulse: 2 }`.
+ * are shaped like this: `{ kind: 'totem', pulse: 2 }`.
  */
 export interface ActivationShape {
   /** The kind's name in the activation registry: the discriminant, a developer identifier. */
@@ -50,7 +50,7 @@ export interface SpellTypes extends ProcTypes {
 
   /**
    * The game's own reasons a gate refuses a cast (`silenced`, `noRage`), which the host's `canAct`, an activation
-   * kind's `gate` and a spell's `canCast` may answer with in place of a plain false (§I.7.1 F16).
+   * kind's `gate` and a spell's `canCast` may answer with in place of a plain false.
    */
   readonly refusal: string;
 
@@ -66,7 +66,7 @@ export interface SpellTypes extends ProcTypes {
   /** The data of the game's own activation kinds, as a union (`never` when it has none). */
   readonly gameActivation: ActivationShape;
 
-  /** The game's own fields on a running cast (`ctx.ext`), made by the system's `createExt` (§I.5.6 hatch 4). */
+  /** The game's own fields on a running cast (`ctx.ext`), made by the system's `createExt`. */
   readonly castExt: unknown;
 
   /** The game's own data on a spell definition (`SpellDef.data`), which the framework never reads. */

@@ -26,7 +26,7 @@ const defs = {
   gift: aura({ duration: 1, grants: ['reroll', 'gold'], ...logged('gift') }),
 };
 
-describe('lifecycle hooks and their raise rules (§II.6 A1)', () => {
+describe('lifecycle hooks and their raise rules', () => {
   it('raise applied, refreshed, nothing for a losing highest, nothing for a refusal', () => {
     const { auras, id, unit, log } = makeGame(defs);
     const u = unit();

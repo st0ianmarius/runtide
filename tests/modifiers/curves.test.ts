@@ -38,7 +38,7 @@ const at = (
   sides: { caster?: StatView; target?: StatView } = {},
 ) => evaluateCurve(compileCurve(STATS, curve), x, { caster: sides.caster ?? unit([1, 0]), target: sides.target });
 
-describe('the curve library (§II.3.14)', () => {
+describe('the curve library', () => {
   it('linear is x × per and rating is x / per / 100', () => {
     assert.equal(at(linear(0.5), 10), 5);
     assert.equal(at(rating(10), 150), 0.15);

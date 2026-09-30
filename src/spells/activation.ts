@@ -19,7 +19,7 @@ export type CastSeconds<G extends SpellTypes, Source extends StatsSource<G> = St
     }['bivarianceHack'];
 
 /**
- * An `auto` activation (§II.3.2, §II.6 S2): the attack clock pulls it, on the casters that armed it (`spells.arm`).
+ * An `auto` activation: the attack clock pulls it, on the casters that armed it (`spells.arm`).
  * After each cast it pulls, the clock is set, with no carry-over, to what `next` answers from the cast's report: the
  * interval read at the cast, or sooner.
  */
@@ -52,7 +52,7 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
   }['bivarianceHack'];
 
   /**
-   * What the caster's other casts do to the clock (§II.6 S3: a creature's swing reset after its cast's recovery):
+   * What the caster's other casts do to the clock (a creature's swing reset after its cast's recovery):
    * `reset` holds it while the caster casts and sets it to its interval (the constant, else the one last read) as each
    * cast ends; `keep` (the default) leaves it counting.
    */
@@ -60,7 +60,7 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
 }
 
 /**
- * A button's cooldown in seconds, read from the caster as it fires (§I.5.6 hatch 2): for a rule no scaled value
+ * A button's cooldown in seconds, read from the caster as it fires: for a rule no scaled value
  * covers.
  */
 export type ButtonSeconds<G extends SpellTypes> = {
@@ -79,7 +79,7 @@ export interface ButtonCost<G extends SpellTypes = SpellTypes> {
 
 /**
  * An aura a button lands on its caster as it fires, for the aura's own length, multiplied by a stat of the caster's
- * when it names one (a Duration stat, §II.6 S4).
+ * when it names one (a Duration stat).
  */
 export interface ButtonApply<G extends SpellTypes = SpellTypes> {
   /** The aura: its name in data, its id in code. */
@@ -90,7 +90,7 @@ export interface ButtonApply<G extends SpellTypes = SpellTypes> {
 }
 
 /**
- * A `button` activation (§II.3.2, §I.6 Abilities): a unit's key pulls it, through its loadout (`abilities.tryActivate`).
+ * A `button` activation: a unit's key pulls it, through its loadout (`abilities.tryActivate`).
  * An ability **is** a spell with this activation: its cooldown is an aura on the slot it sits in, its cost is stacks of
  * an aura, `requires` and `blockedBy` are aura tags, and as it fires it pays, moves (`activate`), starts its cooldown,
  * lands `applies`, clears `resets`, then casts. The motion half (`activate`, `travel`) reads and writes only the
@@ -172,7 +172,7 @@ export interface AiActivation {
   /** Seconds the caster stays busy after the release, when the timeline declares no recovery. */
   readonly recover?: number;
 
-  /** The farthest its target may be as the cast starts (its reach's range, §I.7.1 F16). */
+  /** The farthest its target may be as the cast starts (its reach's range). */
   readonly range?: number;
 
   /** Whether a clear line to its target is needed as the cast starts (its reach's sight). */
@@ -186,7 +186,7 @@ export interface AiActivation {
 export type CoreActivation<G extends SpellTypes = SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
   AutoActivation<G, Source> | ButtonActivation<G> | PassiveActivation | TriggerActivation | AiActivation;
 
-/** One activation (§II.3.2): a core kind or one of the game's; `Source` types the stats an `auto` interval reads. */
+/** One activation: a core kind or one of the game's; `Source` types the stats an `auto` interval reads. */
 export type Activation<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
   CoreActivation<G, Source> | G['gameActivation'];
 
@@ -203,8 +203,8 @@ export interface TimelineDefaults {
 }
 
 /**
- * One activation kind (§II.3.2): how its data is checked at load, which timeline it supplies, the gate it adds before
- * the spell's own `canCast`, and how it explains itself. A game adds a kind by registering one more (§I.5.6 hatch 2).
+ * One activation kind: how its data is checked at load, which timeline it supplies, the gate it adds before
+ * the spell's own `canCast`, and how it explains itself. A game adds a kind by registering one more.
  * Its functions are standalone: the system may call them detached.
  */
 export interface ActivationKindDef<A extends ActivationShape = ActivationShape, G extends SpellTypes = SpellTypes> {
@@ -214,7 +214,7 @@ export interface ActivationKindDef<A extends ActivationShape = ActivationShape, 
   /** The timeline defaults the kind supplies. */
   timeline?(this: void, activation: A): TimelineDefaults | undefined;
 
-  /** The reach rules the kind supplies where the spell declares none (§I.7.1 F16). */
+  /** The reach rules the kind supplies where the spell declares none. */
   reach?(this: void, activation: A): ReachDefaults | undefined;
 
   /**
@@ -223,7 +223,7 @@ export interface ActivationKindDef<A extends ActivationShape = ActivationShape, 
    */
   gate?(this: void, activation: A, ctx: GateContext<G>): GateAnswer<G>;
 
-  /** The activation's numbers as data (§I.5.3); its own numeric fields when absent. */
+  /** The activation's numbers as data; its own numeric fields when absent. */
   explain?(this: void, activation: A): Readonly<Record<string, number>>;
 }
 
@@ -306,7 +306,7 @@ const AI: ActivationKindDef<AiActivation, never> = {
 const PLAIN: ActivationKindDef<ActivationShape, never> = {};
 
 /**
- * The framework's activation kinds (§II.3.2), typed over no game (`never`) since none has a gate, so they register
+ * The framework's activation kinds, typed over no game (`never`) since none has a gate, so they register
  * into any game's activation registry: `auto` (the attack clock, `spells.stepAuto`), `button` (abilities,
  * `abilities.tryActivate`), `passive` (cast by the game as a unit gains it), `trigger` (cast by procs and triggers) and
  * `ai` (a creature's brain, F17). A game registers them with its own (a director's `event`, a `totem`):
@@ -334,7 +334,7 @@ export const defineActivationKind = <A extends ActivationShape, G extends SpellT
 ): ActivationKindDef<A, G> => def;
 
 /**
- * Registers the activation kinds a game's spells use (§I.5.6 hatch 2): `defineActivations({ ...CORE_ACTIVATIONS,
+ * Registers the activation kinds a game's spells use: `defineActivations({ ...CORE_ACTIVATIONS,
  * ...GAME_ACTIVATIONS })`. Each kind gets a dense id by key order, which the spell registry's `activation` column holds.
  */
 export const defineActivations = <G extends SpellTypes = SpellTypes>(

@@ -4,7 +4,7 @@ import type { StaticGeometry } from './statics.ts';
 
 /**
  * The static side of a memory world: its bounds and its static geometry, and the placement queries over them
- * (§II.6 W10): clearance, clamping, a body's move and the sample-and-score point picker.
+ *: clearance, clamping, a body's move and the sample-and-score point picker.
  */
 export class Placement {
   readonly bounds: Box;
@@ -60,7 +60,7 @@ export class Placement {
   };
 
   /**
-   * Picks a point (§II.6 W10): each attempt draws an angle and a distance (area-uniform in the annulus), walks the
+   * Picks a point: each attempt draws an angle and a distance (area-uniform in the annulus), walks the
    * sample back toward the centre while it is not clear, then filters and scores it; the highest score wins, the first
    * on ties, and without a score the first sample that passes. `undefined` when none did.
    */

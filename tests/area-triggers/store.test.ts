@@ -39,7 +39,7 @@ const logged = (def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<G
   ...def,
 });
 
-describe('spawning (§II.3.4, §II.6 W4)', () => {
+describe('spawning', () => {
   it('spawns from a spell’s procs, owned by the caster, credited to the cast, holding the cast alive', () => {
     const game = makeSpellGame({ nova: spawner('pool') }, { areaTriggers: { pool: logged({ lifetime: 0.5 }) } });
     const caster = game.unit(1);
@@ -129,7 +129,7 @@ describe('spawning (§II.3.4, §II.6 W4)', () => {
   });
 });
 
-describe('lifetime and expiry (§II.6 W2)', () => {
+describe('lifetime and expiry', () => {
   /** The frames a one-second area trigger runs over 0.9 s of lifetime, under an expiry mode. */
   const framesOf = (expiry: 'after' | 'before' | 'clip'): string[] => {
     const game = makeSpellGame({}, { areaTriggers: { pool: logged({ lifetime: 0.9, expiry }) } });
@@ -182,7 +182,7 @@ describe('lifetime and expiry (§II.6 W2)', () => {
   });
 });
 
-describe('the tick order (§II.6.1 rule 1, §II.6 K2)', () => {
+describe('the tick order', () => {
   /** Kinds that log their name as they tick; `a` spawns an after-parent `child` and a plain `b` on its first frame. */
   const kinds = {
     a: logged({

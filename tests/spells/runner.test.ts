@@ -22,7 +22,7 @@ const bolt = spell({
   onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)],
 });
 
-describe('the cast order (§II.3.1)', () => {
+describe('the cast order', () => {
   it('asks the gates, takes the stats, asks canCast, picks the target, then begins and releases', () => {
     const order: string[] = [];
 
@@ -188,7 +188,7 @@ describe('the cast order (§II.3.1)', () => {
   });
 });
 
-describe('pooled casts (§I.5.4)', () => {
+describe('pooled casts', () => {
   it('reuses one record for casts that do not overlap', () => {
     const game = makeSpellGame({ bolt });
     const a = game.unit(1);
@@ -228,7 +228,7 @@ describe('pooled casts (§I.5.4)', () => {
   });
 });
 
-describe('stats (§II.3.13, decision 2)', () => {
+describe('stats (decision 2)', () => {
   /** A spell whose stats read the caster's power, whose begin doubles that power before the release reads it. */
   const powered = (live: boolean) =>
     spell({
@@ -308,7 +308,7 @@ describe('stats (§II.3.13, decision 2)', () => {
   });
 });
 
-describe('keys and random streams (§I.5)', () => {
+describe('keys and random streams', () => {
   it('keys each cast by (startTick, casterId, spellId, targetId, index)', () => {
     const keys: (readonly number[])[] = [];
 
@@ -357,7 +357,7 @@ describe('keys and random streams (§I.5)', () => {
   });
 });
 
-describe('spell events and the cast aura (§II.3.7)', () => {
+describe('spell events and the cast aura', () => {
   it('raises spell events that triggers hear, filtered by spell, tag and outcome', () => {
     const game = makeSpellGame(
       {

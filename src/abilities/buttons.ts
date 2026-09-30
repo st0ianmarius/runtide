@@ -156,7 +156,7 @@ const compileButton = <G extends AbilityTypes>(
 };
 
 /**
- * Compiles every button spell of a registry (§I.6 Abilities), by spell id (`undefined` for any other spell or a
+ * Compiles every button spell of a registry, by spell id (`undefined` for any other spell or a
  * retired one), checked at load: every tag, aura and stat it names must exist, and a scaled cooldown's per-rank lists
  * must match the spell's ranks.
  */

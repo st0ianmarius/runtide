@@ -35,7 +35,7 @@ class Column {
 }
 
 /**
- * The units of a memory world as struct-of-arrays columns by slot (§I.5.4): positions now and at the start of the
+ * The units of a memory world as struct-of-arrays columns by slot: positions now and at the start of the
  * tick, radii, sides and ids in typed arrays, the unit objects beside them, and a map from unit to slot. A removed
  * unit's slot is reused.
  */

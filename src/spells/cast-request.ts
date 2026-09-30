@@ -4,7 +4,7 @@ import type { SpellId, SpellTypes } from './spell-types.ts';
 
 /**
  * Why a cast was refused: a gate's own reason (the game's), a plain false from the gates (the host's `canAct`, the
- * activation kind's) or from `canCast`, no target, or a reach rule (§I.7.1 F16: the target out of `range`, out of
+ * activation kind's) or from `canCast`, no target, or a reach rule (the target out of `range`, out of
  * `sight`, or no room at its point for a `placement`).
  */
 export type CastRefusal<G extends SpellTypes = SpellTypes> =
@@ -49,7 +49,7 @@ export interface CastOptions<G extends SpellTypes> {
   readonly source?: number | undefined;
 
   /**
-   * The key its predicted cast cue carries (§II.6 R2): the game's press key (its input sequence), the same on the
+   * The key its predicted cast cue carries: the game's press key (its input sequence), the same on the
    * server and the predicting client; 0 (none) when absent.
    */
   readonly key?: number | undefined;
@@ -79,7 +79,7 @@ export class Report<G extends SpellTypes = SpellTypes> implements CastReport<G> 
   hasReleased = false;
 
   /**
-   * For an `auto` spell, its interval read at the cast (§II.6 S2), with the cast's stats (taken for a refusal at the
+   * For an `auto` spell, its interval read at the cast, with the cast's stats (taken for a refusal at the
    * gate too, when the interval reads them); NaN for any other spell. The auto clock's own: not on the public report.
    */
   interval = Number.NaN;

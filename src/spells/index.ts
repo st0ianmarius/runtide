@@ -1,5 +1,5 @@
 /**
- * Spells (§I.6, §II.3.1–§II.3.3): the container that ties the other systems together. A spell is plain data and
+ * Spells: the container that ties the other systems together. A spell is plain data and
  * standalone hooks (`defineSpell`), registered by name (`defineSpells`): who pulls its trigger (an activation kind),
  * how strong it is (a stats table of scaled values, or a function), where it goes, how its cast unfolds in time (a
  * timeline of windup, channel and recovery), and the procs it runs at each moment.

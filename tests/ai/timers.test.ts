@@ -26,7 +26,7 @@ const timed = () => {
   return { ...game, a, b, fired, tick, fire };
 };
 
-describe('named timers (§I.7.1 F17, EventMap)', () => {
+describe('named timers (EventMap)', () => {
   it('fire once when due, in the order they were started within a tick, and may be started again', () => {
     const { ai, a, b, fired, tick } = timed();
     const { pick, raise } = TIMERS.id;

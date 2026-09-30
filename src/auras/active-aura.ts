@@ -43,12 +43,12 @@ export interface ActiveAura<G extends AuraTypes = AuraTypes> {
   /** Whether it is still on its bearer: false from the moment it is removed or expires. */
   readonly isActive: boolean;
 
-  /** The game's own fields (§I.5.6, hatch 4), made by the system's `createExt`; the framework never reads them. */
+  /** The game's own fields, made by the system's `createExt`; the framework never reads them. */
   readonly ext: G['ext'];
 }
 
 /**
- * What every aura hook receives (§II.6 A11): the bearer, the aura with its stacks, value and game fields, and the
+ * What every aura hook receives: the bearer, the aura with its stacks, value and game fields, and the
  * bearer's stats. It is reused between calls, so a hook reads it while it runs and never keeps it.
  */
 export interface AuraContext<G extends AuraTypes = AuraTypes> {

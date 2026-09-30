@@ -4,7 +4,7 @@ import type { Shape } from './shapes.ts';
 import type { Vec2 } from './vec2.ts';
 
 /**
- * A body's path over one tick (§II.6 W6): it moves in a straight line from `from` at time `t0` to `to` at time `t1`,
+ * A body's path over one tick: it moves in a straight line from `from` at time `t0` to `to` at time `t1`,
  * at an even pace, reaching `radius` around its centre.
  */
 export interface TickPath {
@@ -182,7 +182,7 @@ const overlap = (a: number, b: number, window: TimeWindow): number =>
   Math.max(0, Math.min(b, window.to) - Math.max(a, window.from));
 
 /**
- * The seconds a body on `path` spends inside `shape` (§II.6 W6: a pool's exposure over one tick), counting only the
+ * The seconds a body on `path` spends inside `shape` (a pool's exposure over one tick), counting only the
  * window `only` and leaving out the window `except` when given. Overlapping shapes of one kind are the game's union
  * (`union(...)`), so a unit in two pools is not exposed twice.
  */
@@ -217,7 +217,7 @@ const writeCrossing = (out: PathCrossing[], index: number, crossing: PathCrossin
 
 /**
  * Writes every crossing of `shape`'s edge along `path` into `out` from index 0, in time order, and returns how many:
- * the edge-crossing hook of §II.6 W6 (a ring of fire that is lethal to cross). Being inside at `t0` or at `t1` is not
+ * the edge-crossing hook (a ring of fire that is lethal to cross). Being inside at `t0` or at `t1` is not
  * a crossing. `out` keeps its records, which are rewritten in place.
  */
 export const pathCrossings = (shape: Shape | ShapeAt, path: TickPath, out: PathCrossing[]): number => {

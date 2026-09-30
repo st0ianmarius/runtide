@@ -97,7 +97,7 @@ const numbersOf = (values: Readonly<Record<string, number | undefined>>): Readon
 const applyEach = <G extends ProcTypes>(ctx: ProcContext<G>, procs: readonly Proc<G>[] | undefined): void => {
   const list = procs ?? [];
 
-  // An indexed loop: groups run here, and an iterator over a frozen list allocates (§I.5.4).
+  // An indexed loop: groups run here, and an iterator over a frozen list allocates.
   // oxlint-disable-next-line typescript/prefer-for-of
   for (let i = 0; i < list.length; i++) {
     const proc = list[i];
@@ -321,7 +321,7 @@ const runKind: CoreProcKind<'run'> = {
 };
 
 /**
- * The framework's proc kinds (§I.6, §II.3.6), the ones that need no host beyond the aura system and the framework's own
+ * The framework's proc kinds, the ones that need no host beyond the aura system and the framework's own
  * services: `applyAura`, `removeAura`, `removeByTag`, `grant`, `event`, the control kinds `group`, `andThen`, `pickOne`
  * and `run`, then `cue` and `timeLeft` (appended, so the kinds before them keep their ids). A game registers them with its own:
  * `createProcRegistry({ ...CORE_PROCS, ...GAME_PROCS })`.

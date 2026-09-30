@@ -174,7 +174,7 @@ describe('the lethal stage (onLethal)', () => {
   });
 });
 
-describe('the attacker’s onDealt hooks (§II.6 D2)', () => {
+describe('the attacker’s onDealt hooks', () => {
   it('run after health for a blow that was dealt, their procs credited to the aura', () => {
     const { damage, auras, id, unit } = makeDamageGame(AURAS);
     const [target, attacker] = [unit(1), unit(2)];

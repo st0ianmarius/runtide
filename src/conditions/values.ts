@@ -5,7 +5,7 @@ import { recordOf } from '../core/records.ts';
 export type ValueId = Id<'values'>;
 
 /**
- * A game-supplied value read (§II.6 M3): a number from the read's host and a numeric argument, such as
+ * A game-supplied value read: a number from the read's host and a numeric argument, such as
  * `byMissingHealth(max)` giving `1 + max × (1 − hp / maxHp)`. It must be deterministic.
  */
 export type ValueRead<Host> = (host: Host, arg: number) => number;
@@ -15,7 +15,7 @@ export interface ValueSpec<Host> {
   /** The number it reads. */
   readonly read: ValueRead<Host>;
 
-  /** Whether a prediction mirror may read it (§II.6 M8, R3); false when absent. */
+  /** Whether a prediction mirror may read it; false when absent. */
   readonly mirrorSafe?: boolean;
 }
 

@@ -3,7 +3,7 @@ import { type CueEvent, CueRecord } from './event.ts';
 import type { CueId } from './ids.ts';
 
 /**
- * A tick's cue events, in firing order (§I.5, §I.5.4): what the simulation emits into and the encoder reads. Its
+ * A tick's cue events, in firing order: what the simulation emits into and the encoder reads. Its
  * events are pooled: `clear` keeps every record for the next tick, so a steady-state tick allocates none (`created`
  * counts them). A server clears it once the tick's events are encoded; a client decodes into one of its own.
  */

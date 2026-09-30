@@ -22,7 +22,7 @@ const setUp = () => {
   return { modifiers, sheet };
 };
 
-describe('stat projections (§II.6 M7, R3)', () => {
+describe('stat projections', () => {
   it('writes the declared stats in order, folded over every source or only the chosen ones', () => {
     const { modifiers, sheet } = setUp();
     const full = defineProjection(modifiers, { stats: ['speed', 'armor'] });

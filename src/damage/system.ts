@@ -30,7 +30,7 @@ export interface HealthCredit<G extends DamageTypes> {
 }
 
 /**
- * A damage system (§I.6, §II.6 D1–D5): one side-agnostic damage pipeline for any unit, a heal pipeline, a force
+ * A damage system: one side-agnostic damage pipeline for any unit, a heal pipeline, a force
  * pipeline and the death pipeline, over the game's aura system and host, with the game's own stages at their declared
  * positions. Every record it returns is reused per nesting level: read it before the next call at that level.
  */
@@ -72,12 +72,12 @@ export interface DamageSystem<G extends DamageTypes> {
   readonly force: (spec: ForceSpec<G>) => Force<G>;
 
   /**
-   * Sets a unit's health outright, bypassing the heal stages (§II.6 P3). A unit that was alive and is dead by the
+   * Sets a unit's health outright, bypassing the heal stages. A unit that was alive and is dead by the
    * system's rule afterwards goes through the death pipeline, credited as given. A dead unit is `skipped`.
    */
   readonly setHealth: (unit: G['bearer'], health: number, credit?: HealthCredit<G>) => ProcOutcome;
 
-  /** Heals a unit by its regeneration stat for `seconds`, through the heal pipeline (§II.6 D3). */
+  /** Heals a unit by its regeneration stat for `seconds`, through the heal pipeline. */
   readonly regenerate: (unit: G['bearer'], seconds: number) => Heal<G>;
 
   /** Whether a unit is dead by the system's rule. */
@@ -85,7 +85,7 @@ export interface DamageSystem<G extends DamageTypes> {
 
   /**
    * The mitigation rows a blow of one kind would meet on a defender, from an attacker (none for the world's), as data
-   * (§II.3.14, §I.5.3): each row's rating before and after penetration and its factor, and the product of them all.
+   *: each row's rating before and after penetration and its factor, and the product of them all.
    */
   readonly explainMitigation: (
     defender: G['bearer'],
@@ -99,7 +99,7 @@ export interface DamageSystem<G extends DamageTypes> {
   ) => MitigationExplanation;
 
   /**
-   * The outcome rows explained for a pair (§II.3.14, §I.5.3): each row's outcome, effect, chance (clamped to [0, 1])
+   * The outcome rows explained for a pair: each row's outcome, effect, chance (clamped to [0, 1])
    * and multiplier, read from the attacker's stats (by a spell's shares when one is given) and the defender's, so
    * the client can print "12% to dodge". In `single` mode each chance is the row's own, before earlier rows push it.
    */
@@ -261,7 +261,7 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
 }
 
 /**
- * Creates the damage system (§I.5): `createDamageSystem({ auras, kinds: DAMAGE_KINDS, host, stats, outgoing: ['damage'],
+ * Creates the damage system: `createDamageSystem({ auras, kinds: DAMAGE_KINDS, host, stats, outgoing: ['damage'],
  * crit: { chance: 'critChance', damage: 'critDamage' }, mitigation: MITIGATION, stages: { … } })`. Every stage order,
  * kind bypass, stat, tag and mitigation row is checked here, so a mistake fails at load. The game's aura types must
  * point `blow` at `Blow<Game>` and `force` at `Force<Game>`.

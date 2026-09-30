@@ -21,7 +21,7 @@ const isUnit = (value: unknown): value is Unit => typeof value === 'object' && v
 /** A unit's point. */
 const pointOfUnit = (target: Unit): Vec2 => target.at;
 
-describe('reach rules (§I.7.1 F16)', () => {
+describe('reach rules', () => {
   it('refuse a target past the range, after the target is picked, and read the range from the cast', () => {
     const game = makeSpellGame({
       poke: spell({

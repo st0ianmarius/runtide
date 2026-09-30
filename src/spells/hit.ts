@@ -5,7 +5,7 @@ import type { SpellTypes } from './spell-types.ts';
 import { refreshLive } from './take-stats.ts';
 
 /**
- * A delivery of a cast caught units (§II.3.1): its hit cue, `onHit` with every unit at once, and the `hit` event.
+ * A delivery of a cast caught units: its hit cue, `onHit` with every unit at once, and the `hit` event.
  * Returns how many of `onHit`'s procs went off; 0 for a stale handle.
  */
 export const hitCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: CastHandle, hit: SpellHit<G>): number => {

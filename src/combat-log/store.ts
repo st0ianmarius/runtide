@@ -10,7 +10,7 @@ const FNV_OFFSET = 0x81_1c_9d_c5;
 const FNV_PRIME = 0x01_00_01_93;
 
 /**
- * The log's storage (§I.5.4): a ring of the latest `capacity` entries, one row of numbers each in one `Float64Array`,
+ * The log's storage: a ring of the latest `capacity` entries, one row of numbers each in one `Float64Array`,
  * so recording allocates nothing and an old entry is overwritten, never collected.
  */
 export class EntryStore {

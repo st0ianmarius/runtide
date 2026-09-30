@@ -47,7 +47,7 @@ const pool = (ledger: AreaLedgerSpec, def: Partial<AnyAreaTriggerDef<Game>> = {}
 /** A game's lines that start with `hit`. */
 const hits = (log: readonly string[]): string[] => log.filter((line) => line.startsWith('hit '));
 
-describe('hit policies (§II.3.4, §II.6 W3)', () => {
+describe('hit policies', () => {
   it('lets each unit through once', () => {
     const game = makeSpellGame({}, { areaTriggers: { pool: pool({ policy: 'once' }) } });
 
@@ -146,7 +146,7 @@ describe('hit policies (§II.3.4, §II.6 W3)', () => {
   });
 });
 
-describe('pierce and claims (§II.6 W3)', () => {
+describe('pierce and claims', () => {
   it('lets a missile through as many different units as it pierces, in the order it reached them', () => {
     const game = makeSpellGame(
       {},
@@ -205,7 +205,7 @@ describe('pierce and claims (§II.6 W3)', () => {
   });
 });
 
-describe('a ledger read by hooks (§II.6 W3)', () => {
+describe('a ledger read by hooks', () => {
   it('records, reserves and reports as its policy says, shared by a family', () => {
     const seen: string[] = [];
 

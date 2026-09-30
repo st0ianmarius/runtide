@@ -30,7 +30,7 @@ export type ScriptEventBindings<G extends ScriptTypes> = {
   readonly [Event in ScriptEventName<G>]?: ScriptEventBinding<G, G['scriptEvents'][Event]>;
 };
 
-/** What a script system is built from (§I.5). */
+/** What a script system is built from. */
 export interface ScriptSystemOptions<G extends ScriptTypes> {
   /** The game's scripts (`defineScripts`). */
   readonly registry: ScriptRegistry<G>;
@@ -52,7 +52,7 @@ export interface ScriptSystemOptions<G extends ScriptTypes> {
 }
 
 /**
- * A script system (§I.7.1 F19): it runs each scripted unit's behaviours and decides nothing itself. A unit whose
+ * A script system: it runs each scripted unit's behaviours and decides nothing itself. A unit whose
  * template names a script gets a record at spawn (each behaviour's state, then its `spawn` handlers); its timers are
  * gathered once a tick (`collect`) and delivered in its own step (`step`), with its `tick` handlers; bound game events
  * reach the unit their binding names. Units with no script cost nothing.
@@ -92,12 +92,12 @@ export interface ScriptSystem<G extends ScriptTypes> {
   readonly stateOf: <State>(unit: G['bearer'], behaviour: Behaviour<G, State>) => State | undefined;
 
   /**
-   * A behaviour's shared state (§I.7.1 F21), for the game's own reads (a director's rules, a placement reservation);
+   * A behaviour's shared state, for the game's own reads (a director's rules, a placement reservation);
    * `undefined` when no script lists it.
    */
   readonly sharedOf: <Shared>(behaviour: Behaviour<G, unknown, Shared>) => Shared | undefined;
 
-  /** How many units run a script now (§I.7.1 F21: a director's overlap rules): kept on attach and detach. */
+  /** How many units run a script now (a director's overlap rules): kept on attach and detach. */
   readonly count: (script: ScriptId) => number;
 
   /**
@@ -342,7 +342,7 @@ const isStateOf = <G extends ScriptTypes, State>(_behaviour: Behaviour<G, State>
   true;
 
 /**
- * Creates the script system (§I.7.1 F19): `createScriptSystem({ registry: SCRIPTS, ai, procs, bus, host, bindings:
+ * Creates the script system: `createScriptSystem({ registry: SCRIPTS, ai, procs, bus, host, bindings:
  * { damaged: { kind: bus.kind.taken, unitOf: (e) => e.blow?.target } } })`, then `createUnitSystem({ …, scripts: () =>
  * scripts.forUnits })`. Throws for a handled event that is not bound.
  */

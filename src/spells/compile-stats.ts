@@ -3,7 +3,7 @@ import type { AnySpellDef, StatsSource } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
 
 /**
- * A spell's stats table compiled at load (§II.3.13): its keys in declaration order and each key's compiled value, so
+ * A spell's stats table compiled at load: its keys in declaration order and each key's compiled value, so
  * a cast evaluates flat term arrays and never looks a name up.
  */
 export interface CompiledStats {
@@ -80,7 +80,7 @@ export const compileStats = <G extends SpellTypes>(
 };
 
 /**
- * A spell's shares of the outgoing multiplier stats (§II.3.13), by stat id, NaN for a stat it leaves out (a share of
+ * A spell's shares of the outgoing multiplier stats, by stat id, NaN for a stat it leaves out (a share of
  * 1); `undefined` when it declares none.
  */
 export const compileShares = <G extends SpellTypes>(

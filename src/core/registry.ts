@@ -8,7 +8,7 @@ export interface Tombstone {
   readonly isRetired: true;
 }
 
-/** Put in a registry in place of a retired definition, so the definitions after it keep their ids (§I.5). */
+/** Put in a registry in place of a retired definition, so the definitions after it keep their ids. */
 export const TOMBSTONE: Tombstone = Object.freeze({ isRetired: true });
 
 /**
@@ -28,7 +28,7 @@ export interface RegistryOptions<Kind extends string, Def, Columns extends strin
 
   /**
    * The pinned order of the names, when it is not the key order: a derived registry pins its own append-only order
-   * this way (§II.6 K5). Every definition's name must be listed; a listed name with no definition is a tombstone.
+   * this way. Every definition's name must be listed; a listed name with no definition is a tombstone.
    */
   readonly order?: readonly string[];
 
@@ -40,7 +40,7 @@ export interface RegistryOptions<Kind extends string, Def, Columns extends strin
 }
 
 /**
- * An ordered registry of plain-object definitions (§I.5.2, §I.5.4). Each name gets a dense id, its position; lookups
+ * An ordered registry of plain-object definitions. Each name gets a dense id, its position; lookups
  * by id are array reads. Append-only: a retired entry keeps its slot as a tombstone. A system that dispatches hooks
  * builds its own typed tables over `defs` (its definitions are typed by the game, which the core cannot see through).
  */
@@ -152,7 +152,7 @@ const createLookups = <Kind extends string, Def>(
 };
 
 /**
- * Creates a registry from `{ name: def, … }` (§I.5.2): each name gets a dense id by key order (or by the pinned
+ * Creates a registry from `{ name: def, … }`: each name gets a dense id by key order (or by the pinned
  * `order`), `TOMBSTONE` keeps a retired slot, and the definitions are frozen in development and copied into typed
  * columns.
  */
@@ -191,7 +191,7 @@ export const createRegistry = <
 };
 
 /**
- * Checks that a registry's order still starts with the pinned names, in order: the append-only rule (§I.5), which a
+ * Checks that a registry's order still starts with the pinned names, in order: the append-only rule, which a
  * consuming game holds in a test. Throws naming the first slot that moved.
  */
 export const checkOrder = (registry: { readonly names: readonly string[] }, pinned: readonly string[]): void => {

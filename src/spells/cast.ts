@@ -56,7 +56,7 @@ export class CastOrigin<G extends SpellTypes> implements ProcOrigin<G> {
 }
 
 /**
- * One cast, pooled (§I.5.4): the context every hook of the cast receives, and the runner's own state for it. A class
+ * One cast, pooled: the context every hook of the cast receives, and the runner's own state for it. A class
  * for fast properties; its functions are arrow fields, so a hook may call them detached.
  */
 export class Cast<G extends SpellTypes> implements SpellContext<G> {

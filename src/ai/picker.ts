@@ -4,7 +4,7 @@ import type { AiTypes } from './ai-types.ts';
 import { brainOf } from './brain.ts';
 
 /**
- * How a pick is made (§I.7.1 F17, §II.6 C3): every part but the draw is optional, and a game makes one set per kind
+ * How a pick is made: every part but the draw is optional, and a game makes one set per kind
  * of brain, once, so a pick allocates nothing.
  */
 export interface PickOptions<G extends AiTypes> {
@@ -32,7 +32,7 @@ const ownWeight = <G extends AiTypes>(activation: Activation<G>): number =>
   isAi(activation) ? (activation.weight ?? 1) : 1;
 
 /**
- * The one weighted anti-repeat picker (§I.7.1 F17, §II.6 C3): over a pool of spells, each fitting one (a weight above
+ * The one weighted anti-repeat picker: over a pool of spells, each fitting one (a weight above
  * 0, allowed, and one that would start: `spells.check`, so range, sight and the gates are the spell's own) is drawn
  * with a chance in proportion to its weight, the caster's last pick left out while another fits. Deterministic for a
  * given draw; notes the pick on the caster's brain.
@@ -76,7 +76,7 @@ export class Picker<G extends AiTypes> {
   }
 
   /**
-   * The first spell of an ordered list that would start now (§II.6 C2: a reaction's forced cast before the picker),
+   * The first spell of an ordered list that would start now (a reaction's forced cast before the picker),
    * allowed when `allows` says so; `undefined` when none would. Does not change the last pick.
    */
   first(

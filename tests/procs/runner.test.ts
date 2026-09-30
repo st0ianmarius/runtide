@@ -26,7 +26,7 @@ const defs = {
   stack: aura({ duration: 4, stacking: 'stack', maxStacks: 9 }),
 };
 
-describe('a proc list applies in order (§I.5, §II.6.1 rule 2)', () => {
+describe('a proc list applies in order', () => {
   it('lets each proc see what the ones before it did', () => {
     const { procs, unit, log, auras, id } = makeGame(defs);
     const u = unit(1);
@@ -131,7 +131,7 @@ describe('a proc list applies in order (§I.5, §II.6.1 rule 2)', () => {
   });
 });
 
-describe('chance and groups (§I.5)', () => {
+describe('chance and groups', () => {
   it('rolls nothing for an always-proc and never applies a proc of chance 0 or less', () => {
     const random = scripted();
     const { procs, unit, log } = makeGame(defs, { procs: { random } });
@@ -178,7 +178,7 @@ describe('chance and groups (§I.5)', () => {
     assert.equal(random.count(), 3);
   });
 
-  it('asks the game chance rule in place of a draw (§I.5.6 hatch 2)', () => {
+  it('asks the game chance rule in place of a draw', () => {
     const asked: [number, number][] = [];
 
     const { procs, unit, log } = makeGame(defs, {
@@ -243,7 +243,7 @@ describe('chance and groups (§I.5)', () => {
   });
 });
 
-describe('the depth cap (§I.5)', () => {
+describe('the depth cap', () => {
   it('drops a list nested deeper than maxDepth and counts it', () => {
     const { procs, unit, log } = makeGame(defs, { procs: { maxDepth: 3 } });
 

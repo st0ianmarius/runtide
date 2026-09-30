@@ -38,7 +38,7 @@ const setUp = () => {
   );
 };
 
-describe('the predicted rule (§II.6 P7, R3)', () => {
+describe('the predicted rule', () => {
   it('finds every aura the mirror reads that is not predicted, and every predicted aura nothing reads', () => {
     const { auras, id } = setUp();
 
@@ -76,7 +76,7 @@ describe('the predicted rule (§II.6 P7, R3)', () => {
   });
 });
 
-describe('mirror-safe conditions on predicted auras (§II.6 M8)', () => {
+describe('mirror-safe conditions on predicted auras', () => {
   it('reports a predicted aura whose modifier waits on a condition the mirror may not evaluate', () => {
     const conditions = defineConditions({
       grounded: { test: () => true, mirrorSafe: true },

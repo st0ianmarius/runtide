@@ -4,7 +4,7 @@ import type { CurveRef } from './curves.ts';
 export type PerRank = number | readonly number[];
 
 /**
- * One stat term of a scaled value: `coef × stat` (§II.3.13). `of: 'bonus'` reads the stat minus its base ("+60% bonus
+ * One stat term of a scaled value: `coef × stat`. `of: 'bonus'` reads the stat minus its base ("+60% bonus
  * attack damage"); `from: 'target'` reads the target's stat when the value lands, not the caster's at the cast.
  */
 export interface Term<S extends string = string> {
@@ -37,7 +37,7 @@ export interface CurveTerm<S extends string = string> {
 }
 
 /**
- * A number written as data (§II.3.13), always evaluated as `(base + Σ add) × Π amp × curve(Σ curve terms)`, in that
+ * A number written as data, always evaluated as `(base + Σ add) × Π amp × curve(Σ curve terms)`, in that
  * fixed order, so the float result is the same everywhere.
  */
 export interface Scaling<S extends string = string> {

@@ -6,7 +6,7 @@ import type { CueSchema } from './schema.ts';
 export const NO_ENTITY = -1;
 
 /**
- * One cue event (§I.5, §I.5.3): a cue id, where it sits, whose it is, and its numeric params, in the order the
+ * One cue event: a cue id, where it sits, whose it is, and its numeric params, in the order the
  * simulation fired it. Events are pooled by their buffer: one is valid, and writable, from the `emit` that returned it
  * until the buffer is cleared, so a game may still correct one (keep the strongest impact per body) before it is
  * encoded. Nothing in the simulation reads a cue.
@@ -31,7 +31,7 @@ export interface CueEvent {
   /** Where it sits: the forward coordinate. */
   z: number;
 
-  /** A predicted cue's key, which the server's copy repeats (§II.6 R2); 0 for none. A whole number from 0. */
+  /** A predicted cue's key, which the server's copy repeats; 0 for none. A whole number from 0. */
   key: number;
 
   /** The params' slots, at the cue's defaults until written. Only the cue's own slots mean anything. */

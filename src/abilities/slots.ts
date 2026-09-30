@@ -1,7 +1,7 @@
 import type { AuraId } from '../auras/index.ts';
 import { createRegistry, type Registry } from '../core/index.ts';
 
-/** A slot's definition: the aura its cooldown is (`cooldown.<slot>`, §II.6 S4); a slot with none never cools down. */
+/** A slot's definition: the aura its cooldown is (`cooldown.<slot>`); a slot with none never cools down. */
 export interface SlotDef {
   /**
    * The aura an ability in this slot starts as its cooldown (its name, or its id), resolved when the ability system is
@@ -17,7 +17,7 @@ export const MAX_SLOTS = 31;
 export type SlotTable<Name extends string = string> = Registry<'slots', Extract<Name, string>, SlotDef, never>;
 
 /**
- * Declares the game's slots (§I.6 Abilities, §II.6 S4) in the order one press fires them, each with the aura its
+ * Declares the game's slots in the order one press fires them, each with the aura its
  * cooldown is: `defineSlots({ dodge: { cooldown: 'dodgeCooldown' }, skill: { … }, ultimate: { … } })`. A
  * cooldown is per slot, not per ability, so an ability equipped on a cooling slot inherits its cooldown.
  */

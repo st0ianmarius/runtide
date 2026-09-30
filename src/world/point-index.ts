@@ -4,7 +4,7 @@ import type { Box } from '../math/index.ts';
 import type { UnitTable } from './unit-table.ts';
 
 /**
- * The point index a memory world narrows unit queries with (§I.5.4): it answers which slots may stand in a box, and
+ * The point index a memory world narrows unit queries with: it answers which slots may stand in a box, and
  * the exact test comes after. Two kinds, behind the same queries: a uniform grid updated as units move, and a k-d tree
  * rebuilt when positions changed (for large, sparse worlds where one cell size does not fit).
  */

@@ -6,7 +6,7 @@ import type { Force } from './force.ts';
 import type { Heal } from './heal.ts';
 
 /**
- * The cues the pipelines fire (§I.5.3, §II.3.9): the game's own mapping from a finished blow, heal, force or death to
+ * The cues the pipelines fire: the game's own mapping from a finished blow, heal, force or death to
  * cues, since which moments show (a damage number, an absorbed amount, a callout) and with which params is the
  * game's. Each mapping runs at a documented point, before the events of the same outcome, so a trigger's cue answering
  * the event follows it in firing order; it places its cues itself (`fireCue` with the units' positions). Nothing is

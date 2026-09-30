@@ -30,7 +30,7 @@ const sharesParty = (a: number) => (owner: number) => a !== 3 && owner !== 3;
 /** A place of owner 1, at the origin. */
 const OWNED = { owner: 1, entity: 1, x: 0, z: 0 };
 
-describe('cueReaches (§II.6 R1)', () => {
+describe('cueReaches', () => {
   it('routes by audience: the owner alone, the owner and its party, or everyone', () => {
     const out = createCueBuffer(CUES);
     const events = [CUES.id.mine, CUES.id.ours, CUES.id.all, CUES.id.horn].map((cue) => fireCue(out, { cue }, OWNED));
@@ -69,7 +69,7 @@ describe('cueReaches (§II.6 R1)', () => {
   });
 });
 
-describe('predicted cue echoes (§II.6 R2)', () => {
+describe('predicted cue echoes', () => {
   it("drops the server's copy of a cue the client fired ahead, once, matched on cue, owner and key", () => {
     const echoes = createCueEchoes(CUES);
     const mine = createCueBuffer(CUES);

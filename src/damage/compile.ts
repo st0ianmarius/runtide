@@ -7,7 +7,7 @@ import type { DamageSystemOptions } from './options.ts';
 import { compileStageOrder, type StageDef, type StageOrder } from './stage-order.ts';
 
 /**
- * The damage pipeline's built-in stages, in their documented order (§II.6 D1, D2, §II.3.14): the ignore gates before any
+ * The damage pipeline's built-in stages, in their documented order: the ignore gates before any
  * roll, the defender's block roll, the attacker's outgoing multipliers and crit (block, then crit, as the roll table's
  * `'independent'` mode rolls them), the mitigation rows, absorbs, `onLethal` and health; then the
  * after-stages every blow runs however it ended: the attacker's `onDealt` hooks, the events, the knockback and the
@@ -28,12 +28,12 @@ export const DAMAGE_STAGES = Object.freeze([
 ] as const);
 
 /**
- * The heal pipeline's built-in stages (§II.6 D3): heal-block tags, the healer's healing done, the target's healing
+ * The heal pipeline's built-in stages: heal-block tags, the healer's healing done, the target's healing
  * received and health; then the event.
  */
 export const HEAL_STAGES = Object.freeze(['block', 'done', 'received', 'health', 'outcome'] as const);
 
-/** The force pipeline's built-in stages (§II.6 D4): the `onIncomingForce` hooks, then the host moves the unit. */
+/** The force pipeline's built-in stages: the `onIncomingForce` hooks, then the host moves the unit. */
 export const FORCE_STAGES = Object.freeze(['resist', 'apply'] as const);
 
 /** The stats and tags the built-in stages read, resolved to ids (`undefined` when not configured). */

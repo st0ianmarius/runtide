@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): a party's cues fire in a loop, so it is indexed.
+// Hot path: a party's cues fire in a loop, so it is indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import {
   checkCueSpec,
@@ -105,7 +105,7 @@ const applyCue = <G extends ProcTypes>(proc: CueProc<G>, frame: ProcFrame<G>): P
   return PROC_LANDED;
 };
 
-/** Checks that a cue proc can be placed by its anchor (§II.6 P7). */
+/** Checks that a cue proc can be placed by its anchor. */
 const checkPlacement = <G extends ProcTypes>(cues: CueRegistry, proc: CueProc<G>, cue: CueId): void => {
   const anchor = cues.anchorOf(cue);
 
@@ -119,8 +119,8 @@ const checkPlacement = <G extends ProcTypes>(cues: CueRegistry, proc: CueProc<G>
 };
 
 /**
- * The `cue` proc kind (§II.3.9): presentation only, so it acts on no unit the runner resolves (a cue plays even on a unit
- * its list killed), and is checked at load against the system's cue registry (§II.6 P7).
+ * The `cue` proc kind: presentation only, so it acts on no unit the runner resolves (a cue plays even on a unit
+ * its list killed), and is checked at load against the system's cue registry.
  */
 export const CUE_KIND: CoreProcKind<'cue'> = {
   apply: (proc, ctx) => applyCue(proc, frameOf(ctx)),

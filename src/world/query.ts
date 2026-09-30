@@ -17,7 +17,7 @@ export interface UnitSet<Unit> {
 }
 
 /**
- * The options every unit query takes (§II.3.5, §II.6 W10). Each is optional; together they cover the targeting rules
+ * The options every unit query takes. Each is optional; together they cover the targeting rules
  * a game repeats across its spells, so every resolver is one call.
  */
 export interface QueryOptions<Unit> {
@@ -119,7 +119,7 @@ export interface BodyMove {
 }
 
 /**
- * How a point is picked (§II.6 W10): samples in an annulus (and optionally an arc) around a centre, each walked back
+ * How a point is picked: samples in an annulus (and optionally an arc) around a centre, each walked back
  * toward the centre while it is not clear, filtered and scored; the best of the attempts wins.
  */
 export interface PointPick {
@@ -164,7 +164,7 @@ export interface PointPick {
 }
 
 /**
- * What a spell or an area trigger may ask the world (§II.3.5, §II.6 W10): pure reads, no side effects, shared by every
+ * What a spell or an area trigger may ask the world: pure reads, no side effects, shared by every
  * caster, so a spell written for a hero works when a creature casts it. The game implements it over its own world, or
  * uses `createMemoryWorld`; list queries write into a caller's array from index 0 and return how many they wrote.
  */
@@ -239,6 +239,6 @@ export interface WorldQuery<Unit> {
    */
   readonly leadPoint: (unit: Unit, from: Vec2, speed: number) => Vec2;
 
-  /** The names of the game's own query extensions (§I.5.6 hatch 5), for the escape report. */
+  /** The names of the game's own query extensions, for the escape report. */
   readonly extensions: readonly string[];
 }

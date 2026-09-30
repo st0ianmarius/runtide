@@ -20,7 +20,7 @@ export interface RunnerParts<G extends ScriptTypes> {
 }
 
 /**
- * Runs scripted units' handlers (§I.7.1 F19): one reused context and origin per nesting level, so a handler's procs
+ * Runs scripted units' handlers: one reused context and origin per nesting level, so a handler's procs
  * may reach another unit's handlers (an add dying tells its owner) without allocating.
  */
 export class ScriptRunner<G extends ScriptTypes> {

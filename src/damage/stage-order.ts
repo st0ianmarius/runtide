@@ -1,5 +1,5 @@
 /**
- * Where a game stage goes (§I.5.6 hatch 5): right before or right after a named stage, built-in or the game's own
+ * Where a game stage goes: right before or right after a named stage, built-in or the game's own
  * declared earlier. Several stages at one position keep their declaration order.
  */
 export interface StagePosition {
@@ -74,7 +74,7 @@ const checkStage = <Run>(names: readonly string[], parts: { what: string; name: 
 };
 
 /**
- * Compiles a pipeline's stage order (§II.6 D1): the built-in stages in their documented order, with the game's stages
+ * Compiles a pipeline's stage order: the built-in stages in their documented order, with the game's stages
  * inserted at their declared positions, in declaration order. `boundary` is the last stage that can end a blow; any
  * stage placed after it is an after-stage.
  */

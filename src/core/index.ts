@@ -1,5 +1,5 @@
 /**
- * The deterministic core (§I.6): random streams and keyed rolls, the fixed-step clock with its countdowns, stamps and the
+ * The deterministic core: random streams and keyed rolls, the fixed-step clock with its countdowns, stamps and the
  * timing wheel, ordered registries with their dense tables, bitsets, pools, scratch lists and the event bus.
  */
 

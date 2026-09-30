@@ -6,7 +6,7 @@ import type { BlowStatus, DamageKindId, DamageTypes } from './damage-types.ts';
 /** No skipped outcome rows. */
 const NO_SKIPS: readonly string[] = Object.freeze([]);
 
-/** One stage a traced blow went through (§I.5.3: explanations are data): the stage and the amount after it. */
+/** One stage a traced blow went through (explanations are data): the stage and the amount after it. */
 export interface BlowStep {
   /** The stage's developer name (`mitigation`, or a game stage's name). */
   readonly stage: string;
@@ -32,13 +32,13 @@ export interface BlowSpec<G extends DamageTypes> {
   /** The entity id it is credited to; the host's id of the attacker, else `NO_SOURCE`, when absent. */
   readonly source?: number | undefined;
 
-  /** The spell it comes from, whose outgoing-multiplier shares the host looks up (§II.3.13). */
+  /** The spell it comes from, whose outgoing-multiplier shares the host looks up. */
   readonly spell?: G['spell'] | undefined;
 
   /** Its damage kind; the table's first kind when absent. */
   readonly kind?: DamageKindId | undefined;
 
-  /** The point it comes from, for impact and knock direction (§II.6 P6). */
+  /** The point it comes from, for impact and knock direction. */
   readonly from?: Vec2 | undefined;
 
   /** The strength of the knockback it carries; 0 (none) when absent. */
@@ -48,7 +48,7 @@ export interface BlowSpec<G extends DamageTypes> {
   readonly direction?: Vec2 | undefined;
 
   /**
-   * The outcome rows it cannot roll, by name (§II.3.14): `['block']` for an unblockable blow, `['dodge', 'parry']` for
+   * The outcome rows it cannot roll, by name: `['block']` for an unblockable blow, `['dodge', 'parry']` for
    * an undodgeable one, `['miss']` for one that cannot miss. None when absent.
    */
   readonly skips?: readonly string[] | undefined;
@@ -61,7 +61,7 @@ export interface BlowSpec<G extends DamageTypes> {
 }
 
 /**
- * A blow as stages, hooks, events and callers see it (§II.3.8, §II.6 D1): what it was asked to be, what each stage
+ * A blow as stages, hooks, events and callers see it: what it was asked to be, what each stage
  * made of it, and, once the pipeline is done, how it ended. It is reused per nesting level, so nothing keeps it past
  * the call that handed it over. It is a proc outcome too: a damage proc reports it as is.
  */

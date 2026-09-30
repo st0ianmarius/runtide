@@ -55,7 +55,7 @@ export const readsWorld = (tables: ConditionTables, condition: CompiledCondition
 };
 
 /**
- * Whether a prediction mirror may evaluate a compiled condition (§II.6 M8, R3): every test and value in it is flagged
+ * Whether a prediction mirror may evaluate a compiled condition: every test and value in it is flagged
  * `mirrorSafe`.
  */
 export const isMirrorSafe = (tables: ConditionTables, condition: CompiledCondition): boolean => {
@@ -144,7 +144,7 @@ const compileWith = (state: Compiling, expr: ConditionExpr): CompiledCondition =
 };
 
 /**
- * Compiles a condition against the game's tables at load (§I.7.1 F12): every name must be a registered condition or
+ * Compiles a condition against the game's tables at load: every name must be a registered condition or
  * value kind, every number finite, every list non-empty, and in `all` and `any` the parts that ask the world are moved
  * after the rest, which changes no result, since conditions are pure. Throws a `RangeError` naming `what`.
  */

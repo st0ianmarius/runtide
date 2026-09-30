@@ -40,7 +40,7 @@ const KINDS = () =>
     { tags: AREA_TAGS },
   );
 
-describe('the area trigger registry (§I.5.2, §I.5.4)', () => {
+describe('the area trigger registry', () => {
   it('gives each kind its id by key order, a retired slot kept as a tombstone', () => {
     const registry = KINDS();
 

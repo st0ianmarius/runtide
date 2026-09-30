@@ -15,7 +15,7 @@ import type { SpellId, SpellTypes } from './spell-types.ts';
 import type { Timeline } from './timeline.ts';
 
 /**
- * Where a cast is in its timeline (§II.3.3): `windup` (counting to the release), `channel` (the payload running over
+ * Where a cast is in its timeline: `windup` (counting to the release), `channel` (the payload running over
  * time), `recover` (busy after it), then `ended`. The brain reads it for its movement (holding ground, facing).
  */
 export type CastStage = 'windup' | 'channel' | 'recover' | 'ended';
@@ -27,7 +27,7 @@ export type CastStage = 'windup' | 'channel' | 'recover' | 'ended';
  */
 export type CastOutcome<G extends SpellTypes = SpellTypes> = 'released' | 'cancelled' | 'broken' | G['castOutcome'];
 
-/** What a spell's `stats` is: a table of scaled values (§II.3.13), or a function of the cast (§I.5.6 hatch 2). */
+/** What a spell's `stats` is: a table of scaled values, or a function of the cast. */
 export type StatsSource<G extends SpellTypes> =
   | Readonly<Record<string, Scaled<G['stat']>>>
   | {
@@ -122,7 +122,7 @@ export interface GateContext<G extends SpellTypes> {
 }
 
 /**
- * What every spell hook receives (§II.3.1): the caster and credit, the cast (its target, stats, own state, stage and
+ * What every spell hook receives: the caster and credit, the cast (its target, stats, own state, stage and
  * time), and the services a hook may use. It is the cast itself, pooled, so a hook reads it while it runs and never
  * keeps it; a delayed proc keeps the cast alive instead (`spells.isLive`). Its functions may be called detached.
  */
@@ -141,13 +141,13 @@ export interface SpellContext<
   /** Its stats as plain numbers: the snapshot taken at the start, or read again before every hook for a `live` spell. */
   readonly stats: StatsOf<Source>;
 
-  /** Its stats as proc amounts: scaled snapshots whose target terms finish at the hit (§II.3.13). */
+  /** Its stats as proc amounts: scaled snapshots whose target terms finish at the hit. */
   readonly scaled: ScaledOf<Source>;
 
   /** Its own state, shared by every delivery and delayed proc of the cast (`SpellDef.state`). */
   readonly state: State;
 
-  /** The game's own fields (§I.5.6 hatch 4). */
+  /** The game's own fields. */
   readonly ext: G['castExt'];
 
   /** Where it is in its timeline. */
@@ -171,7 +171,7 @@ export interface SpellContext<
   /** The tick it started on. */
   readonly startTick: number;
 
-  /** Applies one proc now, for the caster and credited to the cast, and returns what it did (§II.6.1 rule 2). */
+  /** Applies one proc now, for the caster and credited to the cast, and returns what it did. */
   readonly apply: (proc: Proc<G>) => ProcOutcome;
 
   /**
@@ -181,7 +181,7 @@ export interface SpellContext<
   readonly random: (stream?: G['stream']) => Random;
 
   /**
-   * The cast's keyed-roll key (§I.5): `(startTick, casterId, spellId, targetId, index)` in a reused array, read at
+   * The cast's keyed-roll key: `(startTick, casterId, spellId, targetId, index)` in a reused array, read at
    * once; two rolls that must differ in one cast differ in `targetId` or `index`.
    */
   readonly key: (targetId?: number, index?: number) => readonly number[];
@@ -197,12 +197,12 @@ export interface SpellContext<
 export type ProcReturn<G extends SpellTypes> = readonly Proc<G>[] | ProcOut<G> | undefined;
 
 /**
- * The cues a spell fires at its moments (§II.3.9): each hook returns a `CueSpec` (typed per cue with `CueSpecOf`) or
+ * The cues a spell fires at its moments: each hook returns a `CueSpec` (typed per cue with `CueSpecOf`) or
  * `undefined`, fired into the system's cue buffer on the caster, before the moment's event.
  */
 export interface SpellCues<G extends SpellTypes, Source extends StatsSource<G>, Target, State> {
   /**
-   * The cast as its caster's own client predicts it (§II.3.9, §II.6 R2): mirror-safe, it reads only a `MirrorCtx` (the
+   * The cast as its caster's own client predicts it: mirror-safe, it reads only a `MirrorCtx` (the
    * caster, the input, its stats for the spell, the static world), so the prediction mirror fires it at the press
    * (`spells.predictCast`) and the server as the cast starts, both with the cast's key, and the client drops the
    * server's echo. It must return a predicted cue. It fires before `start`.
@@ -226,7 +226,7 @@ export interface SpellCues<G extends SpellTypes, Source extends StatsSource<G>, 
 }
 
 /**
- * A spell (§II.3.1): plain data and standalone hooks returning procs, registered by name (`defineSpells`), with no id
+ * A spell: plain data and standalone hooks returning procs, registered by name (`defineSpells`), with no id
  * of its own. `Source` is its stats' form, `Target` what its `target` hook picks, `State` its casts' own state.
  */
 export interface SpellDef<
@@ -238,17 +238,17 @@ export interface SpellDef<
   /** Its tags: modifier scopes, trigger filters, the class of the spell. */
   readonly tags?: readonly G['spellTag'][];
 
-  /** Who pulls its trigger, and that system's rules as data (§II.3.2). */
+  /** Who pulls its trigger, and that system's rules as data. */
   readonly activation: Activation<G, Source>;
 
   /** Its ranks: every per-rank list in its stats has this many entries; 1 when absent. */
   readonly ranks?: number;
 
-  /** Its numbers for a cast: a table of scaled values, or a function (§II.3.13); none when absent. */
+  /** Its numbers for a cast: a table of scaled values, or a function; none when absent. */
   readonly stats?: Source;
 
   /**
-   * Its share of each outgoing multiplier stat (§II.3.13), 1 for a stat it leaves out: `{ damage: 1.1 }` takes 110%
+   * Its share of each outgoing multiplier stat, 1 for a stat it leaves out: `{ damage: 1.1 }` takes 110%
    * of the damage bonus. The damage pipeline reads it through `spells.shareOf`.
    */
   readonly scaling?: Readonly<Partial<Record<G['stat'], number>>>;
@@ -256,20 +256,20 @@ export interface SpellDef<
   /** Whether hooks read its stats live (evaluated again before every hook) instead of the snapshot taken at the start. */
   readonly live?: boolean;
 
-  /** An aura the caster holds while the cast runs: its triggers are the spell's own (§II.3.7). */
+  /** An aura the caster holds while the cast runs: its triggers are the spell's own. */
   readonly castAura?: G['auraName'] | AuraId;
 
-  /** The game's own data (§I.5.6 hatch 4), which the framework never reads. */
+  /** The game's own data, which the framework never reads. */
   readonly data?: G['spellData'];
 
-  /** How the cast unfolds in time (§II.3.3); an instant release when absent. */
+  /** How the cast unfolds in time; an instant release when absent. */
   readonly timeline?: Timeline<G, Source, Target, State>;
 
   /** The cues it fires at its moments. */
   readonly cues?: SpellCues<G, Source, Target, State>;
 
   /**
-   * Its reach rules (§I.7.1 F16), asked after `target`: a range, a clear line, room at the point. Its activation
+   * Its reach rules, asked after `target`: a range, a clear line, room at the point. Its activation
    * kind's (an `ai` activation's `range` and `sight`) when absent.
    */
   readonly reach?: Reach<G, Source, Target>;

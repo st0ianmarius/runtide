@@ -1,5 +1,5 @@
 /**
- * The combat log (§I.7.1 F11): a structured stream of every blow, immunity, heal, death, aura change, cast moment and
+ * The combat log: a structured stream of every blow, immunity, heal, death, aura change, cast moment and
  * area trigger spawn and end, recorded from the systems' bus events as ids and numbers into a ring, with subscribers
  * (a damage meter, tests, analytics) and a checksum for goldens.
  */

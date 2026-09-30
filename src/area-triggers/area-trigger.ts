@@ -66,7 +66,7 @@ export class AreaOrigin<G extends AreaTriggerTypes> implements ProcOrigin<G> {
 }
 
 /**
- * One area trigger, pooled (§I.5.4): the context its hooks receive and the store's own state for it, its links in the
+ * One area trigger, pooled: the context its hooks receive and the store's own state for it, its links in the
  * tick order and in its kind's creation order included. A class for fast properties; its functions are arrow fields,
  * so a hook may call them detached.
  */

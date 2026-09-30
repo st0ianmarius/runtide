@@ -24,7 +24,7 @@ const setUp = () => {
   return { ...game, server, mirror };
 };
 
-describe('seeding a prediction mirror (§II.6 R3)', () => {
+describe('seeding a prediction mirror', () => {
   it('rebuilds the predicted auras from the views with their stamps, and leaves the others out', () => {
     const { auras, id, server, mirror, run } = setUp();
 

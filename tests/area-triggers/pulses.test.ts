@@ -45,7 +45,7 @@ const ticks = (game: ReturnType<typeof makeSpellGame>, count: number): void => {
 /** A game's log lines that start with `beat`. */
 const beats = (log: readonly string[]): string[] => log.filter((line) => line.startsWith('beat'));
 
-describe('own pulses (§II.3.4, §II.6 W2)', () => {
+describe('own pulses', () => {
   it('beats on its own clock, catching its owner’s foes in its shape', () => {
     const game = makeSpellGame({}, { areaTriggers: { pool: pool([logging()]) } });
     const owner = game.unit(1);
@@ -119,7 +119,7 @@ describe('own pulses (§II.3.4, §II.6 W2)', () => {
   });
 });
 
-describe('shared clocks (§II.6 W2)', () => {
+describe('shared clocks', () => {
   it('beats every member of an owner’s clock at once, from the first to step, each owner on its own', () => {
     const game = makeSpellGame({}, { areaTriggers: { patch: pool([logging({ clock: 'owner-shared' })]) } });
     const [one, two] = [game.unit(1), game.unit(2)];
@@ -188,7 +188,7 @@ describe('shared clocks (§II.6 W2)', () => {
   });
 });
 
-describe('arming and the frame’s order (§II.6 W2)', () => {
+describe('arming and the frame’s order', () => {
   it('holds its frame while arming, then runs it with the time left over on the tick it arms', () => {
     const game = makeSpellGame(
       {},
@@ -241,7 +241,7 @@ describe('arming and the frame’s order (§II.6 W2)', () => {
   });
 });
 
-describe('contacts and landings (§II.3.4)', () => {
+describe('contacts and landings', () => {
   /** A missile flying along +x at 8 m/s, sweeping a body of 0.5 m. */
   const missile = (def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<Game> => ({
     shape: circle(0.5),
@@ -342,7 +342,7 @@ describe('contacts and landings (§II.3.4)', () => {
   });
 });
 
-describe('an area trigger that casts (§II.3.4: the sentry)', () => {
+describe('an area trigger that casts (the sentry)', () => {
   it('casts its spell as its owner on its own clock, what the cast spawns its child', () => {
     const children: AreaTriggerHandle[] = [];
 

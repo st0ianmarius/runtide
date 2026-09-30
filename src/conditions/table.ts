@@ -5,7 +5,7 @@ import { recordOf } from '../core/records.ts';
 export type ConditionId = Id<'conditions'>;
 
 /**
- * A game-supplied condition test (§I.5.6 hatch 5): whether it holds for the read's host (the bearer's state and world,
+ * A game-supplied condition test: whether it holds for the read's host (the bearer's state and world,
  * as the game shapes them) with the condition's numeric argument. It must be deterministic; it may ask the world
  * lazily, since it runs only when what waits on it would otherwise count.
  */
@@ -17,14 +17,14 @@ export interface ConditionSpec<Host> {
   readonly test: ConditionTest<Host>;
 
   /**
-   * Whether a prediction mirror may evaluate it (§II.6 M8, R3): it reads only what the mirror has (the bearer's
+   * Whether a prediction mirror may evaluate it: it reads only what the mirror has (the bearer's
    * synced state, its predicted auras). False when absent.
    */
   readonly mirrorSafe?: boolean;
 
   /**
    * Whether it asks the world (a query, a line of sight), which costs more than reading the bearer: in `all` and `any`
-   * it is tested after the tests that do not (§II.6 M8, lazy world conditions). False when absent.
+   * it is tested after the tests that do not (lazy world conditions). False when absent.
    */
   readonly world?: boolean;
 }
@@ -59,7 +59,7 @@ const defOf = <Host>(spec: ConditionTest<Host> | ConditionSpec<Host>): Condition
  * Registers the game's condition tests: `defineConditions({ healthBelow: (host, share) => host.hp < host.maxHp *
  * share, inSight: { test: …, world: true } })`. Conditions name them (`{ is: 'healthBelow', arg: 0.4 }`) and compose
  * them (`all`, `any`, `not`); a read evaluates them every time and never caches a result, since what they read
- * (health, the world) changes without the reader knowing (§I.5.4).
+ * (health, the world) changes without the reader knowing.
  */
 export const defineConditions = <Host, const Name extends string>(
   tests: Readonly<Record<Name, ConditionTest<Host> | ConditionSpec<Host>>>,

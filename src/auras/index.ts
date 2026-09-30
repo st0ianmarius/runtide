@@ -1,5 +1,5 @@
 /**
- * Auras (§I.6, §II.3.8): timed states on any bearer, WoW style. Definitions are plain data and standalone hooks
+ * Auras: timed states on any bearer, WoW style. Definitions are plain data and standalone hooks
  * (`defineAura`, `defineAuras`); a system (`createAuraSystem`) applies, stacks, beats, expires and removes them on
  * any bearer holding an aura state, feeds their modifiers to the modifier system through its gates, keeps the bearer's
  * tag bitset, and runs every lifecycle hook and event through a narrow host and the bus.

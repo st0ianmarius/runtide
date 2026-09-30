@@ -41,7 +41,7 @@ export interface LethalOutcome<Proc> {
 }
 
 /**
- * The damage pipeline's aura hooks (§II.3.8): before a blow lands on a bearer, each of its auras with a hook sees it,
+ * The damage pipeline's aura hooks: before a blow lands on a bearer, each of its auras with a hook sees it,
  * in registry order. They are declared here and built into the registry's hook tables; the damage system's pipelines
  * call them.
  */

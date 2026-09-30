@@ -31,7 +31,7 @@ const setUp = () =>
     swing: spell({ activation: { kind: 'trigger' }, release }),
   });
 
-describe('cooldown previews (§II.6 M6)', () => {
+describe('cooldown previews', () => {
   it('reads a cooldown with no world from the bases, or from a caster’s stats, at any rank', () => {
     const game = setUp();
     const { abilities, id } = game;
@@ -49,7 +49,7 @@ describe('cooldown previews (§II.6 M6)', () => {
   });
 });
 
-describe('button explanations (§II.6 M6)', () => {
+describe('button explanations', () => {
   it('gives a button’s rules as ids and its cooldown as ratios, or with a caster’s readings', () => {
     const game = setUp();
     const { abilities, auras, id } = game;

@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { auraChanges, auraLifecycle, checkWireTable, wireTableOf } from '../../src/replication/index.ts';
 import { aura, makeGame } from '../helpers/aura-game.ts';
 
-describe('wire tables (§I.6 Replication)', () => {
+describe('wire tables', () => {
   it('pins a registry’s names by id with a checksum that changes with any name or order', () => {
     const { registry } = makeGame({ slow: aura({ duration: 1 }), fast: aura({ duration: 1 }) });
     const table = wireTableOf(registry);
@@ -32,7 +32,7 @@ describe('wire tables (§I.6 Replication)', () => {
   });
 });
 
-describe('aura lifecycle from views (§II.6 A7, R4)', () => {
+describe('aura lifecycle from views', () => {
   const { auras, id, unit, run } = makeGame({
     shield: aura({ duration: 1, stacking: 'stack', maxStacks: 3, value: 5 }),
     ward: aura({ duration: 2 }),

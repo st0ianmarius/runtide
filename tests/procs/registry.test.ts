@@ -20,7 +20,7 @@ const CORE_ORDER = [
   'timeLeft',
 ];
 
-describe('the proc registry (§I.5.4, §I.5.6 hatch 1)', () => {
+describe('the proc registry', () => {
   it('gives each kind its id by key order, the core kinds first when spread first', () => {
     const kinds = createProcRegistry<Game>({ ...CORE_PROCS, strike: STRIKE });
 
@@ -52,7 +52,7 @@ describe('the proc registry (§I.5.4, §I.5.6 hatch 1)', () => {
   });
 });
 
-describe('the escape report (§I.5.6)', () => {
+describe('the escape report', () => {
   it('lists the game kinds and replaced core kinds, and every run hatch with its count', () => {
     const { procs, unit } = makeGame({ mark: aura({ duration: 1 }) });
     const u = unit(1);
@@ -83,7 +83,7 @@ describe('the escape report (§I.5.6)', () => {
   });
 });
 
-describe('explainProc (§I.5.3)', () => {
+describe('explainProc', () => {
   it('explains a proc as data: its kind id, odds, target and numbers, nested procs included', () => {
     const { procs, id } = makeGame({ mark: aura({ duration: 1 }) });
 

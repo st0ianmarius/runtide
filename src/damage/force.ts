@@ -4,7 +4,7 @@ import type { ProcOutcome } from '../procs/index.ts';
 import type { Blow } from './blow.ts';
 import type { DamageTypes, ForceKind, ForceStatus } from './damage-types.ts';
 
-/** What a caller asks the force pipeline for (§II.6 D4): a knockback, push or pull on one unit. */
+/** What a caller asks the force pipeline for: a knockback, push or pull on one unit. */
 export interface ForceSpec<G extends DamageTypes> {
   /** Who is moved. */
   readonly target: G['bearer'];

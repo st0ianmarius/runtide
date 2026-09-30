@@ -20,7 +20,7 @@ class ProcForceSpec<G extends DamageTypes> implements ForceSpec<G> {
 }
 
 /**
- * The `force` kind (§II.6 D4, P3): a push, pull or knock through the force pipeline on the unit it lands on, caused by
+ * The `force` kind: a push, pull or knock through the force pipeline on the unit it lands on, caused by
  * the list's self and credited to its source. Checks its strength at load.
  */
 export const forceKind = <G extends DamageTypes>(

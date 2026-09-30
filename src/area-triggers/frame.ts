@@ -37,7 +37,7 @@ const runFrame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
   }
 };
 
-/** Sweeps its body along this frame's move and hands what it reached to `onContact` (§II.3.4). */
+/** Sweeps its body along this frame's move and hands what it reached to `onContact`. */
 const runContact = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const { contact } = engine.registry.get(area.kind);
 
@@ -86,7 +86,7 @@ const runPhase = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
 };
 
 /**
- * The time of a frame its parts run over (§II.6 W2): all of it once armed, none while arming, and on the tick it arms
+ * The time of a frame its parts run over: all of it once armed, none while arming, and on the tick it arms
  * the time left over after its arming ran out.
  */
 const armedTime = <G extends AreaTriggerTypes>(area: AreaTrigger<G>, dt: number): number => {
@@ -108,7 +108,7 @@ const armedTime = <G extends AreaTriggerTypes>(area: AreaTrigger<G>, dt: number)
 };
 
 /**
- * One frame over `dt` (§II.3.4, §II.6 W2): it ages, an owner-anchored one moves onto its owner, it notes where it
+ * One frame over `dt`: it ages, an owner-anchored one moves onto its owner, it notes where it
  * was and places its shape, then (once armed) runs its parts in its kind's order: `move` (placing its shape again),
  * `contact`, `frame`, `pulses` with its cast clock, and `auras`. A hook that asked it to end ends it once that part is done.
  */

@@ -6,7 +6,7 @@ import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
 
 /**
- * The payload of a spell event (§II.3.7): the cast, and what the moment adds (a hit, an outcome). Reused between
+ * The payload of a spell event: the cast, and what the moment adds (a hit, an outcome). Reused between
  * raises, so a listener reads it while it runs and never keeps it.
  */
 export interface SpellEvent<G extends SpellTypes> {
@@ -28,7 +28,7 @@ export const createSpellEvent = <G extends SpellTypes>(): SpellEvent<G> => ({
 });
 
 /**
- * The bus and the event kinds the spell system raises (§II.3.7, §I.5.6 hatch 7): generic kinds a game maps its own
+ * The bus and the event kinds the spell system raises: generic kinds a game maps its own
  * trigger events onto. Each is optional, and raised only when something hears it, after the moment's hook ran.
  */
 export interface SpellEvents<G extends SpellTypes> {
@@ -78,7 +78,7 @@ const codeIn =
   };
 
 /**
- * A spell event kind as a trigger event (§II.3.7): about the cast's caster, with the filters `spell` (by name or id),
+ * A spell event kind as a trigger event: about the cast's caster, with the filters `spell` (by name or id),
  * `tag` (a spell tag, by name or id) and `outcome` (by name, for an end). A trigger names them in `when`: an aura that
  * answers every fire spell its bearer casts, or the spell's own cast aura that answers its own hits.
  */

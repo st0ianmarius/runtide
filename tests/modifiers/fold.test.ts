@@ -236,7 +236,7 @@ describe('conditions', () => {
   });
 });
 
-describe('derived stats (§II.6 M1)', () => {
+describe('derived stats', () => {
   it('add per × gain after the additions and before the multipliers', () => {
     const { system, sheetWith, id } = game();
 
@@ -275,7 +275,7 @@ describe('derived stats (§II.6 M1)', () => {
     assert.equal(system.resolve(sheetWith([['gear', [mul('reach', 0.5)]]]), id.area), 1);
   });
 
-  it("take the game's own gain measure over the followed stat's fold parts (§I.5.6 hatch 2)", () => {
+  it("take the game's own gain measure over the followed stat's fold parts", () => {
     const seen: GainParts[] = [];
 
     /** A measure that reads an add-only stat's gain as the plain sum of its additions. */

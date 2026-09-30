@@ -102,7 +102,7 @@ export interface Unit extends SpellCaster {
   readonly casts: CasterState;
 }
 
-/** The test game's own activation kind (§I.5.6 hatch 2): a cast that needs at least some rank. */
+/** The test game's own activation kind: a cast that needs at least some rank. */
 export interface Charged extends ActivationShape {
   /** The discriminant. */
   readonly kind: 'charged';
@@ -117,7 +117,7 @@ interface GameHost {
   readonly log: string[];
 }
 
-/** A cast's game fields (§I.5.6 hatch 4). */
+/** A cast's game fields. */
 interface CastFields {
   /** A counter the tests write. */
   hits: number;

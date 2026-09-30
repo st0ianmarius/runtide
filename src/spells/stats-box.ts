@@ -11,10 +11,10 @@ import type { SpellId } from './spell-types.ts';
 
 /**
  * One cast's stats storage for a spell with a stats table, pooled per spell so every cast of a spell reads objects of
- * one shape (§I.5.4): the plain numbers, the proc amounts, and the snapshots behind them, reused cast after cast.
+ * one shape: the plain numbers, the proc amounts, and the snapshots behind them, reused cast after cast.
  */
 export class StatsBox {
-  /** The numbers: each value's caster part (§II.3.13), target terms left out. */
+  /** The numbers: each value's caster part, target terms left out. */
   readonly stats: Record<string, number>;
 
   /** The proc amounts: a snapshot for a value with target terms, its number otherwise. */
@@ -70,7 +70,7 @@ export class StatsBoxes {
 }
 
 /**
- * Takes a table's stats into a box (§II.3.13, decision 2): each value's caster part is snapshotted from `view` at
+ * Takes a table's stats into a box (decision 2): each value's caster part is snapshotted from `view` at
  * `rank` into the box's reused snapshot, its number is that part (target terms left out), and its proc amount is the
  * snapshot when it has target terms, else the number. Allocates nothing once the box has been used.
  */

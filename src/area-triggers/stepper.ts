@@ -29,7 +29,7 @@ const isStanding = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, unit: G['
   engine.host.isStanding?.(unit) ?? true;
 
 /**
- * Checks its owner (§II.6 W1): an owner that left ends it as `source-gone`; a standing-bound owner that is down ends
+ * Checks its owner: an owner that left ends it as `source-gone`; a standing-bound owner that is down ends
  * it as `bound` or suspends it. A lifetime of `owner` binds it to its owner standing. Returns whether it runs on.
  */
 const checkOwner = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): boolean => {
@@ -91,7 +91,7 @@ const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
 };
 
 /**
- * Steps one area trigger by `dt` (§II.6 W2): its bound is checked (a suspended one waits, its clock too), then its
+ * Steps one area trigger by `dt`: its bound is checked (a suspended one waits, its clock too), then its
  * lifetime counts down around its frame as its expiry mode says: `after` runs the last frame
  * whole, `before` expires without it, `clip` runs it with `dt` cut to the time left. It expires once it ran out.
  */
@@ -163,7 +163,7 @@ const snapshotOwned = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Steps every area trigger of a tick slot once (§II.6.1 rule 1, §II.6 K2), or only one owner's: kind by kind in
+ * Steps every area trigger of a tick slot once, or only one owner's: kind by kind in
  * registry order, each kind's list in creation order with after-parent children right after their parents. The walk
  * reads a snapshot of handles, so what ends during it is skipped and what spawns during it waits for the next tick.
  * An owner's walk reads the owner's own lists, in the same order: one with none costs a lookup. Returns how many

@@ -30,7 +30,7 @@ export interface AuraApplication<G extends AuraTypes = AuraTypes> {
   readonly payload?: G['payload'] | undefined;
 }
 
-/** What an application did (§II.6 A14). */
+/** What an application did. */
 export interface ApplyResult {
   /** False when it was refused (by the host's policy or a `blockedBy` tag). */
   readonly applied: boolean;
@@ -43,7 +43,7 @@ export interface ApplyResult {
 }
 
 /**
- * What the host's application policy decides (§II.6 A2): refuse, replace the application (substitute another aura,
+ * What the host's application policy decides: refuse, replace the application (substitute another aura,
  * scale or cap its length, set its magnitude), and apply more after it lands (an immunity window).
  */
 export interface AuraDecision<G extends AuraTypes = AuraTypes> {
@@ -57,7 +57,7 @@ export interface AuraDecision<G extends AuraTypes = AuraTypes> {
   readonly after?: readonly AuraApplication<G>[];
 }
 
-/** A rescale of a bearer's pending activation clocks, handed to the host (§II.6 A13). */
+/** A rescale of a bearer's pending activation clocks, handed to the host. */
 export interface ClockRescale {
   /** The aura whose edge it is. */
   readonly aura: AuraId;
@@ -76,7 +76,7 @@ export interface ClockRescale {
 }
 
 /**
- * The narrow host an aura system runs against (§I.5): what it cannot do itself. Every member is optional; without
+ * The narrow host an aura system runs against: what it cannot do itself. Every member is optional; without
  * one, the matching feature does nothing.
  */
 export interface AuraHost<G extends AuraTypes = AuraTypes> {
@@ -93,7 +93,7 @@ export interface AuraHost<G extends AuraTypes = AuraTypes> {
   readonly rescaleClocks?: (bearer: G['bearer'], rescale: ClockRescale) => void;
 
   /**
-   * A tagged aura was applied to the bearer, or left it (§I.7.1 F16): its tags, and so its derived states, may have
+   * A tagged aura was applied to the bearer, or left it: its tags, and so its derived states, may have
    * changed. Called as the change is dispatched, before the aura's own hook: a unit system raising or ending a stun's
    * interrupt (`units.syncStates`).
    */

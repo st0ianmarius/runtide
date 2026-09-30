@@ -62,7 +62,7 @@ export interface CompileInput<G extends AuraTypes> {
   readonly states?: readonly G['state'][] | undefined;
 }
 
-/** Everything the system reads per aura id, resolved from names at load (§I.5.4). */
+/** Everything the system reads per aura id, resolved from names at load. */
 export interface AuraTables {
   /** The tags each aura grants. */
   readonly tagBits: readonly Bitset[];

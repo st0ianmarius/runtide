@@ -37,7 +37,7 @@ const owned = () => {
   return { game, elite, tick };
 };
 
-describe('an owner’s interrupts pausing its area triggers (§II.6 S5, §I.7.1 F16)', () => {
+describe('an owner’s interrupts pausing its area triggers', () => {
   it('suspend a kind that waits them out while its owner holds one, even once the cast ended', () => {
     const { game, elite, tick } = owned();
     const out: AreaTriggerHandle[] = [];
@@ -73,7 +73,7 @@ describe('an owner’s interrupts pausing its area triggers (§II.6 S5, §I.7.1 
   });
 });
 
-describe('withdrawing what a unit owns (§II.6 P3 despawnOwned, §I.7.1 F16)', () => {
+describe('withdrawing what a unit owns', () => {
   it('withdraws its delayed lists that have not landed, from casts that ended too', () => {
     const { game, elite, tick } = owned();
 

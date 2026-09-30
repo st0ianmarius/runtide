@@ -74,7 +74,7 @@ const runForceStages = <G extends DamageTypes>(
 };
 
 /**
- * Builds the force pipeline (§II.6 D4): a knockback, push or pull goes through the target's `onIncomingForce` hooks in
+ * Builds the force pipeline: a knockback, push or pull goes through the target's `onIncomingForce` hooks in
  * list order (a cancel ends it `ignored`, a scale changes its strength) and the game's stages (immunity, a resist
  * factor and cap), then the host moves the unit. A force with no strength, or on a dead unit, is `skipped`.
  */

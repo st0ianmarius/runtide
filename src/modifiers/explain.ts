@@ -9,7 +9,7 @@ import { clampStat, stackedAdd, stackedMul } from './stacked.ts';
 import type { StatId } from './stat-id.ts';
 
 /**
- * A modifier explained as data (§I.5.3): `{ kind: 'modifier', stat, op: 'mul', value: 1.3, when }`. The client
+ * A modifier explained as data: `{ kind: 'modifier', stat, op: 'mul', value: 1.3, when }`. The client
  * phrases it ("+30% damage while below 40% health") in its own words; nothing here is text.
  */
 export interface ModifierExplanation extends CompiledModifier {

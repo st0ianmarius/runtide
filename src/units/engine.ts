@@ -22,7 +22,7 @@ import type { UnitId, UnitTypes } from './unit-types.ts';
 import { Unit } from './unit.ts';
 
 /**
- * What a unit's health does when its maximum health moves (§II.6 M7): `heal-gain-scale-loss` (a gain heals the
+ * What a unit's health does when its maximum health moves: `heal-gain-scale-loss` (a gain heals the
  * difference, through the heal pipeline when the system has a damage system; a loss keeps the same share), `scale`
  * (the same share either way), `keep` (health stays, clamped to the new maximum), or the game's own rule, returning
  * the new health.
@@ -30,7 +30,7 @@ import { Unit } from './unit.ts';
 export type HealthPolicy<G extends UnitTypes> =
   'heal-gain-scale-loss' | 'scale' | 'keep' | ((unit: G['bearer'], before: number, after: number) => number);
 
-/** What a unit system is built from (§I.5). */
+/** What a unit system is built from. */
 export interface UnitSystemBase<G extends UnitTypes> {
   /** The game's unit templates. */
   readonly registry: UnitRegistry<G>;
@@ -42,7 +42,7 @@ export interface UnitSystemBase<G extends UnitTypes> {
   readonly spells: SpellSystem<G>;
 
   /**
-   * The AI system, for units that think (§I.7.1 F17): each unit gets a brain, freed as it despawns, whose timers its
+   * The AI system, for units that think: each unit gets a brain, freed as it despawns, whose timers its
    * states' interrupts hold (`interrupts`). Every unit has the shared empty brain when absent.
    */
   readonly ai?: AiSystem<G>;
@@ -52,7 +52,7 @@ export interface UnitSystemBase<G extends UnitTypes> {
 
   /**
    * The script system's side (`scripts.forUnits`), or a function giving it, since the script system is made after the
-   * unit system (§I.7.1 F19): a unit whose template names a script is attached to it once spawned and detached once
+   * unit system: a unit whose template names a script is attached to it once spawned and detached once
    * despawned. Required when any template names a script.
    */
   readonly scripts?: UnitScripts<G> | (() => UnitScripts<G>);
@@ -61,7 +61,7 @@ export interface UnitSystemBase<G extends UnitTypes> {
   readonly abilities?: AbilitySystem<G>;
 
   /**
-   * The modifier system every unit folds its stats through (§II.6 M9), and the source its per-instance base stats sit
+   * The modifier system every unit folds its stats through, and the source its per-instance base stats sit
    * at; stats are the snapshotted bases alone when absent.
    */
   readonly modifiers?: {
@@ -135,11 +135,11 @@ export interface SpawnUnit<G extends UnitTypes> {
   /** Where it stands, handed to the `spawned` event for the game's world; none when absent. */
   readonly at?: Vec2;
 
-  /** Whether it despawns (reason `owner`) as its owner dies or despawns (§I.7.1 F18); false when absent. */
+  /** Whether it despawns (reason `owner`) as its owner dies or despawns; false when absent. */
   readonly isBound?: boolean;
 
   /**
-   * The script it runs, in place of its template's (§I.7.1 F21): one bodiless template serves every world script,
+   * The script it runs, in place of its template's: one bodiless template serves every world script,
    * `units.spawn(WORLD, { side: 1, script: 'inferno' })`. Its template's when absent.
    */
   readonly script?: G['scriptName'];

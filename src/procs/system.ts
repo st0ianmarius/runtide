@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): every proc list goes through here, so the loops are indexed.
+// Hot path: every proc list goes through here, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import type { ActiveAura, AuraContext, AuraSystem } from '../auras/index.ts';
 import type { Random } from '../core/index.ts';
@@ -19,7 +19,7 @@ import {
 import type { ProcRegistry } from './registry.ts';
 import { createResolver, prepareProcs, type ResolverParts } from './resolver.ts';
 
-/** What a proc system is built from (§I.5): the game's kinds, the aura system, its host and its streams. */
+/** What a proc system is built from: the game's kinds, the aura system, its host and its streams. */
 export interface ProcSystemOptions<G extends ProcTypes> {
   /** The game's proc kinds (`createProcRegistry`). */
   readonly kinds: ProcRegistry<G>;
@@ -37,12 +37,12 @@ export interface ProcSystemOptions<G extends ProcTypes> {
   readonly random?: Random;
 
   /**
-   * A game's own chance rule (§I.5.6 hatch 2), in place of one draw on `random` below `chance`: a keyed roll over the
+   * A game's own chance rule, in place of one draw on `random` below `chance`: a keyed roll over the
    * context, a proc-per-minute rate. Called only for `0 < chance < 1`.
    */
   readonly rollChance?: (chance: number, ctx: ProcContext<G>) => boolean;
 
-  /** The host's named streams, which a `pickOne` names (the stream table, §II.6.1 rule 3). */
+  /** The host's named streams, which a `pickOne` names (the stream table). */
   readonly streams?: (stream: G['stream'], ctx: ProcContext<G>) => Random;
 
   /** The game's resource names, which `grant` procs name; a resource's id is its position here. */
@@ -51,7 +51,7 @@ export interface ProcSystemOptions<G extends ProcTypes> {
   /** The bus `event` procs raise on. */
   readonly bus?: ProcBus;
 
-  /** The buffer `cue` procs fire into (the tick's cue events, §II.3.9). */
+  /** The buffer `cue` procs fire into (the tick's cue events). */
   readonly cues?: CueBuffer;
 
   /** The most proc lists nested at once (a list set off by a list set off by …); deeper ones drop. 4 by default. */
@@ -59,8 +59,8 @@ export interface ProcSystemOptions<G extends ProcTypes> {
 }
 
 /**
- * A proc system (§I.6): the runner over one game's proc kinds. A list applies in order, each proc seeing what the ones
- * before it did (§II.6.1 rule 2); a proc aimed at a unit the list already killed does nothing; an always-proc rolls
+ * A proc system: the runner over one game's proc kinds. A list applies in order, each proc seeing what the ones
+ * before it did; a proc aimed at a unit the list already killed does nothing; an always-proc rolls
  * nothing, and a `chance` rolls on the procs' own stream; lists nest up to the depth cap.
  */
 export interface ProcSystem<G extends ProcTypes> {
@@ -340,7 +340,7 @@ class Procs<G extends ProcTypes> implements ProcSystem<G> {
 }
 
 /**
- * Creates the proc system over a game's kinds and aura system (§I.5): `createProcSystem({ kinds: PROCS, auras, host,
+ * Creates the proc system over a game's kinds and aura system: `createProcSystem({ kinds: PROCS, auras, host,
  * random: stream(seed, PROC_SALT) })`. The aura system hands it what its hooks return through `runAura`.
  */
 export const createProcSystem = <G extends ProcTypes>(options: ProcSystemOptions<G>): ProcSystem<G> => {

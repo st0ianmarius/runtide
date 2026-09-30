@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  // Every rule of §I.4.2 and §I.5.2 that oxlint can hold: its native rules (the type-aware ones run on tsgolint, built on
+  // Every project style and safety rule that oxlint can hold: its native rules (the type-aware ones run on tsgolint, built on
   // TypeScript 7's native compiler), plus the project rules in oxlint-plugin.js for what it has no native rule for.
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "import"],
   "jsPlugins": ["./oxlint-plugin.js"],
@@ -8,7 +8,7 @@
   "options": { "typeAware": true, "reportUnusedDisableDirectives": "error" },
   "ignorePatterns": ["dist/", "coverage/", "node_modules/"],
   "rules": {
-    // Style and size (§I.4.2).
+    // Style and size.
     "curly": ["error", "all"],
     "eqeqeq": ["error", "always"],
     "prefer-const": "error",
@@ -33,7 +33,7 @@
     "spellweave/export-order": "error",
     "spellweave/naming": "error",
     "spellweave/export-docs": "error",
-    // Developer strings, never shown to players (§I.5.3): a registry's lookup of the name an id was registered under.
+    // Developer strings, never shown to players: a registry's lookup of the name an id was registered under.
     "spellweave/presentation-fields": ["error", { "allow": ["Registry.name"] }],
 
     // Modern syntax (ES2024, the newest year Node 22, the evergreen browsers and TypeScript 7 all support): the rules
@@ -89,25 +89,25 @@
     "unicorn/throw-new-error": "error",
     "typescript/prefer-optional-chain": "error",
 
-    // Determinism and isolation (§I.5, §I.5.1).
+    // Determinism and isolation.
     "no-restricted-imports": [
       "error",
-      { "patterns": [{ "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages (§I.5.1)." }] }
+      { "patterns": [{ "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages." }] }
     ],
     "no-restricted-properties": [
       "error",
-      { "object": "Math", "property": "random", "message": "Deterministic: randomness comes from the host (§I.5)." },
-      { "object": "Date", "property": "now", "message": "Deterministic: time comes from the host (§I.5)." },
-      { "object": "performance", "property": "now", "message": "Deterministic: time comes from the host (§I.5)." },
+      { "object": "Math", "property": "random", "message": "Deterministic: randomness comes from the host." },
+      { "object": "Date", "property": "now", "message": "Deterministic: time comes from the host." },
+      { "object": "performance", "property": "now", "message": "Deterministic: time comes from the host." },
       {
         "object": "crypto",
         "property": "getRandomValues",
-        "message": "Deterministic: randomness comes from the host (§I.5)."
+        "message": "Deterministic: randomness comes from the host."
       },
       {
         "object": "crypto",
         "property": "randomUUID",
-        "message": "Deterministic: randomness comes from the host (§I.5)."
+        "message": "Deterministic: randomness comes from the host."
       }
     ],
 
@@ -141,7 +141,7 @@
     "typescript/no-extra-non-null-assertion": "error",
     "typescript/no-for-in-array": "error",
     "typescript/no-implied-eval": "error",
-    // `this: void` marks a hook written as a method (for its bivariant parameters) as callable detached (§I.5.2).
+    // `this: void` marks a hook written as a method (for its bivariant parameters) as callable detached.
     "typescript/no-invalid-void-type": ["error", { "allowAsThisParameter": true }],
     "typescript/no-meaningless-void-operator": "error",
     "typescript/no-misused-promises": "error",
@@ -200,7 +200,7 @@
   },
   "overrides": [
     {
-      // src/ runs anywhere (§I.5.5): no Node built-in, no import from tests or benchmarks, no Node or DOM globals.
+      // src/ runs anywhere: no Node built-in, no import from tests or benchmarks, no Node or DOM globals.
       "files": ["src/**/*.ts"],
       "rules": {
         "import/no-nodejs-modules": "error",
@@ -208,35 +208,35 @@
           "error",
           {
             "patterns": [
-              { "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages (§I.5.1)." },
+              { "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages." },
               { "regex": "^\\.\\.?/(.*/)?(tests|bench)(/|$)", "message": "src/ never imports tests or benchmarks." }
             ]
           }
         ],
         "no-restricted-globals": [
           "error",
-          { "name": "Buffer", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "__dirname", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "__filename", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
+          { "name": "Buffer", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "__dirname", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "__filename", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
           {
             "name": "clearImmediate",
-            "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)."
+            "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
           },
-          { "name": "document", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "exports", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "global", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "module", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "process", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "require", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "setImmediate", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "setInterval", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "setTimeout", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." },
-          { "name": "window", "message": "src/ runs anywhere: no Node or DOM globals, no host timers (§I.5.5)." }
+          { "name": "document", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "exports", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "global", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "module", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "process", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "require", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "setImmediate", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "setInterval", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "setTimeout", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." },
+          { "name": "window", "message": "src/ runs anywhere: no Node or DOM globals, no host timers." }
         ]
       }
     },
     {
-      // Adapter modules and branded-id constructors: the only files that may cast (§I.4.2, §I.5.2).
+      // Adapter modules and branded-id constructors: the only files that may cast.
       "files": ["src/**/*-adapter.ts", "src/**/ids.ts"],
       "rules": { "typescript/consistent-type-assertions": "off" }
     },

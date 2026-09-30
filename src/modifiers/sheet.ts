@@ -8,7 +8,7 @@ import type { StatId } from './stat-id.ts';
 import type { Derivation } from './stats.ts';
 
 /**
- * How one read folds a stat (§II.6 M5, M6). Games keep one read object per purpose and reuse it, so a read allocates
+ * How one read folds a stat. Games keep one read object per purpose and reuse it, so a read allocates
  * nothing.
  */
 export interface FoldRead<Host> {
@@ -39,7 +39,7 @@ export interface FoldRead<Host> {
     | undefined;
 }
 
-/** A bearer's stat sheet: its modifier lists per source and their compiled cache (§I.5.4). */
+/** A bearer's stat sheet: its modifier lists per source and their compiled cache. */
 export interface StatSheet {
   /** Whether the compiled cache waits for a rebuild (a source changed since the last read). */
   readonly isDirty: boolean;
@@ -51,13 +51,13 @@ export interface StatSheet {
 /** The value kind of an entry: a plain number, another stat's bonus, or a game value read. */
 export const PLAIN = 0;
 
-/** A stat-valued entry (§II.6 M2). */
+/** A stat-valued entry. */
 export const FROM_STAT = 1;
 
-/** A host-valued entry (§II.6 M3). */
+/** A host-valued entry. */
 export const FROM_HOST = 2;
 
-/** One compiled modifier as the fold reads it: flat fields, every one present, functions resolved (§I.5.4). */
+/** One compiled modifier as the fold reads it: flat fields, every one present, functions resolved. */
 export interface Entry<Host> {
   /** The plain value, or 0 for a computed one. */
   readonly value: number;

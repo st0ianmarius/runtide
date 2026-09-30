@@ -13,7 +13,7 @@ import type { UnitRegistry } from './unit-def.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
 /**
- * A unit system (§I.7.1 F13, §II.6 U1–U3): one unit shape for heroes, creatures and summons. It spawns units from
+ * A unit system: one unit shape for heroes, creatures and summons. It spawns units from
  * templates with their stats snapshotted, moves them through their lifecycle, reads their derived states from their
  * aura tags, keeps their health with the resource policy, and is the damage system's unit host.
  */
@@ -24,26 +24,26 @@ export interface UnitSystem<G extends UnitTypes> {
   /** How many units are live (spawned and not despawned). */
   readonly live: () => number;
 
-  /** Spawns a unit of a template (§II.6 U1): alive, at full health, its stats its template's with the spawn's on top. */
+  /** Spawns a unit of a template: alive, at full health, its stats its template's with the spawn's on top. */
   readonly spawn: (template: UnitId, spawn: SpawnUnit<G>) => G['bearer'];
 
   /** A live unit by entity id; `undefined` for none. */
   readonly byId: (id: number) => G['bearer'] | undefined;
 
   /**
-   * Despawns a unit (§II.6 U1, D5): removed without dying, so no rewards, no kill and no death event; its id is freed,
+   * Despawns a unit: removed without dying, so no rewards, no kill and no death event; its id is freed,
    * and the `despawned` event carries the reason (`despawn` when absent). False for a unit already despawned.
    */
   readonly despawn: (unit: G['bearer'], reason?: string) => boolean;
 
   /**
-   * A unit's summons (§I.7.1 F18): the units it owns that are neither dead nor despawned, in the order they spawned.
+   * A unit's summons: the units it owns that are neither dead nor despawned, in the order they spawned.
    * The system's own list: read it, never keep or change it.
    */
   readonly summonsOf: (unit: G['bearer']) => readonly G['bearer'][];
 
   /**
-   * The entity id a unit's deeds are credited to (§I.7.1 F18): its owner's, up the chain, or its own when it has
+   * The entity id a unit's deeds are credited to: its owner's, up the chain, or its own when it has
    * none. A game credits a summon's blows with it (`source`).
    */
   readonly creditOf: (unit: G['bearer']) => number;
@@ -66,7 +66,7 @@ export interface UnitSystem<G extends UnitTypes> {
   /** Whether a unit has a class tag. */
   readonly hasTag: (unit: G['bearer'], tag: G['unitTag']) => boolean;
 
-  /** A unit's stats (§II.6 M9): its sheet folded with it as the host, or its own bases without a modifier system. */
+  /** A unit's stats: its sheet folded with it as the host, or its own bases without a modifier system. */
   readonly statsOf: (unit: G['bearer']) => StatView;
 
   /**
@@ -76,17 +76,17 @@ export interface UnitSystem<G extends UnitTypes> {
   readonly procKinds: UnitProcKinds<G>;
 
   /**
-   * Brings a unit's interrupts in line with its derived states (§I.7.1 F16, `interrupts`): a state entered raises its
+   * Brings a unit's interrupts in line with its derived states (`interrupts`): a state entered raises its
    * interrupt on the unit's casts, one left ends it. Wire it as the aura host's `onTagsChanged` (lazily, since the aura
    * system is made first); returns how many states changed.
    */
   readonly syncStates: (unit: G['bearer']) => number;
 
-  /** A unit's auto-attack spell (§II.6 S3); `undefined` for none, as most heroes have. */
+  /** A unit's auto-attack spell; `undefined` for none, as most heroes have. */
   readonly autoAttackOf: (unit: G['bearer']) => SpellId | undefined;
 
   /**
-   * A unit's maximum health moved (§II.6 M7): its health follows by the resource policy. Returns the health after. Call
+   * A unit's maximum health moved: its health follows by the resource policy. Returns the health after. Call
    * it where maximum health can change.
    */
   readonly syncHealth: (unit: G['bearer']) => number;
@@ -94,11 +94,11 @@ export interface UnitSystem<G extends UnitTypes> {
   /** The damage host the system provides: spread it into the damage system's host. */
   readonly damageHost: ReturnType<typeof damageHostOf<G>>;
 
-  /** The force stage the system provides (§II.6 D4): add it to the damage system's `forceStages`. */
+  /** The force stage the system provides: add it to the damage system's `forceStages`. */
   readonly forceStage: StageDef<ForceStage<G>>;
 
   /**
-   * The application policy of a list of rules (§II.6 A2), compiled once: the aura host's `onIncomingAura`. Wire it
+   * The application policy of a list of rules, compiled once: the aura host's `onIncomingAura`. Wire it
    * lazily, since the aura system is made first.
    */
   readonly auraPolicy: (
@@ -107,7 +107,7 @@ export interface UnitSystem<G extends UnitTypes> {
 }
 
 /**
- * Creates a unit system over the game's templates and the systems a unit bears (§I.5): `createUnitSystem({ registry:
+ * Creates a unit system over the game's templates and the systems a unit bears: `createUnitSystem({ registry:
  * UNITS, auras, spells, abilities, modifiers: { system, base: 'base' }, health: { stat: 'maxHealth' }, states })`.
  */
 export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions<G>): UnitSystem<G> => {

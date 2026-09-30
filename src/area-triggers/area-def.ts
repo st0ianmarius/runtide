@@ -24,7 +24,7 @@ import type { AreaQueries } from './queries.ts';
 import type { AreaReplication } from './replication.ts';
 
 /**
- * Why an area trigger ended (§II.6 W1): `expired` (its lifetime ran out), `spent` (its hit budget ran out), `self` (a
+ * Why an area trigger ended: `expired` (its lifetime ran out), `spent` (its hit budget ran out), `self` (a
  * hook despawned it), `bound` (a bound condition failed), `replaced` (a newer one took its place under the limit),
  * `source-gone` (its owner left the world), or one of the game's own, which it despawned it with.
  */
@@ -50,7 +50,7 @@ export interface Position {
 }
 
 /**
- * What every area trigger hook receives (§II.3.4): the area trigger itself, pooled, so a hook reads it while it runs
+ * What every area trigger hook receives: the area trigger itself, pooled, so a hook reads it while it runs
  * and never keeps it (it keeps the handle instead). Its credit and stats are its cast's, captured at the spawn; its own
  * motion (`position`, `heading`) and its `state` are its hooks' to change. Its functions may be called detached.
  */
@@ -58,7 +58,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** Its handle, which stays valid until it ends. */
   readonly handle: AreaTriggerHandle;
 
-  /** Its entity id, allocated by the host when it spawned (§II.6 W4). */
+  /** Its entity id, allocated by the host when it spawned. */
   readonly id: number;
 
   /** Its kind. */
@@ -70,7 +70,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** The entity id its hits are credited to. */
   readonly source: number;
 
-  /** The cast it belongs to, kept alive while it lives (§II.6 S6); `undefined` when it spawned outside a cast. */
+  /** The cast it belongs to, kept alive while it lives; `undefined` when it spawned outside a cast. */
   readonly cast: SpellContext<G> | undefined;
 
   /** Its cast's rank, or 1. */
@@ -115,7 +115,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** Its own state (`AreaTriggerDef.state`), or its parent's when it shares it. */
   readonly state: State;
 
-  /** The game's own fields (§I.5.6 hatch 4). */
+  /** The game's own fields. */
   readonly ext: G['areaExt'];
 
   /** The clock's tick now. */
@@ -130,10 +130,10 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** The world it asks. */
   readonly world: WorldQuery<G['bearer']>;
 
-  /** The area triggers it may ask about (§II.6 W5: another tempest's goal, the domes a shot meets). */
+  /** The area triggers it may ask about (another tempest's goal, the domes a shot meets). */
   readonly areas: AreaQueries<G>;
 
-  /** Applies one proc now, as its owner's and credited to it, and returns what it did (§II.6.1 rule 2). */
+  /** Applies one proc now, as its owner's and credited to it, and returns what it did. */
   readonly apply: (proc: Proc<G>) => ProcOutcome;
 
   /** A draw source: a named stream of the host's table (a keyed one keyed by `key()`), or the system's own. */
@@ -142,24 +142,24 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** Its keyed-roll key: `(spawnTick, id, kind, targetId, index)` in a reused array, read at once. */
   readonly key: (targetId?: number, index?: number) => readonly number[];
 
-  /** Ends it once the running hook returns (§II.6 W1): as `self` by default, `spent`, or one of the game's reasons. */
+  /** Ends it once the running hook returns: as `self` by default, `spent`, or one of the game's reasons. */
   readonly despawn: (reason?: 'self' | 'spent' | G['endReason']) => void;
 
-  /** The one unit its contacts may reach, when it is locked on one (§II.6 W3: a homing missile); none when absent. */
+  /** The one unit its contacts may reach, when it is locked on one (a homing missile); none when absent. */
   readonly locked: G['bearer'] | undefined;
 
   /** Locks its contacts onto one unit, or frees them with `undefined`. */
   readonly lock: (unit: G['bearer'] | undefined) => void;
 
   /**
-   * One of its kind's hit ledgers, by name (§II.6 W3), for a hook that records its own hits (a chain's links, a
+   * One of its kind's hit ledgers, by name, for a hook that records its own hits (a chain's links, a
    * frame's sweep): a reused view, read at once; throws for a name its kind does not declare.
    */
   readonly ledger: (name: string) => AreaLedger<G['bearer']>;
 }
 
 /**
- * What ends an area trigger early, or suspends it (§II.6 W1). Each part is optional; the owner's presence and standing
+ * What ends an area trigger early, or suspends it. Each part is optional; the owner's presence and standing
  * are the host's answers (`isPresent`, `isStanding`).
  */
 export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
@@ -173,7 +173,7 @@ export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
   readonly whileDown?: 'end' | 'suspend';
 
   /**
-   * The owner's interrupts it waits out (§II.6 S5, §I.7.1 F16): suspended, its clock and hooks too, while its owner
+   * The owner's interrupts it waits out: suspended, its clock and hooks too, while its owner
    * holds any of them (`spells.isInterrupted`): a frozen caster's telegraphs pause, even from casts that ended.
    */
   readonly pausedBy?: readonly G['interrupt'][];
@@ -182,7 +182,7 @@ export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
   when?(this: void, c: AreaTriggerContext<G, State>): boolean;
 }
 
-/** How many of a kind one owner may have at once, and what a spawn past it does (§II.3.4, §II.6 W5). */
+/** How many of a kind one owner may have at once, and what a spawn past it does. */
 export interface AreaLimit<G extends AreaTriggerTypes, State = unknown> {
   /** The most at once per owner, from 1: a number, or read from the spawning cast's stats. */
   readonly perOwner: number | AreaFn<G, State, number>;
@@ -207,7 +207,7 @@ export interface AreaCues<G extends AreaTriggerTypes, State = unknown> {
 export type Lifetime = number | 'owner' | 'spent';
 
 /**
- * An area trigger kind (§II.3.4): what a spell leaves in the world, with a position, a shape, a lifetime and hooks.
+ * An area trigger kind: what a spell leaves in the world, with a position, a shape, a lifetime and hooks.
  * Plain data and standalone hooks, registered by name (`defineAreaTriggers`); `State` is each instance's own state.
  * `frame` is the primitive; the other hooks are the common cases built beside it.
  */
@@ -215,7 +215,7 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   /** Its tags: what `coveredBy` and the queries over area triggers read. */
   readonly tags?: readonly G['areaTag'][];
 
-  /** The tick slot it is stepped in (§II.6.1 rule 1); the first slot when absent. */
+  /** The tick slot it is stepped in; the first slot when absent. */
   readonly tickIn?: TickSlotId;
 
   /** Where a child it spawns first ticks: in its own kind's place (the default), or right after its parent. */
@@ -231,7 +231,7 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   readonly lifetime: Lifetime | AreaFn<G, State, Lifetime>;
 
   /**
-   * When its lifetime is checked against its frame (§II.6 W2): `after` it (the default: the last frame runs whole),
+   * When its lifetime is checked against its frame: `after` it (the default: the last frame runs whole),
    * `before` it (no frame on the expiry tick), or `clip` (the last frame runs with `dt` cut to the time left).
    */
   readonly expiry?: 'after' | 'before' | 'clip';
@@ -239,14 +239,14 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   /** Where it sits: where it spawned, moved only by its hooks (`world`, the default), or on its owner (`owner`). */
   readonly anchor?: 'world' | 'owner';
 
-  /** What ends it early, or suspends it (§II.6 W1). */
+  /** What ends it early, or suspends it. */
   readonly bound?: AreaBound<G, State>;
 
   /** How many one owner may have at once. */
   readonly limit?: AreaLimit<G, State>;
 
   /**
-   * An aura its owner holds while any of its kind lives (§II.3.7): the area trigger's listeners are that aura's
+   * An aura its owner holds while any of its kind lives: the area trigger's listeners are that aura's
    * triggers, so every trigger stays on an aura. Of infinite duration, shared by overlapping instances.
    */
   readonly ownerAura?: G['auraName'] | AuraId;
@@ -255,19 +255,19 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   readonly cues?: AreaCues<G, State>;
 
   /**
-   * The order of its frame's parts (§II.6 W2), each at most once: `move` (then its shape is placed again), `contact`
+   * The order of its frame's parts, each at most once: `move` (then its shape is placed again), `contact`
    * (the sweep along this frame's move), `frame`, `pulses` and `auras`; `['move', 'contact', 'frame', 'pulses',
    * 'auras']` by default.
    */
   readonly order?: readonly AreaPhase[];
 
   /**
-   * The seconds before its frame's parts start (§II.6 W2: the sentry arming): its lifetime counts meanwhile, and the
+   * The seconds before its frame's parts start (the sentry arming): its lifetime counts meanwhile, and the
    * tick it arms on runs them with the time left over.
    */
   readonly arming?: number;
 
-  /** Its hit ledgers by name (§II.6 W3), which its catches name and its hooks read with `c.ledger`. */
+  /** Its hit ledgers by name, which its catches name and its hooks read with `c.ledger`. */
   readonly ledgers?: Readonly<Record<string, AreaLedgerSpec>>;
 
   /** Its swept contacts, which `onContact` receives. */
@@ -285,17 +285,17 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   /** The spell it casts on its own clock. */
   readonly caster?: AreaCaster<G, State>;
 
-  /** The auras it keeps on the units in its shape (§II.6 A10). */
+  /** The auras it keeps on the units in its shape. */
   readonly auras?: readonly AreaAura<G, State>[];
 
   /**
-   * Its declared view (§II.6 W5): the numbers other code may read about an instance (`areas.viewOf`: a goal, a
+   * Its declared view: the numbers other code may read about an instance (`areas.viewOf`: a goal, a
    * charge), so no one reads its state directly.
    */
   view?(this: void, c: AreaTriggerContext<G, State>): Readonly<Record<string, number>>;
 
   /**
-   * What of it crosses the wire (§II.3.9): fields and view entries with their rounding, `events-only` (the default) or
+   * What of it crosses the wire: fields and view entries with their rounding, `events-only` (the default) or
    * `derived`; `areaTriggers.replicate` writes it.
    */
   readonly replicate?: AreaReplication;
@@ -303,13 +303,13 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   /** Makes an instance's own state, once per spawn; `undefined` when absent (or its parent's, when shared). */
   state?(this: void): State;
 
-  /** Runs once it has its entity id and before its first frame (§II.6 W4), with what its spawn handed it. */
+  /** Runs once it has its entity id and before its first frame, with what its spawn handed it. */
   init?(this: void, c: AreaTriggerContext<G, State>, input: G['areaInput'] | undefined): void;
 
   /** Its own motion (steer, home, orbit): moves `c.position` and `c.heading` by `dt`. */
   move?(this: void, c: AreaTriggerContext<G, State>, dt: number): void;
 
-  /** The primitive: one pass per frame over its `dt`, returning procs (§II.3.4). */
+  /** The primitive: one pass per frame over its `dt`, returning procs. */
   frame?(this: void, c: AreaTriggerContext<G, State>, dt: number, out: ProcOut<G>): ProcReturn<G>;
 
   /** Its sweep along this frame's move reached units, in the order it reached them. */
@@ -321,7 +321,7 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   /** Its lifetime ran out (the fling, the collapse, the dome's burst), before `onEnd`. */
   onExpire?(this: void, c: AreaTriggerContext<G, State>, out: ProcOut<G>): ProcReturn<G>;
 
-  /** It ended, whatever the reason (§II.6 W1): where shared claims are released. */
+  /** It ended, whatever the reason: where shared claims are released. */
   onEnd?(this: void, c: AreaTriggerContext<G, State>, reason: EndReason<G>, out: ProcOut<G>): ProcReturn<G>;
 }
 

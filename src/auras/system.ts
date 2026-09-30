@@ -16,7 +16,7 @@ import type { AuraTagTable } from './tags.ts';
 import { tickAuras } from './tick.ts';
 import type { AuraView, ViewOptions } from './view.ts';
 
-/** What an aura system is built from (§I.5): the game's registries and its host. */
+/** What an aura system is built from: the game's registries and its host. */
 export interface AuraSystemBase<G extends AuraTypes> {
   /** The game's auras (`defineAuras`). */
   readonly registry: AuraRegistry<G>;
@@ -77,7 +77,7 @@ export interface StateOptions {
 }
 
 /**
- * An aura system (§I.6): the machinery over one game's aura registry, for any bearer. Every operation takes the bearer
+ * An aura system: the machinery over one game's aura registry, for any bearer. Every operation takes the bearer
  * (anything holding a state made by `createState`), runs the aura's rules, then its hooks and events.
  */
 export interface AuraSystem<G extends AuraTypes> {
@@ -177,7 +177,7 @@ export interface AuraSystem<G extends AuraTypes> {
 
   /**
    * The reused hook context of the next nesting level, filled for one aura: what a pipeline calls a hook with when it
-   * must not allocate (§I.5.4). Give it back with `giveContext` once the hook and the procs it returned are done.
+   * must not allocate. Give it back with `giveContext` once the hook and the procs it returned are done.
    */
   readonly takeContext: (bearer: G['bearer'], aura: ActiveAura<G>) => AuraContext<G>;
 
@@ -188,19 +188,19 @@ export interface AuraSystem<G extends AuraTypes> {
   readonly view: (bearer: G['bearer'], options?: ViewOptions) => AuraView[];
 
   /**
-   * Multiplies the time left on every finite aura granting a tag by a factor (§II.6 P3: a cooldown scaled down),
+   * Multiplies the time left on every finite aura granting a tag by a factor (a cooldown scaled down),
    * keeping each one's duration; one left at 0 runs out on the next tick. Raises nothing; returns how many changed.
    */
   readonly scaleTimeLeft: (bearer: G['bearer'], tag: AuraTagId, factor: number) => number;
 
-  /** Caps the time left on every finite aura granting a tag at some seconds (§II.6 P3); returns how many changed. */
+  /** Caps the time left on every finite aura granting a tag at some seconds; returns how many changed. */
   readonly clampTimeLeft: (bearer: G['bearer'], tag: AuraTagId, seconds: number) => number;
 
   /** Whether an aura is `predicted`: rebuilt on a prediction mirror from the wire. */
   readonly isPredicted: (aura: AuraId) => boolean;
 
   /**
-   * Seeds a prediction mirror's `predicted` auras from the server's views of the bearer (§II.6 R3): they replace the
+   * Seeds a prediction mirror's `predicted` auras from the server's views of the bearer: they replace the
    * mirror's, each clock set by the stamp contract (the server's stamp distance, or the seconds left walked again
    * where the mirror counts the clock by another rule). Only a silent state may be seeded. Returns how many it seeded.
    */
@@ -233,7 +233,7 @@ const extFactory = <G extends AuraTypes>(options: AuraSystemOptions<G>): (() => 
 const EXPLAINERS = new WeakMap<object, (aura: AuraId, stacks: number) => AuraExplanation>();
 
 /**
- * An aura of a system's registry explained as data (§I.5.3), at `stacks` stacks (1 by default): its rules, tags,
+ * An aura of a system's registry explained as data, at `stacks` stacks (1 by default): its rules, tags,
  * modifiers and beat, with the numbers the simulation uses, for the client to phrase.
  */
 export const explainAura = <G extends AuraTypes>(auras: AuraSystem<G>, aura: AuraId, stacks = 1): AuraExplanation => {
@@ -247,7 +247,7 @@ export const explainAura = <G extends AuraTypes>(auras: AuraSystem<G>, aura: Aur
 };
 
 /**
- * Creates the aura system over a game's registries (§I.5): `createAuraSystem({ registry: AURAS, tags: AURA_TAGS,
+ * Creates the aura system over a game's registries: `createAuraSystem({ registry: AURAS, tags: AURA_TAGS,
  * clocks: { world }, modifiers, fold: 'auras', host })`. Every name is resolved and every modifier list compiled and
  * shared at load; nothing is looked up by name afterwards.
  */

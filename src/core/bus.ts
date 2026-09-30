@@ -18,7 +18,7 @@ export type EventKinds<Factories> = {
 };
 
 /**
- * A typed event bus (§I.5, §I.5.4). Every kind has a small integer id and one reused payload per nesting level, so
+ * A typed event bus. Every kind has a small integer id and one reused payload per nesting level, so
  * raising an event allocates nothing. Two tiers hear an event: capped handlers first (the triggers), which stop
  * running past the depth cap, then subscribers in subscription order, which hear every event at any depth.
  */

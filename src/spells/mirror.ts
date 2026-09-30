@@ -4,13 +4,13 @@ import type { WorldQuery } from '../world/index.ts';
 import type { SpellTypes } from './spell-types.ts';
 
 /**
- * What a mirror-safe hook may read of the static world (§II.2, §II.6 R3): lines of sight, clearance, clamping and body
+ * What a mirror-safe hook may read of the static world: lines of sight, clearance, clamping and body
  * moves against geometry that never moves, which a prediction mirror has exactly as the server does.
  */
 export type StaticWorld = Pick<WorldQuery<unknown>, 'lineClear' | 'isPositionClear' | 'clamp' | 'moveBody' | 'bounds'>;
 
 /**
- * What a hook the prediction mirror runs may read (§II.2 "mirror-safe by type", §II.3.9): the bearer, the input it
+ * What a hook the prediction mirror runs may read: the bearer, the input it
  * was handed, its synced stats, the static world and the step. No random stream, no other unit and no server state,
  * so a hook typed over it cannot reach them: the compiler holds the rule, not a test. A button's motion half
  * (`activate`, `travel`) receives one; it is reused, so a hook reads it while it runs and never keeps it.

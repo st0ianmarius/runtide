@@ -31,7 +31,7 @@ const picking = () => {
   return { ...game, beast, pool, gate, slam, bolt, nova };
 };
 
-describe('the weighted anti-repeat picker (§I.7.1 F17, §II.6 C3)', () => {
+describe('the weighted anti-repeat picker', () => {
   it('draws in proportion to the activations’ weights, over the spells that would start', () => {
     const { ai, beast, pool, gate, slam, bolt, nova } = picking();
 
@@ -75,7 +75,7 @@ describe('the weighted anti-repeat picker (§I.7.1 F17, §II.6 C3)', () => {
   });
 });
 
-describe('the focus (§II.6 C5)', () => {
+describe('the focus', () => {
   it('is set by the game or by the setFocus proc, and cleared', () => {
     const { ai, procs, units, id, beast } = picking();
     const hero = units.spawn(id.beast, { side: 0 });

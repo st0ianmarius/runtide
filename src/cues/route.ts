@@ -7,7 +7,7 @@ const OWNER = 0;
 /** The audience column code of `party`. */
 const PARTY = 1;
 
-/** One client a server routes cues to (§II.6 R1): its unit's entity id and, for `party` cues, its party. */
+/** One client a server routes cues to: its unit's entity id and, for `party` cues, its party. */
 export interface CueRecipient {
   /** The entity id of the recipient's own unit. */
   readonly id: number;
@@ -17,7 +17,7 @@ export interface CueRecipient {
 }
 
 /**
- * Whether an event reaches a recipient by its cue's audience (§II.6 R1): a `world` cue and an `all` cue reach
+ * Whether an event reaches a recipient by its cue's audience: a `world` cue and an `all` cue reach
  * everyone, an `owner` cue its owner alone, a `party` cue its owner and whoever shares the owner's party. The server's
  * routing, as `encodeCues`'s `admit`.
  */
@@ -36,7 +36,7 @@ export const cueReaches = (registry: CueRegistry, event: CueEvent, recipient: Cu
 };
 
 /**
- * The predicted cues a client fired ahead of the server (§II.6 R2), so it drops their echoes: the server's copy of a
+ * The predicted cues a client fired ahead of the server, so it drops their echoes: the server's copy of a
  * predicted cue carries the same cue, owner and key. A fixed ring of the latest ones; nothing allocates once made.
  */
 export interface CueEchoes {

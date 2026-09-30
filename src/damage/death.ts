@@ -3,7 +3,7 @@ import type { Blow } from './blow.ts';
 import type { DamageTypes } from './damage-types.ts';
 
 /**
- * A death as the death pipeline's steps, its events and the host see it (§II.6 D5). It is reused per nesting level,
+ * A death as the death pipeline's steps, its events and the host see it. It is reused per nesting level,
  * so nothing keeps it past the call that handed it over.
  */
 export interface Death<G extends DamageTypes> {

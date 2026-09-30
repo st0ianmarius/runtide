@@ -29,7 +29,7 @@ export interface NotCondition<C extends string = string, V extends string = stri
 }
 
 /**
- * How a comparison compares a value with its threshold (§II.6 M8): `<` and `>` are strict; `<=` and `>=` admit the
+ * How a comparison compares a value with its threshold: `<` and `>` are strict; `<=` and `>=` admit the
  * epsilon (`v ≤ than + ε`, `v ≥ than − ε`); `==` and `!=` compare within it (`|v − than| ≤ ε`).
  */
 export type CompareOp = '<' | '<=' | '>' | '>=' | '==' | '!=';
@@ -53,15 +53,15 @@ export interface CompareCondition<V extends string = string> {
 }
 
 /**
- * A condition (§I.7.1 F12, §II.6 M8): one data-driven predicate that modifiers, triggers, targeting and AI all read, as
+ * A condition: one data-driven predicate that modifiers, triggers, targeting and AI all read, as
  * game tests (`is`), comparisons of game values (`value`), and their composition (`all`, `any`, `not`).
  */
 export type ConditionExpr<C extends string = string, V extends string = string> =
   IsCondition<C> | AllCondition<C, V> | AnyCondition<C, V> | NotCondition<C, V> | CompareCondition<V>;
 
 /**
- * A condition compiled at load (§I.5.4): names resolved to ids, numbers checked, and in `all` and `any` the parts that
- * ask the world moved after those that do not. It is data, so it is also its own explanation (§I.5.3).
+ * A condition compiled at load: names resolved to ids, numbers checked, and in `all` and `any` the parts that
+ * ask the world moved after those that do not. It is data, so it is also its own explanation.
  */
 export type CompiledCondition =
   | {

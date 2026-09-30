@@ -68,7 +68,7 @@ export interface AbilityParts<G extends AbilityTypes> {
   };
 
   /**
-   * Whether this system runs on a prediction mirror (§II.6 R2, R3): a press runs the motion half, cooldowns, costs and
+   * Whether this system runs on a prediction mirror: a press runs the motion half, cooldowns, costs and
    * auras as on the server, but fires only each spell's mirror-safe cast cue (`spells.predictCast`) with the press's
    * key, and casts nothing; a `cast` cooldown comes from the wire. False when absent.
    */

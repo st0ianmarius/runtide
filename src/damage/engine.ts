@@ -46,7 +46,7 @@ export const missing = (what: string): never => {
   throw new TypeError(`The damage system needs ${what}, which its host does not have.`);
 };
 
-/** A stat view of an attacker read by a blow's spell's shares (§II.3.13), as outgoing multipliers are. Reused. */
+/** A stat view of an attacker read by a blow's spell's shares, as outgoing multipliers are. Reused. */
 class SharedView<G extends DamageTypes> implements StatView {
   view: StatView = NO_STATS;
   spell: G['spell'] | undefined = undefined;
@@ -171,7 +171,7 @@ export class DamageEngine<G extends DamageTypes> {
   }
 
   /**
-   * An attacker's stat for a blow at its spell's share (§II.3.13): a multiplier stat by the share-of-1 rule, a flat
+   * An attacker's stat for a blow at its spell's share: a multiplier stat by the share-of-1 rule, a flat
    * one times the share; a share of exactly 1 reads the stat unchanged.
    */
   shared(view: StatView, stat: StatId, blow: Blow<G>): number {

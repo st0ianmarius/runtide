@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): list walks run every tick, so the loops are indexed.
+// Hot path: list walks run every tick, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import { createPool, type Pool, stepsUntil } from '../core/index.ts';
 import { type ActiveAura, AuraItem } from './active-aura.ts';

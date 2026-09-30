@@ -1,5 +1,5 @@
 /**
- * Scripts (§I.7.1 F19, F21): places for a unit's own logic, and no logic of their own, for creatures and for the world
+ * Scripts: places for a unit's own logic, and no logic of their own, for creatures and for the world
  * alike. A script is a list of behaviours (`defineBehaviour`, `defineScripts`), each a few optional handlers with its
  * own state per unit and state shared across units (`shared`): `spawn`, `tick` in the unit's step, `timer` as its
  * timers come due (delivered in its step), and the game's own bus events routed to the unit a binding names. A world

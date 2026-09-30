@@ -1,7 +1,7 @@
 import type { AuraView } from '../auras/index.ts';
 
 /**
- * What happened to one aura between two views of its bearer, as a client derives it at zero bytes (§II.6 A7, R4):
+ * What happened to one aura between two views of its bearer, as a client derives it at zero bytes:
  * `applied`, `refreshed` (its clock was set again), `stacked` (its stacks changed), `changed` (its value changed),
  * `expired` (it left when its end stamp had come) or `removed` (it left before).
  */
@@ -52,7 +52,7 @@ export const auraLifecycle = (
 const keyOf = (view: AuraView): string => `${view.aura}:${view.serial}`;
 
 /**
- * Every aura instance's change between two views of one bearer (§II.6 R4), matched by aura and serial: the later
+ * Every aura instance's change between two views of one bearer, matched by aura and serial: the later
  * view's instances in its order, then the ones that left, in the earlier view's order. For a client: it allocates.
  */
 export const auraChanges = (

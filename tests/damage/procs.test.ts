@@ -45,7 +45,7 @@ describe('the damage proc', () => {
     assert.equal(target.hp, 90);
   });
 
-  it('finishes a scaled value’s target terms against each target at the hit (§II.3.13)', () => {
+  it('finishes a scaled value’s target terms against each target at the hit', () => {
     const game = makeDamageGame({});
     const [target, caster] = [game.unit(1), game.unit(2)];
     const value = compileScaled(STATS, scaled(10, add('maxHealth', 0.1, { from: 'target' })));
@@ -86,7 +86,7 @@ describe('the damage proc', () => {
   });
 });
 
-describe('the force procs (§II.6 D4, P3)', () => {
+describe('the force procs', () => {
   it('push or pull the unit they land on through the force pipeline, caused by the list’s self', () => {
     const seen: string[] = [];
 
@@ -109,7 +109,7 @@ describe('the force procs (§II.6 D4, P3)', () => {
   });
 });
 
-describe('outcome-gated procs (§II.6 P4)', () => {
+describe('outcome-gated procs', () => {
   const gated = { chilled: aura({ duration: 3 }), rage: aura({ duration: 3 }) };
 
   it('follow a blow that landed, aimed at the blow’s target', () => {
@@ -160,7 +160,7 @@ describe('outcome-gated procs (§II.6 P4)', () => {
   });
 });
 
-describe('the damage system’s proc kinds (§I.5.2, §I.5.6)', () => {
+describe('the damage system’s proc kinds', () => {
   it('are frozen, work detached, and count as the framework’s in the escape report, beside the game’s stages', () => {
     const game = makeDamageGame({}, { stages: { horde: { before: 'ignore', run: () => undefined } } });
     const { apply } = game.damage.procKinds.damage;

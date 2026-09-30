@@ -21,7 +21,7 @@ const contextFor = <G extends SpellTypes>(
 };
 
 /**
- * Fires a spell's mirror-safe cast cue (`SpellCues.cast`, §II.6 R2) on its caster, with a key: the server as a cast
+ * Fires a spell's mirror-safe cast cue (`SpellCues.cast`) on its caster, with a key: the server as a cast
  * starts, the predicting client at the press (`spells.predictCast`). Throws for a cue that is not predicted, whose
  * echo no client could drop. Returns whether a cue was fired.
  */

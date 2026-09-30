@@ -19,7 +19,7 @@ export interface TrackContext<Target> {
 }
 
 /**
- * How a cast's aim moves during its windup (§II.3.3): called every step until it answers `'lock'`, after which the aim
+ * How a cast's aim moves during its windup: called every step until it answers `'lock'`, after which the aim
  * stays where it is for the rest of the cast. It returns the new target (the old one keeps it still).
  */
 export type Track<G extends SpellTypes, Source extends StatsSource<G>, Target, State> = {
@@ -28,7 +28,7 @@ export type Track<G extends SpellTypes, Source extends StatsSource<G>, Target, S
 }['bivarianceHack'];
 
 /**
- * The windup (§II.3.3): the seconds from the cast's start to its release, and how its aim tracks meanwhile.
+ * The windup: the seconds from the cast's start to its release, and how its aim tracks meanwhile.
  */
 export interface Windup<G extends SpellTypes, Source extends StatsSource<G>, Target, State> {
   /** Its seconds, read when it starts. */
@@ -37,12 +37,12 @@ export interface Windup<G extends SpellTypes, Source extends StatsSource<G>, Tar
   /** How the aim moves until it locks; it locks at the start when absent (and no activation says otherwise). */
   readonly track?: Track<G, Source, Target, State>;
 
-  /** Cancels the cast when true, asked every step of the windup (§II.6 S5: a tether's target lost). */
+  /** Cancels the cast when true, asked every step of the windup (a tether's target lost). */
   cancelIf?(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target): boolean;
 }
 
 /**
- * The channel (§II.3.3): the payload running over time after the release (a beam, a whirlwind, a charge), ending on
+ * The channel: the payload running over time after the release (a beam, a whirlwind, a charge), ending on
  * its own, by its `breakIf`, or by the game (`spells.finish`).
  */
 export interface Channel<G extends SpellTypes, Source extends StatsSource<G>, Target, State> {
@@ -59,14 +59,14 @@ export interface Channel<G extends SpellTypes, Source extends StatsSource<G>, Ta
   breakIf?(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target): boolean;
 }
 
-/** The recovery (§II.3.3): the seconds the caster stays busy after its payload, read with the outcome known. */
+/** The recovery: the seconds the caster stays busy after its payload, read with the outcome known. */
 export interface Recover<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> {
-  /** Its seconds, read when it starts; `ctx.outcome` tells a release from a break (§II.6 S5: a stagger). */
+  /** Its seconds, read when it starts; `ctx.outcome` tells a release from a break (a stagger). */
   readonly seconds: CastSeconds<G, Source>;
 }
 
 /**
- * How a cast unfolds in time (§II.3.3): a windup, a channel and a recovery, each optional (a spell with none releases
+ * How a cast unfolds in time: a windup, a channel and a recovery, each optional (a spell with none releases
  * at once and ends), the interrupts it answers, and what it does when cancelled. The spell system steps it per caster.
  */
 export interface Timeline<G extends SpellTypes, Source extends StatsSource<G>, Target, State> {
@@ -85,11 +85,11 @@ export interface Timeline<G extends SpellTypes, Source extends StatsSource<G>, T
    */
   readonly interrupts?: Readonly<Partial<Record<G['interrupt'], 'pause' | 'cancel'>>>;
 
-  /** The cast was cancelled, before `onEnd` (§II.3.3: withdraw its own unfired telegraphs). */
+  /** The cast was cancelled, before `onEnd` (withdraw its own unfired telegraphs). */
   onCancel?(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target, out: ProcOut<G>): ProcReturn<G>;
 }
 
-/** Tracks the target (through `target` again) until `seconds` before the release, then locks (§II.3.3). */
+/** Tracks the target (through `target` again) until `seconds` before the release, then locks. */
 export const lockBefore =
   (seconds: number) =>
   <Target>(ctx: TrackContext<Target>, target: Target): Target | 'lock' =>

@@ -30,7 +30,7 @@ class AreaAuraApplication implements AuraApplication {
 }
 
 /**
- * How many enter-exit area auras hold each unit's aura (§II.6 A10), so overlapping area triggers never stack it and
+ * How many enter-exit area auras hold each unit's aura, so overlapping area triggers never stack it and
  * the last one the unit leaves takes it off.
  */
 export class AuraHolds<Unit> {
@@ -163,7 +163,7 @@ const stepAura = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
   }
 };
 
-/** Runs an area trigger's auras for a frame (§II.6 A10), in their order. */
+/** Runs an area trigger's auras for a frame, in their order. */
 export const stepAreaAuras = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const count = engine.registry.get(area.kind).auras?.length ?? 0;
 

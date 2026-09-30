@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): every bearer ticks every tick, so the loops are indexed and nothing is allocated.
+// Hot path: every bearer ticks every tick, so the loops are indexed and nothing is allocated.
 /* oxlint-disable typescript/prefer-for-of */
 import { isRunOut } from '../core/index.ts';
 import type { AuraItem } from './active-aura.ts';
@@ -109,7 +109,7 @@ const expire = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'],
 };
 
 /**
- * Whether a step of `clock` has anything to do on a bearer (§I.5.4): an aura beating on it or with its own expiry rule
+ * Whether a step of `clock` has anything to do on a bearer: an aura beating on it or with its own expiry rule
  * on it, or any aura that has run out. Asked before the step opens its events, so a bearer holding only
  * auras with nothing due (a passive, a long buff) costs a scan of its list and nothing more.
  */
@@ -136,7 +136,7 @@ const hasWork = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, cl
 };
 
 /**
- * Steps a bearer's clock once (§I.5): the clock's count rises; in list order the beats counting on it come due, and
+ * Steps a bearer's clock once: the clock's count rises; in list order the beats counting on it come due, and
  * the beats are dispatched; then every aura that
  * has run out (or whose own rule says so) expires, in list order, and those events are dispatched. So a beat due on
  * the tick an aura runs out fires before its expiry.

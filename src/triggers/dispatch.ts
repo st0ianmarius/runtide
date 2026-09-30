@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): every heard event walks its bearers' auras here, so the loops are indexed.
+// Hot path: every heard event walks its bearers' auras here, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import { type ActiveAura, type AuraSystem, NO_SOURCE } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
@@ -77,7 +77,7 @@ class DispatchFrame<G extends TriggerTypes, Host> implements TriggerContext<G>, 
   readonly holders: ActiveAura<G>[] = [];
   readonly handles: number[] = [];
 
-  /** How many entries of the gather lists are this answer's: the lists are overwritten, never shrunk (§I.5.4). */
+  /** How many entries of the gather lists are this answer's: the lists are overwritten, never shrunk. */
   count = 0;
   #aura: ActiveAura<G> | undefined = undefined;
 
@@ -250,7 +250,7 @@ const answer = <G extends TriggerTypes, Host>(
 };
 
 /**
- * Builds the dispatcher (§I.5): for an event, the triggers of the unit it is about, then each other party member's
+ * Builds the dispatcher: for an event, the triggers of the unit it is about, then each other party member's
  * `party` triggers in party order; within a bearer, its auras' triggers in aura order then authored order, gathered
  * into a scratch list before any runs, each running only while its aura is still on its bearer.
  */

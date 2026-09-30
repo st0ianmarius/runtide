@@ -24,7 +24,7 @@ const timeline = <const Spell extends string>(defs: Readonly<Record<Spell, AnySp
   return { ...game, a, advance };
 };
 
-describe('stage order (§II.3.3)', () => {
+describe('stage order', () => {
   it('counts a windup down, releases on its last step, recovers, then ends', () => {
     const game = timeline({
       slow: spell({

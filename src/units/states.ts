@@ -4,7 +4,7 @@ import { type Bitset, createBitset } from '../core/index.ts';
 /** What a derived state keeps a unit from doing. */
 export type UnitBlock = 'act' | 'move';
 
-/** A derived unit state (§I.7.1 F13): held while the unit holds an aura with any of its aura tags. */
+/** A derived unit state: held while the unit holds an aura with any of its aura tags. */
 export interface UnitStateDef<T extends string = string, I extends string = string> {
   /** The aura tags that put a unit in it. */
   readonly tags: readonly T[];
@@ -13,7 +13,7 @@ export interface UnitStateDef<T extends string = string, I extends string = stri
   readonly blocks?: readonly UnitBlock[];
 
   /**
-   * The interrupt it raises on the unit's casts and brain while the unit is in it (§I.7.1 F16: a stun's `stun`), through
+   * The interrupt it raises on the unit's casts and brain while the unit is in it (a stun's `stun`), through
    * `units.syncStates`, which the aura host's `onTagsChanged` calls; none when absent.
    */
   readonly interrupt?: I;
@@ -50,7 +50,7 @@ export interface UnitStateTable<Name extends string = string, I extends string =
 }
 
 /**
- * Declares the game's derived unit states over its aura tags (§I.7.1 F13): `defineUnitStates(AURA_TAGS, { stunned: {
+ * Declares the game's derived unit states over its aura tags: `defineUnitStates(AURA_TAGS, { stunned: {
  * tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' }, rooted: { tags: ['root'], blocks: ['move'] },
  * invulnerable: { tags: ['invuln'] } })`. A state is never stored: it is read from the unit's aura tags, so an aura
  * landing or leaving is all it takes. Throws for an aura tag the table does not have, or past 31 interrupting states.

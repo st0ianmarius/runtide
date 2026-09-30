@@ -1,11 +1,11 @@
-// Hot path (§I.4.2, §I.5.4): the fold reads stacks through here, so the loops are indexed.
+// Hot path: the fold reads stacks through here, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import { type Bitset, createBitset } from '../core/index.ts';
 import type { ActiveAura, AuraItem } from './active-aura.ts';
 import type { AuraTypes } from './aura-types.ts';
 
 /**
- * What an aura bearer's aura state holds (§I.5.4): its auras in a small inline list sorted by aura id (registry
+ * What an aura bearer's aura state holds: its auras in a small inline list sorted by aura id (registry
  * order, then application order), the tag bitset they grant, a step count per clock, and a change counter. Only its
  * system changes it; everything else reads it.
  */

@@ -1,4 +1,4 @@
-// Hot path (§I.5.4): a bound condition runs at every read that waits on it, so the loops are indexed.
+// Hot path: a bound condition runs at every read that waits on it, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import type { CompareOp, CompiledCondition } from './expr.ts';
 import type { ConditionTable, ConditionTest } from './table.ts';
@@ -64,7 +64,7 @@ const anyOf =
   };
 
 /**
- * Binds a compiled condition to the game's tests and value reads over its host (§I.7.1 F12): one closure tree made
+ * Binds a compiled condition to the game's tests and value reads over its host: one closure tree made
  * once, which a read calls with no allocation. Throws when a table it names is missing.
  */
 export const bindCondition = <Host>(tables: BoundTables<Host>, condition: CompiledCondition): Predicate<Host> => {
@@ -102,7 +102,7 @@ export interface BoundTest<Host> {
 }
 
 /**
- * A compiled condition as a test and argument pair, the shape a fold entry or a trigger check keeps (§I.5.4): a lone
+ * A compiled condition as a test and argument pair, the shape a fold entry or a trigger check keeps: a lone
  * game test as itself with its argument, so the common case costs no extra call; anything else as its bound tree.
  */
 export const conditionTest = <Host>(tables: BoundTables<Host>, condition: CompiledCondition): BoundTest<Host> => {

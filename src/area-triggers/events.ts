@@ -6,7 +6,7 @@ import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 
 /**
- * The payload of an area trigger event (§II.3.7): the area trigger, and why it ended for an end. Reused between
+ * The payload of an area trigger event: the area trigger, and why it ended for an end. Reused between
  * raises, so a listener reads it while it runs and never keeps it.
  */
 export interface AreaTriggerEvent<G extends AreaTriggerTypes> {
@@ -24,7 +24,7 @@ export const createAreaTriggerEvent = <G extends AreaTriggerTypes>(): AreaTrigge
 });
 
 /**
- * The bus and the event kinds the area trigger system raises (§II.3.7: `areaTriggerSpawned`, and `areaTriggerExpired`
+ * The bus and the event kinds the area trigger system raises (`areaTriggerSpawned`, and `areaTriggerExpired`
  * widened to every end), which a game maps its trigger events onto. Each is optional, and raised only when something
  * hears it.
  */
@@ -63,7 +63,7 @@ const codeIn =
   };
 
 /**
- * An area trigger event kind as a trigger event (§II.3.7): about the area trigger's owner, with the filters `kind` (an
+ * An area trigger event kind as a trigger event: about the area trigger's owner, with the filters `kind` (an
  * area trigger kind, by name or id), `tag` (an area trigger tag, by name or id) and `reason` (by name, for an end). An
  * aura answers every pool its bearer leaves ("when a Tempest dissipates, cast Chain Lightning from its eye").
  */

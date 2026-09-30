@@ -6,7 +6,7 @@ import type { AreaEngine } from './engine.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 
 /**
- * The fields of an area trigger a kind may replicate (§II.3.9): its position, heading and reach (the half extent of
+ * The fields of an area trigger a kind may replicate: its position, heading and reach (the half extent of
  * its shape's bounds), the tick it spawned on, its lifetime in seconds (its age plus its time left) and its age.
  */
 export const AREA_FIELDS = ['x', 'z', 'heading', 'radius', 'started', 'duration', 'age'] as const;
@@ -27,7 +27,7 @@ export interface AreaReplicationSpec {
 }
 
 /**
- * How a kind replicates (§II.3.9): its state as numbers (a spec), `events-only` (only its `spawned` and `ended` events
+ * How a kind replicates: its state as numbers (a spec), `events-only` (only its `spawned` and `ended` events
  * and cues cross: a shot the client flies itself) or `derived` (the client recomputes it from time and the owner); an
  * area trigger kind that declares nothing is `events-only`.
  */
@@ -197,8 +197,7 @@ const writeReplica = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Writes the replicated state of every live area trigger whose kind replicates its state into `out` from index 0 (§I.6
- * Replication), kind by kind in registry order and each kind in creation order; returns how many. `out` keeps its
+ * Writes the replicated state of every live area trigger whose kind replicates its state into `out` from index 0, kind by kind in registry order and each kind in creation order; returns how many. `out` keeps its
  * replicas and their value arrays between calls.
  */
 export const replicateAreas = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, out: AreaReplica[]): number => {

@@ -26,7 +26,7 @@ export interface CombatLogBus {
 /** How many entries a log holds when its options say nothing. */
 const DEFAULT_CAPACITY = 4096;
 
-/** What a combat log is built from (§I.7.1 F11): the bus and the event kinds it records, the clock, and ids. */
+/** What a combat log is built from: the bus and the event kinds it records, the clock, and ids. */
 export interface CombatLogOptions<Unit, Spell = unknown> {
   /** The bus the systems raise their events on. */
   readonly bus: CombatLogBus;
@@ -63,7 +63,7 @@ export interface CombatLogOptions<Unit, Spell = unknown> {
 }
 
 /**
- * A combat log (§I.7.1 F11): a structured stream of every blow, immunity, heal, death, aura change, cast moment and
+ * A combat log: a structured stream of every blow, immunity, heal, death, aura change, cast moment and
  * area trigger spawn and end, as ids and numbers, in the order they happened. It keeps the latest entries in a ring
  * and hands each to its subscribers as it is recorded: a damage meter, a test, an analytics sink.
  */
@@ -242,7 +242,7 @@ class Log<Unit, Spell> implements CombatLog {
 }
 
 /**
- * Creates a combat log over a game's bus (§I.7.1 F11): `createCombatLog({ bus, clock, idOf, damage: { taken:
+ * Creates a combat log over a game's bus: `createCombatLog({ bus, clock, idOf, damage: { taken:
  * bus.kind.taken, healed: bus.kind.healed, death: bus.kind.death }, auras: bus.kind.aura, spells: { … } })`. It
  * subscribes to every kind named (so the systems raise them) and records each as an entry. A subscriber added or
  * removed while an entry is handed out takes effect from the next one.

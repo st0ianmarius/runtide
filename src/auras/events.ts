@@ -50,7 +50,7 @@ export interface EventParts<G extends AuraTypes> {
 
 /**
  * The events of an aura operation, queued in parallel columns (no object per event) and dispatched once the
- * operation has finished, in the order the changes happened (§II.6 A1): each one runs the aura's hook (its procs
+ * operation has finished, in the order the changes happened: each one runs the aura's hook (its procs
  * handed to the host), then raises on the bus (triggers, then subscribers). Operations nest: a hook that changes
  * auras queues and dispatches its own before it returns, and the outer operation's remaining events after. Slots of
  * auras that left their bearers go back to the pool only once no dispatch is running, so nothing queued can see a
@@ -75,7 +75,7 @@ export class AuraEvents<G extends AuraTypes> {
   #serial = 0;
 
   // The columns and the retired list keep their storage between operations and are filled by index up to these
-  // counts: shrinking an array to 0 drops its backing store, so every operation would allocate it again (§I.5.4).
+  // counts: shrinking an array to 0 drops its backing store, so every operation would allocate it again.
   #count = 0;
   #retiredCount = 0;
 

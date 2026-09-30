@@ -25,7 +25,7 @@ export interface TermExplanation {
 }
 
 /**
- * A scaled value explained as data (§I.5.3): the client prints "60 (+120% AD) (+50% AP)" from it in its own words.
+ * A scaled value explained as data: the client prints "60 (+120% AD) (+50% AP)" from it in its own words.
  * Nothing here is text.
  */
 export interface ScaledExplanation {
@@ -76,7 +76,7 @@ const explainTerm = (term: CompiledTerm, slot: number, ctx: ScaledContext | unde
 };
 
 /**
- * Explains a scaled value at a rank (§II.3.13, §II.6 M6): its base, each term with its ratio, and, when `ctx` gives the
+ * Explains a scaled value at a rank: its base, each term with its ratio, and, when `ctx` gives the
  * caster's stats (and the target's), each reading and the total. With no `ctx` it is a ratio-only preview.
  */
 export const explainScaled = (

@@ -46,7 +46,7 @@ export const casterSpellOf = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Counts an area trigger's cast clock down by `dt` (§II.3.4: the sentry), and casts its spell once it ran out, as its
+ * Counts an area trigger's cast clock down by `dt` (the sentry), and casts its spell once it ran out, as its
  * owner, at its cast's rank, credited to its source, with it current (what the cast spawns is its child); the leftover
  * carries to the next cast, and a clock still behind starts again.
  */

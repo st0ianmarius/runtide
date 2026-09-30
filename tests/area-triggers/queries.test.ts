@@ -38,7 +38,7 @@ const handlesOf = (game: ReturnType<typeof queryGame>, query: Parameters<typeof 
   return out.slice(0, game.areaTriggers.query(query, out));
 };
 
-describe('queries over area triggers (§II.6 W5)', () => {
+describe('queries over area triggers', () => {
   it('keeps by kind, owner, tag and condition, in kind order then creation order', () => {
     const game = queryGame();
     const [one, two] = [game.unit(1), game.unit(2)];
@@ -84,7 +84,7 @@ describe('queries over area triggers (§II.6 W5)', () => {
   });
 });
 
-describe('coveredBy and interceptors (§II.6 W5)', () => {
+describe('coveredBy and interceptors', () => {
   it('finds the first area trigger with a tag covering a point, for a body’s radius', () => {
     const game = queryGame();
     const owner = game.unit(1);

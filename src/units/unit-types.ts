@@ -11,13 +11,13 @@ export type UnitId = Id<'units'>;
 export type UnitTagId = Id<'unitTags'>;
 
 /**
- * Where a unit is in its life (§II.6 U3): `alive`; `dead` (revivable); `despawned` (removed without dying: no rewards,
+ * Where a unit is in its life: `alive`; `dead` (revivable); `despawned` (removed without dying: no rewards,
  * no kill). Going down and a player leaving are the game's own states: auras whose tags a unit state reads.
  */
 export type Lifecycle = 'alive' | 'dead' | 'despawned';
 
 /**
- * What every unit is (§I.7.1 F13): one shape for heroes, creatures and summons. It bears auras, casts, has a loadout
+ * What every unit is: one shape for heroes, creatures and summons. It bears auras, casts, has a loadout
  * (an empty one for a unit with no buttons) and its own stat sheet; a game's `bearer` is the system's `Unit`.
  */
 export interface UnitShape extends AbilityBearer, AiBearer {
@@ -42,7 +42,7 @@ export interface UnitShape extends AbilityBearer, AiBearer {
   /** Its stat sheet, folded by the modifier system; `undefined` for a game without one. */
   readonly sheet: StatSheet | undefined;
 
-  /** Its record in the script system, which runs its script (§I.7.1 F19); −1 for a unit with none. */
+  /** Its record in the script system, which runs its script; −1 for a unit with none. */
   readonly scriptSlot: number;
 }
 
@@ -63,7 +63,7 @@ export interface UnitTypes extends AbilityTypes, AiTypes, DamageTypes {
   /** The names of the game's derived unit states (`stunned`, `rooted`, `frozen`). */
   readonly unitState: string;
 
-  /** The game's own fields on a unit (§I.5.6 hatch 4), made by the system's `createExt`. */
+  /** The game's own fields on a unit, made by the system's `createExt`. */
   readonly unitExt: unknown;
 
   /** The game's own data on a unit template (`UnitDef.data`: rewards, a roster's rules). */

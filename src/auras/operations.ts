@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): the queries walk the bearer's list, so the loops are indexed.
+// Hot path: the queries walk the bearer's list, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import { type ActiveAura, type AuraContext, MutableContext } from './active-aura.ts';
 import type { AuraApplication } from './application.ts';

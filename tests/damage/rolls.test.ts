@@ -20,7 +20,7 @@ const SINGLE = defineRollTable(STATS, { mode: 'single', rows: ROWS });
 /** The same rows rolled one by one. */
 const INDEPENDENT = defineRollTable(STATS, { mode: 'independent', rows: ROWS });
 
-describe('the single roll table (§II.3.14, WoW)', () => {
+describe('the single roll table (WoW)', () => {
   it('draws once and lets the rows take their chances of it in order, the first it falls in deciding', () => {
     const outcome = (draw: number, blockChance = 0) => {
       const { damage, unit, set, rolls, log } = makeDamageGame({}, { rolls: SINGLE });
@@ -53,7 +53,7 @@ describe('the single roll table (§II.3.14, WoW)', () => {
   });
 });
 
-describe('independent rolls (§II.3.14, LoL and swarm)', () => {
+describe('independent rolls (LoL and swarm)', () => {
   it('draws for each row in order, an avoid ending the blow and a scale applying and going on', () => {
     const { damage, unit, set, rolls, log } = makeDamageGame({}, { rolls: INDEPENDENT });
     const [attacker, target] = [unit(1), unit(2)];

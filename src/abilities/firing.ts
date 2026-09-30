@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): a press is checked on every motion step, so the loops are indexed.
+// Hot path: a press is checked on every motion step, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import type { AuraTagId } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
@@ -17,7 +17,7 @@ export const spellAt = (record: LoadoutRecord, slot: number): SpellId | undefine
 };
 
 /**
- * A button's cooldown in seconds for a caster at a rank (§II.3.13): its number, its function of the caster, or its
+ * A button's cooldown in seconds for a caster at a rank: its number, its function of the caster, or its
  * scaled value over the caster's stats for the spell. With no caster (a preview) a scaled value reads the stat table's
  * bases, and a function is NaN. 0 when it has none.
  */
@@ -83,7 +83,7 @@ const isCooling = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['
 };
 
 /**
- * Why the ability in a slot may not fire now (§II.6 S4), or `undefined` when it may: the slot holds none (`empty`),
+ * Why the ability in a slot may not fire now, or `undefined` when it may: the slot holds none (`empty`),
  * its cooldown aura is on the bearer (`cooldown`), or one of the ability's own rules fails. Reads only the bearer, so a
  * server and a prediction mirror agree.
  */
@@ -183,7 +183,7 @@ const pay = <G extends AbilityTypes>(
   button.costAura < 0 || engine.auras.spendStacks(bearer, toId<'auras'>(button.costAura), button.costStacks);
 
 /**
- * Fires the ability in a slot, already decided (§I.6 Abilities): pays its cost, runs `activate`, starts the slot's
+ * Fires the ability in a slot, already decided: pays its cost, runs `activate`, starts the slot's
  * cooldown (on `activation`), lands `applies` and `resets`, then casts its spell with the press's input, and starts
  * a `cast` cooldown once the cast was not refused. False when it could not fire (an empty slot, or a cost an earlier
  * slot of the same press spent).
@@ -225,7 +225,7 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
 };
 
 /**
- * A press (§II.6 S4) with the input and key in `engine.input` and `engine.key`: decides every pressed slot against the bearer as it stands
+ * A press with the input and key in `engine.input` and `engine.key`: decides every pressed slot against the bearer as it stands
  * before any fires, so a dodge and an ability that resets the dodge's cooldown on one press both fire, then fires them
  * in slot order. Returns the mask of the slots that fired.
  */
@@ -271,7 +271,7 @@ export const slotHolding = (bearer: AbilityBearer, spell: SpellId): SlotId | und
 };
 
 /**
- * The trigger path (§II.6 S4): a button spell fired by something other than its key (a `useAbility` proc, an aura's
+ * The trigger path: a button spell fired by something other than its key (a `useAbility` proc, an aura's
  * trigger). No slot cooldown gates it and none starts; its own rules gate it; it pays, lands `applies` and `resets`,
  * and casts at the rank of the slot that holds it (1 when none does). Its `activate` does not run: the motion half is
  * the key's. False when it did not fire.

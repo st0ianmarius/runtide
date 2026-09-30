@@ -44,7 +44,7 @@ export const PREDICTED = 32;
 /** The most stacks an aura can declare. */
 const MAX_STACKS = 65_535;
 
-/** The hooks every aura registry builds dispatch tables and `has` bitsets for (§I.5.4). */
+/** The hooks every aura registry builds dispatch tables and `has` bitsets for. */
 export const AURA_HOOKS = [
   'onLand',
   'onApplied',
@@ -75,7 +75,7 @@ export type AuraHookTables<G extends AuraTypes> = {
 
 /**
  * The game's aura registry (`defineAuras`): ids by key order, the definitions, typed columns (`stacking`,
- * `maxStacks`, `merge`, `flags`), and a dispatch table and `has` bitset per hook (§I.5.4).
+ * `maxStacks`, `merge`, `flags`), and a dispatch table and `has` bitset per hook.
  */
 export interface AuraRegistry<G extends AuraTypes = AuraTypes, Name extends string = string> extends Registry<
   'auras',
@@ -214,7 +214,7 @@ const buildHas = <G extends AuraTypes>(
   );
 
 /**
- * Registers the game's auras (§I.5.2): `defineAuras({ bleed, stun, … })` gives each its dense id by key order (its
+ * Registers the game's auras: `defineAuras({ bleed, stun, … })` gives each its dense id by key order (its
  * fold order, walk order and wire id), checks every definition, freezes it, and builds the typed columns and hook
  * tables the system reads. `TOMBSTONE` keeps a retired slot; `order` pins the order of a derived registry.
  */

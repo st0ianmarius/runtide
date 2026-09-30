@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { CAST_STAGES } from '../../src/spells/index.ts';
 import { makeSpellGame, spell } from '../helpers/spell-game.ts';
 
-describe('cast views (§II.6 C10)', () => {
+describe('cast views', () => {
   it('carries the spell, rank, stage and the stamp its stage ends on, and nothing once it ended', () => {
     const game = makeSpellGame({
       bolt: spell({

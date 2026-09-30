@@ -85,7 +85,7 @@ export type AuraCause =
 export type AuraHook<G extends AuraTypes> = (ctx: AuraContext<G>) => readonly G['proc'][] | undefined;
 
 /**
- * A beat on a clock of its own while the aura lasts (§II.6 A3): damage or healing over time, a sweep, a pulse. Beats
+ * A beat on a clock of its own while the aura lasts: damage or healing over time, a sweep, a pulse. Beats
  * of one tick fire before that tick's expiries, so a 12 s aura beating every 3 s beats four times, the last on the
  * tick it runs out. A refresh keeps the beat.
  */
@@ -108,7 +108,7 @@ export interface AuraPeriodic<G extends AuraTypes> {
 }
 
 /**
- * A clock rescale on the aura's own edges (§II.6 A13): the aura's own multiplier on `stat` (its `mul` modifiers on
+ * A clock rescale on the aura's own edges: the aura's own multiplier on `stat` (its `mul` modifiers on
  * it, at its stacks) rescales the bearer's pending activation clocks, which the host owns. On `applied` and
  * `refreshed` the clocks are divided by it, on `expired` and `removed` multiplied back.
  */
@@ -127,7 +127,7 @@ export interface AuraRescale<G extends AuraTypes> {
 }
 
 /**
- * One aura, as data and standalone functions (§I.5.2): a timed state on any bearer. It carries no id; the registry
+ * One aura, as data and standalone functions: a timed state on any bearer. It carries no id; the registry
  * key is its name and its position is its id. Every field is optional.
  */
 export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHooks<G> {
@@ -184,7 +184,7 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   readonly ownerOnly?: boolean;
 
   /**
-   * Whether a prediction mirror rebuilds it from the wire (§II.6 R3, `auras.seed`): an aura the shared motion step
+   * Whether a prediction mirror rebuilds it from the wire (`auras.seed`): an aura the shared motion step
    * reads (a cooldown, a cost, a sprint, a state a button's rules name) must be; `checkPredicted` holds the rule.
    */
   readonly predicted?: boolean;
@@ -208,13 +208,13 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   readonly grants?: readonly G['proc'][];
 
   /**
-   * The event listeners it owns (§II.3.11): active exactly while it is on its bearer. The aura system never reads
+   * The event listeners it owns: active exactly while it is on its bearer. The aura system never reads
    * them; a trigger system compiles them at load.
    */
   readonly triggers?: readonly G['trigger'][];
 
   /**
-   * Cues by lifecycle change (§II.3.9, §II.6 A7), each a `self` or `entity` cue that sits on the bearer: the client
+   * Cues by lifecycle change, each a `self` or `entity` cue that sits on the bearer: the client
    * plays them from what it sees of the aura on the wire (zero bytes), or a local game fires them from the aura events
    * (`auraCue`). The aura system never reads them; `checkAuraCues` holds them against the cue registry at load.
    */

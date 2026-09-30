@@ -27,7 +27,7 @@ const isPlainData = (value: object): boolean => {
 
 /**
  * Freezes a definition and every plain object and array inside it, so a hook or a system that writes to shared data
- * fails at once in development (§I.5.2). Functions, typed arrays and class instances are left as they are.
+ * fails at once in development. Functions, typed arrays and class instances are left as they are.
  */
 export const deepFreeze = (value: unknown): void => {
   if (typeof value !== 'object' || value === null || Object.isFrozen(value) || !isPlainData(value)) {

@@ -56,7 +56,7 @@ const setUp = () => {
   return { game, hero: game.hero(1) };
 };
 
-describe('the trigger path (§II.6 S4)', () => {
+describe('the trigger path', () => {
   it('fires with no slot cooldown, pays and lands, and neither moves nor starts a cooldown', () => {
     const { game, hero } = setUp();
     const { abilities, auras } = game;

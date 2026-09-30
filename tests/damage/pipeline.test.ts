@@ -5,7 +5,7 @@ import { type BlowStep, DAMAGE_STAGES, defineRollTable, FORCE_STAGES, HEAL_STAGE
 import { type DamageOverrides, makeDamageGame, STATS } from '../helpers/damage-game.ts';
 import { invalid } from '../helpers/trigger-game.ts';
 
-describe('the damage pipeline order (§II.6 D1)', () => {
+describe('the damage pipeline order', () => {
   it('runs the built-in stages in their documented order', () => {
     const { damage } = makeDamageGame({});
 

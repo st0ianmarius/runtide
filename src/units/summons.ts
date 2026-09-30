@@ -3,7 +3,7 @@ import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import { moveTo } from './lifecycle.ts';
 import type { UnitTypes } from './unit-types.ts';
 
-/** A spawned unit with an owner joins its owner's summons, last (§I.7.1 F18). */
+/** A spawned unit with an owner joins its owner's summons, last. */
 export const joinOwner = (bearer: UnitTypes['bearer']): void => {
   const { owner } = unitOf<UnitTypes>(bearer);
 
@@ -25,7 +25,7 @@ export const creditOf = (bearer: UnitTypes['bearer']): number => {
 
 /**
  * A unit dies or despawns: it leaves its owner's summons (keeping the others in order), and lets go of the cast it was
- * summoned by (§II.6 S6).
+ * summoned by.
  */
 export const leaveOwner = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer']): void => {
   const unit = unitOf<G>(bearer);
@@ -57,7 +57,7 @@ export const despawnBound = <G extends UnitTypes>(engine: UnitEngine<G>, bearer:
   }
 };
 
-/** A spawned unit is attached to the script its spawn names, else its template's (§I.7.1 F19, F21). */
+/** A spawned unit is attached to the script its spawn names, else its template's. */
 export const attachScript = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   [bearer, own]: readonly [G['bearer'], G['scriptName'] | undefined],

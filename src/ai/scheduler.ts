@@ -15,7 +15,7 @@ const GENERATION_SPAN = 2 ** 20;
 const NONE = Number.NaN;
 
 /**
- * The timers of every brain of one AI system (§I.7.1 F17, TrinityCore's `EventMap`): each running timer is one entry
+ * The timers of every brain of one AI system (TrinityCore's `EventMap`): each running timer is one entry
  * on a timing wheel, so a unit with nothing due costs nothing per tick, and timers due on the same tick fire in the
  * order they were started. A held brain's timers stop counting and start again from where they were.
  */

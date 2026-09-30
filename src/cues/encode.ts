@@ -87,7 +87,7 @@ const writeParam = (field: CueField, event: CueEvent, out: CueWriter): void => {
 };
 
 /**
- * Writes an event's params (§I.5: only params that differ from the cue's declared defaults cross): a presence mask
+ * Writes an event's params (only params that differ from the cue's declared defaults cross): a presence mask
  * (bit `i` for the cue's `i`th param), then each present param in declaration order, quantised by its kind. The part a
  * game embeds in its own event layout when it writes the rest itself.
  */

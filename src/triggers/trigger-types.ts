@@ -28,15 +28,15 @@ export interface TriggerFilter<G extends TriggerTypes> {
 }
 
 /**
- * One entry of a trigger's `when`: a condition tested on the trigger's owner (§I.6, §I.7.1 F12: a game test, a
+ * One entry of a trigger's `when`: a condition tested on the trigger's owner (a game test, a
  * comparison, or their composition), or an event filter.
  */
 export type TriggerCondition<G extends TriggerTypes> = ConditionExpr<G['condition'], G['valueKind']> | TriggerFilter<G>;
 
 /**
- * One trigger (§II.3.7), as data: on an event, when its conditions hold, with a chance and at most once per internal
+ * One trigger, as data: on an event, when its conditions hold, with a chance and at most once per internal
  * cooldown, run procs. It lives on an aura only (`AuraDef.triggers`) and is active exactly while that aura is on its
- * bearer (§II.3.11); its address is the aura and its index there.
+ * bearer; its address is the aura and its index there.
  */
 export interface TriggerDef<G extends TriggerTypes> {
   /** The event it answers. */

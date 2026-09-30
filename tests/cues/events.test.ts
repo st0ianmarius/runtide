@@ -35,7 +35,7 @@ const PLACE = { owner: 7, entity: 9, x: 1, z: 2 };
 /** An event's placement and key, as one tuple. */
 const head = (event: CueEvent) => [event.cue, event.owner, event.entity, event.x, event.z, event.key];
 
-describe('the cue buffer (§I.5, §I.5.4)', () => {
+describe('the cue buffer', () => {
   it('appends fresh events in firing order: nobody at the origin, no key, every param at its default', () => {
     const out = createCueBuffer(CUES);
     const first = out.emit(CUES.id.struck);
@@ -75,7 +75,7 @@ describe('the cue buffer (§I.5, §I.5.4)', () => {
   });
 });
 
-describe('fireCue (§II.3.9)', () => {
+describe('fireCue', () => {
   it('places each anchor: self on its owner, entity on its entity, target at the point, world nobody', () => {
     const out = createCueBuffer(CUES);
 
@@ -154,7 +154,7 @@ describe('fireCue (§II.3.9)', () => {
   });
 });
 
-describe('lists of points (§II.6 R1)', () => {
+describe('lists of points', () => {
   it('copies the points into the event, so the caller may reuse its array; writing again replaces them', () => {
     const out = createCueBuffer(CUES);
     const event = out.emit(CUES.id.flare);
@@ -182,7 +182,7 @@ describe('lists of points (§II.6 R1)', () => {
   });
 });
 
-describe('checkCueSpec (§II.6 P7)', () => {
+describe('checkCueSpec', () => {
   /** Checks a spec as a spell's would be, as a function for `assert.throws`. */
   const check = (spec: Parameters<typeof checkCueSpec>[1]) => () => {
     checkCueSpec(CUES, spec, 'a spell');

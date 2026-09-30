@@ -16,7 +16,7 @@ const markerOf = (stat: StatId): CompiledModifier =>
   Object.freeze({ stat, op: 'add', value: 0, stacking: 'power', when: undefined, scope: undefined });
 
 /**
- * The entries of one stat that the shared lists fold at one source, by gate (§I.5.4): compiled once for the system,
+ * The entries of one stat that the shared lists fold at one source, by gate: compiled once for the system,
  * so that a read walks the gates its host holds and looks each one up here, whatever the number of gates the game
  * defines. A sheet's compiled lists hold its `marker` where these entries fold, so the fold's flat loop over a
  * sheet's list keeps the fold order and turns aside here only for the stats and lists that have shared entries.

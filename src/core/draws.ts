@@ -44,7 +44,7 @@ export const weighted = (random: Random, weights: readonly number[]): number => 
   let total = 0;
   let last = -1;
 
-  // An indexed loop: an AI pick draws here, and an entries iterator allocates (§I.5.4).
+  // An indexed loop: an AI pick draws here, and an entries iterator allocates.
   for (let index = 0; index < weights.length; index++) {
     const weight = weights[index] ?? 0;
 

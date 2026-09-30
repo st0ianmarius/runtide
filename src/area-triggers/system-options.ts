@@ -9,7 +9,7 @@ import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import type { AreaTriggerEvents } from './events.ts';
 
-/** What an area trigger system is built from (§I.5): the game's kinds, the systems they run on, the world and host. */
+/** What an area trigger system is built from: the game's kinds, the systems they run on, the world and host. */
 export interface AreaTriggerSystemBase<G extends AreaTriggerTypes> {
   /** The game's area trigger kinds (`defineAreaTriggers`). */
   readonly registry: AreaTriggerRegistry<G>;

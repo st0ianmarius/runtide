@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): every proc goes through here, so the loops are indexed.
+// Hot path: every proc goes through here, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import type { Random } from '../core/index.ts';
 import type { ProcFrame } from './frame.ts';

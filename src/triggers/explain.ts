@@ -31,8 +31,8 @@ export interface TriggerFilterExplanation {
 }
 
 /**
- * A trigger explained as data (§I.5.3): its address (the aura and its index there, for the client's text overrides,
- * §II.6 P7), what it answers and whose events it hears, its odds and cooldown, its conditions and its procs, with
+ * A trigger explained as data: its address (the aura and its index there, for the client's text overrides,
+ *), what it answers and whose events it hears, its odds and cooldown, its conditions and its procs, with
  * every number the simulation uses, for the client to phrase.
  */
 export interface TriggerExplanation {

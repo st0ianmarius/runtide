@@ -5,7 +5,7 @@ import { type CurveRef, type CurveTable, DEFAULT_CURVES } from './curves.ts';
 import type { StatId, StatIndex } from './stat-id.ts';
 
 /**
- * One stat of the game's table (§II.3.13, §II.6 M1). A flat stat is a quantity (attack damage, armor); a multiplier
+ * One stat of the game's table. A flat stat is a quantity (attack damage, armor); a multiplier
  * stat is a percentage around a neutral value (a damage bonus at 1). A stat resolves as
  * `clamp(min((base + Σ add + derived) × Π mul, …caps))`.
  */
@@ -41,14 +41,14 @@ export interface StatDef<S extends string = string> {
     readonly per: number;
 
     /**
-     * The game's own measure of the followed stat's gain (§I.5.6 hatch 2), in place of `total − base`: it is handed
+     * The game's own measure of the followed stat's gain, in place of `total − base`: it is handed
      * the parts of that stat's fold for the current read and returns the gain the share applies to.
      */
     readonly gain?: GainMeasure;
   };
 
   /**
-   * A rating's conversion (§II.3.14): `curve(total)` of this stat is added to the `to` stat after its additions and
+   * A rating's conversion: `curve(total)` of this stat is added to the `to` stat after its additions and
    * before its multipliers. Curve parameters read the bearer as the caster; there is no target.
    */
   readonly converts?: {
@@ -117,7 +117,7 @@ export type Derivation =
 type StatColumn = 'base' | 'neutral' | 'min' | 'max' | 'isMultiplier';
 
 /**
- * The game's stat table: a registry of stats with dense ids (§I.5.4), typed columns for the fold (`base`, `neutral`,
+ * The game's stat table: a registry of stats with dense ids, typed columns for the fold (`base`, `neutral`,
  * `min` and `max` as `Float64Array`, `isMultiplier` as `Uint8Array`), the derived terms of every stat, and the curve
  * table its stats and scaled values name curves in.
  */
@@ -244,7 +244,7 @@ const checkAcyclic = (derivations: readonly (readonly Derivation[])[], nameOf: (
 };
 
 /**
- * Declares the game's stat table (§II.3.13): each stat's base, kind, neutral value, clamp, curve, derived share and
+ * Declares the game's stat table: each stat's base, kind, neutral value, clamp, curve, derived share and
  * rating conversion, checked at load. `curves` is the game's curve table (`defineCurves`), `haste` alone by default.
  */
 export const defineStats = <const Defs extends Readonly<Record<string, StatDef<Extract<keyof Defs, string>>>>>(

@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): what the fold asks of each entry, on every read.
+// Hot path: what the fold asks of each entry, on every read.
 import { type Entry, FROM_HOST, type Sheet } from './sheet.ts';
 
 /** The stacks of a gated entry: the read's what-if override, else the host's report, else none. */

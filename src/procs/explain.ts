@@ -10,7 +10,7 @@ import type { ProcSystem } from './system.ts';
 export type ProcTargetKind = 'self' | 'target' | 'eventUnit' | 'party' | 'unit' | 'none';
 
 /**
- * A proc explained as data (§I.5.3): its kind's id, its odds, where it lands and its numbers, for the client to
+ * A proc explained as data: its kind's id, its odds, where it lands and its numbers, for the client to
  * phrase (a card line, a tooltip) in its own words.
  */
 export interface ProcExplanation {
@@ -46,7 +46,7 @@ const targetKind = (to: unknown): ProcTargetKind => {
 };
 
 /**
- * One proc of a system's kinds explained as data (§I.5.3), nested procs included. Throws for an unknown kind or name,
+ * One proc of a system's kinds explained as data, nested procs included. Throws for an unknown kind or name,
  * like the proc would.
  */
 export const explainProc = <G extends ProcTypes>(procs: ProcSystem<G>, proc: Proc<G>): ProcExplanation => {

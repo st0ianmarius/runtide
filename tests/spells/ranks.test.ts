@@ -31,7 +31,7 @@ const ranked = () => {
   return { ...game, hero, ranks, variants, key, lines };
 };
 
-describe('the caster’s own rank and variant (§I.7.1 F20)', () => {
+describe('the caster’s own rank and variant', () => {
   it('reach a cast that names none, while a cast’s own options win, and default to rank 1, variant 0', () => {
     const { spells, id, hero, ranks, variants, key, lines } = ranked();
 

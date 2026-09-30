@@ -12,7 +12,7 @@ export interface TimingWheelOptions {
 }
 
 /**
- * A timing wheel over a fixed-step clock (§I.5.4): one FIFO bucket per tick over a fixed horizon, so scheduling and
+ * A timing wheel over a fixed-step clock: one FIFO bucket per tick over a fixed horizon, so scheduling and
  * firing are O(1), and items due on the same tick come out in the order they were scheduled. Items beyond the horizon
  * wait in a heap and move into the wheel, in scheduling order, as their tick comes into range.
  */

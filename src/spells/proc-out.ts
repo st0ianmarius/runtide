@@ -2,7 +2,7 @@ import type { Proc } from '../procs/index.ts';
 import type { SpellTypes } from './spell-types.ts';
 
 /**
- * The reusable list a spell hook is handed to push its procs into (§I.5.4): pushing fills it by index, so a hook that
+ * The reusable list a spell hook is handed to push its procs into: pushing fills it by index, so a hook that
  * returns it after pushing allocates nothing. A hook may return a plain array instead, for authoring convenience.
  */
 export interface ProcOut<G extends SpellTypes> {

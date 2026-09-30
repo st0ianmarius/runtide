@@ -83,7 +83,7 @@ const flat = (event: CueEvent | undefined) => {
 /** Every event of a buffer, flat. */
 const flatAll = (buffer: ReturnType<typeof createCueBuffer>) => buffer.events.slice(0, buffer.count).map(flat);
 
-describe('the cue wire layout (§I.5, §II.6 R1)', () => {
+describe('the cue wire layout', () => {
   it('writes each event as its id, owner, entity, point, key and the params that differ from their defaults', () => {
     const out = createNumberWriter();
 
@@ -227,7 +227,7 @@ describe('the cue wire layout (§I.5, §II.6 R1)', () => {
   });
 });
 
-describe('reading cue data it cannot trust (§I.5)', () => {
+describe('reading cue data it cannot trust', () => {
   it('refuses an unknown cue id, stray mask bits, and more events or points than the data holds', () => {
     const into = createCueBuffer(CUES);
     const read = (numbers: readonly number[]) => () => decodeCues(createNumberReader(numbers), into);

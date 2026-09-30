@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { createModifierSystem, defineSources, defineStats, linear, plus, rating } from '../../src/modifiers/index.ts';
 
-describe('rating conversions (§II.3.14)', () => {
+describe('rating conversions', () => {
   it('add curve(rating) to the target stat after its additions and before its multipliers', () => {
     const stats = defineStats({
       level: { base: 1, kind: 'flat' },

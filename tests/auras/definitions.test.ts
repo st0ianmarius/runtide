@@ -14,7 +14,7 @@ import { aura, CLOCKS, makeGame, TAGS } from '../helpers/aura-game.ts';
 
 const onApplied = () => ['applied'];
 
-describe('defineAuras (§I.5.2)', () => {
+describe('defineAuras', () => {
   it('gives each aura its id by key order, keeps a retired slot, and pins the order', () => {
     const registry = defineAuras({ bleed: aura({ duration: 1 }), old: TOMBSTONE, stun: aura({ duration: 2 }) });
 

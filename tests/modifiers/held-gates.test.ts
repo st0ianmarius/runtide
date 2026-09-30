@@ -64,7 +64,7 @@ const system = (walksHeld: boolean) => {
   return { modifiers, sheet };
 };
 
-describe('shared lists walked by held gates (§I.5.4)', () => {
+describe('shared lists walked by held gates', () => {
   it('fold the same floats as asking every gate, inline or behind a marker, what-ifs and reads without a host too', () => {
     const [held, every] = [system(true), system(false)];
     const gate = fc.integer({ min: 0, max: GATED.length - 1 });

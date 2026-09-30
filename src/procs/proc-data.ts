@@ -56,7 +56,7 @@ export interface RemoveByTagProc<G extends ProcTypes> extends ProcShape {
 }
 
 /**
- * Changes the time left on every finite aura carrying a tag (§II.6 P3, §I.7.1 F15: a cooldown's `scale` and `clamp`),
+ * Changes the time left on every finite aura carrying a tag (a cooldown's `scale` and `clamp`),
  * keeping each one's duration: `left × factor`, capped at `max` seconds. A cooldown reduction is `factor < 1`, a
  * refund `factor: 0`, a "no more than 2 s left" `max: 2`.
  */
@@ -105,10 +105,10 @@ export interface EventProc<G extends ProcTypes> extends ProcShape {
 }
 
 /**
- * Fires a cue into the proc system's buffer (§II.3.9): presentation only, so it changes nothing and plays even on a
+ * Fires a cue into the proc system's buffer: presentation only, so it changes nothing and plays even on a
  * unit its list killed. A `self` cue sits on the procs' self and is that unit's; any other sits on `to` (the list's
  * target when absent; `party` fires one per member) or at `at`, and is credited to the list's source (a `world` cue is
- * nobody's). Checked at load (§II.6 P7): a live cue, its own params with values of their kinds, and no `to` or `at`
+ * nobody's). Checked at load: a live cue, its own params with values of their kinds, and no `to` or `at`
  * on a `self` cue, no `at` on an `entity` cue.
  */
 export interface CueProc<G extends ProcTypes> extends ProcShape {
@@ -138,7 +138,7 @@ export interface GroupProc<G extends ProcTypes> extends ProcShape {
 }
 
 /**
- * Continues the list with procs decided now, after the procs before it applied (§II.6.1 rule 2): the plan's `then`,
+ * Continues the list with procs decided now, after the procs before it applied: the plan's `then`,
  * named `andThen` so that no registry or module ever has a `then` member (which would make it a thenable).
  */
 export interface AndThenProc<G extends ProcTypes> extends ProcShape {
@@ -165,7 +165,7 @@ export interface PickOneProc<G extends ProcTypes> extends ProcShape {
 }
 
 /**
- * The last-resort escape hatch (§I.5.6 hatch 3): the game's own code, run in place, deterministic by contract (it
+ * The last-resort escape hatch: the game's own code, run in place, deterministic by contract (it
  * draws only from `ctx.random` and reads only the simulation). Named, so the escape report counts it.
  */
 export interface RunProc<G extends ProcTypes> extends ProcShape {
@@ -193,5 +193,5 @@ export type CoreProc<G extends ProcTypes> =
   | PickOneProc<G>
   | RunProc<G>;
 
-/** One proc (§II.3.6): a core kind or one of the game's. */
+/** One proc: a core kind or one of the game's. */
 export type Proc<G extends ProcTypes> = CoreProc<G> | G['gameProc'];

@@ -84,7 +84,7 @@ const curveTermStat = (term: CurveTerm, curve: CurveRef, state: Compiling): stri
   return state.index.nameOf(only);
 };
 
-/** Checks a term's stat kind and options against its list (§II.3.13's load-time checks). */
+/** Checks a term's stat kind and options against its list at load time. */
 const checkTerm = (term: Omit<CompiledTerm, 'coef' | 'neutral'>, state: Compiling): void => {
   const name = state.index.nameOf(term.stat);
   const isMultiplier = state.index.isMultiplier(term.stat);
@@ -288,7 +288,7 @@ export const compileCurveWith = (index: StatIndex, ref: CurveRef, options: Compi
 };
 
 /**
- * Compiles a scaled value against the game's stat table (§II.3.13), as a registry does when it is built: names become
+ * Compiles a scaled value against the game's stat table, as a registry does when it is built: names become
  * ids, lists become typed arrays, and every load-time check runs (an `add` term needs a flat stat and an `amp` term a
  * multiplier stat, `of: 'bonus'` needs a base, per-rank lists match the ranks, curve parameters are in range).
  */

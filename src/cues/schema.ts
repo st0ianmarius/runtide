@@ -26,7 +26,7 @@ export interface CueField {
 }
 
 /**
- * One cue's params, compiled at load (§I.5.4), in wire order. A point takes two slots of an event's `values` (x, then
+ * One cue's params, compiled at load, in wire order. A point takes two slots of an event's `values` (x, then
  * z), a list of points two (its first coordinate's index in the event's `path`, then its point count), anything else
  * one.
  */
@@ -128,7 +128,7 @@ const checkDef = (cue: string, def: CueDef, names: readonly string[]): void => {
   }
 };
 
-/** Compiles one cue's params into its schema, checking every param (§I.5.4: at load, never per tick). */
+/** Compiles one cue's params into its schema, checking every param (at load, never per tick). */
 export const compileSchema = (cue: string, def: CueDef, positionScale: number): CueSchema => {
   const params = def.params ?? {};
   const names = Object.keys(params);

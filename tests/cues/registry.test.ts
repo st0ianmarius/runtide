@@ -29,7 +29,7 @@ const TABLE = {
 /** One cue definition to refuse, alone in a registry. */
 const refused = (def: CueDef) => () => defineCues({ bad: def });
 
-describe('defineCues (§I.5, §II.6 R1)', () => {
+describe('defineCues', () => {
   it('gives each cue its id by key order, a tombstone keeping its slot', () => {
     const cues = defineCues(TABLE);
 
@@ -127,7 +127,7 @@ describe('defineCues (§I.5, §II.6 R1)', () => {
     assert.doesNotThrow(bad({ kind: 'fixed', scale: 100, default: 0.3 }));
   });
 
-  it('refuses a predicted cue that depends on an entity id (§II.6 R2)', () => {
+  it('refuses a predicted cue that depends on an entity id', () => {
     assert.throws(refused({ anchor: 'entity', isPredicted: true }), /predicted cue cannot be anchored to an entity/);
     assert.throws(
       refused({ anchor: 'self', isPredicted: true, params: { who: { kind: 'entity' } } }),

@@ -14,7 +14,7 @@ export interface TimerTable<Name extends string = string> {
 }
 
 /**
- * Declares the game's timers (§I.7.1 F17, TrinityCore's `EventMap` events), each an id by declared order: every brain
+ * Declares the game's timers (TrinityCore's `EventMap` events), each an id by declared order: every brain
  * holds one slot per timer, so a creature's named timers (`nextExecute`, `nextRaise`, the pick gap) are one table.
  * Throws for a repeated name or more than 32.
  */

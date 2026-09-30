@@ -1,5 +1,5 @@
 /**
- * Triggers (§I.6, §II.3.7, §II.3.11): event listeners that live on auras only, active while their aura is on its
+ * Triggers: event listeners that live on auras only, active while their aura is on its
  * bearer. A trigger answers one event kind with conditions, filters, a chance and an internal cooldown (a derived
  * aura), and runs procs; a system (`createTriggerSystem`) compiles and validates them at load and dispatches the bus's
  * events through its capped tier, owner first, then party listeners.

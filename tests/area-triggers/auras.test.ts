@@ -38,7 +38,7 @@ const ticks = (
   }
 };
 
-describe('area auras on enter and exit (§II.6 A10)', () => {
+describe('area auras on enter and exit', () => {
   it('puts its aura on a foe that enters, takes it off as it leaves, and off every unit inside as it ends', () => {
     const game = fieldGame({ aura: 'chilled' });
     const [foe, ally, other] = [game.unit(100), game.unit(2), game.unit(101)];
@@ -92,7 +92,7 @@ describe('area auras on enter and exit (§II.6 A10)', () => {
   });
 });
 
-describe('area auras refreshed while inside (§II.6 A10)', () => {
+describe('area auras refreshed while inside', () => {
   it('tops its aura up to the linger every frame inside, so it lingers after the unit leaves', () => {
     const game = fieldGame({ aura: 'soothed', mode: 'refresh', linger: 0.75, stacks: 1 });
     const foe = game.unit(100);

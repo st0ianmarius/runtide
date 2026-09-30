@@ -108,7 +108,7 @@ export interface EngineParts<G extends SpellTypes> {
 }
 
 /**
- * The spell machinery's shared state (§I.5.4): the registry and its resolved tables, the pool of casts, the stack of
+ * The spell machinery's shared state: the registry and its resolved tables, the pool of casts, the stack of
  * reusable proc lists, the cast whose procs are running, the cue place and the host. The cast order and the timeline
  * (`runner.ts`, `stepper.ts`) are functions over it.
  */
@@ -341,7 +341,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   }
 
   /**
-   * Puts on (or takes off) the aura a spell's caster holds while it casts (§II.3.7), credited to the caster; nothing
+   * Puts on (or takes off) the aura a spell's caster holds while it casts, credited to the caster; nothing
    * when another running cast of the same caster holds the same aura, so overlapping casts share one.
    */
   holdCastAura(cast: Cast<G>, isOn: boolean): void {

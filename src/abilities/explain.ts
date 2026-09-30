@@ -16,7 +16,7 @@ export interface ButtonApplyExplanation {
 }
 
 /**
- * A button's rules as data (§II.6 M6, §I.5.3), for the client's tooltip: its cooldown explained at a rank, when it
+ * A button's rules as data, for the client's tooltip: its cooldown explained at a rank, when it
  * starts, its cost, its tags and the auras it lands. Ids, not names or text.
  */
 export interface ButtonExplanation {
@@ -79,7 +79,7 @@ const explainCooldown = <G extends AbilityTypes>(
 };
 
 /**
- * Explains a button spell at a rank (§II.6 M6): with no caster, a preview that needs no world; with one, its cooldown
+ * Explains a button spell at a rank: with no caster, a preview that needs no world; with one, its cooldown
  * reads the caster's stats for the spell. `undefined` for a spell that is not a button.
  */
 export const explainButton = <G extends AbilityTypes>(

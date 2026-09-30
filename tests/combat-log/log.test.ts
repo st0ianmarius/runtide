@@ -62,7 +62,7 @@ const linesOf = (log: CombatLog): string[] => {
   return lines;
 };
 
-describe('the combat log (§I.7.1 F11)', () => {
+describe('the combat log', () => {
   it('records every blow, immunity, heal, death, aura change, cast moment and area trigger, in order', () => {
     const game = logGame();
     const log = logOf(game);
@@ -163,7 +163,7 @@ describe('the combat log (§I.7.1 F11)', () => {
   });
 });
 
-describe('outcomes in the log (§I.7.1 F14)', () => {
+describe('outcomes in the log', () => {
   it('codes a blow’s outcome row by the roll table’s names', () => {
     const bus = createBus({ taken: (): BlowPayload<number, number> => ({ blow: undefined }) });
 
@@ -204,7 +204,7 @@ describe('outcomes in the log (§I.7.1 F14)', () => {
   });
 });
 
-describe('the damage meter (§II.6 D2)', () => {
+describe('the damage meter', () => {
   it("codes a cast's end and an area trigger's by the game's outcomes and reasons, after the framework's", () => {
     const game = makeSpellGame(
       {

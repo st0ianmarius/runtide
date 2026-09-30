@@ -15,7 +15,7 @@ import { stepSlot } from './stepper.ts';
 import type { AreaTriggerSystemOptions } from './system-options.ts';
 
 /**
- * An area trigger system (§I.6): the store of what spells leave in the world. It spawns them (applying limits), steps
+ * An area trigger system: the store of what spells leave in the world. It spawns them (applying limits), steps
  * them per tick slot in the pinned order (kind order, then creation order, children after their parents), counts
  * their lifetimes, checks their bounds, runs their hooks' procs as their owners' and their casts', and ends them with
  * a reason.
@@ -43,13 +43,13 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
   readonly current: AreaTriggerHandle;
 
   /**
-   * Spawns an area trigger of a kind (§II.3.4): returns its handle, or `NO_AREA_TRIGGER` when its limit refused it.
+   * Spawns an area trigger of a kind: returns its handle, or `NO_AREA_TRIGGER` when its limit refused it.
    * Its first frame is the next tick's, unless it flies `now`.
    */
   readonly spawn: (kind: AreaTriggerId, spec: SpawnSpec<G>) => AreaTriggerHandle;
 
   /**
-   * Steps every area trigger of a tick slot (the first when absent) once (§II.6.1 rule 1), in the pinned order; one
+   * Steps every area trigger of a tick slot (the first when absent) once, in the pinned order; one
    * that spawned this tick waits for the next. Returns how many stepped. The host calls it inside its own loop.
    */
   readonly step: (slot?: TickSlotId) => number;
@@ -66,12 +66,12 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
   /** How many area triggers of a kind an owner has live. */
   readonly countOf: (owner: G['bearer'], kind: AreaTriggerId) => number;
 
-  /** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended (§II.6 W5). */
+  /** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended. */
   readonly despawnWhere: (query: AreaQuery<G>, reason?: EndReason<G>) => number;
 
   /**
    * Writes the replicated state of every live area trigger whose kind replicates its state into `out` from index 0
-   * (§I.6 Replication), in kind order then creation order, each value rounded as its kind declares; returns how many.
+   *, in kind order then creation order, each value rounded as its kind declares; returns how many.
    */
   readonly replicate: (out: AreaReplica[]) => number;
 }
@@ -155,7 +155,7 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
 }
 
 /**
- * Creates the area trigger system over a game's kinds (§I.5): `createAreaTriggerSystem({ registry: AREA_TRIGGERS,
+ * Creates the area trigger system over a game's kinds: `createAreaTriggerSystem({ registry: AREA_TRIGGERS,
  * spells, auras, procs: () => procs, world, clock, host })`. Every owner aura is resolved and every kind's tick slot
  * checked at load.
  */

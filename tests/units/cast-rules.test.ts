@@ -17,7 +17,7 @@ const casting = () => {
   return { ...game, grunt, handle };
 };
 
-describe('states interrupting casts (§I.7.1 F16)', () => {
+describe('states interrupting casts', () => {
   it('pause a creature’s cast while it is frozen, through the aura host’s tag edges', () => {
     const { auras, spells, clock, grunt, handle } = casting();
 
@@ -68,7 +68,7 @@ describe('states interrupting casts (§I.7.1 F16)', () => {
   });
 });
 
-describe('leaving life (§I.7.1 F16)', () => {
+describe('leaving life', () => {
   it('cancels every cast the unit runs: death, despawning', () => {
     for (const leave of ['kill', 'despawn'] as const) {
       const { units, spells, grunt, handle } = casting();
@@ -80,7 +80,7 @@ describe('leaving life (§I.7.1 F16)', () => {
   });
 });
 
-describe('the revive proc (§II.6 P3, U3)', () => {
+describe('the revive proc', () => {
   it('stands a dead unit again, at a health or its maximum, and skips a living one', () => {
     const game = makeUnitGame(TEMPLATES);
     const [hero, ally] = [game.units.spawn(game.id.grunt, { side: 0 }), game.units.spawn(game.id.grunt, { side: 0 })];

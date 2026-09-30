@@ -7,7 +7,7 @@ import type { BlowStatus, DamageKindId, DamageTypes, ForceKind } from './damage-
 export type ProcAmount = number | ScaledSnapshot;
 
 /**
- * Deals a blow through the damage pipeline (§II.3.6), credited to the list's source. Its attacker is the unit the list
+ * Deals a blow through the damage pipeline, credited to the list's source. Its attacker is the unit the list
  * is credited to: `self` when the list's source is `self`'s own id (a trigger, a spell), else the host's `unitOf`
  * the source (a periodic beat on its victim, credited to its caster); `attacker: 'none'` deals it as the world's.
  */
@@ -15,7 +15,7 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
   /** The discriminant. */
   readonly kind: 'damage';
 
-  /** How much: a number, or a snapshot whose target terms are finished against the target at the hit (§II.3.13). */
+  /** How much: a number, or a snapshot whose target terms are finished against the target at the hit. */
   readonly amount: ProcAmount;
 
   /** Where it lands; the list's target when absent. */
@@ -30,7 +30,7 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
   /** The spell it comes from, whose outgoing-multiplier shares apply. */
   readonly spell?: G['spell'];
 
-  /** The point it comes from (§II.6 P6). */
+  /** The point it comes from. */
   readonly from?: Vec2;
 
   /** Its knockback strength. */
@@ -46,7 +46,7 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
   readonly skips?: readonly string[];
 
   /**
-   * Procs that follow it in the same list when the blow ends with a status of `on` (§II.6 P4: the frost nova's slow
+   * Procs that follow it in the same list when the blow ends with a status of `on` (the frost nova's slow
    * lands only if the hit did), aimed at the blow's target, after its kill is noted.
    */
   readonly andThen?: readonly Proc<G>[];
@@ -73,7 +73,7 @@ export interface HealProc<G extends DamageTypes> extends ProcShape {
   readonly spell?: G['spell'];
 }
 
-/** Sets health outright, bypassing the heal stages (§II.6 P3): a death escape's heal back to a share. */
+/** Sets health outright, bypassing the heal stages: a death escape's heal back to a share. */
 export interface SetHealthProc<G extends DamageTypes> extends ProcShape {
   /** The discriminant. */
   readonly kind: 'setHealth';
@@ -91,7 +91,7 @@ export interface SetHealthProc<G extends DamageTypes> extends ProcShape {
 }
 
 /**
- * Moves the unit it lands on through the force pipeline (§II.6 D4, P3): a push along a direction, a pull toward a
+ * Moves the unit it lands on through the force pipeline: a push along a direction, a pull toward a
  * point, a knock away from one, or one of the game's forces. The list's self causes it (a pull or knock without a
  * `from` comes from where the host sees it stand); the host's `applyForce` moves the unit.
  */

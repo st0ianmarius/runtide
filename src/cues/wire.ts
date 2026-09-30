@@ -1,5 +1,5 @@
 /**
- * Where encoded cues go (§I.6: the params' wire encoding, transport-agnostic): three kinds of number, which a writer
+ * Where encoded cues go (the params' wire encoding, transport-agnostic): three kinds of number, which a writer
  * turns into bytes (`createByteWriter`) or keeps as a plain number array for a transport that packs its own
  * (`createNumberWriter`, for msgpack or JSON). A game may write its own header through the same writer.
  */

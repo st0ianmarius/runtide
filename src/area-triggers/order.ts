@@ -3,7 +3,7 @@ import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaEngine } from './engine.ts';
 
 /**
- * What one owner has live (§I.5.4): how many of each kind (for `perOwner` limits and owner auras), and its area
+ * What one owner has live: how many of each kind (for `perOwner` limits and owner auras), and its area
  * triggers in each tick-order list, in that list's order, so `stepOwner` walks the owner's own and nothing else.
  */
 export class OwnerAreas<G extends AreaTriggerTypes> {
@@ -83,7 +83,7 @@ const unlinkOwner = <G extends AreaTriggerTypes>(owned: OwnerAreas<G> | undefine
 };
 
 /**
- * Links an area trigger into the tick order (§II.6.1 rule 1, §II.6 K2): last in its own kind's list, or, for a child
+ * Links an area trigger into the tick order: last in its own kind's list, or, for a child
  * that ticks after its parent, right after the parent and the children (and their children) placed after it before,
  * in its parent's list and slot.
  */

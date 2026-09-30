@@ -13,7 +13,7 @@ const TEMPLATES = {
   wall: { tags: ['objective'], traits: { immovable: true, inert: true } },
 } satisfies Record<string, UnitDef<UnitGame>>;
 
-describe('unit templates (§II.6 U1, U2)', () => {
+describe('unit templates', () => {
   it('lay out base stats, trait bits, force resistance and class tags at load', () => {
     const units = defineUnits<UnitGame, keyof typeof TEMPLATES>(TEMPLATES, { stats: STATS, tags: UNIT_TAGS });
     const { id } = units;
@@ -45,7 +45,7 @@ describe('unit templates (§II.6 U1, U2)', () => {
   });
 });
 
-describe('spawning (§II.6 U1)', () => {
+describe('spawning', () => {
   it('makes a living unit at full health with its own ids, stats snapshotted and an optional auto-attack, armed', () => {
     const game = makeUnitGame(TEMPLATES);
     const { units } = game;
@@ -71,7 +71,7 @@ describe('spawning (§II.6 U1)', () => {
   });
 });
 
-describe('the lifecycle (§II.6 U3)', () => {
+describe('the lifecycle', () => {
   it('moves between states as each allows, entering the aura states and raising events', () => {
     const game = makeUnitGame(TEMPLATES);
     const { units, auras } = game;
@@ -102,7 +102,7 @@ describe('the lifecycle (§II.6 U3)', () => {
   });
 });
 
-describe('bearer states on the lifecycle (§II.6 U3, D5)', () => {
+describe('bearer states on the lifecycle', () => {
   it("lets a unit's auras hear its death however it dies, and its despawn, before those removed on it go", () => {
     const game = makeUnitGame(TEMPLATES);
     const { units, auras, damage } = game;
@@ -139,7 +139,7 @@ describe('bearer states on the lifecycle (§II.6 U3, D5)', () => {
   });
 });
 
-describe('derived states (§I.7.1 F13)', () => {
+describe('derived states', () => {
   it('reads states from aura tags: a stun blocks acting and moving, a root or a freeze moving only', () => {
     const game = makeUnitGame(TEMPLATES);
     const { units, auras, spells } = game;

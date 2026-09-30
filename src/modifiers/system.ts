@@ -45,9 +45,9 @@ export interface ModifierSystemOptions<Host, S extends string, C extends string,
 }
 
 /**
- * A modifier system (§I.6): the fold over one game's tables. Every bearer (hero, creature, summon: §II.6 M9) has a
+ * A modifier system: the fold over one game's tables. Every bearer (hero, creature, summon:) has a
  * stat sheet whose compiled lists are cached and rebuilt only when a source changes; conditions, gates and game
- * values are evaluated on every read, never cached, since what they read changes without the sheet knowing (§I.5.4).
+ * values are evaluated on every read, never cached, since what they read changes without the sheet knowing.
  */
 export interface ModifierSystem<Host, S extends string, C extends string, V extends string, Src extends string> {
   /** The game's stat table. */
@@ -83,18 +83,18 @@ export interface ModifierSystem<Host, S extends string, C extends string, V exte
   readonly share: (source: SourceId, lists: readonly ModifierList[]) => void;
 
   /**
-   * Folds one stat of a sheet (§I.5): `clamp(min((base + Σ add + derived) × Π mul, …caps))`, multipliers one by one
+   * Folds one stat of a sheet: `clamp(min((base + Σ add + derived) × Π mul, …caps))`, multipliers one by one
    * in source order, caps in turn after every multiplier, the stat's clamp last. Allocates nothing once built.
    */
   readonly resolve: (sheet: StatSheet, stat: StatId, read?: FoldRead<Host>) => number;
 
-  /** The product of a stat's live scoped multipliers for a read, in source order (§II.6 M5). */
+  /** The product of a stat's live scoped multipliers for a read, in source order. */
   readonly scopedProduct: (sheet: StatSheet, stat: StatId, read?: FoldRead<Host>) => number;
 
-  /** A stat view of a sheet for one read, for scaled values and curves (§II.3.13). Make it once and keep it. */
+  /** A stat view of a sheet for one read, for scaled values and curves. Make it once and keep it. */
   readonly view: (sheet: StatSheet, read?: FoldRead<Host>) => StatView;
 
-  /** A stat's fold explained step by step as data (§I.5.3); its total is the float `resolve` returns. */
+  /** A stat's fold explained step by step as data; its total is the float `resolve` returns. */
   readonly explainStat: (sheet: StatSheet, stat: StatId, read?: FoldRead<Host>) => StatExplanation;
 }
 
@@ -205,7 +205,7 @@ const checkedLists = (
   return Object.freeze(lists.slice());
 };
 
-/** Creates the modifier system over a game's tables (§I.5: `defineStats`, `defineSources`, `defineConditions`). */
+/** Creates the modifier system over a game's tables (`defineStats`, `defineSources`, `defineConditions`). */
 export const createModifierSystem = <
   Host,
   S extends string,

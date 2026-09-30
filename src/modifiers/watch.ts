@@ -22,7 +22,7 @@ export interface StatChange {
   after: number;
 }
 
-/** A watch over some stats of every sheet it checks (§II.6 M7). */
+/** A watch over some stats of every sheet it checks. */
 export interface StatWatch<Host> {
   /**
    * Folds the watched stats of a sheet and raises `onChange` for each that moved since the sheet's last check, in the
@@ -32,7 +32,7 @@ export interface StatWatch<Host> {
 }
 
 /**
- * Watches stats for changes (§II.6 M7): the host checks a bearer where its sources or auras may have moved a stat
+ * Watches stats for changes: the host checks a bearer where its sources or auras may have moved a stat
  * (after an aura change, a rank-up), and hears `onChange({ sheet, stat, before, after })` for each watched stat that
  * moved, so a resource policy (what current health does when maximum health moves) and the wire projections can
  * follow. Values compare with `Object.is`, so a NaN that stays NaN is not a change.
@@ -56,7 +56,7 @@ export const watchStats = <Host>(
       const known = last.get(sheet);
       const values = known ?? new Float64Array(stats.length);
 
-      // An indexed loop: a watch checks every sheet every tick, and an entries iterator allocates (§I.5.4).
+      // An indexed loop: a watch checks every sheet every tick, and an entries iterator allocates.
       for (let index = 0; index < stats.length; index++) {
         const stat = stats[index] ?? missingStat();
         const after = system.resolve(sheet, stat, read);

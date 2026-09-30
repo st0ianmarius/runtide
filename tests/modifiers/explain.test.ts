@@ -31,7 +31,7 @@ const game = () => {
   return { stats, sources, system, id: stats.id };
 };
 
-describe('modifier explanations (§I.5.3)', () => {
+describe('modifier explanations', () => {
   it('are data: the stat id, the op, the value, the stacking and the condition, never text', () => {
     const { system, id } = game();
 

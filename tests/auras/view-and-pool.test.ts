@@ -24,7 +24,7 @@ const defs = {
   live: aura({ duration: () => 1, periodic: { every: () => 2, onBeat: () => undefined } }),
 };
 
-describe('views for the wire (§I.5.3, §II.6 A7)', () => {
+describe('views for the wire', () => {
   it('carry ids and numbers only, in list order, and leave owner-only auras to the owner', () => {
     const { auras, id, unit, run } = makeGame(defs);
     const u = unit();
@@ -49,7 +49,7 @@ describe('views for the wire (§I.5.3, §II.6 A7)', () => {
   });
 });
 
-describe('explainAura (§I.5.3)', () => {
+describe('explainAura', () => {
   it('explains an aura as data, with its rules, tags and beat', () => {
     const { auras, id } = makeGame(defs);
 
@@ -86,7 +86,7 @@ describe('explainAura (§I.5.3)', () => {
   });
 });
 
-describe('the aura pool (§I.5.4)', () => {
+describe('the aura pool', () => {
   it('reuses slots, so a steady state of applications and expiries makes none', () => {
     const { auras, id, unit, run } = makeGame(defs);
     const u = unit();

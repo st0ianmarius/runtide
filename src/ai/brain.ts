@@ -10,7 +10,7 @@ export interface BrainState {
   readonly lastPick: number;
 }
 
-/** A brain's record: a class for fast properties, its timer columns typed arrays (§I.5.4). */
+/** A brain's record: a class for fast properties, its timer columns typed arrays. */
 export class Brain implements BrainState {
   /** Its index among the system's brains; −1 for the shared brain of a unit with none. */
   readonly slot: number;

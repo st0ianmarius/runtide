@@ -54,7 +54,7 @@ export interface ForceState<G extends DamageTypes> extends Force<G> {
 }
 
 /**
- * A game's own damage stage (§I.5.6 hatch 5): it reads and changes the blow, and may end it (`ignored`, `blocked`);
+ * A game's own damage stage: it reads and changes the blow, and may end it (`ignored`, `blocked`);
  * an after-stage runs for every blow that entered the pipeline and cannot end it. `damage` is the system.
  */
 export type DamageStage<G extends DamageTypes> = (blow: BlowState<G>, damage: DamageSystem<G>) => BlowStop | undefined;
@@ -68,11 +68,11 @@ export type ForceStage<G extends DamageTypes> = (
   damage: DamageSystem<G>,
 ) => 'ignored' | undefined;
 
-/** One step of the death pipeline's reward slots (§II.6 D5): the game's own code, such as a loot roll. */
+/** One step of the death pipeline's reward slots: the game's own code, such as a loot roll. */
 export type DeathStep<G extends DamageTypes> = (death: Death<G>, damage: DamageSystem<G>) => void;
 
 /**
- * The world the pipelines act on, as the game implements it (§I.5: narrow host interfaces): health, stats, rolls and
+ * The world the pipelines act on, as the game implements it (narrow host interfaces): health, stats, rolls and
  * the rest. Only `health` and `setHealth` are required; each stage that needs more says so when the system is built.
  */
 export interface DamageHost<G extends DamageTypes> {
@@ -95,7 +95,7 @@ export interface DamageHost<G extends DamageTypes> {
   readonly statsOf?: (unit: G['bearer'], blow: Blow<G> | undefined) => StatView;
 
   /**
-   * A spell's share of an outgoing multiplier stat (§II.3.13: `SpellDef.scaling`), looked up through the blow's source
+   * A spell's share of an outgoing multiplier stat (`SpellDef.scaling`), looked up through the blow's source
    * spell; `undefined` (or no host function) is a share of 1, which reads the stat unchanged.
    */
   readonly shareOf?: (spell: G['spell'], stat: StatId) => number | undefined;
@@ -125,7 +125,7 @@ export interface DamageHost<G extends DamageTypes> {
   readonly isInert?: (unit: G['bearer']) => boolean;
 }
 
-/** The heal pipeline's stats and heal-block tags (§II.6 D3). */
+/** The heal pipeline's stats and heal-block tags. */
 export interface HealOptions<G extends DamageTypes> {
   /** The target's multiplier stat every heal is multiplied by (healing received). */
   readonly received?: G['stat'];
@@ -140,7 +140,7 @@ export interface HealOptions<G extends DamageTypes> {
   readonly regeneration?: G['stat'];
 }
 
-/** What a damage system is built from (§I.5): the game's tables and host, and the stages it configures. */
+/** What a damage system is built from: the game's tables and host, and the stages it configures. */
 export interface DamageSystemOptions<G extends DamageTypes> {
   /** The aura system whose damage hooks the pipelines call. */
   readonly auras: AuraSystem<G>;
@@ -154,16 +154,16 @@ export interface DamageSystemOptions<G extends DamageTypes> {
   /** The game's stat table: needed by every stage that reads a stat. */
   readonly stats?: StatTable<G['stat']>;
 
-  /** The attacker's multiplier stats every blow is multiplied by, in order, each by its spell's share (§II.3.13). */
+  /** The attacker's multiplier stats every blow is multiplied by, in order, each by its spell's share. */
   readonly outgoing?: readonly G['stat'][];
 
   /**
-   * The outcome rows the roll stage rolls (§II.3.14, `defineRollTable`): miss, dodge, parry, glancing, block, crit, or
+   * The outcome rows the roll stage rolls (`defineRollTable`): miss, dodge, parry, glancing, block, crit, or
    * the game's own, in `single` or `independent` mode. No rolls when absent.
    */
   readonly rolls?: RollTable;
 
-  /** The mitigation rows (§II.3.14), run in order by the mitigation stage. */
+  /** The mitigation rows, run in order by the mitigation stage. */
   readonly mitigation?: MitigationTable<G['stat'], G['damageKind']>;
 
   /** The heal pipeline's stats and tags. */
@@ -178,7 +178,7 @@ export interface DamageSystemOptions<G extends DamageTypes> {
   /** The game's own force stages. */
   readonly forceStages?: Readonly<Record<string, StageDef<ForceStage<G>>>>;
 
-  /** The death pipeline's reward slots: steps before the death event, and after it (§II.6 D5). */
+  /** The death pipeline's reward slots: steps before the death event, and after it. */
   readonly death?: {
     /** Before the death event (souls). */
     readonly before?: readonly DeathStep<G>[];
@@ -194,7 +194,7 @@ export interface DamageSystemOptions<G extends DamageTypes> {
   readonly cues?: DamageCues<G>;
 
   /**
-   * A game's own roll rule for a slot (§I.5.6 hatch 2), in place of the default: no draw at a chance of 0 or less or
+   * A game's own roll rule for a slot, in place of the default: no draw at a chance of 0 or less or
    * of 1 or more, one `host.roll` below the chance otherwise.
    */
   readonly rollChance?: (chance: number, slot: RollSlot, blow: Blow<G>) => boolean;

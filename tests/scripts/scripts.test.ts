@@ -71,7 +71,7 @@ const tick = (game: ReturnType<typeof scripted>, units: readonly UnitGame['beare
   }
 };
 
-describe('scripts (§I.7.1 F19)', () => {
+describe('scripts', () => {
   it('attach at spawn: each behaviour’s state, then its spawn handlers in order, their procs run for the unit', () => {
     const game = scripted();
     const caster = game.units.spawn(game.id.caster, { side: 1 });

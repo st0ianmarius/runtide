@@ -19,7 +19,7 @@ export type HitHook<G extends AreaTriggerTypes> = (
 ) => ProcReturn<G>;
 
 /**
- * A hit an engine reuses, one per nesting level (§I.5.4): what one catch is for (its area trigger, spec and hook) and
+ * A hit an engine reuses, one per nesting level: what one catch is for (its area trigger, spec and hook) and
  * what it caught. Its `targets` and `shares` are exactly as long as the catch; the buffers behind them are never shrunk
  * to nothing, since that drops their storage and the next catch would allocate it again.
  */
@@ -222,7 +222,7 @@ const ledgerOf = <G extends AreaTriggerTypes>(hit: Hit<G>): Ledger | undefined =
 };
 
 /**
- * Records a hit in the ledger its spec names (§II.6 W3): the units its policy refuses leave the hit, the rest keep
+ * Records a hit in the ledger its spec names: the units its policy refuses leave the hit, the rest keep
  * their shares in order; a ledger that is spent after it (or was already) ends the area trigger as `spent` once the
  * running part is done. Nothing for a catch that names no ledger.
  */

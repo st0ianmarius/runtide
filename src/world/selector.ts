@@ -12,7 +12,7 @@ export type FoeRule = (a: number, b: number) => boolean;
 export const differentSides: FoeRule = (a, b) => a !== b;
 
 /**
- * Selects units for a memory world's queries (§II.6 W10): narrows by the point index, keeps the units that pass the
+ * Selects units for a memory world's queries: narrows by the point index, keeps the units that pass the
  * side, the exclusions, the filter and the exact test, orders them by their keys (lower id on ties), spaces them by
  * `minSeparation` and caps them at `limit`. Its scratch arrays are reused, so a query allocates nothing once warm; it
  * is not re-entrant, so a filter or an order function must not query the same world.

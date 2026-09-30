@@ -49,7 +49,7 @@ const SPELLS = () =>
     { tags: SPELL_TAGS, stats: STATS },
   );
 
-describe('stat previews (§II.6 M6)', () => {
+describe('stat previews', () => {
   it("evaluates a table at a rank against the stat table's bases, with no world", () => {
     const registry = SPELLS();
 
@@ -77,7 +77,7 @@ describe('stat previews (§II.6 M6)', () => {
   });
 });
 
-describe('explainSpell (§I.5.3, §II.6 M6)', () => {
+describe('explainSpell', () => {
   it('explains its tags, activation, stats at a rank, shares and timeline as data', () => {
     const registry = SPELLS();
     const explained = explainSpell(registry, registry.id.nova, { rank: 2 });

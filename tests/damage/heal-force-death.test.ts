@@ -8,7 +8,7 @@ const HEALING = {
   heal: { received: 'healing', done: 'healingDone', blockedBy: ['wound'], regeneration: 'regen' },
 } as const;
 
-describe('the heal pipeline (§II.6 D3)', () => {
+describe('the heal pipeline', () => {
   it('multiplies by the healer’s healing done and the target’s healing received, up to maximum health', () => {
     const { damage, unit, set } = makeDamageGame({}, HEALING);
     const [target, healer] = [unit(1), unit(2)];
@@ -121,7 +121,7 @@ describe('setHealth', () => {
   });
 });
 
-describe('the force pipeline (§II.6 D4)', () => {
+describe('the force pipeline', () => {
   it('goes through the target’s onIncomingForce hooks, then the host moves the unit', () => {
     const { damage, auras, id, unit, log } = makeDamageGame({
       heavy: aura({ duration: 5, onIncomingForce: () => ({ scale: 0.5 }) }),
@@ -218,7 +218,7 @@ describe('the force pipeline (§II.6 D4)', () => {
   });
 });
 
-describe('the death pipeline (§II.6 D5)', () => {
+describe('the death pipeline', () => {
   it('runs the rewards before, the death and kill events, the rewards after, then removal', () => {
     const order: string[] = [];
 

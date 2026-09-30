@@ -12,7 +12,7 @@ export interface EscapeRun {
 }
 
 /**
- * Every escape hatch a game registered (§I.5.6), counted so the escapes stay visible and few: a game prints it in CI,
+ * Every escape hatch a game registered, counted so the escapes stay visible and few: a game prints it in CI,
  * and a hatch several mechanics share is a candidate for a framework feature. Later systems add their hatches (the
  * damage pipeline's stages, the world query's extensions, the game-owned tick slots).
  */
@@ -86,7 +86,7 @@ const isOwn = (kinds: object | undefined, name: string, def: object): boolean =>
 const isCore = (name: string, def: object | undefined, systems: readonly (object | undefined)[]): boolean =>
   def !== undefined && (CORE[name] === def || systems.some((kinds) => isOwn(kinds, name, def)));
 
-/** The escape report of a game's registries (§I.5.6). */
+/** The escape report of a game's registries. */
 export const escapeReport = <G extends ProcTypes>(registries: {
   /** The game's proc system. */
   readonly procs: ProcSystem<G>;

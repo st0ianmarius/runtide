@@ -24,7 +24,7 @@ import type { SharedClock } from './pulses.ts';
 import { AreaQueryApi } from './queries.ts';
 
 /**
- * The area trigger machinery's shared state (§I.5.4): the registry and its resolved tables, the pool, each kind's
+ * The area trigger machinery's shared state: the registry and its resolved tables, the pool, each kind's
  * tick-order list and creation-order list, each owner's counts and tick-order lists, the reusable proc lists and snapshots, and the area
  * trigger whose procs are running. Spawning, stepping and ending (`spawner.ts`, `stepper.ts`, `ender.ts`) are
  * functions over it.
@@ -363,7 +363,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   }
 
   /**
-   * Puts its kind's owner aura on its owner as the first of the kind arrives (§II.3.7), and takes it off as the last
+   * Puts its kind's owner aura on its owner as the first of the kind arrives, and takes it off as the last
    * leaves, so overlapping instances share one; call it after the count went up, or after it went down.
    */
   holdOwnerAura(area: AreaTrigger<G>, isOn: boolean): void {

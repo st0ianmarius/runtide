@@ -3,7 +3,7 @@ import type { StatId } from './stat-id.ts';
 import type { StatTable } from './stats.ts';
 
 /**
- * A value that follows another stat (§II.6 M2): `per × (total(stat) − neutral)`, capped at `cap`, with the other
+ * A value that follows another stat: `per × (total(stat) − neutral)`, capped at `cap`, with the other
  * stat folded for the same read (same scope, same sources).
  */
 export interface StatValue<S extends string = string> {
@@ -23,7 +23,7 @@ export interface StatValue<S extends string = string> {
   readonly cap?: number;
 }
 
-/** A value read from the bearer's state through a game value kind (§II.6 M3), still data for explanations. */
+/** A value read from the bearer's state through a game value kind, still data for explanations. */
 export interface HostValue<V extends string = string> {
   /** The discriminant. */
   readonly kind: 'host';
@@ -39,7 +39,7 @@ export interface HostValue<V extends string = string> {
 export type ModifierValue<S extends string = string, V extends string = string> = number | StatValue<S> | HostValue<V>;
 
 /**
- * One change to one stat (§I.5): `add` sums onto the base, `mul` multiplies the sum, `min` caps the product. A stat
+ * One change to one stat: `add` sums onto the base, `mul` multiplies the sum, `min` caps the product. A stat
  * resolves as `clamp(min((base + Σ add + derived) × Π mul, …caps))`, multipliers in source order.
  */
 export interface Modifier<S extends string = string, C extends string = string, V extends string = string> {
@@ -53,12 +53,12 @@ export interface Modifier<S extends string = string, C extends string = string, 
   readonly value: ModifierValue<S, V>;
 
   /**
-   * How a gated `mul` stacks (§II.6 M4): `value ^ stacks` (`power`, the default) or `1 + (value − 1) × stacks`
+   * How a gated `mul` stacks: `value ^ stacks` (`power`, the default) or `1 + (value − 1) × stacks`
    * (`linear`). An `add` always lands `value × stacks`, and a `min` is the same at any stack count.
    */
   readonly stacking?: 'power' | 'linear';
 
-  /** When it counts (§I.7.1 F12: a game test, a comparison, or their composition); always when absent. */
+  /** When it counts (a game test, a comparison, or their composition); always when absent. */
   readonly when?: ConditionExpr<C, V>;
 
   /** The scope it reaches (a game scope id: a tag, a spell); unscoped, reaching every read, when absent. */
@@ -88,7 +88,7 @@ const modifierOf = <S extends string, C extends string, V extends string>(
   ...(options.stacking === undefined ? {} : { stacking: options.stacking }),
 });
 
-/** An `add` modifier. Named `plus` because `add` is the scaled-value term helper (§II.3.13). */
+/** An `add` modifier. Named `plus` because `add` is the scaled-value term helper. */
 export const plus = <const S extends string, const V extends string = never, const C extends string = never>(
   stat: S,
   value: ModifierValue<S, V>,

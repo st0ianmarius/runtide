@@ -40,7 +40,7 @@ export interface SpellStatExplanation {
 }
 
 /**
- * A spell explained as data (§I.5.3, §II.6 M6): its tags, activation, stats at a rank, outgoing shares and timeline,
+ * A spell explained as data: its tags, activation, stats at a rank, outgoing shares and timeline,
  * with the numbers the simulation uses, for the client to phrase. Nothing here is text.
  */
 export interface SpellExplanation {
@@ -101,7 +101,7 @@ const viewOf = <G extends SpellTypes>(registry: SpellRegistry<G>, options: Previ
   options.view ?? baseView(registry.stats);
 
 /**
- * A spell's stats as a cast at a rank would take them (§II.6 M6), with no world: a table's values evaluated against
+ * A spell's stats as a cast at a rank would take them, with no world: a table's values evaluated against
  * the given stats (the stat table's bases by default) and a target's when given (else target terms are left out), or
  * what a `stats` function returns for the rank and variant. A new object, for the client's previews and tooltips.
  */
@@ -216,7 +216,7 @@ const timelineOf = <G extends SpellTypes>(registry: SpellRegistry<G>, spell: Spe
 };
 
 /**
- * A spell explained as data (§I.5.3, §II.6 M6), at a rank (1 by default) and with the given stats (the stat table's
+ * A spell explained as data, at a rank (1 by default) and with the given stats (the stat table's
  * bases by default): its tags, activation kind and numbers, stats, outgoing shares and timeline. The client phrases
  * it in its own words; the numbers are the simulation's.
  */

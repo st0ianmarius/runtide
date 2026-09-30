@@ -15,7 +15,7 @@ import {
   watchStats,
 } from '../../src/modifiers/index.ts';
 
-/** A creature-like host (§II.6 M9): health, and aura stacks by gate. */
+/** A creature-like host: health, and aura stacks by gate. */
 interface Host {
   hp: number;
   readonly maxHp: number;
@@ -59,7 +59,7 @@ const game = () => {
   return { stats, sources, system, id: stats.id };
 };
 
-describe('the per-bearer cache (§I.5.4)', () => {
+describe('the per-bearer cache', () => {
   it('compiles once, on the first read after a source changes, and reuses the lists between reads', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();
@@ -160,7 +160,7 @@ describe('the per-bearer cache (§I.5.4)', () => {
   });
 });
 
-describe('values that follow a stat or the bearer (§II.6 M2, M3)', () => {
+describe('values that follow a stat or the bearer', () => {
   it('follow another stat’s bonus for the same read, capped per source', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();
@@ -201,7 +201,7 @@ describe('values that follow a stat or the bearer (§II.6 M2, M3)', () => {
   });
 });
 
-describe('stat watches (§II.6 M7)', () => {
+describe('stat watches', () => {
   it('raise each watched stat that moved since the sheet’s last check, in the listed order', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();

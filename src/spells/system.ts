@@ -39,7 +39,7 @@ import type { SpellSystemOptions } from './system-options.ts';
 import { type CastView, viewCast } from './view.ts';
 
 /**
- * A spell system (§I.6): the runner over one game's spells, for any caster. It starts casts in the cast order, runs
+ * A spell system: the runner over one game's spells, for any caster. It starts casts in the cast order, runs
  * their hooks' procs credited to them, raises spell events and fires spell cues, and holds each spell's cast aura on
  * its caster while it casts.
  */
@@ -75,13 +75,13 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly createCasterState: () => CasterState;
 
   /**
-   * Starts a cast (§II.3.1): the gates (the host's `canAct`, the activation kind's), the stats, `canCast`, the target,
+   * Starts a cast: the gates (the host's `canAct`, the activation kind's), the stats, `canCast`, the target,
    * then `begin`, and the release at once for a spell with no windup. Returns the system's reused report.
    */
   readonly cast: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => CastReport<G>;
 
   /**
-   * Whether a cast would start (§I.7.1 F16), asked without starting it: the cast order up to `begin` (the gates, the
+   * Whether a cast would start, asked without starting it: the cast order up to `begin` (the gates, the
    * stats, `canCast`, the target and its reach). The refusal, or `undefined` when it would start. A picker reads it.
    */
   readonly check: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => CastRefusal<G> | undefined;
@@ -105,14 +105,14 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly castsOf: (caster: G['bearer'], out: CastHandle[]) => number;
 
   /**
-   * Steps every cast a caster runs by one step of the clock, in the order they started (§II.3.3): windups count down,
+   * Steps every cast a caster runs by one step of the clock, in the order they started: windups count down,
    * track and release, channels beat, recoveries end. The host calls it for each caster in its own order; a paused
    * cast does not count down.
    */
   readonly step: (caster: G['bearer']) => void;
 
   /**
-   * Steps a caster's armed `auto` clocks by one step (§II.6 S2), in registry order: one that ran out casts its spell and
+   * Steps a caster's armed `auto` clocks by one step, in registry order: one that ran out casts its spell and
    * is set to what its activation's `next` answers (the interval read at the cast, or sooner). A caster with none
    * armed costs nothing.
    */
@@ -137,7 +137,7 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly stepDelayed: (slot?: TickSlotId) => number;
 
   /**
-   * Withdraws every delayed list a unit owns that has not landed (§II.6 P3 `despawnOwned`: an enraged elite's pending
+   * Withdraws every delayed list a unit owns that has not landed (an enraged elite's pending
    * volleys): those its casts scheduled, even casts that ended, and those scheduled for it outside a cast. How many.
    */
   readonly withdrawDelayed: (owner: G['bearer']) => number;
@@ -158,7 +158,7 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly finish: (cast: CastHandle, outcome: Exclude<CastOutcome<G>, 'cancelled'>) => boolean;
 
   /**
-   * An interrupt hits a caster (§I.7.1 F16: a stun, a freeze): the caster holds it until `endInterrupt`, and each
+   * An interrupt hits a caster (a stun, a freeze): the caster holds it until `endInterrupt`, and each
    * running cast answers it as its timeline says, pausing until it ends or cancelling; returns how many answered. A
    * unit system raises its states' interrupts itself (`units.syncStates`).
    */
@@ -182,14 +182,14 @@ export interface SpellSystem<G extends SpellTypes> {
   /** The bits of the interrupts a caster holds now, to test against an `interruptMask`. */
   readonly heldInterrupts: (caster: G['bearer']) => number;
 
-  /** Cancels every cast a caster runs (§I.7.1 F16: its death), in the order they started; how many. */
+  /** Cancels every cast a caster runs (its death), in the order they started; how many. */
   readonly cancelAll: (caster: G['bearer']) => number;
 
   /** The cast whose procs are running now (a hook's, a delayed list's), which what they spawn belongs to; or none. */
   readonly current: CastHandle;
 
   /**
-   * Keeps a cast's record alive after it ends (§II.6 S6: its area triggers and summons live on), until as many
+   * Keeps a cast's record alive after it ends (its area triggers and summons live on), until as many
    * `unretain` calls as retains; false for a stale handle.
    */
   readonly retain: (cast: CastHandle) => boolean;
@@ -207,23 +207,23 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly leave: (previous: CastHandle) => void;
 
   /**
-   * A spell's share of an outgoing multiplier stat (§II.3.13: `SpellDef.scaling`), or `undefined` for a share of 1:
+   * A spell's share of an outgoing multiplier stat (`SpellDef.scaling`), or `undefined` for a share of 1:
    * what the damage host's `shareOf` answers with (`shareOf: spells.shareOf`).
    */
   readonly shareOf: (spell: SpellId, stat: StatId) => number | undefined;
 
   /**
-   * Rescales a caster's clocks (§II.6 A13, §I.7.1 F15): its `auto` clocks still counting in scope (a spell tag, or
+   * Rescales a caster's clocks: its `auto` clocks still counting in scope (a spell tag, or
    * every one), and with `clocks: 'all'` its running casts' stage time left. An aura system's host passes its
    * rescales here: `rescaleClocks: (unit, rescale) => spells.rescaleClocks(unit, rescale)`. Returns how many rescaled.
    */
   readonly rescaleClocks: (caster: G['bearer'], rescale: ClockScale) => number;
 
-  /** A running cast as the wire carries it (§II.6 C10): its spell, stage, stage end stamp and credit. */
+  /** A running cast as the wire carries it: its spell, stage, stage end stamp and credit. */
   readonly viewOf: (cast: CastHandle) => CastView | undefined;
 
   /**
-   * The prediction mirror's side of a cast (§II.6 R2, §II.3.9): fires only the spell's mirror-safe cast cue
+   * The prediction mirror's side of a cast: fires only the spell's mirror-safe cast cue
    * (`SpellCues.cast`) on the caster, with the options' input and key, into the system's cue buffer, and starts no
    * cast. The client notes the event in its echo ring, so the server's copy (same cue, owner and key) is dropped.
    * Returns whether a cue was fired.
@@ -388,7 +388,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 }
 
 /**
- * Creates the spell system over a game's spells (§I.5): `createSpellSystem({ registry: SPELLS, auras, procs: () =>
+ * Creates the spell system over a game's spells: `createSpellSystem({ registry: SPELLS, auras, procs: () =>
  * procs, clock, host })`. Every cast aura is resolved and every plan built at load; nothing is looked up by name
  * afterwards.
  */

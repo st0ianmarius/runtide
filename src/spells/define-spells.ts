@@ -29,7 +29,7 @@ export const STATS_FUNCTION = 4;
 /** Flag bit: the caster holds an aura while it casts. */
 const CAST_AURA = 8;
 
-/** The hooks every spell registry builds dispatch tables for (§I.5.4). */
+/** The hooks every spell registry builds dispatch tables for. */
 const SPELL_HOOKS = ['state', 'canCast', 'target', 'begin', 'release', 'onHit', 'onEnd'] as const;
 
 /** The name of one hook a spell registry dispatches. */
@@ -48,7 +48,7 @@ export type SpellHookTables<G extends SpellTypes> = {
 
 /**
  * The game's spell registry (`defineSpells`): ids by key order, the definitions, typed columns, a dispatch table per
- * hook (§I.5.4), each spell's tags as a bitset, its compiled stats table and its outgoing shares.
+ * hook, each spell's tags as a bitset, its compiled stats table and its outgoing shares.
  */
 export interface SpellRegistry<G extends SpellTypes = SpellTypes, Name extends string = string> extends Registry<
   'spells',
@@ -204,7 +204,7 @@ const NO_TAGS: SpellTagTable = createRegistry({}, { kind: 'spellTags' });
 const CORE_KINDS: ActivationRegistry<never> = defineActivations<never>(CORE_ACTIVATIONS);
 
 /**
- * Registers the game's spells (§I.5.2, §II.3.1): `defineSpells({ frostNova, blast }, { tags: SPELL_TAGS, stats:
+ * Registers the game's spells: `defineSpells({ frostNova, blast }, { tags: SPELL_TAGS, stats:
  * STATS })` gives each its dense id by key order (its wire id), checks every definition at load (its activation's kind
  * and data, ranks, tags, timeline seconds, hooks), compiles its stats table and shares against the stat table, freezes
  * it, and builds the typed columns, hook tables and tag bitsets the system reads. `TOMBSTONE` keeps a retired slot.

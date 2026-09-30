@@ -2,7 +2,7 @@
 const SHORT = 16;
 
 /**
- * Sorts a prefix of a reused array of numbers in place by a comparison (§I.5.4): insertion for short lists, else a
+ * Sorts a prefix of a reused array of numbers in place by a comparison: insertion for short lists, else a
  * bottom-up merge sort through a spare array it keeps. Stable, and allocation-free once its spare array has grown.
  */
 export class IndexSorter {

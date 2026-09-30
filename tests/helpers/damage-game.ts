@@ -230,7 +230,7 @@ export interface DamageGame<Name extends string> {
   /** The units made so far, by entity id. */
   readonly units: Map<number, Unit>;
 
-  /** The spells' shares of outgoing stats, by `spell:statId` (§II.3.13); a missing one is a share of 1. */
+  /** The spells' shares of outgoing stats, by `spell:statId`; a missing one is a share of 1. */
   readonly shares: Map<string, number>;
 
   /** Makes a unit with 100 health. */

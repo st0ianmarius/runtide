@@ -11,12 +11,12 @@ export interface CasterState {
   readonly count: number;
 }
 
-/** The caster state's record: a class for fast properties, filled by index and never shrunk (§I.5.4). */
+/** The caster state's record: a class for fast properties, filled by index and never shrunk. */
 export class CasterRecord implements CasterState {
   /** The handles of the running casts, valid up to `count`, in the order they started. */
   readonly handles: CastHandle[] = [];
 
-  /** The armed `auto` spells, in registry order: a caster steps only these (§I.5.4: a mob's one swing, not the game's). */
+  /** The armed `auto` spells, in registry order: a caster steps only these (a mob's one swing, not the game's). */
   readonly autos: SpellId[] = [];
 
   /** The seconds left on each armed spell's clock, by its index in `autos`. */

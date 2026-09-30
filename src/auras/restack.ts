@@ -36,7 +36,7 @@ const MAX = MERGES.indexOf('max');
 /** The code of the `add` merge. */
 const ADD = MERGES.indexOf('add');
 
-/** The stacks an application adds: `max(1, floor(stacks))` (§II.6 A14). */
+/** The stacks an application adds: `max(1, floor(stacks))`. */
 export const addedStacks = (application: AuraApplication): number => Math.max(1, Math.floor(application.stacks ?? 1));
 
 /** The code of the stacking rule a re-application follows: its own built-in rule, else the definition's. */

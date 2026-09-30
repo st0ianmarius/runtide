@@ -78,7 +78,7 @@ export interface CompiledTrigger<G extends TriggerTypes, Host> {
   readonly procs: readonly Proc<G>[];
 }
 
-/** Everything dispatch and explanation read, by event kind and aura id (§I.5.4). */
+/** Everything dispatch and explanation read, by event kind and aura id. */
 export interface TriggerTables<G extends TriggerTypes, Host> {
   /** Every trigger, by id. */
   readonly triggers: readonly CompiledTrigger<G, Host>[];
@@ -305,7 +305,7 @@ const answersOf = <G extends TriggerTypes, Host>(
   );
 
 /**
- * Compiles every trigger on the registry's auras (§II.3.11) at load: validated (§II.6 P7: odds in (0, 1], a positive
+ * Compiles every trigger on the registry's auras at load: validated (odds in (0, 1], a positive
  * finite `icd` with its cooldown aura, a non-empty `do`, known events, filters, conditions and proc names), resolved to
  * numbers, and indexed by event kind and aura id. Throws one `RangeError` listing every invalid trigger.
  */

@@ -7,7 +7,7 @@ import type { UnitTypes } from '../units/index.ts';
 export type ScriptId = Id<'scripts'>;
 
 /**
- * The types one game's scripts are written against (§I.7.1 F19): the unit types, and the game events a
+ * The types one game's scripts are written against: the unit types, and the game events a
  * behaviour may handle, by name, each with its payload (`{ damaged: DamageEvent; castEnd: SpellEvent }`).
  */
 export interface ScriptTypes extends UnitTypes {
@@ -52,7 +52,7 @@ type Handler<G extends ScriptTypes, State, Shared, Args extends unknown[]> = {
 }['bivarianceHack'];
 
 /**
- * A behaviour (§I.7.1 F19): a few optional handlers and its own state on each unit. A script is a list of
+ * A behaviour: a few optional handlers and its own state on each unit. A script is a list of
  * them, and the framework decides nothing about what they do: phases, picking, reactions, sensors and summon lists are
  * the game's behaviours. The framework calls `spawn` once, `tick` in the unit's step, `timer` as the unit's timers come
  * due (delivered in its step), and `on[event]` as a bound game event reaches the unit.
@@ -62,7 +62,7 @@ export interface Behaviour<G extends ScriptTypes, State = unknown, Shared = unkn
   state?(this: void, unit: G['bearer']): State;
 
   /**
-   * Makes its shared state, once per script system (§I.7.1 F21): every unit running it reads the same one, and it
+   * Makes its shared state, once per script system: every unit running it reads the same one, and it
    * outlives them all (Inferno's occurrence count across a run).
    */
   shared?(this: void): Shared;

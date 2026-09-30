@@ -15,7 +15,7 @@ export const auraCue = <G extends AuraTypes>(
 ): CueId | undefined => auras.defs[aura]?.cues?.[change];
 
 /**
- * Checks every aura's lifecycle cues against the game's cue registry at load (§II.6 P7): each a live cue anchored on
+ * Checks every aura's lifecycle cues against the game's cue registry at load: each a live cue anchored on
  * the bearer (`self` or `entity`), since that is where a client that derives it can place it. Throws a `RangeError`
  * naming the aura and the change.
  */

@@ -85,7 +85,7 @@ const makeCueGame = (mapping: Omit<DamageCues<Game>, 'out'> = MAPPING) => {
   return { ...game, out, fired };
 };
 
-describe('damage cues (§I.5.3, §II.3.9)', () => {
+describe('damage cues', () => {
   it("fires a blow's cues in the outcome stage, before its events, from what the game maps", () => {
     const { damage, unit, auras, id, fired } = makeCueGame();
     const target = unit(1);

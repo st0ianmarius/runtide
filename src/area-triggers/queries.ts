@@ -6,7 +6,7 @@ import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 
-/** Which live area triggers a query keeps (§II.6 W5); every part is optional. */
+/** Which live area triggers a query keeps; every part is optional. */
 export interface AreaQuery<G extends AreaTriggerTypes> {
   /** Only this kind. */
   readonly kind?: AreaTriggerId;
@@ -27,7 +27,7 @@ export interface CoverQuery<G extends AreaTriggerTypes> extends AreaQuery<G> {
   readonly radius?: number;
 }
 
-/** Where a path first meets an area trigger (§II.6 W5: a projectile tested against domes before walls). Reused. */
+/** Where a path first meets an area trigger (a projectile tested against domes before walls). Reused. */
 export interface AreaInterception {
   /** The area trigger it meets first; `NO_AREA_TRIGGER` when it meets none. */
   handle: AreaTriggerHandle;
@@ -37,7 +37,7 @@ export interface AreaInterception {
 }
 
 /**
- * What any code may ask of the area triggers (§II.6 W5), hooks included (`c.areas`): pure reads over the live ones, in
+ * What any code may ask of the area triggers, hooks included (`c.areas`): pure reads over the live ones, in
  * kind order and creation order.
  */
 export interface AreaQueries<G extends AreaTriggerTypes> {
@@ -120,7 +120,7 @@ export const checkReason = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, r
   }
 };
 
-/** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended (§II.6 W5). */
+/** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended. */
 export const despawnWhere = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   query: AreaQuery<G>,

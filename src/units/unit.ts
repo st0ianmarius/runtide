@@ -49,7 +49,7 @@ export interface UnitParts<G extends UnitTypes> {
 }
 
 /**
- * A unit (§I.7.1 F13, §II.6 U1): the one shape of heroes, creatures and summons, made by the unit system's `spawn`.
+ * A unit: the one shape of heroes, creatures and summons, made by the unit system's `spawn`.
  * The systems change it through their operations; the game reads it and writes only its `ext`.
  */
 export class Unit<G extends UnitTypes> implements UnitShape {
@@ -77,16 +77,16 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   lifecycle: Lifecycle = 'alive';
   health = 0;
 
-  /** The maximum health the resource policy last saw (§II.6 M7). */
+  /** The maximum health the resource policy last saw. */
   maxHealth = 0;
 
   /**
-   * The units it owns that are neither dead nor despawned, in the order they spawned (§I.7.1 F18): its summons, which
+   * The units it owns that are neither dead nor despawned, in the order they spawned: its summons, which
    * `units.summonsOf` reads.
    */
   readonly summons: G['bearer'][] = [];
 
-  /** The cast it was summoned by, held alive while it lives (§II.6 S6); `NO_CAST` for none. */
+  /** The cast it was summoned by, held alive while it lives; `NO_CAST` for none. */
   cast: CastHandle = NO_CAST;
 
   /** The bits of the interrupting states it is in (`UnitSystemBase.interrupts`, by their order), as last synced. */

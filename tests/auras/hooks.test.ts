@@ -12,7 +12,7 @@ import {
 import { createModifierSystem, defineSources, defineStats, mul } from '../../src/modifiers/index.ts';
 import { aura, CLOCKS, makeGame, TAGS, type TestAuras, type Unit } from '../helpers/aura-game.ts';
 
-describe('game fields and landing (§I.5.6 hatch 4, §II.6 A4)', () => {
+describe('game fields and landing', () => {
   it('capture an application payload into the aura own fields on every landing, and clear them on release', () => {
     const { auras, id, unit } = makeGame({
       brand: aura({
@@ -59,7 +59,7 @@ describe('game fields and landing (§I.5.6 hatch 4, §II.6 A4)', () => {
   });
 });
 
-describe('damage hook declarations (§II.3.8)', () => {
+describe('damage hook declarations', () => {
   it('are collected in list order for a pipeline, which calls them with a context', () => {
     const { auras, id, unit } = makeGame({
       shield: aura({
@@ -100,7 +100,7 @@ describe('damage hook declarations (§II.3.8)', () => {
   });
 });
 
-describe('clock rescales on aura edges (§II.6 A13)', () => {
+describe('clock rescales on aura edges', () => {
   it('hand the host the aura own multiplier: divided on applied and refreshed, multiplied back as it ends', () => {
     const rescales: ClockRescale[] = [];
 

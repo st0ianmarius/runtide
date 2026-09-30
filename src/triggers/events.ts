@@ -12,7 +12,7 @@ export interface TriggerFilterSpec<G extends TriggerTypes> {
 }
 
 /**
- * One trigger event as the trigger system holds it (§II.3.7): the bus kind, which unit the event is about (whose
+ * One trigger event as the trigger system holds it: the bus kind, which unit the event is about (whose
  * triggers answer it, before its party's), and the filters it carries. Made by `triggerEvent`, which types it.
  */
 export interface TriggerEvent<G extends TriggerTypes> {
@@ -51,7 +51,7 @@ const specOf = <Payload, G extends TriggerTypes>(filter: TriggerFilterOf<Payload
   typeof filter === 'function' ? { test: filter } : filter;
 
 /**
- * Declares a bus event kind as a trigger event (§II.3.7): `triggerEvent(bus.kind.hit, { unit: (hit) => hit.attacker,
+ * Declares a bus event kind as a trigger event: `triggerEvent(bus.kind.hit, { unit: (hit) => hit.attacker,
  * filters: { minDamage: (hit, least) => hit.amount >= least } })`. The payload type comes from the kind.
  */
 export const triggerEvent = <Payload, G extends TriggerTypes = TriggerTypes>(

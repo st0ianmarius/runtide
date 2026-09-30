@@ -151,7 +151,7 @@ const snapshot = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['beare
 };
 
 /**
- * Steps every cast a caster runs by one step of the clock, in the order they started (§II.3.3, stepped per caster so the
+ * Steps every cast a caster runs by one step of the clock, in the order they started (stepped per caster so the
  * game keeps its own per-unit order; pausing is not counting down). A cast started during the step waits for the next.
  */
 export const stepCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['bearer']): void => {
@@ -202,7 +202,7 @@ export const setPause = <G extends SpellTypes>(
   return true;
 };
 
-/** Cancels a running cast (§II.3.3): `onCancel`, then its end; false for a stale or ended one. */
+/** Cancels a running cast: `onCancel`, then its end; false for a stale or ended one. */
 export const cancelCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: CastHandle): boolean => {
   const cast = running(engine, handle);
 
@@ -216,7 +216,7 @@ export const cancelCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle:
 };
 
 /**
- * Ends a running cast's payload now with an outcome (§II.3.3: a charge into a wall ends `blocked`): a windup does not
+ * Ends a running cast's payload now with an outcome (a charge into a wall ends `blocked`): a windup does not
  * release, a channel stops, and its recovery follows (read with the outcome known); false for a stale or ended one, or
  * for one already recovering.
  */
@@ -262,7 +262,7 @@ const answer = <G extends SpellTypes>(
 };
 
 /**
- * Raises (or ends) an interrupt on a caster (§II.3.3, F16): the caster holds it until it ends (`isInterrupted`), and
+ * Raises (or ends) an interrupt on a caster: the caster holds it until it ends (`isInterrupted`), and
  * each running cast answers it as its timeline says, `pause` (its stage stops counting until the interrupt ends) or
  * `cancel`; a cast whose timeline does not name it runs on. Returns how many casts answered.
  */
@@ -295,7 +295,7 @@ export const interruptCaster = <G extends SpellTypes>(
   return answered;
 };
 
-/** Cancels every cast a caster runs (§I.7.1 F16: its death), in the order they started; how many it cancelled. */
+/** Cancels every cast a caster runs (its death), in the order they started; how many it cancelled. */
 export const cancelCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['bearer']): number => {
   const { count } = recordOf(caster);
 
@@ -349,7 +349,7 @@ export const interruptMaskOf = <G extends SpellTypes>(
   reasons: readonly G['interrupt'][],
 ): number => reasons.reduce((mask, reason) => mask | (engine.interruptBits.get(reason) ?? unknownInterrupt(reason)), 0);
 
-/** Holds a cast's record past its end (§I.7.1 F18: a summon kept its cast); false for a cast that is gone. */
+/** Holds a cast's record past its end (a summon kept its cast); false for a cast that is gone. */
 export const holdCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: CastHandle): boolean => {
   const record = engine.castOf(cast);
 

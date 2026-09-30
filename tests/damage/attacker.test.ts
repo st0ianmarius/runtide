@@ -6,7 +6,7 @@ import { CRIT, type DamageOverrides, makeDamageGame } from '../helpers/damage-ga
 /** The attacker side of the test game: `power` as the outgoing multiplier, and a crit. */
 const ATTACKER: DamageOverrides = { outgoing: ['power'], rolls: CRIT };
 
-describe('outgoing multipliers (§II.3.13)', () => {
+describe('outgoing multipliers', () => {
   it('multiply every blow by the attacker’s stat, reading it unchanged at a share of 1', () => {
     const { damage, unit, set } = makeDamageGame({}, ATTACKER);
     const attacker = unit(2);
@@ -46,7 +46,7 @@ describe('outgoing multipliers (§II.3.13)', () => {
   });
 });
 
-describe('the crit stage (§II.6 D2)', () => {
+describe('the crit stage', () => {
   it('rolls once below the attacker’s chance, and multiplies a critical blow by its crit damage', () => {
     const { damage, unit, set, rolls, log } = makeDamageGame({}, ATTACKER);
     const attacker = unit(2);

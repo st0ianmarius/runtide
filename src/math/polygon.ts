@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): a catch tests every unit against a polygon, so its loops are indexed (an iterator
+// Hot path: a catch tests every unit against a polygon, so its loops are indexed (an iterator
 // allocates).
 /* oxlint-disable typescript/prefer-for-of */
 import type { Vec2 } from './vec2.ts';

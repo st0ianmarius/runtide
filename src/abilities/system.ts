@@ -17,7 +17,7 @@ export interface Press<G extends AbilityTypes> {
 
   /**
    * The press's key (the game's input sequence), the same on the server and the predicting client, which each fired
-   * spell's cast cue carries (§II.6 R2); 0 when absent.
+   * spell's cast cue carries; 0 when absent.
    */
   readonly key?: number | undefined;
 }
@@ -31,7 +31,7 @@ export interface Equipped {
   readonly rank?: number;
 }
 
-/** What a press reads and writes on its bearer (§II.6 R3): the auras and tags a prediction mirror must rebuild. */
+/** What a press reads and writes on its bearer: the auras and tags a prediction mirror must rebuild. */
 export interface MirrorReads {
   /** The slots' cooldown auras, and every button's cost aura and applied auras, in id order. */
   readonly auras: readonly AuraId[];
@@ -40,11 +40,11 @@ export interface MirrorReads {
   readonly tags: readonly AuraTagId[];
 }
 
-/** What an ability system is built from (§I.5): the spell and aura systems, the game's slots, the caster's stats. */
+/** What an ability system is built from: the spell and aura systems, the game's slots, the caster's stats. */
 export type AbilitySystemOptions<G extends AbilityTypes> = AbilityParts<G>;
 
 /**
- * An ability system (§I.6 Abilities): buttons over a spell system. A unit's loadout puts a `button` spell in each slot;
+ * An ability system: buttons over a spell system. A unit's loadout puts a `button` spell in each slot;
  * a press fires the pressed slots whose ability may fire, each paying its cost, running its motion half, starting its
  * slot's cooldown aura, landing its auras, then casting its spell.
  */
@@ -74,7 +74,7 @@ export interface AbilitySystem<G extends AbilityTypes> {
   /** The spell in a slot; `undefined` for an empty one. */
   readonly abilityOf: (bearer: G['bearer'], slot: SlotId) => SpellId | undefined;
 
-  /** The first slot holding a spell; `undefined` when it is not in the loadout (an area trigger's bound, §II.6 W1). */
+  /** The first slot holding a spell; `undefined` when it is not in the loadout (an area trigger's bound). */
   readonly slotOf: (bearer: G['bearer'], spell: SpellId) => SlotId | undefined;
 
   /** The press mask bit of a slot: a game builds a press from its input as `bit(dodge) | bit(skill)`. */
@@ -91,7 +91,7 @@ export interface AbilitySystem<G extends AbilityTypes> {
   readonly cooldownLeft: (bearer: G['bearer'], slot: SlotId) => number;
 
   /**
-   * A press (§II.6 S4): every pressed slot (a mask of `bit`s) is decided against the bearer before any fires, then each
+   * A press: every pressed slot (a mask of `bit`s) is decided against the bearer before any fires, then each
    * accepted one fires in slot order: pays its cost, runs `activate` (with a `MirrorCtx` of the press's input and the
    * clock's step), starts its slot's cooldown (on `activation`),
    * lands `applies` then `resets`, and casts its spell with the press's input and key (a no-windup spell releases here, before the
@@ -101,7 +101,7 @@ export interface AbilitySystem<G extends AbilityTypes> {
   readonly tryActivate: (bearer: G['bearer'], pressed: number, press?: Press<G>) => number;
 
   /**
-   * The trigger path (§II.6 S4): fires a button spell with no slot cooldown (none gates it, none starts), gated by its
+   * The trigger path: fires a button spell with no slot cooldown (none gates it, none starts), gated by its
    * own rules; it pays, lands its auras and casts at the rank of the slot holding it. False when it did not fire.
    */
   readonly trigger: (bearer: G['bearer'], spell: SpellId, input?: G['input']) => boolean;
@@ -114,13 +114,13 @@ export interface AbilitySystem<G extends AbilityTypes> {
 
   /**
    * A button spell's cooldown in seconds at a rank (1 when absent), as it would start now: for a caster, read from its
-   * stats; for none (`undefined`), a preview that needs no world (§II.6 M6), reading the stat table's bases, NaN for
+   * stats; for none (`undefined`), a preview that needs no world, reading the stat table's bases, NaN for
    * a cooldown that is a function of the caster. 0 for none, or for a spell that is not a button.
    */
   readonly cooldownOf: (caster: G['bearer'] | undefined, spell: SpellId, rank?: number) => number;
 
   /**
-   * A button spell's rules as data at a rank (1 when absent), for the client's tooltip (§II.6 M6): with a caster, its
+   * A button spell's rules as data at a rank (1 when absent), for the client's tooltip: with a caster, its
    * cooldown's readings and total; with none, ratios only. `undefined` for a spell that is not a button.
    */
   readonly explain: (spell: SpellId, rank?: number, caster?: G['bearer']) => ButtonExplanation | undefined;
@@ -197,7 +197,7 @@ const mirrorReadsOf = <G extends AbilityTypes>(engine: AbilityEngine<G>): Mirror
 };
 
 /**
- * Builds an ability system (§I.6 Abilities) over a spell system, an aura system and the game's slots, compiling every
+ * Builds an ability system over a spell system, an aura system and the game's slots, compiling every
  * `button` spell's activation against the aura and stat tables (checked at load).
  */
 export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySystemOptions<G>): AbilitySystem<G> => {

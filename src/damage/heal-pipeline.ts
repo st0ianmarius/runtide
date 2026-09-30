@@ -134,7 +134,7 @@ const runHealStages = <G extends DamageTypes>(
 };
 
 /**
- * Builds the heal pipeline (§II.6 D3): heal-block tags end a heal `blocked`, the healer's healing done and the target's
+ * Builds the heal pipeline: heal-block tags end a heal `blocked`, the healer's healing done and the target's
  * healing received multiply it, the game's stages run at their positions, and health rises up to the maximum; then the
  * heal event. A heal of no amount, an infinite one, or one on a dead unit is `skipped`. `setHealth` bypasses it.
  */

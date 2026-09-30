@@ -11,7 +11,7 @@ export interface MeterRow {
 }
 
 /**
- * A damage meter (§II.6 D2, §I.7.1 F11): a combat log subscriber that sums, per entity, the damage it is credited
+ * A damage meter: a combat log subscriber that sums, per entity, the damage it is credited
  * with (what reached health plus what absorbs took), the healing it gave (what a heal gave back, overheal left out),
  * and the damage each target took (what reached health).
  */

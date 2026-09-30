@@ -7,7 +7,7 @@ import { NO_CAST } from './ids.ts';
 import type { SpellCaster, SpellId, SpellTypes } from './spell-types.ts';
 
 /**
- * The default `next` of an `auto` clock (§II.6 S2): 0 (the next step) after a refusal for no target or out of reach (a
+ * The default `next` of an `auto` clock: 0 (the next step) after a refusal for no target or out of reach (a
  * swing's reach polled every step, unless its `ready` hook holds it) and after an instant cast whose release set
  * nothing off (a swing that never went out); the interval after anything else, a refusal by the gates included. A
  * game's own `next` falls back to it for the cases it leaves alone.
@@ -49,7 +49,7 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
 };
 
 /**
- * Steps a caster's armed `auto` clocks by one step (§II.3.2, §II.6 S2), in registry order: each counts down, and one
+ * Steps a caster's armed `auto` clocks by one step, in registry order: each counts down, and one
  * that ran out casts its spell, unless it resets after casts (`afterCast: 'reset'`) and the caster is casting: it
  * waits for the cast to end, which resets it. After the cast the clock is set, with no carry-over, to what its
  * activation's `next` answers (`autoNext` by default: the interval read at the cast, or the next step). A clock whose activation says the caster is not `ready` waits at zero, casting nothing. A caster with
@@ -113,7 +113,7 @@ export const armAuto = <G extends SpellTypes>(
 };
 
 /**
- * A rescale of a caster's pending clocks (§II.6 A13, §I.7.1 F15): an aura system's host hands one on an aura's edges
+ * A rescale of a caster's pending clocks: an aura system's host hands one on an aura's edges
  * (`ClockRescale` is one), and the `rescaleClocks` proc makes one.
  */
 export interface ClockScale {
@@ -178,7 +178,7 @@ const rescaleCasts = <G extends SpellTypes>(
 };
 
 /**
- * Rescales a caster's clocks (§II.6 A13): every `auto` clock still counting whose spell is in scope, times the
+ * Rescales a caster's clocks: every `auto` clock still counting whose spell is in scope, times the
  * factor (haste's edges: an attack clock sped up as a haste aura lands and slowed as it goes), and with
  * `clocks: 'all'` the stage time left of its running casts in scope too. Returns how many it rescaled.
  */
@@ -200,7 +200,7 @@ export const rescaleClocks = <G extends SpellTypes>(
 };
 
 /**
- * Resets a caster's `auto` clocks that reset after its other casts (§II.6 S3: `afterCast: 'reset'`) as one of its
+ * Resets a caster's `auto` clocks that reset after its other casts (`afterCast: 'reset'`) as one of its
  * casts ends: each is set to its constant interval, else to the interval it last read. An auto spell's own cast
  * resets none. Returns how many it reset.
  */

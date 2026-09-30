@@ -9,7 +9,7 @@ import type { StaticWorld } from './mirror.ts';
 import type { SpellHost } from './spell-host.ts';
 import type { SpellTypes } from './spell-types.ts';
 
-/** What a spell system is built from (§I.5): the game's spells, the systems they run on, the clock and the host. */
+/** What a spell system is built from: the game's spells, the systems they run on, the clock and the host. */
 export interface SpellSystemBase<G extends SpellTypes> {
   /** The game's spells (`defineSpells`). */
   readonly registry: SpellRegistry<G>;
@@ -34,7 +34,7 @@ export interface SpellSystemBase<G extends SpellTypes> {
 
   /**
    * The host's named streams (a `StreamTable`'s `random`), which `ctx.random(name)` draws from: a keyed name draws
-   * keyed rolls over the cast's key (§I.5: `(startTick, casterId, spellId, targetId, index)`).
+   * keyed rolls over the cast's key (`(startTick, casterId, spellId, targetId, index)`).
    */
   readonly streams?: (stream: G['stream'], key: readonly number[]) => Random;
 
@@ -51,7 +51,7 @@ export interface SpellSystemBase<G extends SpellTypes> {
   readonly world?: StaticWorld;
 
   /**
-   * Every interrupt the game raises (§I.7.1 F16), so a caster holds one (`isInterrupted`) even when no spell's timeline
+   * Every interrupt the game raises, so a caster holds one (`isInterrupted`) even when no spell's timeline
    * names it: an area trigger pausing while its owner is frozen. The timelines' own are added after them.
    */
   readonly interrupts?: readonly G['interrupt'][];

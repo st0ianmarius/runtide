@@ -84,7 +84,7 @@ const passGates = <G extends SpellTypes>(
   return refusalOf(kind?.gate?.(def.activation, cast), 'gate');
 };
 
-/** The cast order up to `begin` (§II.3.1): gates, stats, `canCast`, target, reach. The refusal, or `undefined`. */
+/** The cast order up to `begin`: gates, stats, `canCast`, target, reach. The refusal, or `undefined`. */
 const admit = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
@@ -192,8 +192,8 @@ const runEnd = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def
 };
 
 /**
- * Ends a cast (§II.3.3), once: it leaves its caster's casts, then `onCancel` for a cancel, its end cue, `onEnd`, its
- * cast aura comes off, the caster's clocks that reset after a cast reset (§II.6 S3), and the `end` event. Its record goes back to the pool once nothing holds it.
+ * Ends a cast, once: it leaves its caster's casts, then `onCancel` for a cancel, its end cue, `onEnd`, its
+ * cast aura comes off, the caster's clocks that reset after a cast reset, and the `end` event. Its record goes back to the pool once nothing holds it.
  */
 export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, outcome: CastOutcome<G>): void => {
   if (cast.stage === 'ended') {
@@ -238,7 +238,7 @@ export const afterPayload = <G extends SpellTypes>(
 };
 
 /**
- * Releases a cast (§II.3.1): its stats read again when live, its aim locked, its release cue, `release` and the
+ * Releases a cast: its stats read again when live, its aim locked, its release cue, `release` and the
  * `release` event; then its channel, or what follows the payload.
  */
 export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
@@ -305,7 +305,7 @@ const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, 
 };
 
 /**
- * Starts a cast in the cast order (§II.3.1): the gates, the stats, `canCast`, the target, then `begin`, and the
+ * Starts a cast in the cast order: the gates, the stats, `canCast`, the target, then `begin`, and the
  * release at once for a spell with no windup. Writes what it did into `report` and returns it.
  */
 export const startCast = <G extends SpellTypes>(
@@ -351,7 +351,7 @@ export const startCast = <G extends SpellTypes>(
 };
 
 /**
- * Asks whether a cast would start (§I.7.1 F16: a picker reading each spell's cast rules), running the cast order up to
+ * Asks whether a cast would start (a picker reading each spell's cast rules), running the cast order up to
  * `begin` (the gates, the stats, `canCast`, the target and its reach) and starting nothing. The refusal, or
  * `undefined`. The hooks it runs must not change the world, as the cast order's never do.
  */

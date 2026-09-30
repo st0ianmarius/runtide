@@ -21,7 +21,7 @@ export interface AreaTriggerTypes extends SpellTypes {
   /** What a spawn hands an area trigger (`init` reads it): a heading, a locked target, a pattern index. */
   readonly areaInput: unknown;
 
-  /** The game's own fields on an area trigger (`c.ext`), made by the system's `createExt` (§I.5.6 hatch 4). */
+  /** The game's own fields on an area trigger (`c.ext`), made by the system's `createExt`. */
   readonly areaExt: unknown;
 
   /**

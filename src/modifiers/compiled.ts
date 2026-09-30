@@ -46,7 +46,7 @@ export interface CompiledTerm {
   readonly neutral: number;
 }
 
-/** A scaled value compiled against a stat table: flat term arrays, read with no allocation (§I.5.4). */
+/** A scaled value compiled against a stat table: flat term arrays, read with no allocation. */
 export interface CompiledScaled {
   /** The discriminant among curve parameters. */
   readonly kind: 'scaled';

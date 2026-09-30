@@ -2,7 +2,7 @@ import { toId } from '../core/ids.ts';
 import { type CompiledScaled, compileScaled, evaluateScaled, type Scaled, type StatTable } from '../modifiers/index.ts';
 
 /**
- * What an outcome row does to a blow (§II.3.14): `avoid` (a miss, a dodge, a parry: the blow ends `avoided`), `block`
+ * What an outcome row does to a blow: `avoid` (a miss, a dodge, a parry: the blow ends `avoided`), `block`
  * (it ends `blocked`), or `scale` (a crit, a glancing blow: its amount is multiplied and it goes on).
  */
 export type RollEffect = 'avoid' | 'block' | 'scale';
@@ -23,7 +23,7 @@ export interface RollStat<S extends string = string> {
 export type RollValue<S extends string = string> = S | RollStat<S> | Scaled<S>;
 
 /**
- * One outcome row (§II.3.14, §I.7.1 F14): what it does, its chance, and for a `scale` row the multiplier. Both are
+ * One outcome row: what it does, its chance, and for a `scale` row the multiplier. Both are
  * scaled values read with the attacker as the caster and the defender as the target (`from: 'target'` terms), the
  * attacker's stats by the blow's spell's shares, as an outgoing multiplier is. A chance is clamped to [0, 1].
  */
@@ -90,7 +90,7 @@ export interface CompiledRollValue {
   readonly scaled: CompiledScaled | undefined;
 }
 
-/** A roll table, compiled at load (§I.5.4): its mode and its rows in roll order. */
+/** A roll table, compiled at load: its mode and its rows in roll order. */
 export interface RollTable<O extends string = string> {
   /** The mode. */
   readonly mode: RollMode;
@@ -103,7 +103,7 @@ export interface RollTable<O extends string = string> {
 }
 
 /**
- * Declares the game's outcome rows (§II.3.14): `defineRollTable(STATS, { mode: 'independent', rows: { block: {
+ * Declares the game's outcome rows: `defineRollTable(STATS, { mode: 'independent', rows: { block: {
  * effect: 'block', chance: scaled(0, add('blockChance', 1, { from: 'target' })) }, crit: { effect: 'scale', chance:
  * 'critChance', multiplier: 'critDamage', isCrit: true } } })`. A plain stat name reads the attacker's stat; every
  * chance and multiplier is compiled and checked at load. At most 32 rows.

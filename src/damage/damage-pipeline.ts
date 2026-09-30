@@ -249,7 +249,7 @@ const runBlowStages = <G extends DamageTypes>(
 };
 
 /**
- * Builds the damage pipeline (§II.6 D1, D2): a blow on a living target with an amount above 0 runs the stages in their
+ * Builds the damage pipeline: a blow on a living target with an amount above 0 runs the stages in their
  * documented order, with the game's at their positions and the ones its kind bypasses skipped, until a stage ends it
  * (`ignored`, `blocked`); then every after-stage runs. A blow of no amount, on a dead target, or nested too deep is
  * `skipped` and runs nothing.

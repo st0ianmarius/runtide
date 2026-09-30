@@ -26,7 +26,7 @@ const summoning = (options: Parameters<typeof makeUnitGame<keyof typeof TEMPLATE
   return { ...game, caster };
 };
 
-describe('summoning (§II.6 P3, C8, §I.7.1 F18)', () => {
+describe('summoning', () => {
   it('spawns units owned by the list’s self, on its side, at a point the spawned event carries', () => {
     const { procs, units, caster, log } = summoning();
     const outcome = procs.apply(summon<UnitGame>('add', { count: 2, at: { x: 3, z: 4 } }), { self: caster });
@@ -131,7 +131,7 @@ describe('summoning (§II.6 P3, C8, §I.7.1 F18)', () => {
     assert.equal(procs.apply(despawnSummons<UnitGame>(), { self: caster }).status, 'skipped');
   });
 
-  it('keeps the summoning cast live while its summons live (§II.6 S6)', () => {
+  it('keeps the summoning cast live while its summons live', () => {
     const { procs, spells, units, caster, spellId } = summoning();
 
     procs.apply(castSpell<UnitGame>('raise'), { self: caster });
@@ -177,7 +177,7 @@ describe('summoning (§II.6 P3, C8, §I.7.1 F18)', () => {
   });
 });
 
-describe('the escape report over a unit game (§I.5.6)', () => {
+describe('the escape report over a unit game', () => {
   it('counts the unit and AI proc kinds as the framework’s own, not as hatches', () => {
     const { procs, spells, damage, units, ai } = summoning();
 

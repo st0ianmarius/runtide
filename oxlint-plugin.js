@@ -1,9 +1,9 @@
 /**
- * Project rules for oxlint's JS plugin API (§I.4.2, §I.5.2): the checks oxlint has no native rule for. Each rule is
+ * Project rules for oxlint's JS plugin API: the checks oxlint has no native rule for. Each rule is
  * syntactic, so it needs no type information.
  */
 
-/** Built-ins that have no form other than `new` (§I.5.2). */
+/** Built-ins that have no form other than `new`. */
 
 const CAMEL_CASE = /^_?[a-z][a-zA-Z0-9]*$/;
 const PASCAL_CASE = /^[A-Z][a-zA-Z0-9]*$/;
@@ -13,7 +13,7 @@ const IDENTIFIER_NAME = /^[A-Za-z_$][\w$]*$/;
 /** Compares two strings the way `simple-import-sort` does: case-insensitive, numbers by value. */
 const compareNames = (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base', numeric: true }) || (a < b ? -1 : 1);
 
-/** A to-do comment names its issue, as `TODO(#12)` does (§I.4.2). */
+/** A to-do comment names its issue, as `TODO(#12)` does. */
 const todoWithIssue = {
   meta: { type: 'suggestion', schema: [] },
 
@@ -77,7 +77,7 @@ const paddingKind = (sourceCode, statement) => {
   return (isExport || isConst) && isMultiline(sourceCode, statement) ? 'padded' : 'other';
 };
 
-/** Checks one statement list for the blank lines of §I.4.2. */
+/** Checks one statement list for its required blank lines. */
 const checkStatementList = (context, statements) => {
   statements.slice(1).forEach((next, index) => {
     const previous = statements[index];
@@ -94,7 +94,7 @@ const checkStatementList = (context, statements) => {
 
 /**
  * A blank line after the imports and around every function declaration, multi-line export and multi-line `const`
- * (`padding-line-between-statements` in §I.4.2), autofixable.
+ * (`padding-line-between-statements`), autofixable.
  */
 const paddedStatements = {
   meta: { type: 'layout', fixable: 'whitespace', schema: [] },
@@ -115,7 +115,7 @@ const isMultilineFunction = (sourceCode, property) => {
   return isFunction && isMultiline(sourceCode, property);
 };
 
-/** A blank line around every multi-line function in an object literal (§I.4.2), autofixable. */
+/** A blank line around every multi-line function in an object literal, autofixable. */
 const paddedObjectFunctions = {
   meta: { type: 'layout', fixable: 'whitespace', schema: [] },
 
@@ -137,7 +137,7 @@ const paddedObjectFunctions = {
 
 /**
  * A blank line before every block comment on its own line, except at the start of a block, object, array or case, or
- * right after another comment (§I.4.2), autofixable.
+ * right after another comment, autofixable.
  */
 const blankLineBeforeBlockComment = {
   meta: { type: 'layout', fixable: 'whitespace', schema: [] },
@@ -189,9 +189,9 @@ const checkDocBlock = (context, node, label) => {
   const description = docBlockOf(context.sourceCode, node);
 
   if (description === undefined || description === '') {
-    context.report({ node, message: `${label} has no /** */ block describing it (§I.4.2).` });
+    context.report({ node, message: `${label} has no /** */ block describing it.` });
   } else if (!/^[^a-z]/.test(description) || !/[.!?]$/.test(description)) {
-    context.report({ node, message: `The doc block of ${label} is not written as full sentences (§I.4.2).` });
+    context.report({ node, message: `The doc block of ${label} is not written as full sentences.` });
   }
 };
 
@@ -244,7 +244,7 @@ const exportedDeclarations = (program) => {
 
 /**
  * Every exported function, constant, type and interface, and every field and hook of an exported type, has a `/** *\/`
- * block written as full sentences (§I.4.2).
+ * block written as full sentences.
  */
 const exportDocs = {
   meta: { type: 'suggestion', schema: [] },
@@ -263,7 +263,7 @@ const exportDocs = {
   }),
 };
 
-/** Field names that would carry presentation, which the client owns (§I.5.3). */
+/** Field names that would carry presentation, which the client owns. */
 const PRESENTATION_FIELDS = new Set([
   'anim',
   'color',
@@ -278,7 +278,7 @@ const PRESENTATION_FIELDS = new Set([
 ]);
 
 /**
- * No exported type has a field named like presentation (§I.5.3), unless the rule's `allow` option lists it as
+ * No exported type has a field named like presentation, unless the rule's `allow` option lists it as
  * `TypeName.field` (a developer-facing string).
  */
 const presentationFields = {
@@ -299,7 +299,7 @@ const presentationFields = {
           if (PRESENTATION_FIELDS.has(field.toLowerCase()) && !allowed.has(qualified)) {
             context.report({
               node: member,
-              message: `${qualified} is a presentation field; the client owns it (§I.5.3).`,
+              message: `${qualified} is a presentation field; the client owns it.`,
             });
           }
         });
@@ -311,7 +311,7 @@ const presentationFields = {
 /** Reports `identifier` unless its name matches one of `formats`. */
 const checkName = (context, identifier, { formats, what }) => {
   if (identifier?.type === 'Identifier' && !formats.some((format) => format.test(identifier.name))) {
-    context.report({ node: identifier, message: `${what} \`${identifier.name}\` is not in the §I.4.2 naming style.` });
+    context.report({ node: identifier, message: `${what} \`${identifier.name}\` is not in the project naming style.` });
   }
 };
 
@@ -327,7 +327,7 @@ const checkKey = (context, property) => {
     const name = key.type === 'Identifier' ? key.name : String(key.value);
 
     if (!CAMEL_CASE.test(name)) {
-      context.report({ node: key, message: `Property \`${name}\` is not camelCase (§I.4.2).` });
+      context.report({ node: key, message: `Property \`${name}\` is not camelCase.` });
     }
   }
 };
@@ -344,7 +344,7 @@ const checkParam = (context, param) => {
 };
 
 /**
- * The syntactic part of `naming-convention` (§I.4.2): camelCase functions, variables, parameters and fields;
+ * The syntactic part of `naming-convention`: camelCase functions, variables, parameters and fields;
  * UPPER_CASE also for module-level constants; PascalCase types; camelCase or PascalCase default and namespace imports.
  */
 const naming = {
@@ -466,7 +466,7 @@ const importOrder = {
 
           context.report({
             node: chunk[0],
-            message: 'Imports are grouped (side effects, node:, packages, relative) and sorted by source (§I.4.2).',
+            message: 'Imports are grouped (side effects, node:, packages, relative) and sorted by source.',
             fix: hasComments ? undefined : (fixer) => fixer.replaceTextRange(range, expected),
           });
         }
@@ -485,7 +485,7 @@ const exportOrder = {
       const sorted = [...names].sort(compareNames);
 
       if (names.some((name, index) => name !== sorted[index])) {
-        context.report({ node, message: 'Exported names are sorted (§I.4.2).' });
+        context.report({ node, message: 'Exported names are sorted.' });
       }
     },
   }),

@@ -35,7 +35,7 @@ export interface PredictedRuleOptions<G extends AuraTypes> {
 
   /**
    * The game's condition and value tables, when aura modifiers wait on conditions: a predicted aura's conditions must
-   * then be mirror-safe (§II.6 M8), or the mirror would fold its modifiers by a guess.
+   * then be mirror-safe, or the mirror would fold its modifiers by a guess.
    */
   readonly conditions?: ConditionTables;
 }
@@ -52,7 +52,7 @@ export interface UnpredictedRead {
   readonly reason: ReadReason;
 }
 
-/** The predicted rule checked both ways (§II.6 P7, R3). */
+/** The predicted rule checked both ways. */
 export interface PredictedReport {
   /** Auras the mirror reads that are not `predicted`: the mirror would miss them. Empty when the rule holds. */
   readonly unpredicted: readonly UnpredictedRead[];
@@ -125,7 +125,7 @@ const unsafeOf = <G extends AuraTypes>(options: PredictedRuleOptions<G>): AuraId
 };
 
 /**
- * Checks the predicted rule over a game's auras (§II.6 P7, R3), both ways: every aura the prediction mirror reads (the
+ * Checks the predicted rule over a game's auras, both ways: every aura the prediction mirror reads (the
  * presses' cooldowns, costs and applied auras, an aura granting a tag a press or the motion step reads, an aura with a
  * modifier on a stat the motion step folds, an aura the motion step names) must be `predicted`, and a `predicted` aura
  * nothing reads is reported as unread; with the condition tables, a predicted aura whose modifiers wait on a condition

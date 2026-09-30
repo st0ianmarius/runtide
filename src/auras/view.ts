@@ -4,7 +4,7 @@ import type { AuraEngine } from './engine.ts';
 import { setOf } from './state.ts';
 
 /**
- * One aura as the wire carries it (§I.5.3, §II.6 A7): ids and numbers only. The client draws the tile from its own
+ * One aura as the wire carries it: ids and numbers only. The client draws the tile from its own
  * table keyed by `aura`, and tells an expiry from a removal by whether `remaining` had run out.
  */
 export interface AuraView {

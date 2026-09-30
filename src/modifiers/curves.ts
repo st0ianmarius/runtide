@@ -23,7 +23,7 @@ export interface Lookup<S extends string = string> {
   readonly points: readonly (readonly [number, number])[];
 }
 
-/** A curve parameter: a number, a scaled value that can read either side (§II.3.13), or a table lookup. */
+/** A curve parameter: a number, a scaled value that can read either side, or a table lookup. */
 export type CurveParam<S extends string = string> = Scaled<S> | Lookup<S>;
 
 /** `x × per`: flat conversions. */
@@ -102,7 +102,7 @@ export interface TableCurve {
   readonly points: readonly (readonly [number, number])[];
 }
 
-/** A game's own curve (§I.5.6): a pure, deterministic function of the input. */
+/** A game's own curve: a pure, deterministic function of the input. */
 export interface CustomCurve {
   /** The discriminant. */
   readonly kind: 'custom';
@@ -111,7 +111,7 @@ export interface CustomCurve {
   readonly map: (x: number) => number;
 }
 
-/** A curve (§II.3.14): a pure, deterministic function from a number to an effect, as data. */
+/** A curve: a pure, deterministic function from a number to an effect, as data. */
 export type Curve<S extends string = string> =
   | LinearCurve<S>
   | RatingCurve<S>
@@ -294,8 +294,8 @@ export type CurveTable<Name extends string = string> = Registry<'curves', Extrac
 const toCurve = (def: Curve | ((x: number) => number)): Curve => (typeof def === 'function' ? customCurve(def) : def);
 
 /**
- * Registers the game's named curves (§II.3.13): library curves with their parameters, or plain functions for the
- * game's own (§I.5.6). Stats and scaled values name them (`curve: 'haste'`). Parameters are range-checked here.
+ * Registers the game's named curves: library curves with their parameters, or plain functions for the
+ * game's own. Stats and scaled values name them (`curve: 'haste'`). Parameters are range-checked here.
  */
 export const defineCurves = <const Name extends string>(
   defs: Readonly<Record<Name, Curve | ((x: number) => number)>>,

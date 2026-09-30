@@ -36,7 +36,7 @@ export const createHealEvent = <G extends DamageTypes>(): HealEvent<G> => ({ hea
 export const createDeathEvent = <G extends DamageTypes>(): DeathEvent<G> => ({ death: undefined });
 
 /**
- * The bus and the event kinds the damage system raises (§I.5.6 hatch 7): generic kinds a game maps its own trigger
+ * The bus and the event kinds the damage system raises: generic kinds a game maps its own trigger
  * events onto. Each is optional, and raised only when something hears it.
  */
 export interface DamageEvents<G extends DamageTypes> {

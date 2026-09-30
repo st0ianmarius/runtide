@@ -7,7 +7,7 @@ import type { SpellId, SpellTypes } from './spell-types.ts';
 export const CAST_STAGES = ['windup', 'channel', 'recover'] as const;
 
 /**
- * A running cast as the wire carries it (§II.6 C10, R4): ids and numbers only, so a client draws a cast bar and
+ * A running cast as the wire carries it: ids and numbers only, so a client draws a cast bar and
  * plays a cast's cues without being sent its state. Its stage's end is a stamp on the spell clock, so the view does
  * not change while the stage counts down.
  */

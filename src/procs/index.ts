@@ -1,5 +1,5 @@
 /**
- * Procs (§I.6, §II.3.6): one vocabulary for every outcome a spell, an aura or a trigger sets off. A proc is plain
+ * Procs: one vocabulary for every outcome a spell, an aura or a trigger sets off. A proc is plain
  * data with a `kind`; a registry (`createProcRegistry({ ...CORE_PROCS, ...GAME_PROCS })`) gives each kind a dense id
  * to dispatch on, and a system (`createProcSystem`) runs lists in order with chance, groups, kill tracking and a
  * depth cap, landing auras through the aura system and everything else through the host.

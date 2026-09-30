@@ -90,7 +90,7 @@ describe('a game stage reading the blow’s own fields', () => {
   });
 });
 
-describe('the mitigation rows (§II.3.14)', () => {
+describe('the mitigation rows', () => {
   it('turn a rating into a reduction through its curve: 100 armor halves a blow', () => {
     const { damage, unit, set } = makeDamageGame({});
     const target = unit(1);

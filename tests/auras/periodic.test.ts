@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { aura, makeGame } from '../helpers/aura-game.ts';
 
-describe('periodic beats (§II.6 A3)', () => {
+describe('periodic beats', () => {
   it('beats every period after the application, the last on the tick it runs out, before its expiry', () => {
     const ticks: number[] = [];
 

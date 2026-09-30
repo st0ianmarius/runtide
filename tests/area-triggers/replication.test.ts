@@ -32,7 +32,7 @@ const replicationGame = () =>
     },
   );
 
-describe('area trigger replication (§I.6 Replication, §II.3.9)', () => {
+describe('area trigger replication', () => {
   it('resolves each kind’s replication at load', () => {
     const game = replicationGame();
     const { replication } = game.areaTriggers.registry;

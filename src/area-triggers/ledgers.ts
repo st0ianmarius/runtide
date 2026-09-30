@@ -10,7 +10,7 @@ import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 const PRUNE_FROM = 64;
 
 /**
- * One hit ledger, pooled (§II.6 W3): the tick each unit (by entity id) was last hit, the claims held on units, and
+ * One hit ledger, pooled: the tick each unit (by entity id) was last hit, the claims held on units, and
  * its counts; shared by as many area triggers as its scope joins, and back to the pool when the last lets go.
  */
 export class Ledger {

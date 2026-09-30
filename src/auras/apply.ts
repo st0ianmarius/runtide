@@ -1,4 +1,4 @@
-// Hot path (§I.4.2, §I.5.4): applications walk the bearer's list, so the loops are indexed.
+// Hot path: applications walk the bearer's list, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import { type AuraItem, NO_SOURCE } from './active-aura.ts';
 import type { ApplyResult, AuraApplication } from './application.ts';
@@ -230,7 +230,7 @@ const landAura = <G extends AuraTypes>(
 };
 
 /**
- * Applies an aura to a bearer (§II.3.8): the host's application policy first (refuse, replace, then more), then the
+ * Applies an aura to a bearer: the host's application policy first (refuse, replace, then more), then the
  * aura's own rules. A refusal raises nothing.
  */
 export const applyAura = <G extends AuraTypes>(
