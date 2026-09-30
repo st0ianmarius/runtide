@@ -158,6 +158,7 @@ export class AuraEngine<G extends AuraTypes> {
       set.beats[beatClock] = (set.beats[beatClock] ?? 0) + 1;
     }
 
+    set.buckets[item.id & 31] = (set.buckets[item.id & 31] ?? 0) + 1;
     items.push(item);
 
     while (at > 0 && (items[at - 1]?.id ?? 0) > item.id) {

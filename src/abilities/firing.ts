@@ -237,14 +237,15 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
  * A press with the input and key in `engine.input` and `engine.key`: decides every pressed slot against the bearer as
  * it stands before any fires, so a dodge and an ability that resets the dodge's cooldown on one press both fire, then
  * fires them in slot order. Returns the mask of the slots that fired (committed), and writes each pressed slot's
- * refusal, if any, into `refusals` by slot.
+ * refusal, if any, into `engine.refusals` by slot.
  */
 export const press = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  [pressed, refusals]: readonly [number, (PressRefusal<G> | undefined)[] | undefined]
+  pressed: number
 ): number => {
   const count = engine.slots.size;
+  const { refusals } = engine;
   let accepted = 0;
 
   for (let slot = 0; slot < count && pressed !== 0; slot++) {
@@ -271,6 +272,7 @@ export const press = <G extends AbilityTypes>(
   }
 
   engine.input = undefined;
+  engine.refusals = undefined;
   engine.key = 0;
   engine.options.input = undefined;
   engine.refusal = undefined;

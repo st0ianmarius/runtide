@@ -226,8 +226,9 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
     tryActivate: (bearer, pressed, data) => {
       engine.input = data?.input;
       engine.key = data?.key ?? 0;
+      engine.refusals = data?.refusals;
 
-      return press(engine, bearer, [pressed, data?.refusals]);
+      return press(engine, bearer, pressed);
     },
 
     explain: (spell) => explainButton(engine, spell)

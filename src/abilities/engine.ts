@@ -69,6 +69,9 @@ export class AbilityEngine<G extends AbilityTypes> {
   /** Why the slot being fired did not fire, or why its committed cast was refused; `undefined` for neither. */
   refusal: PressRefusal<G> | undefined = undefined;
 
+  /** Where the running press writes each pressed slot's refusal, by slot; none when the press asked for none. */
+  refusals: (PressRefusal<G> | undefined)[] | undefined = undefined;
+
   /** Whether it runs on a prediction mirror: a press fires only the spells' cast cues, and casts nothing. */
   readonly isMirror: boolean;
 

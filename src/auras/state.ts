@@ -57,6 +57,12 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
   /** By clock, how many of its auras beat on it: a tick of a clock with none and nothing due does nothing. */
   readonly beats: Int32Array;
 
+  /**
+   * How many of its auras fall in each of 32 buckets by id (`id & 31`): a bucket at 0 answers "not held" at once, the
+   * usual answer for a cooldown asked every press.
+   */
+  readonly buckets = new Uint16Array(32);
+
   changes = 0;
   serials = 0;
 
@@ -91,8 +97,31 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
     return this.items;
   }
 
+  /** The first instance of `id`, or `undefined`. */
+  find(id: number): AuraItem<G> | undefined {
+    if (this.buckets[id & 31] === 0) {
+      return undefined;
+    }
+
+    const items = this.items;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+
+      if (item?.id === id) {
+        return item;
+      }
+    }
+
+    return undefined;
+  }
+
   /** The stacks of `id` summed over its instances. */
   stacksFor(id: number): number {
+    if (this.buckets[id & 31] === 0) {
+      return 0;
+    }
+
     const items = this.items;
     let stacks = 0;
 

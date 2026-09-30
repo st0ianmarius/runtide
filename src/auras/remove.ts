@@ -23,7 +23,10 @@ const INDEPENDENT = STACKINGS.indexOf('independent');
  * allocate it again, where `pop` keeps a small list's storage.
  */
 const cut = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, index: number): void => {
-  const beatClock = engine.tables.beatClock[set.items[index]?.id ?? 0] ?? -1;
+  const id = set.items[index]?.id ?? 0;
+  const beatClock = engine.tables.beatClock[id] ?? -1;
+
+  set.buckets[id & 31] = (set.buckets[id & 31] ?? 1) - 1;
 
   if (beatClock >= 0) {
     set.beats[beatClock] = (set.beats[beatClock] ?? 0) - 1;
@@ -177,6 +180,7 @@ export const releaseAll = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G
   if (count > 0) {
     set.changes += 1;
     set.beats.fill(0);
+    set.buckets.fill(0);
     set.due.fill(Number.POSITIVE_INFINITY);
     engine.refreshTags(set);
   }

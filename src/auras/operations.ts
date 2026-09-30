@@ -88,19 +88,8 @@ export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operat
 });
 
 /** The first instance of an aura on a bearer. */
-const findIn = <G extends AuraTypes>(bearer: G['bearer'], id: AuraId): ActiveAura<G> | undefined => {
-  const { items } = setOf<G>(bearer);
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-
-    if (item?.id === id) {
-      return item;
-    }
-  }
-
-  return undefined;
-};
+const findIn = <G extends AuraTypes>(bearer: G['bearer'], id: AuraId): ActiveAura<G> | undefined =>
+  setOf<G>(bearer).find(id);
 
 /** The longest time left on an aura's instances. */
 const remainingIn = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], id: AuraId): number => {
