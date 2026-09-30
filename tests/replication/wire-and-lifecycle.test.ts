@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
+import { type CueDef, defineCue, defineCues } from '../../src/cues/index.ts';
 import { auraChanges, auraLifecycle, checkWireTable, wireTableOf } from '../../src/replication/index.ts';
 import { aura, makeGame } from '../helpers/aura-game.ts';
 
@@ -24,9 +25,33 @@ describe('wire tables', () => {
     assert.deepEqual(table.names, ['slow', 'fast']);
     assert.equal(table.kind, 'auras');
     assert.match(table.checksum, /^[0-9a-f]{8}$/);
-    assert.equal(wireTableOf({ kind: 'auras', names: ['slow', 'fast'] }).checksum, table.checksum);
+    assert.equal(
+      wireTableOf({ kind: 'auras', names: ['slow', 'fast'] }).checksum,
+      wireTableOf({ kind: 'auras', names: ['slow', 'fast'] }).checksum
+    );
     assert.notEqual(wireTableOf({ kind: 'auras', names: ['fast', 'slow'] }).checksum, table.checksum);
     assert.notEqual(wireTableOf({ kind: 'cues', names: ['slow', 'fast'] }).checksum, table.checksum);
+  });
+
+  it('folds each aura’s rules and each cue’s schema into the checksum', () => {
+    const auraSum = (fast: Parameters<typeof aura>[0]): string =>
+      wireTableOf(makeGame({ slow: aura({ duration: 1 }), fast: aura(fast) }).registry).checksum;
+
+    const cueSum = (hit: CueDef, positionScale?: number): string =>
+      wireTableOf(
+        defineCues({ hit, burst: defineCue({ anchor: 'world' }) }, positionScale === undefined ? {} : { positionScale })
+      ).checksum;
+
+    const plain: CueDef = defineCue({ anchor: 'self', params: { amount: { kind: 'uint8' } } });
+
+    assert.equal(auraSum({ duration: 1 }), auraSum({ duration: 2 }));
+    assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 1, predicted: true }));
+    assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 1, stacking: 'stack', maxStacks: 3 }));
+    assert.equal(cueSum(plain), cueSum(defineCue({ anchor: 'self', params: { amount: { kind: 'uint8' } } })));
+    assert.notEqual(cueSum(plain), cueSum(defineCue({ anchor: 'self', params: { amount: { kind: 'int' } } })));
+    assert.notEqual(cueSum(plain), cueSum(defineCue({ anchor: 'entity', params: { amount: { kind: 'uint8' } } })));
+    assert.notEqual(cueSum(plain), cueSum({ ...plain, isPredicted: true }));
+    assert.notEqual(cueSum(plain), cueSum(plain, 10));
   });
 
   it('changes its checksum with a retirement or an entry’s signature, its names the same', () => {

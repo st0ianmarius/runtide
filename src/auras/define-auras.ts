@@ -105,6 +105,12 @@ export interface AuraRegistry<G extends AuraTypes = AuraTypes, Name extends stri
 
   /** The ids that answer each of the game's own hooks, by name. */
   readonly hasOn: Readonly<Record<string, Bitset>>;
+
+  /**
+   * What of an aura a server and a prediction mirror must agree on, as a string (`wireTableOf` folds it into the
+   * checksum): its stacking, stack cap, value merge and flags (audience, prediction, credit). Empty for a retired aura.
+   */
+  readonly signature: (aura: number) => string;
 }
 
 /** The column code of a definition's stacking rule. */
@@ -322,6 +328,7 @@ export const defineAuras = <G extends AuraTypes, const Name extends string>(
   });
 
   const slots = Object.freeze(base.names.map((name) => liveDef(byName.get(name))));
+  const columns = buildColumns(slots);
 
   return Object.freeze({
     ...base,
@@ -333,7 +340,13 @@ export const defineAuras = <G extends AuraTypes, const Name extends string>(
       return slots[id] ?? {};
     },
 
-    columns: buildColumns(slots),
+    columns,
+
+    signature: (aura: number): string =>
+      slots[aura] === undefined
+        ? ''
+        : [columns.stacking[aura], columns.maxStacks[aura], columns.merge[aura], columns.flags[aura]].join(' '),
+
     hooks: buildHooks(slots),
     has: buildHas(slots),
     ...buildGameHooks(slots)

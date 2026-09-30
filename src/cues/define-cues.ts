@@ -76,6 +76,13 @@ export interface CueRegistry<Table extends CueTable = CueTable> extends Registry
 
   /** A live cue's anchor. Throws for an id outside the registry or retired. */
   readonly anchorOf: (cue: CueId) => CueAnchor;
+
+  /**
+   * What of a cue both ends of the wire must agree on, as a string (`wireTableOf` folds it into the checksum): its
+   * anchor, audience and prediction, each param's name, kind, scale and default, and the position scale. Empty for a
+   * retired cue.
+   */
+  readonly signature: (cue: number) => string;
 }
 
 /** The slots of one schema's params, by name. */
@@ -138,6 +145,23 @@ export const defineCues = <const Table extends CueTable>(
     positionScale,
 
     anchorOf: (cue: CueId): CueAnchor => base.get(cue).anchor,
+
+    signature: (cue: number): string => {
+      const schema = schemas[cue];
+      const def = base.defs[cue];
+
+      if (schema === undefined || def === undefined) {
+        return '';
+      }
+
+      const fields = schema.fields.map(
+        (field, i) => `${field.param}:${field.kind}:${field.scale}:${schema.wireDefaults[field.slot] ?? 0}:${i}`
+      );
+
+      return [def.anchor, def.audience ?? 'all', def.isPredicted === true ? 'p' : '', positionScale, ...fields].join(
+        ' '
+      );
+    },
 
     paramOf: (cue: CueId, name: string): CueParam | undefined => {
       const schema = schemas[cue];
