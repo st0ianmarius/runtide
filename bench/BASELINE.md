@@ -219,3 +219,20 @@ After the review, every clock keeps one timing (§II.6.1 rule 4): a countdown sn
 | horde: 2,000 mobs + 4 heroes, the whole unit game (tick) | 303.7 µs, 308.2 µs | 304.9 µs |
 
 Rows the change does not touch moved within their usual noise in both directions (the cue ticks 7% faster, the nearest foe in 10 m 4% slower).
+
+## The fourth review: a co-op bench and the crowd costs
+
+The horde bench runs at 30 Hz with no world and no area triggers, and the area trigger bench spreads its units so a catch finds almost no one. `bench/coop.ts` is swarm's busy co-op wave instead: 350 mobs crowding 4 heroes in a memory world moved every tick, at 60 Hz, each hero with a chilling field (an area aura) and a nova pulsing on the crowd, bolts every 0.25 s and pools every 2 s, the dead replaced by the current wave's mobs. The budget is swarm's tick: 0.57 ms at 300 mobs, of which the framework may cost at most a tenth more than swarm's own code does today.
+
+Measured outside tinybench on the Apple Silicon Mac (1,200 warm-up ticks, then the median of five runs of 2,000 ticks), at each step of the review:
+
+| change                                                       | co-op tick | 2,000-mob horde tick |
+| ------------------------------------------------------------ | ---------- | -------------------- |
+| before                                                       | 103 µs     | 205 µs               |
+| catches ordered by a radix sort on the ids                   | 98 µs      |                      |
+| area auras compare each frame's catch with the last          | 92 µs      |                      |
+| a bearer's aura tick scheduled by its earliest end and beats | 94 µs      | 176 µs               |
+| unit variants: a wave's bases compiled once                  | 86 µs      |                      |
+| position reads and views fill the caller's objects           | 86 µs      |                      |
+
+A 150-unit catch goes from 8.4 to 6.5 µs. What the co-op tick still spends most on is the world's unit-to-slot lookups (a `Map` keyed by unit, about a tenth) and stat folds on every read (a mob's speed, folded through its auras each step, about a sixth): a per-sheet cache keyed by the bearer's aura revision is the next step if a game needs it.
