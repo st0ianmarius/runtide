@@ -82,6 +82,16 @@ export interface ProcSystem<G extends ProcTypes> {
   /** How many lists the depth cap has dropped so far. */
   readonly dropped: number;
 
+  /**
+   * Starts a fresh nesting: the depth cap counts from the lists running now, as for lists run from outside any. What a
+   * death sets off nests from it afresh (a damage system's `procs`), so a chain of kills through procs is capped by the
+   * damage system's `maxKillChain`, not by this cap. Returns the base to hand back to `restoreBase`.
+   */
+  readonly rebase: () => number;
+
+  /** Ends a fresh nesting, handing back the base `rebase` returned. */
+  readonly restoreBase: (base: number) => void;
+
   /** Every `run` hatch seen (prepared or run) and how many times it ran, in the order first seen. */
   readonly runs: ReadonlyMap<string, number>;
 
@@ -142,6 +152,9 @@ interface RunnerState<G extends ProcTypes> {
   /** Lists dropped by the cap. */
   dropped: number;
 
+  /** The depth the cap counts from (`rebase`). */
+  base: number;
+
   /** Hatch run counts. */
   readonly runs: Map<string, number>;
 
@@ -168,7 +181,7 @@ const createStack = <G extends ProcTypes>(
 
   return {
     isTooDeep: (): boolean => {
-      if (state.depth < maxDepth) {
+      if (state.depth - state.base < maxDepth) {
         return false;
       }
 
@@ -301,6 +314,7 @@ class Procs<G extends ProcTypes> implements ProcSystem<G> {
       frames: [],
       depth: 0,
       dropped: 0,
+      base: 0,
       runs: new Map(),
       auraOrigin: undefined
     };
@@ -328,6 +342,18 @@ class Procs<G extends ProcTypes> implements ProcSystem<G> {
   get dropped(): number {
     return this.#state.dropped;
   }
+
+  readonly rebase = (): number => {
+    const { base } = this.#state;
+
+    this.#state.base = this.#state.depth;
+
+    return base;
+  };
+
+  readonly restoreBase = (base: number): void => {
+    this.#state.base = base;
+  };
 
   readonly runAura = (procs: readonly Proc<G>[], ctx: AuraContext<G>): void => {
     const origin = (this.#state.auraOrigin ??= {

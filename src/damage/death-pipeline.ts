@@ -54,6 +54,8 @@ export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: D
   const events = engine.options.events;
 
   const { base } = engine;
+  const procs = engine.host.procs;
+  const procBase = procs?.rebase() ?? 0;
 
   death.reset(spec);
   engine.depth += 1;
@@ -76,6 +78,7 @@ export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: D
 
     engine.host.remove?.(spec.unit, death);
   } finally {
+    procs?.restoreBase(procBase);
     engine.base = base;
     engine.chain -= 1;
     engine.depth -= 1;

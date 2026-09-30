@@ -181,7 +181,7 @@ export class DamageEngine<G extends DamageTypes> {
 
   /** Whether a unit is dead now, by the system's rule. */
   isDeadNow(unit: G['bearer']): boolean {
-    return this.isDead(this.host.health(unit));
+    return this.host.isGone?.(unit) === true || this.isDead(this.host.health(unit));
   }
 
   /** A blow's attacker's stats: its snapshot when it carries one, else the attacker's live ones for its spell. */

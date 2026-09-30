@@ -13,12 +13,12 @@ export interface HealWalks<G extends DamageTypes> {
 }
 
 /**
- * Applies one heal hook's change: absorb (spending the value of the instance whose hook it was), then scale. A heal
- * brought to nothing stops the walk.
+ * Applies one heal hook's change: absorb (spending the value of the instance whose hook it was, on its bearer: the
+ * healer for an outgoing hook), then scale. A heal brought to nothing stops the walk.
  */
 const applyChange = <G extends DamageTypes>(
   engine: DamageEngine<G>,
-  [heal, aura]: readonly [HealRecord<G>, ActiveAura<G>],
+  [heal, aura, bearer]: readonly [HealRecord<G>, ActiveAura<G>, G['bearer']],
   change: HealChange | undefined
 ): boolean => {
   const absorbed = Math.min(Math.max(0, change?.absorb ?? 0), heal.amount);
@@ -26,7 +26,7 @@ const applyChange = <G extends DamageTypes>(
   if (absorbed > 0) {
     heal.amount -= absorbed;
     heal.absorbed += absorbed;
-    engine.auras.spendValue(heal.target, aura, absorbed);
+    engine.auras.spendValue(bearer, aura, absorbed);
   }
 
   if (change?.scale !== undefined) {
@@ -48,7 +48,8 @@ export const createHealWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
       unit: healer,
       other: target,
 
-      step: (heal, aura, ctx) => applyChange(engine, [heal, aura], hooks.onOutgoingHeal[aura.id]?.(ctx, heal))
+      step: (heal, aura, ctx) =>
+        applyChange(engine, [heal, aura, ctx.bearer], hooks.onOutgoingHeal[aura.id]?.(ctx, heal))
     },
 
     incoming: {
@@ -56,7 +57,8 @@ export const createHealWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
       unit: target,
       other: healer,
 
-      step: (heal, aura, ctx) => applyChange(engine, [heal, aura], hooks.onIncomingHeal[aura.id]?.(ctx, heal))
+      step: (heal, aura, ctx) =>
+        applyChange(engine, [heal, aura, ctx.bearer], hooks.onIncomingHeal[aura.id]?.(ctx, heal))
     }
   };
 };

@@ -9,6 +9,7 @@ import { forceKind } from './force-kind.ts';
 import type { Force, ForceSpec } from './force.ts';
 import type { Heal, HealSpec } from './heal.ts';
 import type { DamageProc, DamageProcKinds, HealProc, ProcAmount, SetHealthProc } from './procs.ts';
+import type { HealthCredit } from './system.ts';
 
 /** What the proc kinds reach: the pipelines. */
 export interface ProcPipelines<G extends DamageTypes> {
@@ -19,7 +20,7 @@ export interface ProcPipelines<G extends DamageTypes> {
   readonly heal: (spec: HealSpec<G>) => Heal<G>;
 
   /** Sets health, crediting a kill to `source`. */
-  readonly setHealth: (unit: G['bearer'], health: number, source: number) => ProcOutcome;
+  readonly setHealth: (unit: G['bearer'], health: number, credit: HealthCredit<G>) => ProcOutcome;
 
   /** The force pipeline. */
   readonly force: (spec: ForceSpec<G>) => Force<G>;
@@ -223,7 +224,7 @@ const setHealthKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines
 
     const health = typeof proc.health === 'number' ? proc.health : proc.health.share * engine.maxHealthOf(target);
 
-    return pipelines.setHealth(target, health, ctx.source);
+    return pipelines.setHealth(target, health, { attacker: creditedUnit(engine, ctx), source: ctx.source });
   },
 
   explain: (proc: SetHealthProc<G>) => ({

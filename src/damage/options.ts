@@ -1,6 +1,7 @@
 import type { AuraContext, AuraSystem } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import type { StatId, StatTable, StatView } from '../modifiers/index.ts';
+import type { ProcSystem } from '../procs/index.ts';
 import type { Blow } from './blow.ts';
 import type { DamageCues } from './cues.ts';
 import type { BlowStop, DamageTypes, RollSlot } from './damage-types.ts';
@@ -106,6 +107,12 @@ export interface DamageHost<G extends DamageTypes> {
    */
   readonly unitOf?: (source: number) => G['bearer'] | undefined;
 
+  /**
+   * The proc system, whose depth cap each death rebases (`rebase`, `restoreBase`): what a death sets off through procs
+   * (a death burst) nests afresh, so a chain of kills is capped by `maxKillChain`. Deaths share the proc cap when absent.
+   */
+  readonly procs?: Pick<ProcSystem<G>, 'rebase' | 'restoreBase'>;
+
   /** Runs procs an aura damage hook returned (`onLethal`, `onDealt`): wire it to `procSystem.runAura`. */
   readonly run?: (procs: readonly G['proc'][], ctx: AuraContext<G>) => void;
 
@@ -114,6 +121,12 @@ export interface DamageHost<G extends DamageTypes> {
 
   /** Takes a dead unit out of the world, last in the death pipeline. */
   readonly remove?: (unit: G['bearer'], death: Death<G>) => void;
+
+  /**
+   * Whether a unit is out of play whatever its health says (killed outright, despawned): it takes no blow, heal or
+   * force, and dies no more. By health alone when absent.
+   */
+  readonly isGone?: (unit: G['bearer']) => boolean;
 }
 
 /** The heal pipeline's stats. */

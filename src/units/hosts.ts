@@ -37,8 +37,9 @@ export const syncHealth = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
  */
 export const damageHostOf = <G extends UnitTypes>(
   engine: UnitEngine<G>
-): Pick<DamageHost<G>, 'health' | 'setHealth' | 'maxHealth' | 'statsOf' | 'idOf' | 'unitOf' | 'remove'> => ({
+): Pick<DamageHost<G>, 'health' | 'setHealth' | 'maxHealth' | 'statsOf' | 'idOf' | 'unitOf' | 'remove' | 'isGone'> => ({
   health: (unit) => unitOf<G>(unit).health,
+  isGone: (unit) => unitOf<G>(unit).lifecycle !== 'alive',
 
   setHealth: (unit, health) => {
     unitOf<G>(unit).health = health;

@@ -134,9 +134,11 @@ export interface RollExplanation {
 const setHealthWith =
   <G extends DamageTypes>(engine: DamageEngine<G>) =>
   (unit: G['bearer'], health: number, credit: HealthCredit<G> = {}): ProcOutcome => {
-    const before = engine.host.health(unit);
+    if (!Number.isFinite(health)) {
+      throw new RangeError(`Health is set to a finite number; got ${health}.`);
+    }
 
-    if (engine.isDead(before)) {
+    if (engine.isDeadNow(unit)) {
       return PROC_SKIPPED;
     }
 
@@ -210,7 +212,7 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
     this.procKinds = createDamageProcKinds(engine, {
       hit: this.hit,
       heal,
-      setHealth: (unit, health, source) => setHealth(unit, health, { source }),
+      setHealth,
       force
     });
   }

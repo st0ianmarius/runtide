@@ -198,7 +198,10 @@ const checkBypass = <G extends DamageTypes>(engine: DamageEngine<G>, bypass: rea
   }
 };
 
-/** Runs a blow's stages, skipping those its kind or itself bypasses, until one ends it; then every after-stage. */
+/**
+ * Runs a blow's stages, skipping those its kind or itself bypasses, until one ends it; then every after-stage. A target
+ * that died of something else while the blow ran (a nested blow) ends it `skipped`, with no after-stages.
+ */
 const runBlowStages = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   runs: readonly BuiltInStage<G>[],
@@ -211,6 +214,14 @@ const runBlowStages = <G extends DamageTypes>(
   }
 
   for (let i = 0; i < afterFrom; i++) {
+    // A hook's nested blow (or a game stage) killed the target: the rest of this blow never happened.
+    if (i > 0 && !blow.hasKilled && engine.isDeadNow(blow.target)) {
+      blow.status = 'skipped';
+      blow.amount = 0;
+
+      return;
+    }
+
     const stop: BlowStop | undefined = skipsStage(engine, blow, i) ? undefined : runs[i]?.(engine, blow);
 
     if (stop !== undefined) {
