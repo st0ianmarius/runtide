@@ -16,6 +16,15 @@ describe('the fixed-step clock', () => {
     assert.equal(clock.time, 1);
   });
 
+  it('starts at a saved tick, and refuses one that is not whole from 0', () => {
+    const clock = createClock({ dt: 0.5, tick: 40 });
+
+    clock.step();
+    assert.deepEqual([clock.tick, clock.time, clock.stampAt(1)], [41, 20.5, 43]);
+    assert.throws(() => createClock({ dt: 0.5, tick: -1 }), /whole tick from 0/);
+    assert.throws(() => createClock({ dt: 0.5, tick: 1.5 }), /whole tick from 0/);
+  });
+
   it('refuses a step that is not positive and finite', () => {
     assert.throws(() => createClock({ dt: 0 }), RangeError);
     assert.throws(() => createClock({ dt: Number.POSITIVE_INFINITY }), RangeError);
