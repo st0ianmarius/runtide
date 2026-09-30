@@ -12,11 +12,10 @@ import type { AuraDamageHooks } from './damage-hooks.ts';
  * - `extend`: the new length is added to what is left.
  * - `stack`: one more stack (or the application's count), up to `maxStacks`, and the clock restarts.
  * - `highest`: the clock becomes the longer of what is left and the new length; a shorter one changes nothing.
- * - `keep`: the clock and stacks stay as they are (only the value merges): a top-up.
  * - `independent`: every application is its own instance with its own clock, `maxStacks` of them at most (at the
  *   cap the one with least time left makes way, the first of equals).
  */
-export type AuraStacking = 'refresh' | 'extend' | 'stack' | 'highest' | 'keep' | 'independent';
+export type AuraStacking = 'refresh' | 'extend' | 'stack' | 'highest' | 'independent';
 
 /** What a re-application brings, as a stacking rule sees it. */
 export interface IncomingAura {
@@ -65,8 +64,7 @@ export type AuraChange = 'applied' | 'refreshed' | 'expired' | 'removed' | 'stat
 
 /**
  * Why a change happened: the operation (or the step of an application) that caused it, WoW's aura remove mode and
- * more. `cleanse` and `evict` are the removals an application makes before it lands; `tick` covers expiries, beats
- * and `expiresWhen`.
+ * more. `cleanse` and `evict` are the removals an application makes before it lands; `tick` covers expiries and beats.
  */
 export type AuraCause =
   | 'apply'
@@ -195,17 +193,8 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   /** Whether it is removed when its source is gone (`sourceGone`). */
   readonly boundToSource?: boolean;
 
-  /** Whether its modifiers count right now; they always do when absent. Read at every fold. */
-  readonly activeWhile?: (bearer: G['bearer']) => boolean;
-
-  /** Whether it ends now, tested on every tick of its clock after the beats: a game's own expiry rule. */
-  readonly expiresWhen?: (ctx: AuraContext<G>) => boolean;
-
   /** A clock rescale on its edges. */
   readonly rescale?: AuraRescale<G>;
-
-  /** Procs run on every application that lands (a resource grant), before its lifecycle events. */
-  readonly grants?: readonly G['proc'][];
 
   /**
    * The event listeners it owns: active exactly while it is on its bearer. The aura system never reads
@@ -235,7 +224,7 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   /** An instance changed: its clock set again, its stacks or its value changed. */
   readonly onRefreshed?: AuraHook<G>;
 
-  /** Its clock ran out, or `expiresWhen` said so. */
+  /** Its clock ran out. */
   readonly onExpired?: AuraHook<G>;
 
   /** It was taken off early: removed, cleansed, spent, evicted or ended by a state. */

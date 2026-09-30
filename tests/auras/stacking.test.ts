@@ -8,7 +8,7 @@ const defs = {
   prolong: aura({ duration: 2, stacking: 'extend' }),
   rend: aura({ duration: 5, stacking: 'stack', maxStacks: 3 }),
   chill: aura({ duration: 2, stacking: 'highest' }),
-  ward: aura({ duration: 10, stacking: 'keep', value: 20, merge: 'add' }),
+  ward: aura({ duration: 10, stacking: () => undefined, value: 20, merge: 'add' }),
   echo: aura({ duration: 3, stacking: 'independent', maxStacks: 2 }),
   mark: aura({ duration: 6, perSource: true }),
   first: aura({ duration: 6, credit: 'first' }),
@@ -88,7 +88,7 @@ describe('stacking rules (a re-application on the instance already there)', () =
     assert.equal(auras.remaining(u, id.chill), 2);
   });
 
-  it('keep leaves the clock alone and only merges the value (a top-up)', () => {
+  it('a rule answering nothing leaves the clock alone and only merges the value (a top-up)', () => {
     const { auras, id, unit, run } = makeGame(defs);
     const u = unit();
 

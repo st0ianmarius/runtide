@@ -10,7 +10,7 @@ import { SheetCaches } from './build-sheet.ts';
 import { compileModifiers } from './compile-modifiers.ts';
 import type { StatView } from './compiled.ts';
 import { explainSheetStat, type StatExplanation } from './explain.ts';
-import { foldStat, scopedProduct } from './fold.ts';
+import { foldStat } from './fold.ts';
 import type { Modifier, ModifierList } from './modifier.ts';
 import { compileShared, SharedLists } from './shared.ts';
 import { type FoldRead, type FoldTables, type HeldGate, Sheet, sheetOf, type StatSheet } from './sheet.ts';
@@ -88,9 +88,6 @@ export interface ModifierSystem<Host, S extends string, C extends string, V exte
    */
   readonly resolve: (sheet: StatSheet, stat: StatId, read?: FoldRead<Host>) => number;
 
-  /** The product of a stat's live scoped multipliers for a read, in source order. */
-  readonly scopedProduct: (sheet: StatSheet, stat: StatId, read?: FoldRead<Host>) => number;
-
   /** A stat view of a sheet for one read, for scaled values and curves. Make it once and keep it. */
   readonly view: (sheet: StatSheet, read?: FoldRead<Host>) => StatView;
 
@@ -156,19 +153,6 @@ const foldFor = <Host>(sheet: Sheet<Host>, stat: StatId, read: FoldRead<Host> | 
   sheet.view.read = read;
 
   const value = foldStat(sheet, stat);
-
-  sheet.view.read = previous;
-
-  return value;
-};
-
-/** The scoped product of a built sheet's stat for a read. */
-const productFor = <Host>(sheet: Sheet<Host>, stat: StatId, read: FoldRead<Host> | undefined): number => {
-  const previous = sheet.view.read;
-
-  sheet.view.read = read;
-
-  const value = scopedProduct(sheet, stat);
 
   sheet.view.read = previous;
 
@@ -251,7 +235,6 @@ export const createModifierSystem = <
     },
 
     resolve: (sheet, stat, read) => foldFor(built(sheet), stat, read),
-    scopedProduct: (sheet, stat, read) => productFor(built(sheet), stat, read),
     explainStat: (sheet, stat, read) => explainFor(built(sheet), stat, read),
 
     view: (sheet, read) => ({

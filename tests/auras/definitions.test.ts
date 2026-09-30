@@ -31,7 +31,7 @@ describe('defineAuras', () => {
       stun: aura({ duration: 2, stacking: (): undefined => undefined, ownerOnly: true, perSource: true }),
     });
 
-    assert.deepEqual(Array.from(registry.columns.stacking), [2, 6]);
+    assert.deepEqual(Array.from(registry.columns.stacking), [2, 5]);
     assert.deepEqual(Array.from(registry.columns.maxStacks), [300, 1]);
     assert.deepEqual(Array.from(registry.columns.merge), [2, 0]);
     assert.deepEqual(Array.from(registry.columns.flags), [0, 9]);

@@ -12,7 +12,6 @@ const defs = {
   flash: aura({ duration: 0 }),
   cooldown: aura({}),
   scaled: aura({ duration: (bearer) => bearer.hp / 50 }),
-  fading: aura({ duration: 'infinite', value: 3, expiresWhen: (ctx) => ctx.aura.value <= 0 }),
 };
 
 /** A one-aura system on a 1/60 s clock, and a bearer. */
@@ -111,32 +110,6 @@ describe('clocks and stamps', () => {
     u.hp = 200;
     auras.apply(u, id.scaled);
     assert.equal(auras.remaining(u, id.scaled), 4);
-  });
-
-  it("ends an aura by its own rule on a tick of its clock (a game's own expiry)", () => {
-    const { auras, id, unit, run } = makeGame(defs);
-    const u = unit();
-
-    auras.apply(u, id.fading);
-    auras.spendValue(u, id.fading, 1);
-    run(u, 1);
-    assert.equal(auras.has(u, id.fading), true);
-    auras.spendValue(u, id.fading, 2);
-    assert.equal(auras.has(u, id.fading), false, 'spent to 0 without keepWhenDepleted, it is removed at once');
-  });
-
-  it('tests the expiry rule only on ticks of its own clock', () => {
-    const { auras, id, unit, run } = makeGame({
-      held: aura({ duration: 'infinite', clock: 'motion', expiresWhen: () => true }),
-    });
-
-    const u = unit();
-
-    auras.apply(u, id.held);
-    run(u, 3);
-    assert.equal(u.auras.list.length, 1);
-    run(u, 1, 'motion');
-    assert.equal(u.auras.list.length, 0);
   });
 
   it('sets the clock again with refresh, to a length or the aura own', () => {

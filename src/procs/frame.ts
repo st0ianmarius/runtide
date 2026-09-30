@@ -24,7 +24,7 @@ export interface ReusedApplication<G extends ProcTypes> {
   source: number | undefined;
 
   /** Its stacking override. */
-  stacking: 'refresh' | 'extend' | 'stack' | 'highest' | 'keep' | undefined;
+  stacking: 'refresh' | 'extend' | 'stack' | 'highest' | undefined;
 
   /** Its payload. */
   payload: G['payload'] | undefined;

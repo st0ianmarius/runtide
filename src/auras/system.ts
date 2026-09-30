@@ -270,7 +270,6 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
 
   const clockNames = Object.keys(options.clocks).filter((key): key is G['clock'] => Object.hasOwn(options.clocks, key));
   const clockIds = recordOf(clockNames, (name) => clockNames.indexOf(name));
-  const activeWhile = registry.hooks.activeWhile;
 
   const system: AuraSystem<G> = {
     registry,
@@ -287,11 +286,7 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
       },
     },
 
-    createState: (stateOptions = {}) =>
-      new AuraSet<G>(tables.clockNames.length, {
-        isSilent: stateOptions.isSilent === true,
-        activeWhile,
-      }),
+    createState: (stateOptions = {}) => new AuraSet<G>(tables.clockNames.length, stateOptions.isSilent === true),
 
     tick: (bearer, clock) => {
       tickAuras(engine, bearer, clockIds[clock] ?? 0);

@@ -11,7 +11,7 @@ const defs = {
   rend: aura({ duration: 3, stacking: 'stack', maxStacks: 4, tags: ['poison'] }),
   echo: aura({ duration: 1, stacking: 'independent', maxStacks: 3, tags: ['magic'] }),
   shell: aura({ duration: 4, stacking: 'highest', merge: 'max', keepWhenDepleted: true }),
-  well: aura({ duration: 5, stacking: 'keep', merge: 'add' }),
+  well: aura({ duration: 5, stacking: () => undefined, merge: 'add' }),
   mark: aura({ duration: 2, perSource: true, merge: 'replace', tags: ['stun'] }),
   purge: aura({ duration: 1, removes: ['poison', 'magic'] }),
 };

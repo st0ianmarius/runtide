@@ -25,7 +25,7 @@ export interface ApplyAuraProc<G extends ProcTypes> extends ProcShape {
   readonly value?: number;
 
   /** A built-in stacking rule for this application only. */
-  readonly stacking?: 'refresh' | 'extend' | 'stack' | 'highest' | 'keep';
+  readonly stacking?: 'refresh' | 'extend' | 'stack' | 'highest';
 
   /** What the aura's `onLand` hook receives. */
   readonly payload?: G['payload'];

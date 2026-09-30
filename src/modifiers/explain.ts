@@ -148,15 +148,9 @@ const derivedOf = <Host>(sheet: Sheet<Host>, stat: StatId): DerivedContribution[
     };
   });
 
-/** The stacks an entry counts with, a scoped multiplier counting none when the read skips them. */
-const stacksOf = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number =>
-  sheet.view.read?.scopedMuls === 'skip' && entry.scope >= 0 && entry.modifier.op === 'mul'
-    ? 0
-    : liveStacks(sheet, entry);
-
 /** The contributions of a list of entries, in fold order. */
 const contributions = <Host>(sheet: Sheet<Host>, entries: readonly Entry<Host>[]): Contribution[] =>
-  entries.map((entry) => contribution(sheet, entry, stacksOf(sheet, entry)));
+  entries.map((entry) => contribution(sheet, entry, liveStacks(sheet, entry)));
 
 /** The fold's total from its explained parts, in the fold's own float order. */
 const totalOf = (parts: Omit<StatExplanation, 'kind' | 'stat' | 'clamp' | 'total'>): number => {

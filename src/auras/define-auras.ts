@@ -12,7 +12,7 @@ import type { AuraDef, AuraStacking } from './aura-def.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 
 /** The built-in stacking rules, by column code; a game's own rule is `CUSTOM_STACKING`. */
-export const STACKINGS: readonly AuraStacking[] = ['refresh', 'extend', 'stack', 'highest', 'keep', 'independent'];
+export const STACKINGS: readonly AuraStacking[] = ['refresh', 'extend', 'stack', 'highest', 'independent'];
 
 /** The column code of a stacking rule written as a function. */
 export const CUSTOM_STACKING = STACKINGS.length;
@@ -52,8 +52,6 @@ export const AURA_HOOKS = [
   'onExpired',
   'onRemoved',
   'onState',
-  'activeWhile',
-  'expiresWhen',
   'onIgnore',
   'onIncomingDamage',
   'onLethal',
@@ -195,8 +193,6 @@ const buildHooks = <G extends AuraTypes>(slots: readonly (AuraDef<G> | undefined
   onExpired: tableOf(slots, 'onExpired'),
   onRemoved: tableOf(slots, 'onRemoved'),
   onState: tableOf(slots, 'onState'),
-  activeWhile: tableOf(slots, 'activeWhile'),
-  expiresWhen: tableOf(slots, 'expiresWhen'),
   onIgnore: tableOf(slots, 'onIgnore'),
   onIncomingDamage: tableOf(slots, 'onIncomingDamage'),
   onLethal: tableOf(slots, 'onLethal'),

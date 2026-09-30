@@ -68,35 +68,15 @@ const countBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer
   }
 };
 
-/** Whether an aura's own expiry rule (`expiresWhen`) ends it now. */
-const isEndedByRule = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], item: AuraItem<G>): boolean => {
-  const rule = engine.registry.hooks.expiresWhen[item.id];
-
-  if (rule === undefined) {
-    return false;
-  }
-
-  const context = engine.events.take(bearer, item);
-
-  try {
-    return rule(context);
-  } finally {
-    engine.events.give();
-  }
-};
-
-/** Takes off every aura that ran out, in list order, each raising `expired`; own rules are tested on their clock. */
-const expire = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], clock: number): void => {
+/** Takes off every aura that ran out, in list order, each raising `expired`. */
+const expire = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer']): void => {
   const set = setOf<G>(bearer);
   let expired = 0;
 
   for (let i = 0; i < set.items.length; i++) {
     const item = set.items[i];
 
-    const isEnded =
-      item !== undefined && (engine.isDue(set, item) || (item.clock === clock && isEndedByRule(engine, bearer, item)));
-
-    if (isEnded) {
+    if (item !== undefined && engine.isDue(set, item)) {
       takeOff(engine, bearer, { index: i, change: EXPIRED });
       i -= 1;
       expired += 1;
@@ -109,8 +89,7 @@ const expire = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'],
 };
 
 /**
- * Whether a step of `clock` has anything to do on a bearer: an aura beating on it or with its own expiry rule
- * on it, or any aura that has run out. Asked before the step opens its events, so a bearer holding only
+ * Whether a step of `clock` has anything to do on a bearer: an aura beating on it, or any aura that has run out. Asked before the step opens its events, so a bearer holding only
  * auras with nothing due (a passive, a long buff) costs a scan of its list and nothing more.
  */
 const hasWork = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, clock: number): boolean => {
@@ -123,11 +102,7 @@ const hasWork = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, cl
       continue;
     }
 
-    if (
-      engine.tables.beatClock[item.id] === clock ||
-      (item.clock === clock && engine.registry.hooks.expiresWhen[item.id] !== undefined) ||
-      engine.isDue(set, item)
-    ) {
+    if (engine.tables.beatClock[item.id] === clock || engine.isDue(set, item)) {
       return true;
     }
   }
@@ -138,7 +113,7 @@ const hasWork = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, cl
 /**
  * Steps a bearer's clock once: the clock's count rises; in list order the beats counting on it come due, and
  * the beats are dispatched; then every aura that
- * has run out (or whose own rule says so) expires, in list order, and those events are dispatched. So a beat due on
+ * has run out expires, in list order, and those events are dispatched. So a beat due on
  * the tick an aura runs out fires before its expiry.
  */
 export const tickAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], clock: number): void => {
@@ -162,6 +137,6 @@ export const tickAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
   }
 
   engine.events.finish(from);
-  expire(engine, bearer, clock);
+  expire(engine, bearer);
   engine.events.close(from);
 };

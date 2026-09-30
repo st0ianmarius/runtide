@@ -63,16 +63,13 @@ export class AuraEvents<G extends AuraTypes> {
   readonly #items: (AuraItem<G> | undefined)[] = [];
   readonly #handles: number[] = [];
   readonly #weights: number[] = [];
-  readonly #ops: number[] = [];
   readonly #causes: AuraCause[] = [];
-  readonly #openOps: number[] = [];
   readonly #openCauses: AuraCause[] = [];
   readonly #retired: (AuraItem<G> | undefined)[] = [];
   readonly #contexts: MutableContext<G>[] = [];
   readonly #heard: readonly Bitset[];
   #contextDepth = 0;
   #dispatching = 0;
-  #serial = 0;
 
   // The columns and the retired list keep their storage between operations and are filled by index up to these
   // counts: shrinking an array to 0 drops its backing store, so every operation would allocate it again.
@@ -93,10 +90,8 @@ export class AuraEvents<G extends AuraTypes> {
     );
   }
 
-  /** Opens an operation with its cause: its events carry both. Returns where its events start; close it with it. */
+  /** Opens an operation with its cause, which its events carry. Returns where its events start; close it with it. */
   open(cause: AuraCause): number {
-    this.#serial += 1;
-    this.#openOps.push(this.#serial);
     this.#openCauses.push(cause);
 
     return this.#count;
@@ -112,7 +107,6 @@ export class AuraEvents<G extends AuraTypes> {
     try {
       this.finish(from);
     } finally {
-      this.#openOps.pop();
       this.#openCauses.pop();
     }
   }
@@ -205,7 +199,6 @@ export class AuraEvents<G extends AuraTypes> {
     this.#items[i] = item;
     this.#handles[i] = item.handle;
     this.#weights[i] = 1;
-    this.#ops[i] = this.#openOps.at(-1) ?? 0;
     this.#causes[i] = this.#openCauses.at(-1) ?? 'apply';
     this.#count = i + 1;
 
@@ -313,7 +306,6 @@ export class AuraEvents<G extends AuraTypes> {
 
     payload.change = CHANGES[this.#codes[i] ?? 0] ?? 'applied';
     payload.cause = this.#causes[i] ?? 'apply';
-    payload.op = this.#ops[i] ?? 0;
     payload.bearer = bearer;
     payload.aura = item;
     payload.state = this.#codes[i] === STATE_ENTERED ? this.#stateOf(i) : undefined;

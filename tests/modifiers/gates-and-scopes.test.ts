@@ -95,23 +95,4 @@ describe('scopes', () => {
     assert.equal(system.resolve(sheet, id.damage, { scope: spark }), 1.7999999999999998);
     assert.equal(system.resolve(sheet, id.chainJumps, { scope: spark }), 2);
   });
-
-  it('let a caller place the scoped multipliers itself: skip them in the fold, read them as a product', () => {
-    const { system, sources, id } = game();
-    const sheet = system.createSheet();
-    const scope = createBitset([1]);
-
-    system.setSource(sheet, sources.id.talents, [system.compile([mul('attackSpeed', 1.1)])]);
-    system.setSource(sheet, sources.id.stance, [system.compile([mul('attackSpeed', 1.3, { scope: 1 })])]);
-
-    const shared = system.resolve(sheet, id.attackSpeed, { scope, scopedMuls: 'skip' });
-    const scoped = system.scopedProduct(sheet, id.attackSpeed, { scope });
-
-    assert.equal(shared, 1.1);
-    assert.equal(scoped, 1.3);
-    assert.equal(system.scopedProduct(sheet, id.attackSpeed), 1, 'no scope, no scoped multiplier');
-    // The caller's own order is kept: base / scoped / shared differs in the last bit from base / shared / scoped.
-    assert.equal(1 / scoped / shared, 0.6993006993006992);
-    assert.equal(1 / shared / scoped, 0.6993006993006993);
-  });
 });

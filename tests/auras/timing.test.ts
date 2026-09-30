@@ -78,7 +78,7 @@ describe('aura lengths in whole steps', () => {
 });
 
 describe('causes and operations', () => {
-  it('tell every change why it happened, and which call made it', () => {
+  it('tell every change why it happened', () => {
     const bus = createBus({ aura: createAuraEvent<TestAuras> });
     const heard: string[] = [];
     const causes: string[] = [];
@@ -111,7 +111,7 @@ describe('causes and operations', () => {
     const u = unit();
 
     bus.on(bus.kind.aura, (event: AuraEvent<TestAuras>) => {
-      heard.push(`${event.op}:${event.change}:${event.cause}`);
+      heard.push(`${event.change}:${event.cause}`);
     });
 
     auras.apply(u, id.echo);
@@ -129,21 +129,21 @@ describe('causes and operations', () => {
     auras.remove(u, id.watched);
 
     assert.deepEqual(heard, [
-      '1:applied:apply',
-      '2:applied:apply',
-      '3:removed:evict',
-      '3:applied:apply',
-      '4:removed:remove',
-      '4:removed:remove',
-      '5:applied:apply',
-      '6:removed:cleanse',
-      '6:applied:apply',
-      '7:applied:apply',
-      '8:removed:spendStacks',
-      '9:applied:apply',
-      '11:expired:tick',
-      '12:applied:apply',
-      '13:removed:remove',
+      'applied:apply',
+      'applied:apply',
+      'removed:evict',
+      'applied:apply',
+      'removed:remove',
+      'removed:remove',
+      'applied:apply',
+      'removed:cleanse',
+      'applied:apply',
+      'applied:apply',
+      'removed:spendStacks',
+      'applied:apply',
+      'expired:tick',
+      'applied:apply',
+      'removed:remove',
     ]);
     assert.deepEqual(causes, ['tick', 'remove']);
   });

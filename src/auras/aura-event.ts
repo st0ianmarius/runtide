@@ -14,9 +14,6 @@ export interface AuraEvent<G extends AuraTypes = AuraTypes> {
   /** Why: the operation behind it (a dispel is `removeByTag`, an expiry `tick`, an eviction `evict`). */
   cause: AuraCause;
 
-  /** The serial of that operation: events of one call share it (a removal of several instances, one spend). */
-  op: number;
-
   /** The bearer; set on every raise. */
   bearer: G['bearer'] | undefined;
 
@@ -31,7 +28,6 @@ export interface AuraEvent<G extends AuraTypes = AuraTypes> {
 export const createAuraEvent = <G extends AuraTypes = AuraTypes>(): AuraEvent<G> => ({
   change: 'applied',
   cause: 'apply',
-  op: 0,
   bearer: undefined,
   aura: undefined,
   state: undefined,

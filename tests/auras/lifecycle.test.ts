@@ -23,7 +23,6 @@ const defs = {
   scald: aura({ duration: 3, tags: ['poison'], blockedBy: ['immune'], ...logged('scald') }),
   purge: aura({ duration: 1, removes: ['poison'], ...logged('purge') }),
   echo: aura({ duration: 3, stacking: 'independent', maxStacks: 2, ...logged('echo') }),
-  gift: aura({ duration: 1, grants: ['reroll', 'gold'], ...logged('gift') }),
 };
 
 describe('lifecycle hooks and their raise rules', () => {
@@ -108,15 +107,6 @@ describe('lifecycle hooks and their raise rules', () => {
     assert.equal(log.filter((line) => line.startsWith('expired')).length, 3);
   });
 
-  it('run grants on every application that lands, before its lifecycle events', () => {
-    const { auras, id, unit, log } = makeGame(defs);
-    const u = unit();
-
-    auras.apply(u, id.gift);
-    auras.apply(u, id.gift);
-    assert.deepEqual(log, ['reroll@1', 'gold@1', 'applied:gift@1', 'reroll@1', 'gold@1', 'refreshed:gift@1']);
-  });
-
   it('hand the hook an aura already off its bearer for expired and removed', () => {
     const seen: [boolean, number][] = [];
 
@@ -143,7 +133,6 @@ describe('lifecycle hooks and their raise rules', () => {
     const { auras, id, unit, run, log } = makeGame(defs);
     const u = unit(1, true);
 
-    auras.apply(u, id.gift);
     auras.apply(u, id.renew);
     auras.remove(u, id.renew);
     run(u, 100);

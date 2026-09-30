@@ -42,26 +42,18 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
   readonly clocks: Float64Array;
   readonly isSilent: boolean;
   changes = 0;
-  readonly #activeWhile: readonly (((bearer: G['bearer']) => boolean) | undefined)[];
 
-  constructor(
-    clocks: number,
-    options: {
-      readonly isSilent: boolean;
-      readonly activeWhile: readonly (((bearer: G['bearer']) => boolean) | undefined)[];
-    },
-  ) {
+  constructor(clocks: number, isSilent: boolean) {
     this.clocks = new Float64Array(clocks);
-    this.isSilent = options.isSilent;
-    this.#activeWhile = options.activeWhile;
+    this.isSilent = isSilent;
   }
 
   get list(): readonly ActiveAura[] {
     return this.items;
   }
 
-  /** The stacks of `id` summed over its instances, or 0 while its `activeWhile` says its modifiers do not count. */
-  stacksFor(bearer: G['bearer'], id: number): number {
+  /** The stacks of `id` summed over its instances. */
+  stacksFor(id: number): number {
     const items = this.items;
     let stacks = 0;
 
@@ -73,9 +65,7 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
       }
     }
 
-    const activeWhile = stacks > 0 ? this.#activeWhile[id] : undefined;
-
-    return activeWhile === undefined || activeWhile(bearer) ? stacks : 0;
+    return stacks;
   }
 }
 
@@ -98,8 +88,7 @@ export const setOf = <G extends AuraTypes>(bearer: AuraBearer): AuraSet<G> => {
  * modifiers do not count: the stacks report a modifier system reads its aura gates through
  * (`createModifierSystem({ …, stacks: auraStacks })`), so an aura's modifiers count exactly while it is held.
  */
-export const auraStacks = (bearer: AuraBearer, gate: number): number =>
-  setOf<AuraTypes>(bearer).stacksFor(bearer, gate);
+export const auraStacks = (bearer: AuraBearer, gate: number): number => setOf<AuraTypes>(bearer).stacksFor(gate);
 
 /**
  * The auras a bearer holds, in registry order: the held report a modifier system walks its aura gates through

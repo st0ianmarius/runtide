@@ -31,7 +31,7 @@ const FRESH: ApplyResult = Object.freeze({ applied: true, fresh: true, changed: 
 /** A re-application that changed the instance. */
 const CHANGED: ApplyResult = Object.freeze({ applied: true, fresh: false, changed: true });
 
-/** A re-application that changed nothing (a losing `highest`, a `keep` with no new value). */
+/** A re-application that changed nothing (a losing `highest`). */
 const UNCHANGED: ApplyResult = Object.freeze({ applied: true, fresh: false, changed: false });
 
 /** The instance an application lands on: the one shared instance, or the source's own; none for `independent`. */
@@ -166,27 +166,10 @@ const checkSeconds = <G extends AuraTypes>(engine: AuraEngine<G>, id: AuraId, se
   }
 };
 
-/** Runs the grants of an application that landed. */
-const grant = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], item: AuraItem<G>): void => {
-  const grants = engine.registry.defs[item.id]?.grants;
-
-  if (grants === undefined || grants.length === 0 || setOf<G>(bearer).isSilent) {
-    return;
-  }
-
-  const context = engine.events.take(bearer, item);
-
-  try {
-    engine.events.run(grants, context);
-  } finally {
-    engine.events.give();
-  }
-};
-
 /**
  * Lands one application by its aura's rules (after the host's policy): a `blockedBy` tag turns it away before
- * anything else, `removes` cleanses next, then it lands fresh or on the instance already there; its grants run,
- * then its lifecycle events are dispatched.
+ * anything else, `removes` cleanses next, then it lands fresh or on the instance already there, then its lifecycle
+ * events are dispatched.
  */
 const landAura = <G extends AuraTypes>(
   engine: AuraEngine<G>,
@@ -212,16 +195,11 @@ const landAura = <G extends AuraTypes>(
 
   const existing = existingFor(engine, set, application);
   let result = FRESH;
-  let landed = existing;
 
   if (existing === undefined) {
-    landed = fresh(engine, bearer, { application, seconds });
+    fresh(engine, bearer, { application, seconds });
   } else {
     result = again(engine, bearer, { item: existing, application, seconds }) ? CHANGED : UNCHANGED;
-  }
-
-  if (landed !== undefined) {
-    grant(engine, bearer, landed);
   }
 
   engine.events.close(from);

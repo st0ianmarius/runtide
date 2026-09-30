@@ -29,9 +29,6 @@ const MUL = 1;
 /** A walk over a stat's caps. */
 const MIN = 2;
 
-/** A walk that takes only the scoped entries (a scoped product). */
-const SCOPED_ONLY = 4;
-
 /** A walk that only asks whether any entry counts: its value turns 1 on the first that does. */
 const ANY_LIVE = 8;
 
@@ -67,15 +64,6 @@ export const entryValue = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number
   return entry.value;
 };
 
-/** Whether the current walk takes an entry: a scoped product only scoped ones, a fold skipping scoped muls none. */
-const isTaken = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, how: number): boolean => {
-  if ((how & SCOPED_ONLY) !== 0) {
-    return entry.scope >= 0;
-  }
-
-  return entry.scope < 0 || (how & (3 | ANY_LIVE)) !== MUL || sheet.view.read?.scopedMuls !== 'skip';
-};
-
 /** What a counted entry lands with at `stacks` stacks: a stacked add, a stacked multiplier, or a cap. */
 const landedAt = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, stacks: number): number => {
   const value = entryValue(sheet, entry);
@@ -88,10 +76,10 @@ const landedAt = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, stacks: number):
   return op === 'mul' ? stackedMul(entry, value, stacks) : value;
 };
 
-/** One entry folded into the current walk's running value, when the walk takes it and it counts. */
+/** One entry folded into the current walk's running value, when it counts. */
 const step = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, value: number): number => {
   const how = sheet.how;
-  const stacks = isTaken(sheet, entry, how) ? liveStacks(sheet, entry) : 0;
+  const stacks = liveStacks(sheet, entry);
 
   if (stacks <= 0) {
     return value;
@@ -282,13 +270,11 @@ const foldAdds = <Host>(sheet: Sheet<Host>, adds: readonly Entry<Host>[], value:
 
 /** Every live multiplier applied to `value` one at a time, in source order (never pre-multiplied). */
 const foldMuls = <Host>(sheet: Sheet<Host>, muls: readonly Entry<Host>[], value: number): number => {
-  const skipsScoped = sheet.view.read?.scopedMuls === 'skip';
   let result = value;
 
   for (let i = 0; i < muls.length; i++) {
     const entry = muls[i];
-    const isSkipped = entry === undefined || entry.shared !== undefined || (skipsScoped && entry.scope >= 0);
-    const stacks = isSkipped ? 0 : liveStacks(sheet, entry);
+    const stacks = entry === undefined || entry.shared !== undefined ? 0 : liveStacks(sheet, entry);
 
     if (entry?.shared !== undefined) {
       result = walkShared(sheet, entry.shared, result);
@@ -342,20 +328,4 @@ export const foldStat = <Host>(sheet: Sheet<Host>, stat: number): number => {
   sheet.how = how;
 
   return clampStat(sheet, stat, value);
-};
-
-/**
- * The product of the live scoped multipliers of a stat, in source order (1 when there are none): the part a read with
- * `scopedMuls: 'skip'` leaves out, for a caller that applies it at its own place in its own formula.
- */
-export const scopedProduct = <Host>(sheet: Sheet<Host>, stat: number): number => {
-  const how = sheet.how;
-
-  sheet.how = MUL | SCOPED_ONLY;
-
-  const value = walk(sheet, stat, 1);
-
-  sheet.how = how;
-
-  return value;
 };

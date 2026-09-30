@@ -24,9 +24,6 @@ export interface FoldRead<Host> {
   /** The mask of the sources folded (`sourceMask`); every source when absent. */
   readonly sources?: number | undefined;
 
-  /** `skip` leaves out the scoped multipliers (not the scoped adds or caps), for a caller that places them itself. */
-  readonly scopedMuls?: 'fold' | 'skip' | undefined;
-
   /** A what-if: the gate reads this many stacks instead of the host's (+1 stack, or 0 for "without it"). */
   readonly whatIf?:
     | {

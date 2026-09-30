@@ -34,7 +34,6 @@ const game = (everyGate = false) => {
       maxStacks: 3,
       modifiers: [mul('speed', 1.07, { stacking: 'linear' })],
     }),
-    rage: aura({ duration: 10, modifiers: [mul('damage', 2)], activeWhile: (bearer) => bearer.hp > 0 }),
   });
 
   const auras = createAuraSystem({
@@ -89,18 +88,6 @@ describe('aura modifiers in the fold', () => {
     // Registry order (might, fury), then the late position: not application order, nor frenzy's registry slot.
     assert.equal(1.1 * 1.3 * 0.9, 1.2870000000000001);
     assert.equal(0.9 * 1.3 * 1.1, 1.2870000000000004, 'the reverse order differs in the last bit');
-  });
-
-  it('suppress an aura modifiers while its activeWhile says so, and nothing else', () => {
-    const { auras, id, modifiers, stats, unit, sheet } = game();
-    const u = unit();
-
-    auras.apply(u, id.rage);
-    assert.equal(modifiers.resolve(sheet, stats.id.damage, { host: u }), 2);
-    u.hp = 0;
-    assert.equal(modifiers.resolve(sheet, stats.id.damage, { host: u }), 1);
-    assert.equal(auras.has(u, id.rage), true);
-    assert.equal(auras.stacks(u, id.rage), 1);
   });
 
   it('answer a what-if read by gate without touching the bearer', () => {
