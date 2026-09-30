@@ -42,8 +42,8 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
   /**
    * The seconds until the clock tries again after a cast it pulled, from 0, read from the cast's report and the interval
    * read at the cast (Whirlwind's refusal spends the interval, a swing out of reach tries again next step, a refusal
-   * retries after 0.2 s). `autoNext` by default: a refusal for no target or out of reach, and an instant release that
-   * set nothing off (a swing that never went out), try on the next step; anything else waits the interval.
+   * retries after 0.2 s). `autoNext` by default: a refusal for no target or out of reach tries on the next step;
+   * anything else waits the interval.
    */
   readonly next?: {
     /** Reads the report; declared as a method so a function over a narrower caster still fits. */

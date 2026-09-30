@@ -7,18 +7,13 @@ import type { SpellCaster, SpellId, SpellTypes } from './spell-types.ts';
 
 /**
  * The default `next` of an `auto` clock: 0 (the next step) after a refusal for no target or out of reach (a
- * swing's reach polled every step, unless its `ready` hook holds it) and after an instant cast whose release set
- * nothing off (a swing that never went out); the interval after anything else, a refusal by the gates included. A
- * game's own `next` falls back to it for the cases it leaves alone.
+ * swing's reach polled every step, unless its `ready` hook holds it); the interval after anything else. A game's own
+ * `next` (a swing that never went out retried, `report.went === 0`) falls back to it for the cases it leaves alone.
  */
 export const autoNext = (report: CastReport, interval: number): number => {
   const { refusal } = report;
 
-  if (refusal === 'target' || refusal === 'range' || refusal === 'sight') {
-    return 0;
-  }
-
-  return refusal === undefined && report.hasReleased && report.status === 'ended' && report.went === 0 ? 0 : interval;
+  return refusal === 'target' || refusal === 'range' || refusal === 'sight' ? 0 : interval;
 };
 
 /** The seconds until an `auto` clock tries again after a cast: its activation's `next`, else `autoNext`, checked. */

@@ -181,13 +181,13 @@ describe('auto clocks', () => {
     assert.equal(asked, 4, 'a clock still counting asks nothing');
   });
 
-  it('retries an instant cast whose release set nothing off, or spends when the game says so', () => {
+  it('spends the interval after a cast whose release set nothing off, unless the game’s next retries it', () => {
     const game = autoGame({
-      whiff: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [] }),
-      stubborn: spell({
-        activation: { kind: 'auto', interval: 1, next: (_report, interval) => interval },
+      whiff: spell({
+        activation: { kind: 'auto', interval: 1, next: (report, interval) => (report.went === 0 ? 0 : interval) },
         release: () => [],
       }),
+      stubborn: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [] }),
       windup: spell({
         activation: { kind: 'auto', interval: 1 },
         timeline: { windup: { seconds: 0.5 } },
