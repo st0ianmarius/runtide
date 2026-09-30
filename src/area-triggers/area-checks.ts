@@ -59,10 +59,6 @@ const checkModes = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
     fail(name, "its anchor is 'world' or 'owner'.");
   }
 
-  if (!isOneOf(def.insert, ['after-parent'])) {
-    fail(name, "its insert is 'after-parent' when present.");
-  }
-
   const slot = def.tickIn ?? 0;
 
   if (!Number.isInteger(slot) || slot < 0) {

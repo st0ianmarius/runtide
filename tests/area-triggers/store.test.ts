@@ -184,7 +184,7 @@ describe('lifetime and expiry', () => {
 });
 
 describe('the tick order', () => {
-  /** Kinds that log their name as they tick; `a` spawns an after-parent `child` and a plain `b` on its first frame. */
+  /** Kinds that log their name as they tick; `a` spawns a `child` and a `b` on its first frame. */
   const kinds = {
     a: logged({
       lifetime: 'spent',
@@ -210,7 +210,6 @@ describe('the tick order', () => {
     }),
     child: logged({
       lifetime: 'spent',
-      insert: 'after-parent',
 
       frame: (c) => {
         c.host.log.push(`child${c.id}`);
@@ -230,7 +229,7 @@ describe('the tick order', () => {
     }),
   };
 
-  it('steps kind by kind in registry order, each in creation order, children right after their parent', () => {
+  it('steps kind by kind in registry order, each in creation order', () => {
     const game = makeSpellGame({}, { areaTriggers: kinds });
     const owner = game.unit(1);
 
@@ -242,40 +241,13 @@ describe('the tick order', () => {
     game.log.length = 0;
     game.step();
     game.areaTriggers.step();
-    assert.deepEqual(game.log, ['a2', 'child4', 'child6', 'a3', 'child7', 'child9', 'b1', 'b5', 'b8']);
-  });
-
-  it('places a new child after its parent’s earlier children, and after the parent when they are gone', () => {
-    const game = makeSpellGame({}, { areaTriggers: kinds });
-    const owner = game.unit(1);
-    const children: AreaTriggerHandle[] = [];
-
-    game.areaTriggers.spawn(game.areaId.b, { owner, at: vec2(0, 0) });
-    game.areaTriggers.spawn(game.areaId.a, { owner, at: vec2(0, 0) });
-    game.areaTriggers.spawn(game.areaId.a, { owner, at: vec2(0, 0) });
-    game.step();
-    game.areaTriggers.step();
-    game.areaTriggers.query({ kind: game.areaId.child }, children);
-    game.areaTriggers.despawn(children[1] ?? NO_AREA_TRIGGER);
-    game.areaTriggers.despawn(children[2] ?? NO_AREA_TRIGGER);
-    game.areaTriggers.despawn(children[3] ?? NO_AREA_TRIGGER);
-
-    for (let i = 0; i < 2; i++) {
-      game.step();
-      game.areaTriggers.step();
-    }
-
-    game.log.length = 0;
-    game.step();
-    game.areaTriggers.step();
-    assert.deepEqual(game.log, ['a2', 'child4', 'child10', 'a3', 'child11', 'b1', 'b5', 'b8']);
+    assert.deepEqual(game.log, ['a2', 'a3', 'b1', 'b5', 'b8', 'child4', 'child6', 'child7', 'child9']);
   });
 
   it('steps an owner’s area triggers in the order the whole walk steps them, whatever owners they sit among', () => {
     const quiet = (name: string) =>
       logged({
         lifetime: 'spent',
-        ...(name === 'child' ? { insert: 'after-parent' as const } : {}),
 
         frame: (c) => {
           c.host.log.push(`${name}${c.id}@${c.owner.id}`);

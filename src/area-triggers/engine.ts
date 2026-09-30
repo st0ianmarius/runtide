@@ -42,7 +42,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   readonly pauseMasks: Int32Array;
   readonly pool: Pool<AreaTrigger<G>>;
 
-  /** The head and tail of each kind's tick-order list (its own and its after-parent children). */
+  /** The head and tail of each kind's tick-order list. */
   readonly tickHeads: (AreaTrigger<G> | undefined)[];
   readonly tickTails: (AreaTrigger<G> | undefined)[];
 
@@ -231,7 +231,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.kindPrev = undefined;
     area.ownerNext = undefined;
     area.ownerPrev = undefined;
-    area.lastChild = undefined;
     area.placer.clear();
     this.pool.release(toHandle<AreaTrigger<G>>(area.handle));
   }

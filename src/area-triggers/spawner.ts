@@ -3,7 +3,7 @@ import { type CastHandle, NO_CAST } from '../spells/index.ts';
 import type { AnyAreaTriggerDef, Lifetime } from './area-def.ts';
 import { type AreaTrigger, NO_SCALED, NO_STATS } from './area-trigger.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
-import { AFTER_PARENT, ANCHOR_OWNER } from './define-area-triggers.ts';
+import { ANCHOR_OWNER } from './define-area-triggers.ts';
 import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
 import { placeShape } from './frame.ts';
@@ -103,7 +103,6 @@ const fill = <G extends AreaTriggerTypes>(
   area.isSuspended = false;
   area.parent = parent?.handle ?? NO_AREA_TRIGGER;
   area.slot = registry.columns.slot[area.kind] ?? 0;
-  area.listKind = area.kind;
   area.state = registry.hooks.state[area.kind]?.();
 };
 
@@ -146,7 +145,7 @@ const admitLimit = <G extends AreaTriggerTypes>(
 const enter = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  [def, parent]: readonly [AnyAreaTriggerDef<G>, AreaTrigger<G> | undefined],
+  def: AnyAreaTriggerDef<G>,
 ): void => {
   const { registry } = engine;
   const flags = registry.columns.flags[area.kind] ?? 0;
@@ -161,7 +160,7 @@ const enter = <G extends AreaTriggerTypes>(
   }
 
   openLedgers(engine, area);
-  linkTick(engine, area, (flags & AFTER_PARENT) === 0 ? undefined : parent);
+  linkTick(engine, area);
   linkKind(engine, area);
   engine.count(area.owner, [area.kind, 1]);
   placeShape(engine, area);
@@ -174,8 +173,7 @@ const enter = <G extends AreaTriggerTypes>(
 
 /**
  * Spawns an area trigger of a kind: its credit and cast captured, the limit applied, its entity id
- * allocated before `init`, linked into the tick order (after its parent when its kind says so), and flying at once for
- * `now` seconds when asked. Returns its handle, or `NO_AREA_TRIGGER` when the limit refused it.
+ * allocated before `init`, linked last into its kind's tick order, and flying at once for `now` seconds when asked. Returns its handle, or `NO_AREA_TRIGGER` when the limit refused it.
  */
 export const spawnArea = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -198,7 +196,7 @@ export const spawnArea = <G extends AreaTriggerTypes>(
     return NO_AREA_TRIGGER;
   }
 
-  enter(engine, area, [def, parent]);
+  enter(engine, area, def);
 
   const { handle } = area;
 

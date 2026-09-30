@@ -110,9 +110,6 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   /** Its tick slot. */
   slot = 0;
 
-  /** The kind whose tick-order list it sits in: its own, or its parent's when it ticks after its parent. */
-  listKind = 0;
-
   /** The next and previous in its tick-order list. */
   tickNext: AreaTrigger<G> | undefined = undefined;
   tickPrev: AreaTrigger<G> | undefined = undefined;
@@ -124,9 +121,6 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   /** The next and previous of its owner's in its tick-order list, in that list's order (`stepOwner` walks these). */
   ownerNext: AreaTrigger<G> | undefined = undefined;
   ownerPrev: AreaTrigger<G> | undefined = undefined;
-
-  /** The last child that ticks right after it, which the next such child follows. */
-  lastChild: AreaTrigger<G> | undefined = undefined;
 
   /** The tick it last stepped on, so one spawned or stepped at once this tick waits for the next. */
   steppedTick = -1;

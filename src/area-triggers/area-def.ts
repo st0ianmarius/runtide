@@ -217,9 +217,6 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   /** The tick slot it is stepped in; the first slot when absent. */
   readonly tickIn?: TickSlotId;
 
-  /** Where a child it spawns first ticks: in its own kind's place (the default), or right after its parent. */
-  readonly insert?: 'after-parent';
-
   /**
    * Its shape, relative to itself: the origin is its position and headings turn with its heading (a lane running ahead
    * is `lane({ length, width, dir: 0 })`); a function of it is read again at every frame.

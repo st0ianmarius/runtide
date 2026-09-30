@@ -20,7 +20,6 @@ const KINDS = () =>
         shape: lane({ length: 2, width: 4, dir: 0 }),
         lifetime: 'spent',
         tickIn: SLOTS.id.late,
-        insert: 'after-parent',
         expiry: 'clip',
         state: () => ({ passes: 0 }),
         move: () => undefined,
@@ -55,7 +54,7 @@ describe('the area trigger registry', () => {
     const { columns } = KINDS();
 
     assert.deepEqual([...columns.slot], [0, 1, 0, 0]);
-    assert.deepEqual([...columns.flags], [0, 2, 0, 5]);
+    assert.deepEqual([...columns.flags], [0, 0, 0, 3]);
     assert.deepEqual([...columns.lifetime], [4, Number.POSITIVE_INFINITY, 0, Number.NaN]);
     assert.deepEqual([...columns.lifetimeKind], [0, 2, 0, 3]);
     assert.deepEqual([...columns.expiry], [0, 2, 0, 0]);

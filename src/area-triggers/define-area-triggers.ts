@@ -17,11 +17,8 @@ import type { AreaTagTable } from './tags.ts';
 /** Flag bit: its shape is a function, read again at every frame. */
 const SHAPE_FUNCTION = 1;
 
-/** Flag bit: a child of it ticks right after its parent. */
-export const AFTER_PARENT = 2;
-
 /** Flag bit: it sits on its owner. */
-export const ANCHOR_OWNER = 4;
+export const ANCHOR_OWNER = 2;
 
 /** The lifetime kinds, in the order of their codes in the `lifetimeKind` column. */
 const LIFETIME_KINDS = ['seconds', 'owner', 'spent', 'function'] as const;
@@ -119,9 +116,7 @@ const liveDef = <G extends AreaTriggerTypes>(
 
 /** The flag bits of a definition. */
 const flagsOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G>): number =>
-  (typeof def.shape === 'function' ? SHAPE_FUNCTION : 0) |
-  (def.insert === 'after-parent' ? AFTER_PARENT : 0) |
-  (def.anchor === 'owner' ? ANCHOR_OWNER : 0);
+  (typeof def.shape === 'function' ? SHAPE_FUNCTION : 0) | (def.anchor === 'owner' ? ANCHOR_OWNER : 0);
 
 /** The lifetime in seconds: infinite for `owner` and `spent`, NaN for a function. */
 const secondsOf = <G extends AreaTriggerTypes>(def: AnyAreaTriggerDef<G>): number => {
