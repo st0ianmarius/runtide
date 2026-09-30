@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { run } from '../../src/procs/index.ts';
-import { type AnySpellDef, type CastHandle, lockBefore } from '../../src/spells/index.ts';
+import { type AnySpellDef, type CastHandle, lockBefore, NO_CAST } from '../../src/spells/index.ts';
 import { type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
 
 /**
@@ -151,6 +151,37 @@ describe('stage order', () => {
     game.advance(4);
     assert.equal(game.log.filter((line) => line === 'tick@1').length, 2);
     assert.equal(game.log.filter((line) => line === 'pulse@1').length, 10);
+  });
+
+  it('beats no more once a beat has finished its channel, though more were due in the step', () => {
+    let handle = NO_CAST;
+
+    const game = timeline({
+      burst: spell({
+        activation: { kind: 'trigger' },
+        timeline: {
+          channel: {
+            seconds: 1,
+            every: 0.1,
+
+            tick: () => {
+              game.spells.finish(handle, 'blocked');
+
+              return [mark('pulse')];
+            },
+          },
+          recover: { seconds: 1 },
+        },
+        release: () => undefined,
+      }),
+    });
+
+    handle = game.spells.cast(game.a, game.id.burst).handle;
+    game.advance(2);
+    assert.deepEqual(
+      game.log.filter((line) => line === 'pulse@1'),
+      ['pulse@1'],
+    );
   });
 
   it('breaks a channel whose breakIf holds, and reads the recovery with the outcome known', () => {

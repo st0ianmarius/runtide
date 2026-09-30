@@ -71,6 +71,17 @@ const beat = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void
   }
 };
 
+/** Runs the beats of a channel due this step, the leftover carried. */
+const beatsDue = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, every: number): void => {
+  cast.beat -= engine.clock.dt;
+
+  // A beat may finish, cancel or pause its own cast: the beats still due then wait, or never come.
+  while (isRunOut(cast.beat) && cast.stage === 'channel' && cast.pauses === 0) {
+    beat(engine, cast);
+    cast.beat += every;
+  }
+};
+
 /**
  * One channel step: `breakIf` may break it (then its recovery), the clock counts down, the beats due run (several when
  * a beat is shorter than the step, the leftover carried; every step when it has none; the last on its last step), and
@@ -87,12 +98,7 @@ const stepChannel = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>
   const every = engine.plans[cast.spell]?.every ?? 0;
 
   if (every > 0) {
-    cast.beat -= engine.clock.dt;
-
-    while (isRunOut(cast.beat) && !isEnded(cast)) {
-      beat(engine, cast);
-      cast.beat += every;
-    }
+    beatsDue(engine, cast, every);
   } else {
     beat(engine, cast);
   }
