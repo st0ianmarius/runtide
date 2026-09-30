@@ -93,14 +93,22 @@ const collect = <G extends AreaTriggerTypes>(
   out: (AreaTrigger<G> | undefined)[]
 ): number => {
   const tag = query.tag === undefined ? -1 : tagIdOf(engine, query.tag);
+  // An owner's own lists keep the kinds' tick order, so a query for one owner walks only its triggers.
+  const owned = query.owner === undefined ? undefined : engine.ownerOf(query.owner);
   let count = 0;
+
+  if (query.owner !== undefined && owned === undefined) {
+    return 0;
+  }
 
   for (const kind of engine.registry.ids) {
     if (!isKindKept(engine, [query, kind, tag])) {
       continue;
     }
 
-    for (let walk = engine.kindHeads[kind]; walk !== undefined; walk = walk.kindNext) {
+    const head = owned === undefined ? engine.kindHeads[kind] : owned.heads[kind];
+
+    for (let walk = head; walk !== undefined; walk = owned === undefined ? walk.kindNext : walk.ownerNext) {
       if (isKept(walk, query)) {
         out[count] = walk;
         count += 1;

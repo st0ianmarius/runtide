@@ -47,8 +47,12 @@ class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
   /** Its index in the live list. */
   index = -1;
 
+  /** Who owns it, for a withdrawal: its cast's caster, else its self. */
+  owner: G['bearer'];
+
   constructor(self: G['bearer']) {
     this.self = self;
+    this.owner = self;
     this.target = self;
   }
 }
@@ -83,6 +87,9 @@ export class DelayedProcs<G extends SpellTypes> {
 
   /** The lists waiting, in no order, each at its `index`: what `withdraw` walks. */
   readonly #live: Delayed<G>[] = [];
+
+  /** How many lists wait per owner: a withdrawal for an owner with none (most deaths) walks nothing. */
+  readonly #owned = new Map<G['bearer'], number>();
   #pending: G['bearer'] | undefined = undefined;
 
   /** The delayed list landing now, which a `due` delay counts from; none outside a landing. */
@@ -133,13 +140,7 @@ export class DelayedProcs<G extends SpellTypes> {
     record.anchor = parent?.anchor ?? engine.clock.tick;
     record.offset = (parent?.offset ?? 0) + spec.seconds;
     record.slot = spec.slot ?? parent?.slot ?? 0;
-    record.cast = engine.castFor(ctx);
-    record.index = this.#live.length;
-    this.#live.push(record);
-
-    if (record.cast !== undefined) {
-      record.cast.holds += 1;
-    }
+    this.#list(record, engine.castFor(ctx));
 
     const { dt } = engine.clock;
     const wheel = this.#wheels[record.slot] ?? missing(`tick slot ${record.slot}`);
@@ -188,10 +189,14 @@ export class DelayedProcs<G extends SpellTypes> {
     const live = this.#live;
     let withdrawn = 0;
 
+    if (!this.#owned.has(owner)) {
+      return 0;
+    }
+
     for (let i = live.length - 1; i >= 0; i--) {
       const record = live[i];
 
-      if (record !== undefined && (record.cast?.caster ?? record.self) === owner) {
+      if (record?.owner === owner) {
         this.#free(record);
         withdrawn += 1;
       }
@@ -228,9 +233,30 @@ export class DelayedProcs<G extends SpellTypes> {
     this.#release(record);
   }
 
+  /** Puts a list in the live list, held by its cast (if any), and counts it for its owner. */
+  #list(record: Delayed<G>, cast: Cast<G> | undefined): void {
+    record.cast = cast;
+    record.owner = cast?.caster ?? record.self;
+    record.index = this.#live.length;
+    this.#live.push(record);
+    this.#owned.set(record.owner, (this.#owned.get(record.owner) ?? 0) + 1);
+
+    if (cast !== undefined) {
+      cast.holds += 1;
+    }
+  }
+
   /** Takes a list out of the live list, moving the last one into its place. */
   #unlist(record: Delayed<G>): void {
     const live = this.#live;
+    const left = (this.#owned.get(record.owner) ?? 1) - 1;
+
+    if (left > 0) {
+      this.#owned.set(record.owner, left);
+    } else {
+      this.#owned.delete(record.owner);
+    }
+
     const last = live.pop();
 
     if (last !== undefined && last !== record) {
