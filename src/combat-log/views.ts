@@ -80,6 +80,9 @@ export interface HealView<Unit, Spell> {
   /** What the target was too full to take. */
   readonly overheal: number;
 
+  /** What a heal absorb took out of it (a wound's `onIncomingHeal`). */
+  readonly absorbed: number;
+
   /** How it ended. */
   readonly status: string;
 }

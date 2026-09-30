@@ -57,26 +57,50 @@ export interface CueEchoes {
   readonly clear: () => void;
 }
 
-/** Creates an empty echo ring over a cue registry, holding the latest `capacity` predicted events (64 by default). */
+/**
+ * Creates an empty echo ring over a cue registry, with room for `capacity` predicted events awaiting their echoes (64
+ * by default); it doubles rather than drop one still waiting.
+ */
 export const createCueEchoes = (registry: CueRegistry, capacity = 64): CueEchoes => {
   if (!Number.isInteger(capacity) || capacity < 1) {
     throw new RangeError(`Cue echoes need a whole capacity from 1; got ${capacity}.`);
   }
 
-  const cues = new Float64Array(capacity).fill(-1);
-  const owners = new Float64Array(capacity);
-  const keys = new Float64Array(capacity);
+  let cues = new Float64Array(capacity).fill(-1);
+  let owners = new Float64Array(capacity);
+  let keys = new Float64Array(capacity);
   let next = 0;
+
+  // The next free slot from `next` on; the ring doubles when every slot waits on its echo, so none is lost.
+  const freeSlot = (): number => {
+    for (let i = 0; i < cues.length; i++) {
+      const slot = (next + i) % cues.length;
+
+      if (cues[slot] === -1) {
+        return slot;
+      }
+    }
+
+    const size = cues.length;
+
+    cues = Float64Array.from({ length: size * 2 }, (_slot, i) => cues[i] ?? -1);
+    owners = Float64Array.from({ length: size * 2 }, (_slot, i) => owners[i] ?? 0);
+    keys = Float64Array.from({ length: size * 2 }, (_slot, i) => keys[i] ?? 0);
+
+    return size;
+  };
 
   const isNoted = (event: CueEvent): boolean => registry.columns.isPredicted[event.cue] === 1 && event.key !== 0;
 
   return {
     note: (event) => {
       if (isNoted(event)) {
-        cues[next] = event.cue;
-        owners[next] = event.owner;
-        keys[next] = event.key;
-        next = (next + 1) % capacity;
+        const slot = freeSlot();
+
+        cues[slot] = event.cue;
+        owners[slot] = event.owner;
+        keys[slot] = event.key;
+        next = (slot + 1) % cues.length;
       }
     },
 
@@ -85,7 +109,7 @@ export const createCueEchoes = (registry: CueRegistry, capacity = 64): CueEchoes
         return false;
       }
 
-      for (let i = 0; i < capacity; i++) {
+      for (let i = 0; i < cues.length; i++) {
         if (cues[i] === event.cue && keys[i] === event.key && owners[i] === event.owner) {
           cues[i] = -1;
 
@@ -99,7 +123,7 @@ export const createCueEchoes = (registry: CueRegistry, capacity = 64): CueEchoes
     settle: (key, unconfirmed) => {
       let settled = 0;
 
-      for (let i = 0; i < capacity; i++) {
+      for (let i = 0; i < cues.length; i++) {
         if ((cues[i] ?? -1) >= 0 && (keys[i] ?? 0) <= key) {
           unconfirmed?.(cues[i] ?? -1, owners[i] ?? 0, keys[i] ?? 0);
           cues[i] = -1;

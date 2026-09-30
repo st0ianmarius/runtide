@@ -83,6 +83,7 @@ export const recordHeal = <Unit, Spell>(
   entry.aura = heal.aura ?? -1;
   entry.amount = heal.amount;
   entry.base = heal.base;
+  entry.absorbed = heal.absorbed;
   entry.overflow = heal.overheal;
   entry.reason = HEAL_CODES.indexOf(heal.status);
   recording.commit();

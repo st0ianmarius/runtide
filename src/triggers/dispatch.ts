@@ -169,6 +169,11 @@ const isLucky = <G extends TriggerTypes, Host>(
 ): boolean => {
   const chance = typeof trigger.chance === 'number' ? trigger.chance : Math.min(1, Math.max(0, trigger.chance(frame)));
 
+  // No draw outside (0, 1), as a proc's chance: a chance read as 0 (or NaN) must not shift the stream.
+  if (!(chance > 0)) {
+    return false;
+  }
+
   return chance >= 1 || (parts.rollChance?.(chance, frame) ?? roll(parts.random) < chance);
 };
 

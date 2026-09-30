@@ -219,6 +219,25 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
     assert.equal(explainTriggers(game.triggers, game.id.focus)[0]?.chance, 'live');
   });
 
+  it('draws nothing for a chance read as 0 or not a number', () => {
+    const random = scripted([0.5]);
+
+    const game = makeGame(
+      {
+        dud: aura({ duration: 9, triggers: [{ on: 'hit', chance: () => 0, do: [mark('dud')] }] }),
+        odd: aura({ duration: 9, triggers: [{ on: 'hit', chance: () => Number.NaN, do: [mark('odd')] }] })
+      },
+      { triggers: { random } }
+    );
+
+    const u = game.unit(1);
+
+    game.auras.apply(u, game.id.dud);
+    game.auras.apply(u, game.id.odd);
+    game.hit(u);
+    assert.deepEqual([game.log, random.count()], [[], 0]);
+  });
+
   it('checks its cooldown before rolling, so a failed roll never starts it and a running one rolls nothing', () => {
     const random = scripted([0.9, 0.1, 0.1]);
 

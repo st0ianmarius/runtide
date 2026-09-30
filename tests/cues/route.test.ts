@@ -114,7 +114,7 @@ describe('predicted cue echoes', () => {
     assert.equal(echoes.isEcho(fireCue(server, { cue: CUES.id.step, key: 5 }, OWNED)), true);
   });
 
-  it('notes nothing without a key or for a cue that is not predicted, and forgets the oldest past its capacity', () => {
+  it('notes nothing without a key or for a cue that is not predicted, and grows past its capacity, losing none', () => {
     const echoes = createCueEchoes(CUES, 2);
     const out = createCueBuffer(CUES);
     const fire = (key: number) => fireCue(out, { cue: CUES.id.step, key }, OWNED);
@@ -132,7 +132,7 @@ describe('predicted cue echoes', () => {
 
     assert.deepEqual(
       [1, 2, 3].map((key) => echoes.isEcho(fire(key))),
-      [false, true, true]
+      [true, true, true]
     );
 
     echoes.note(fire(4));
