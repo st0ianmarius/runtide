@@ -17,6 +17,11 @@ A game plugs in by defining its resources as plain objects and functions, regist
 
 spellweave is built for MMO-like games in general, not around any one game. Every behaviour it ships is a documented contract with a sensible default. Where a game needs a rule of its own (a countdown epsilon, a stacking or merge rule, how a derived stat measures its gain, a curve), it writes that rule in its own code on a declared escape hatch: hooks, pluggable rules and functions, custom curves, host interfaces and typed `ext` slots. The framework grows a hatch when a game needs one, never a mode for one game.
 
+## Documentation
+
+[Game integration guides](docs/README.md) begin with a detailed [modifiers guide](docs/modifiers.md), including runnable
+examples for equipment, conditions, scopes, aura stacks, curves, scaling, snapshots, and stat-change policies.
+
 ## Not published
 
 spellweave is `"private": true` and is never published to npm or any other registry. Consume it straight from this repository (a git dependency or a local folder); see §I.8 of the plan.
