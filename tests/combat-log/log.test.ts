@@ -205,6 +205,37 @@ describe('outcomes in the log (§I.7.1 F14)', () => {
 });
 
 describe('the damage meter (§II.6 D2)', () => {
+  it("codes a cast's end and an area trigger's by the game's outcomes and reasons, after the framework's", () => {
+    const game = makeSpellGame(
+      {
+        charge: spell({
+          activation: { kind: 'trigger' },
+          timeline: { channel: { seconds: 2 } },
+          release: () => undefined,
+        }),
+      },
+      { areaTriggers: { pool: { shape: circle(1), lifetime: 5 } } },
+    );
+
+    const { bus } = game;
+    const hero = game.unit(1);
+
+    const log = createCombatLog<Game['bearer'], Game['spell']>({
+      bus,
+      clock: game.clock,
+      idOf: (unit) => unit.id,
+      spells: { end: bus.kind.spellEnd, outcomes: game.spells.registry.outcomes },
+      areaTriggers: { ended: bus.kind.areaEnded, reasons: game.areaTriggers.registry.endReasons },
+    });
+
+    const entry = log.createEntry();
+
+    game.spells.finish(game.spells.cast(hero, game.id.charge).handle, 'blocked');
+    game.areaTriggers.despawn(game.areaTriggers.spawn(game.areaId.pool, { owner: hero, at: vec2(0, 0) }), 'phase');
+    assert.equal(log.read(0, entry) && entry.kind === 'castEnd' ? entry.reason : -1, 3);
+    assert.equal(log.read(1, entry) && entry.kind === 'areaEnded' ? entry.reason : -1, 6);
+  });
+
   it('sums damage and healing by credit, and damage taken by target, ranked', () => {
     const game = logGame();
     const log = logOf(game);

@@ -111,11 +111,20 @@ const collect = <G extends AreaTriggerTypes>(
   return count;
 };
 
+/** Throws unless a reason is one the registry knows: the framework's, or one of the game's `endReasons`. */
+export const checkReason = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, reason: string): void => {
+  if (engine.registry.reasonCodes[reason] === undefined) {
+    throw new RangeError(
+      `Area triggers: unknown end reason ${reason}; name the game's reasons in the registry's endReasons.`,
+    );
+  }
+};
+
 /** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended (§II.6 W5). */
 export const despawnWhere = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   query: AreaQuery<G>,
-  reason: EndReason,
+  reason: EndReason<G>,
 ): number => {
   const handles: AreaTriggerHandle[] = [];
   const count = engine.queries.query(query, handles);

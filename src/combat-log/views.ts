@@ -213,6 +213,9 @@ export interface SpellLogEvents<Unit> {
 
   /** Casts ending. */
   readonly end?: EventKind<SpellEventView<Unit>>;
+
+  /** The cast outcomes an end is coded by (`spellRegistry.outcomes`, with the game's own); `CAST_OUTCOMES` when absent. */
+  readonly outcomes?: readonly string[];
 }
 
 /** The event kinds of an area trigger system the log records. */
@@ -222,4 +225,7 @@ export interface AreaLogEvents<Unit> {
 
   /** Area triggers ending. */
   readonly ended?: EventKind<AreaEventView<Unit>>;
+
+  /** The end reasons an end is coded by (`areaRegistry.endReasons`, with the game's own); `END_REASONS` when absent. */
+  readonly reasons?: readonly string[];
 }

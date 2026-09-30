@@ -10,6 +10,7 @@ import { AuraInside } from './area-auras.ts';
 import type { AreaTriggerContext, EndReason, Position } from './area-def.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
+import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import type { AreaLedger } from './delivery-def.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import type { Ledger } from './ledgers.ts';
@@ -35,6 +36,9 @@ export interface AreaServices<G extends AreaTriggerTypes> {
 
   /** The clock's step. */
   readonly dt: number;
+
+  /** The registry, whose end reasons a hook's `despawn` may name. */
+  readonly registry: AreaTriggerRegistry<G>;
 
   /** Applies one proc for an area trigger. */
   readonly applyFor: (area: AreaTrigger<G>, proc: Proc<G>) => ProcOutcome;
@@ -135,7 +139,7 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   steppedTick = -1;
 
   /** Why a hook asked it to end, applied once the hook returns; `undefined` when none did. */
-  pending: EndReason | undefined = undefined;
+  pending: EndReason<G> | undefined = undefined;
 
   /** Whether it is ending or ended: nothing runs for it again. */
   isEnding = false;
@@ -205,7 +209,11 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
     return key;
   };
 
-  readonly despawn = (reason: 'self' | 'spent' = 'self'): void => {
+  readonly despawn = (reason: 'self' | 'spent' | G['endReason'] = 'self'): void => {
+    if (this.#services.registry.reasonCodes[reason] === undefined) {
+      throw new RangeError(`Area triggers: unknown end reason ${reason}.`);
+    }
+
     this.pending ??= reason;
   };
 

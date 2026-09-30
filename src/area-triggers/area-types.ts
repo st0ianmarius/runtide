@@ -23,4 +23,10 @@ export interface AreaTriggerTypes extends SpellTypes {
 
   /** The game's own fields on an area trigger (`c.ext`), made by the system's `createExt` (§I.5.6 hatch 4). */
   readonly areaExt: unknown;
+
+  /**
+   * The game's own reasons an area trigger ends (`phase`: a boss phase clearing its hazards), which it despawns them
+   * with and lists in the area trigger registry's `endReasons`; `never` when it has none.
+   */
+  readonly endReason: string;
 }

@@ -14,7 +14,7 @@ export interface AreaTriggerEvent<G extends AreaTriggerTypes> {
   areaTrigger: AreaTriggerContext<G> | undefined;
 
   /** Why it ended, for an end; `undefined` otherwise. */
-  reason: EndReason | undefined;
+  reason: EndReason<G> | undefined;
 }
 
 /** Makes an empty area trigger event payload: the factory a game registers its area trigger events on its bus with. */
@@ -39,7 +39,7 @@ export interface AreaTriggerEvents<G extends AreaTriggerTypes> {
   readonly ended?: EventKind<AreaTriggerEvent<G>>;
 }
 
-/** The end reasons, in the code order a `reason` filter's argument resolves to. */
+/** The framework's end reasons, in code order; an area trigger registry's `endReasons` add the game's after them. */
 export const END_REASONS: readonly EndReason[] = Object.freeze([
   'expired',
   'spent',
@@ -61,11 +61,6 @@ const codeIn =
 
     return id;
   };
-
-/** The end reasons by name. */
-const REASON_CODES: Readonly<Record<string, number>> = Object.fromEntries(
-  END_REASONS.map((reason, code) => [reason, code]),
-);
 
 /**
  * An area trigger event kind as a trigger event (§II.3.7): about the area trigger's owner, with the filters `kind` (an
@@ -94,8 +89,8 @@ export const areaTriggerEvent = <G extends AreaTriggerTypes & TriggerTypes>(
       },
 
       reason: {
-        test: (event: AreaTriggerEvent<G>, code: number) => event.reason === END_REASONS[code],
-        resolve: codeIn(REASON_CODES, 'end reason'),
+        test: (event: AreaTriggerEvent<G>, code: number) => event.reason === registry.endReasons[code],
+        resolve: codeIn(registry.reasonCodes, 'end reason'),
       },
     }),
   });

@@ -22,10 +22,10 @@ export type CastStage = 'windup' | 'channel' | 'recover' | 'ended';
 
 /**
  * How a cast ended: `released` (its payload went out and its channel ran its course), `cancelled` (an interrupt, a
- * death, `spells.cancel`, or a windup's `cancelIf`), `broken` (a channel's `breakIf`: a tether's target left), or
- * `blocked` (the game ended it so with `spells.finish`: a charge into a wall).
+ * death, `spells.cancel`, or a windup's `cancelIf`), `broken` (a channel's `breakIf`: a tether's target left), or one
+ * of the game's own (`blocked`: it ended a charge into a wall so with `spells.finish`).
  */
-export type CastOutcome = 'released' | 'cancelled' | 'broken' | 'blocked';
+export type CastOutcome<G extends SpellTypes = SpellTypes> = 'released' | 'cancelled' | 'broken' | G['castOutcome'];
 
 /** What a spell's `stats` is: a table of scaled values (§II.3.13), or a function of the cast (§I.5.6 hatch 2). */
 export type StatsSource<G extends SpellTypes> =
@@ -166,7 +166,7 @@ export interface SpellContext<
   readonly isPaused: boolean;
 
   /** How it ended, or is ending: `undefined` until its payload went out or it was stopped. */
-  readonly outcome: CastOutcome | undefined;
+  readonly outcome: CastOutcome<G> | undefined;
 
   /** The tick it started on. */
   readonly startTick: number;
@@ -222,7 +222,7 @@ export interface SpellCues<G extends SpellTypes, Source extends StatsSource<G>, 
   tick?(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target): CueSpec | undefined;
 
   /** The cast ends. */
-  end?(this: void, ctx: SpellContext<G, Source, Target, State>, outcome: CastOutcome): CueSpec | undefined;
+  end?(this: void, ctx: SpellContext<G, Source, Target, State>, outcome: CastOutcome<G>): CueSpec | undefined;
 }
 
 /**
@@ -298,7 +298,12 @@ export interface SpellDef<
   ): ProcReturn<G>;
 
   /** The cast ended, however it did. */
-  onEnd?(this: void, ctx: SpellContext<G, Source, Target, State>, outcome: CastOutcome, out: ProcOut<G>): ProcReturn<G>;
+  onEnd?(
+    this: void,
+    ctx: SpellContext<G, Source, Target, State>,
+    outcome: CastOutcome<G>,
+    out: ProcOut<G>,
+  ): ProcReturn<G>;
 }
 
 /** Any spell of a game, whatever its stats, target and state: what a registry holds. */

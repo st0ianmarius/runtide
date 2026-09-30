@@ -13,7 +13,7 @@ export interface ForceSpec<G extends DamageTypes> {
   readonly strength: number;
 
   /** What it is; `knock` when absent. */
-  readonly kind?: ForceKind | undefined;
+  readonly kind?: ForceKind<G> | undefined;
 
   /** Who causes it, if anyone. */
   readonly attacker?: G['bearer'] | undefined;
@@ -47,7 +47,7 @@ export interface Force<G extends DamageTypes> extends ProcOutcome {
   readonly source: number;
 
   /** What it is. */
-  readonly kind: ForceKind;
+  readonly kind: ForceKind<G>;
 
   /** The strength it was asked for. */
   readonly base: number;
@@ -73,7 +73,7 @@ export class ForceRecord<G extends DamageTypes> implements Force<G> {
   target: G['bearer'];
   attacker: G['bearer'] | undefined = undefined;
   source = NO_SOURCE;
-  kind: ForceKind = 'knock';
+  kind: ForceKind<G> = 'knock';
   base = 0;
   amount = 0;
   from: Vec2 | undefined = undefined;

@@ -17,7 +17,7 @@ export interface SpellEvent<G extends SpellTypes> {
   hit: SpellHit<G> | undefined;
 
   /** How the cast ended, for an end; `undefined` otherwise. */
-  outcome: CastOutcome | undefined;
+  outcome: CastOutcome<G> | undefined;
 }
 
 /** Makes an empty spell event payload: the factory a game registers its spell events on its bus with. */
@@ -48,20 +48,21 @@ export interface SpellEvents<G extends SpellTypes> {
   readonly end?: EventKind<SpellEvent<G>>;
 }
 
-/** The outcomes, in the code order an `outcome` filter's argument resolves to. */
-export const CAST_OUTCOMES: readonly CastOutcome[] = Object.freeze(['released', 'cancelled', 'broken', 'blocked']);
+/** The framework's cast outcomes, in code order; a spell registry's `outcomes` add the game's after them. */
+export const CAST_OUTCOMES: readonly CastOutcome[] = Object.freeze(['released', 'cancelled', 'broken']);
 
-/** Resolves an outcome's name to its code. */
-const outcomeCode = (name: string): number => {
-  const names: readonly string[] = CAST_OUTCOMES;
-  const code = names.indexOf(name);
+/** Resolves an outcome's name to its code in a registry's outcomes. */
+const outcomeCode =
+  (outcomes: readonly string[]) =>
+  (name: string): number => {
+    const code = outcomes.indexOf(name);
 
-  if (code < 0) {
-    throw new RangeError(`unknown cast outcome ${name}.`);
-  }
+    if (code < 0) {
+      throw new RangeError(`unknown cast outcome ${name}.`);
+    }
 
-  return code;
-};
+    return code;
+  };
 
 /** Resolves a name to its id in one of a spell registry's tables. */
 const codeIn =
@@ -103,8 +104,8 @@ export const spellTriggerEvent = <G extends SpellTypes & TriggerTypes>(
       },
 
       outcome: {
-        test: (event: SpellEvent<G>, code: number) => event.outcome === CAST_OUTCOMES[code],
-        resolve: outcomeCode,
+        test: (event: SpellEvent<G>, code: number) => event.outcome === spells.outcomes[code],
+        resolve: outcomeCode(spells.outcomes),
       },
     }),
   });

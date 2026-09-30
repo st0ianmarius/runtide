@@ -8,7 +8,7 @@ import type { AreaEngine } from './engine.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import { createAreaTriggerProcKinds } from './proc-kinds.ts';
 import type { AreaTriggerProcKinds } from './procs.ts';
-import { type AreaQueries, type AreaQuery, despawnWhere } from './queries.ts';
+import { type AreaQueries, type AreaQuery, checkReason, despawnWhere } from './queries.ts';
 import { type AreaReplica, replicateAreas } from './replication.ts';
 import { spawnArea, type SpawnSpec } from './spawner.ts';
 import { stepSlot } from './stepper.ts';
@@ -61,13 +61,13 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
   readonly isLive: (handle: AreaTriggerHandle) => boolean;
 
   /** Ends a live area trigger now with a reason (`self` by default); false for one already gone. */
-  readonly despawn: (handle: AreaTriggerHandle, reason?: EndReason) => boolean;
+  readonly despawn: (handle: AreaTriggerHandle, reason?: EndReason<G>) => boolean;
 
   /** How many area triggers of a kind an owner has live. */
   readonly countOf: (owner: G['bearer'], kind: AreaTriggerId) => number;
 
   /** Ends every area trigger a query keeps, with a reason (`self` by default); returns how many ended (§II.6 W5). */
-  readonly despawnWhere: (query: AreaQuery<G>, reason?: EndReason) => number;
+  readonly despawnWhere: (query: AreaQuery<G>, reason?: EndReason<G>) => number;
 
   /**
    * Writes the replicated state of every live area trigger whose kind replicates its state into `out` from index 0
@@ -129,7 +129,9 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
 
   readonly isLive = (handle: AreaTriggerHandle): boolean => this.#engine.areaOf(handle) !== undefined;
 
-  readonly despawn = (handle: AreaTriggerHandle, reason: EndReason = 'self'): boolean => {
+  readonly despawn = (handle: AreaTriggerHandle, reason: EndReason<G> = 'self'): boolean => {
+    checkReason(this.#engine, reason);
+
     const area = this.#engine.areaOf(handle);
 
     if (area === undefined) {
@@ -143,8 +145,11 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
 
   readonly countOf = (owner: G['bearer'], kind: AreaTriggerId): number => this.#engine.countOf(owner, kind);
 
-  readonly despawnWhere = (query: AreaQuery<G>, reason: EndReason = 'self'): number =>
-    despawnWhere(this.#engine, query, reason);
+  readonly despawnWhere = (query: AreaQuery<G>, reason: EndReason<G> = 'self'): number => {
+    checkReason(this.#engine, reason);
+
+    return despawnWhere(this.#engine, query, reason);
+  };
 
   readonly replicate = (out: AreaReplica[]): number => replicateAreas(this.#engine, out);
 }

@@ -227,6 +227,12 @@ export interface Game extends AreaTriggerTypes, DamageTypes, TriggerTypes {
   /** The game's own reasons a gate refuses a cast. */
   readonly refusal: 'silenced' | 'noRage';
 
+  /** The game's own cast outcome: a charge into a wall. */
+  readonly castOutcome: 'blocked';
+
+  /** The game's own end reason: a boss phase clearing its hazards. */
+  readonly endReason: 'phase';
+
   /** Area trigger names are open strings. */
   readonly areaTriggerName: string;
 
@@ -469,11 +475,13 @@ export const makeSpellGame = <
   const registry = defineSpells<Game, Spell>(defs, {
     tags: SPELL_TAGS,
     stats: STATS,
+    outcomes: ['blocked'],
     ...(options.activations === undefined ? {} : { activations: options.activations }),
   });
 
   const areaRegistry = defineAreaTriggers<Game, Area>(options.areaTriggers ?? isAreaTable<Area>({}), {
     tags: AREA_TAGS,
+    endReasons: ['phase'],
   });
 
   const world = createMemoryWorld<Unit>({ bounds: { minX: -100, minZ: -100, maxX: 100, maxZ: 100 }, dt: STEP });

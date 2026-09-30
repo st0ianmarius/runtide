@@ -8,8 +8,9 @@ import {
   type Tombstone,
 } from '../core/index.ts';
 import { checkAreaTrigger } from './area-checks.ts';
-import type { AnyAreaTriggerDef } from './area-def.ts';
+import type { AnyAreaTriggerDef, EndReason } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
+import { END_REASONS } from './events.ts';
 import { type CompiledReplication, compileReplication } from './replication.ts';
 import type { AreaTagTable } from './tags.ts';
 
@@ -66,6 +67,15 @@ export interface AreaTriggerRegistry<
 
   /** Each kind's replication, resolved and checked at load (`events-only` for a tombstone). */
   readonly replication: readonly CompiledReplication[];
+
+  /**
+   * Every reason an area trigger can end, in code order (what a `reason` filter resolves to and the combat log codes
+   * by): the framework's (`END_REASONS`), then the game's own.
+   */
+  readonly endReasons: readonly EndReason<G>[];
+
+  /** Each end reason's code, by name. */
+  readonly reasonCodes: Readonly<Record<string, number>>;
 }
 
 /** What an area trigger registry is built with, beyond its definitions. */
@@ -73,12 +83,30 @@ export interface AreaTriggerRegistryOptions<G extends AreaTriggerTypes> {
   /** The game's area trigger tags; none when absent. */
   readonly tags?: AreaTagTable<G['areaTag']>;
 
+  /** The game's own end reasons (`phase`), which it may despawn area triggers with; none when absent. */
+  readonly endReasons?: readonly G['endReason'][];
+
   /** The pinned order of the names, when it is not the key order. */
   readonly order?: readonly string[];
 
   /** Whether to deep-freeze every definition; true by default. */
   readonly freeze?: boolean;
 }
+
+/** The framework's end reasons, then the game's; throws for a game reason named twice or like the framework's. */
+const endReasonsOf = <G extends AreaTriggerTypes>(own: readonly G['endReason'][] = []): readonly EndReason<G>[] => {
+  const all: EndReason<G>[] = [...END_REASONS];
+
+  for (const reason of own) {
+    if (all.includes(reason)) {
+      throw new RangeError(`Area triggers: the end reason ${reason} is named twice.`);
+    }
+
+    all.push(reason);
+  }
+
+  return Object.freeze(all);
+};
 
 /** Whether a registry entry is a definition, not the tombstone of a retired one. */
 const isDef = <G extends AreaTriggerTypes>(entry: AnyAreaTriggerDef<G> | Tombstone): entry is AnyAreaTriggerDef<G> =>
@@ -208,6 +236,7 @@ export const defineAreaTriggers = <G extends AreaTriggerTypes, const Name extend
 
   const slots = Object.freeze(base.names.map((name) => liveDef(byName.get(name))));
   const tagIds: Readonly<Record<string, number | undefined>> = tags.id;
+  const endReasons = endReasonsOf<G>(options.endReasons);
 
   return Object.freeze({
     ...base,
@@ -224,5 +253,7 @@ export const defineAreaTriggers = <G extends AreaTriggerTypes, const Name extend
     tags,
     tagSets: Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => tagIds[tag] ?? 0)))),
     replication: Object.freeze(slots.map((def, id) => compileReplication(base.names[id] ?? '?', def))),
+    endReasons,
+    reasonCodes: Object.freeze(Object.fromEntries(endReasons.map((reason, code) => [reason, code]))),
   });
 };

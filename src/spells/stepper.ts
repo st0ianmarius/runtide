@@ -223,8 +223,14 @@ export const cancelCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle:
 export const finishCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   handle: CastHandle,
-  outcome: Exclude<CastOutcome, 'cancelled'>,
+  outcome: Exclude<CastOutcome<G>, 'cancelled'>,
 ): boolean => {
+  if (outcome === 'cancelled' || !engine.registry.outcomes.includes(outcome)) {
+    throw new RangeError(
+      `A cast cannot finish as ${outcome}: name the game's outcomes in the spell registry's outcomes.`,
+    );
+  }
+
   const cast = running(engine, handle);
 
   if (cast === undefined || cast.stage === 'recover') {

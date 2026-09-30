@@ -25,10 +25,11 @@ import type { AreaReplication } from './replication.ts';
 
 /**
  * Why an area trigger ended (§II.6 W1): `expired` (its lifetime ran out), `spent` (its hit budget ran out), `self` (a
- * hook despawned it), `bound` (a bound condition failed), `replaced` (a newer one took its place under the limit), or
- * `source-gone` (its owner left the world).
+ * hook despawned it), `bound` (a bound condition failed), `replaced` (a newer one took its place under the limit),
+ * `source-gone` (its owner left the world), or one of the game's own, which it despawned it with.
  */
-export type EndReason = 'expired' | 'spent' | 'self' | 'bound' | 'replaced' | 'source-gone';
+export type EndReason<G extends AreaTriggerTypes = AreaTriggerTypes> =
+  'expired' | 'spent' | 'self' | 'bound' | 'replaced' | 'source-gone' | G['endReason'];
 
 /**
  * A function of an area trigger, declared as a method so a function over a narrower state still fits a registry of
@@ -141,8 +142,8 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** Its keyed-roll key: `(spawnTick, id, kind, targetId, index)` in a reused array, read at once. */
   readonly key: (targetId?: number, index?: number) => readonly number[];
 
-  /** Ends it once the running hook returns (§II.6 W1): as `self` by default, or `spent`. */
-  readonly despawn: (reason?: 'self' | 'spent') => void;
+  /** Ends it once the running hook returns (§II.6 W1): as `self` by default, `spent`, or one of the game's reasons. */
+  readonly despawn: (reason?: 'self' | 'spent' | G['endReason']) => void;
 
   /** The one unit its contacts may reach, when it is locked on one (§II.6 W3: a homing missile); none when absent. */
   readonly locked: G['bearer'] | undefined;
@@ -199,7 +200,7 @@ export interface AreaCues<G extends AreaTriggerTypes, State = unknown> {
   spawn?(this: void, c: AreaTriggerContext<G, State>): CueSpec | undefined;
 
   /** It ended (not for a silent end). */
-  end?(this: void, c: AreaTriggerContext<G, State>, reason: EndReason): CueSpec | undefined;
+  end?(this: void, c: AreaTriggerContext<G, State>, reason: EndReason<G>): CueSpec | undefined;
 }
 
 /** How long an area trigger lives: seconds, while its owner lives (`owner`), or until its hit budget is spent. */
@@ -321,7 +322,7 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   onExpire?(this: void, c: AreaTriggerContext<G, State>, out: ProcOut<G>): ProcReturn<G>;
 
   /** It ended, whatever the reason (§II.6 W1): where shared claims are released. */
-  onEnd?(this: void, c: AreaTriggerContext<G, State>, reason: EndReason, out: ProcOut<G>): ProcReturn<G>;
+  onEnd?(this: void, c: AreaTriggerContext<G, State>, reason: EndReason<G>, out: ProcOut<G>): ProcReturn<G>;
 }
 
 /** Any area trigger kind of a game, whatever its state: what a registry holds. */

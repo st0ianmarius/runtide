@@ -22,6 +22,9 @@ export interface DamageTypes extends ProcTypes {
 
   /** The game's own fields on a blow (§I.5.6 hatch 4), which the framework never reads. */
   readonly blowExt: unknown;
+
+  /** The game's own kinds of force (`fling`, `vortex`), which its stages and host tell apart; `never` for none. */
+  readonly forceKind: string;
 }
 
 /**
@@ -47,5 +50,8 @@ export type HealStatus = 'skipped' | 'blocked' | 'landed';
 /** How a force ended: `skipped` (no strength, a dead target), `ignored` (cancelled by a hook or stage), `landed`. */
 export type ForceStatus = 'skipped' | 'ignored' | 'landed';
 
-/** What a force is: a knockback away from its origin, a push along a direction, or a pull toward its origin. */
-export type ForceKind = 'knock' | 'push' | 'pull';
+/**
+ * What a force is: a knockback away from its origin, a push along a direction, a pull toward its origin, or one of
+ * the game's own.
+ */
+export type ForceKind<G extends DamageTypes = DamageTypes> = 'knock' | 'push' | 'pull' | G['forceKind'];

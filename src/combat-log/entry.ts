@@ -90,7 +90,7 @@ export interface CombatEntry {
 
   /**
    * A code for how it ended: a blow's status (`BLOW_STATUSES`), a heal's (`skipped`, `blocked`, `landed`), a cast end's
-   * outcome (`CAST_OUTCOMES`), an area trigger end's reason (`END_REASONS`); −1 for none.
+   * outcome (the log's cast outcomes), an area trigger end's reason (its end reasons); −1 for none.
    */
   readonly reason: number;
 }

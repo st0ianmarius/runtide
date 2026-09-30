@@ -62,7 +62,7 @@ export interface DespawnOwnedProc<G extends AreaTriggerTypes> extends ProcShape 
   readonly delayed?: 'withdraw' | 'keep';
 
   /** Why its area triggers end; `self` when absent. */
-  readonly reason?: EndReason;
+  readonly reason?: EndReason<G>;
 }
 
 /** The area trigger system's proc kinds, as a union: a game adds them to its proc union (`gameProc`). */

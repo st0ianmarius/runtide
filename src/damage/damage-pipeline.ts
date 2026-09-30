@@ -29,7 +29,7 @@ export interface Onward<G extends DamageTypes> {
 class KnockSpec<G extends DamageTypes> implements ForceSpec<G> {
   target: G['bearer'];
   strength = 0;
-  readonly kind: ForceKind = 'knock';
+  readonly kind: ForceKind<G> = 'knock';
   attacker: G['bearer'] | undefined = undefined;
   source: number | undefined = undefined;
   from: Vec2 | undefined = undefined;

@@ -76,7 +76,7 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
   stageSeconds = 0;
   remaining = 0;
   elapsed = 0;
-  outcome: CastOutcome | undefined = undefined;
+  outcome: CastOutcome<G> | undefined = undefined;
   startTick = 0;
 
   /** The key its predicted cast cue carries; 0 for none. */

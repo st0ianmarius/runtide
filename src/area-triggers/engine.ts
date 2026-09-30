@@ -347,7 +347,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   }
 
   /** Raises one of the area trigger events, when something hears it. */
-  raise(kind: 'spawned' | 'ended', area: AreaTrigger<G>, reason?: EndReason): void {
+  raise(kind: 'spawned' | 'ended', area: AreaTrigger<G>, reason?: EndReason<G>): void {
     const events = this.events;
     const event = events?.[kind];
 

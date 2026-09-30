@@ -1,6 +1,4 @@
-import { END_REASONS } from '../area-triggers/index.ts';
 import { BLOW_STATUSES } from '../damage/index.ts';
-import { CAST_OUTCOMES } from '../spells/index.ts';
 import { type CombatEntryKind, ENTRY_CRIT, ENTRY_DEATH_PREVENTED, ENTRY_KILLED, type EntryRecord } from './entry.ts';
 import type { AreaEventView, AuraEventView, BlowView, DeathView, HealView, SpellEventView } from './views.ts';
 
@@ -9,12 +7,6 @@ const BLOW_CODES: readonly string[] = BLOW_STATUSES;
 
 /** A heal's statuses by code: `skipped`, `blocked`, `landed`. */
 const HEAL_CODES: readonly string[] = ['skipped', 'blocked', 'landed'];
-
-/** A cast end's outcomes by code (`CAST_OUTCOMES`). */
-const OUTCOME_CODES: readonly string[] = CAST_OUTCOMES;
-
-/** An area trigger end's reasons by code (`END_REASONS`). */
-const REASON_CODES: readonly string[] = END_REASONS;
 
 /** The entry kind of each aura change; `bearerDeath` is not logged (the death is). */
 const AURA_KINDS: Readonly<Record<string, CombatEntryKind | undefined>> = {
@@ -135,7 +127,7 @@ export const recordAura = <Unit, Spell>(recording: Recording<Unit, Spell>, event
  * reason its outcome.
  */
 export const castRecorder =
-  <Unit, Spell>(recording: Recording<Unit, Spell>, kind: CombatEntryKind) =>
+  <Unit, Spell>(recording: Recording<Unit, Spell>, kind: CombatEntryKind, outcomes: readonly string[]) =>
   (event: SpellEventView<Unit>): void => {
     const { cast } = event;
 
@@ -151,13 +143,13 @@ export const castRecorder =
     entry.target = caster;
     entry.spell = cast.spell;
     entry.amount = event.hit?.targets.length ?? 0;
-    entry.reason = event.outcome === undefined ? -1 : OUTCOME_CODES.indexOf(event.outcome);
+    entry.reason = event.outcome === undefined ? -1 : outcomes.indexOf(event.outcome);
     recording.commit();
   };
 
 /** A recorder of area triggers spawning or ending, made once per kind; the target is the area trigger's entity id. */
 export const areaRecorder =
-  <Unit, Spell>(recording: Recording<Unit, Spell>, kind: CombatEntryKind) =>
+  <Unit, Spell>(recording: Recording<Unit, Spell>, kind: CombatEntryKind, reasons: readonly string[]) =>
   (event: AreaEventView<Unit>): void => {
     const area = event.areaTrigger;
 
@@ -171,6 +163,6 @@ export const areaRecorder =
     entry.actor = recording.idOf(area.owner);
     entry.target = area.id;
     entry.areaKind = area.kind;
-    entry.reason = event.reason === undefined ? -1 : REASON_CODES.indexOf(event.reason);
+    entry.reason = event.reason === undefined ? -1 : reasons.indexOf(event.reason);
     recording.commit();
   };

@@ -13,7 +13,7 @@ import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import type { AreaEngine } from './engine.ts';
 import { NO_AREA_TRIGGER } from './ids.ts';
 import type { AreaTriggerProcKinds, DespawnOwnedProc, SpawnProc } from './procs.ts';
-import { despawnWhere } from './queries.ts';
+import { checkReason, despawnWhere } from './queries.ts';
 import { spawnArea, type SpawnSpec } from './spawner.ts';
 
 /** The spec a `spawn` proc spawns with, reused: the spawn reads it before any hook runs. */
@@ -134,6 +134,10 @@ const despawnOwnedKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): Pr
 
   prepare: (proc) => {
     checkTag(engine, proc.tag);
+
+    if (proc.reason !== undefined) {
+      checkReason(engine, proc.reason);
+    }
 
     return proc;
   },

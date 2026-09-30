@@ -295,6 +295,13 @@ describe('hooks for the cast rules (F16)', () => {
     assert.equal(game.spells.finish(handle, 'blocked'), false);
     game.advance(2);
     assert.equal(game.log.at(-1), 'end charge@1 blocked');
+    assert.deepEqual(game.spells.registry.outcomes, ['released', 'cancelled', 'broken', 'blocked']);
+
+    const next = game.spells.cast(game.a, game.id.charge).handle;
+    const finish = (outcome: string) => (): unknown => Reflect.apply(game.spells.finish, undefined, [next, outcome]);
+
+    assert.throws(finish('stuck'), /cannot finish as stuck/);
+    assert.throws(finish('cancelled'), /cannot finish as cancelled/);
   });
 });
 

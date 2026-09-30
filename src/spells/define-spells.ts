@@ -11,8 +11,9 @@ import type { StatTable } from '../modifiers/index.ts';
 import { type ActivationRegistry, CORE_ACTIVATIONS, defineActivations } from './activation.ts';
 import { constantOf, planOf } from './cast-plan.ts';
 import { type CompiledStats, compileShares, compileStats, isStatsTable } from './compile-stats.ts';
+import { CAST_OUTCOMES } from './events.ts';
 import { checkSpell } from './spell-checks.ts';
-import type { AnySpellDef } from './spell-def.ts';
+import type { AnySpellDef, CastOutcome } from './spell-def.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import type { SpellTagTable } from './tags.ts';
 
@@ -78,6 +79,12 @@ export interface SpellRegistry<G extends SpellTypes = SpellTypes, Name extends s
 
   /** The ids of the `auto` spells, in registry order: the caster's auto clocks, one per entry. */
   readonly autoIds: readonly SpellId[];
+
+  /**
+   * Every way a cast can end, in code order (what an `outcome` filter resolves to and the combat log codes by): the
+   * framework's (`CAST_OUTCOMES`), then the game's own.
+   */
+  readonly outcomes: readonly CastOutcome<G>[];
 }
 
 /** What a spell registry is built with, beyond its definitions. */
@@ -90,6 +97,9 @@ export interface SpellRegistryOptions<G extends SpellTypes> {
 
   /** The game's stat table, which scaled stats and `scaling` name stats in. */
   readonly stats?: StatTable<G['stat']>;
+
+  /** The game's own cast outcomes (`blocked`), which `spells.finish` may end a cast with; none when absent. */
+  readonly outcomes?: readonly G['castOutcome'][];
 
   /** The pinned order of the names, when it is not the key order. */
   readonly order?: readonly string[];
@@ -172,6 +182,21 @@ const buildTagSets = <G extends SpellTypes>(
   return Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => ids[tag] ?? 0))));
 };
 
+/** The framework's outcomes, then the game's; throws for a game outcome named twice or named like the framework's. */
+const outcomesOf = <G extends SpellTypes>(own: readonly G['castOutcome'][] = []): readonly CastOutcome<G>[] => {
+  const all: CastOutcome<G>[] = [...CAST_OUTCOMES];
+
+  for (const outcome of own) {
+    if (all.includes(outcome)) {
+      throw new RangeError(`Spells: the cast outcome ${outcome} is named twice.`);
+    }
+
+    all.push(outcome);
+  }
+
+  return Object.freeze(all);
+};
+
 /** The table of no spell tags, for a game that declares none. */
 const NO_TAGS: SpellTagTable = createRegistry({}, { kind: 'spellTags' });
 
@@ -232,5 +257,6 @@ export const defineSpells = <G extends SpellTypes, const Name extends string>(
     compiled: Object.freeze(slots.map((def, id) => def && compileStats(base.names[id] ?? '', def, options.stats))),
     shares: Object.freeze(slots.map((def, id) => def && compileShares(base.names[id] ?? '', def, options.stats))),
     autoIds: base.ids.filter((id) => autoKind !== undefined && columns.activation[id] === autoKind),
+    outcomes: outcomesOf<G>(options.outcomes),
   });
 };

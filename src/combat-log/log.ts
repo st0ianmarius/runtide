@@ -1,4 +1,6 @@
+import { END_REASONS } from '../area-triggers/index.ts';
 import type { EventKind } from '../core/index.ts';
+import { CAST_OUTCOMES } from '../spells/index.ts';
 import { type CombatEntry, type CombatEntryKind, EntryRecord } from './entry.ts';
 import {
   areaRecorder,
@@ -108,7 +110,7 @@ const listen = <Unit, Spell>(
   options: CombatLogOptions<Unit, Spell>,
   recording: Recording<Unit, Spell>,
 ): (() => void)[] => {
-  const { bus, damage, spells, areaTriggers } = options;
+  const { bus, damage } = options;
   const offs: (() => void)[] = [];
 
   const on = <Payload>(kind: EventKind<Payload> | undefined, listener: (payload: Payload) => void): void => {
@@ -132,8 +134,25 @@ const listen = <Unit, Spell>(
   on(options.auras, (event) => {
     recordAura(recording, event);
   });
+  listenSpells(options, recording, on);
 
-  const casts: readonly (readonly [keyof SpellLogEvents<Unit>, CombatEntryKind])[] = [
+  return offs;
+};
+
+/** A subscription of the log's: a kind the options may leave out, and its listener. */
+type On = <Payload>(kind: EventKind<Payload> | undefined, listener: (payload: Payload) => void) => void;
+
+/** Subscribes the recorders of cast moments and area triggers, coded by the options' outcomes and reasons. */
+const listenSpells = <Unit, Spell>(
+  options: CombatLogOptions<Unit, Spell>,
+  recording: Recording<Unit, Spell>,
+  on: On,
+): void => {
+  const { spells, areaTriggers } = options;
+  const outcomes = spells?.outcomes ?? CAST_OUTCOMES;
+  const reasons = areaTriggers?.reasons ?? END_REASONS;
+
+  const casts: readonly (readonly [Exclude<keyof SpellLogEvents<Unit>, 'outcomes'>, CombatEntryKind])[] = [
     ['start', 'castStart'],
     ['release', 'castRelease'],
     ['hit', 'castHit'],
@@ -141,13 +160,11 @@ const listen = <Unit, Spell>(
   ];
 
   for (const [name, kind] of casts) {
-    on(spells?.[name], castRecorder(recording, kind));
+    on(spells?.[name], castRecorder(recording, kind, outcomes));
   }
 
-  on(areaTriggers?.spawned, areaRecorder(recording, 'areaSpawned'));
-  on(areaTriggers?.ended, areaRecorder(recording, 'areaEnded'));
-
-  return offs;
+  on(areaTriggers?.spawned, areaRecorder(recording, 'areaSpawned', reasons));
+  on(areaTriggers?.ended, areaRecorder(recording, 'areaEnded', reasons));
 };
 
 /** A combat log: a class for fast properties, its functions arrow fields so they work detached. */

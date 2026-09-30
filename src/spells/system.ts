@@ -155,7 +155,7 @@ export interface SpellSystem<G extends SpellTypes> {
    * Ends a running cast's payload now with an outcome (a charge into a wall ends `blocked`, a lost tether `broken`):
    * no release for a windup, the channel stops, and its recovery follows; false when there is no payload to end.
    */
-  readonly finish: (cast: CastHandle, outcome: Exclude<CastOutcome, 'cancelled'>) => boolean;
+  readonly finish: (cast: CastHandle, outcome: Exclude<CastOutcome<G>, 'cancelled'>) => boolean;
 
   /**
    * An interrupt hits a caster (§I.7.1 F16: a stun, a freeze): the caster holds it until `endInterrupt`, and each
@@ -328,7 +328,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly resume = (cast: CastHandle): boolean => setPause(this.#engine, cast, { bits: MANUAL_PAUSE, isOn: false });
   readonly cancel = (cast: CastHandle): boolean => cancelCast(this.#engine, cast);
 
-  readonly finish = (cast: CastHandle, outcome: Exclude<CastOutcome, 'cancelled'>): boolean =>
+  readonly finish = (cast: CastHandle, outcome: Exclude<CastOutcome<G>, 'cancelled'>): boolean =>
     finishCast(this.#engine, cast, outcome);
 
   readonly interrupt = (caster: G['bearer'], reason: G['interrupt']): number =>

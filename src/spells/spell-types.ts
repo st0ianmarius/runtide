@@ -54,6 +54,12 @@ export interface SpellTypes extends ProcTypes {
    */
   readonly refusal: string;
 
+  /**
+   * The game's own ways a cast can end (`blocked`: a charge into a wall), which it ends casts with through
+   * `spells.finish` and lists in the spell registry's `outcomes`; `never` when it has none.
+   */
+  readonly castOutcome: string;
+
   /** The reasons a cast can be interrupted (`stun`, `freeze`, `death`), which a timeline maps to pause or cancel. */
   readonly interrupt: string;
 

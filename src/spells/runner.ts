@@ -195,7 +195,7 @@ const runEnd = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def
  * Ends a cast (§II.3.3), once: it leaves its caster's casts, then `onCancel` for a cancel, its end cue, `onEnd`, its
  * cast aura comes off, the caster's clocks that reset after a cast reset (§II.6 S3), and the `end` event. Its record goes back to the pool once nothing holds it.
  */
-export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, outcome: CastOutcome): void => {
+export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, outcome: CastOutcome<G>): void => {
   if (cast.stage === 'ended') {
     return;
   }
@@ -220,7 +220,7 @@ export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast
 export const afterPayload = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
-  outcome: CastOutcome,
+  outcome: CastOutcome<G>,
 ): void => {
   cast.outcome = outcome;
 

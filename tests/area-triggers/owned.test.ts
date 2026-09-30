@@ -105,6 +105,24 @@ describe('withdrawing what a unit owns (§II.6 P3 despawnOwned, §I.7.1 F16)', (
     assert.throws(() => game.procs.prepare([forged], 'Test'), /unknown area trigger tag wall/);
   });
 
+  it("ends them for the game's own reasons, the registry's after the framework's, and refuses unknown ones", () => {
+    const { game, elite } = owned();
+    const { registry } = game.areaTriggers;
+
+    assert.deepEqual(registry.endReasons.slice(-2), ['source-gone', 'phase']);
+    assert.equal(game.procs.apply(despawnOwned({ tag: 'pool', reason: 'phase' }), { self: elite }).amount, 2);
+    assert.equal(game.log.includes('ended telegraph@1 phase'), true);
+
+    const forged = despawnOwned<Game>({ reason: 'phase' });
+
+    Reflect.set(forged, 'reason', 'storm');
+    assert.throws(() => game.procs.prepare([forged], 'Test'), /unknown end reason storm/);
+    assert.throws(
+      () => Reflect.apply(game.areaTriggers.despawnWhere, undefined, [{ owner: elite }, 'storm']),
+      /unknown end reason storm/,
+    );
+  });
+
   it('withdraws from a cast chain as it runs, not the list landing now', () => {
     const game = makeSpellGame({
       chain: spell({
