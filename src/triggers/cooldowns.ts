@@ -36,12 +36,13 @@ export interface WithCooldowns<G extends TriggerTypes, Name extends string> {
   readonly order: readonly string[];
 }
 
-/** One derived cooldown aura: the trigger's `icd` long, refreshed on every fire, owner-only. */
+/** One derived cooldown aura: the trigger's `icd` long, refreshed on every fire, owner-only, quiet on the bus. */
 const cooldownAura = <G extends TriggerTypes>(icd: number, options: CooldownOptions<G>): AuraDef<G> =>
   defineAura<G>({
     duration: icd,
     stacking: 'refresh',
     audience: 'owner',
+    quiet: true,
     ...(options.clock === undefined ? {} : { clock: options.clock }),
     ...(options.tags === undefined ? {} : { tags: options.tags })
   });
@@ -71,7 +72,8 @@ const derive = <G extends TriggerTypes>(
  * Adds the internal-cooldown auras of every trigger with an `icd` to the authored auras:
  * `const all = withTriggerCooldowns(AUTHORED, { order: ICD_ORDER, tags: ['cooldown'] })`, then
  * `defineAuras(all.defs, { order: all.order })`. Each is `icd.aura.<name>.<index>`, the trigger's `icd` long,
- * `refresh`, owner-only, with the given clock and tags; their ids follow the authored ones, in their own pinned order.
+ * `refresh`, owner-only, quiet (no aura events: triggers on aura events and a combat log never hear it), with the given
+ * clock and tags; their ids follow the authored ones, in their own pinned order.
  */
 export const withTriggerCooldowns = <G extends TriggerTypes, const Name extends string>(
   defs: Readonly<Record<Name, AuraDef<G> | Tombstone>>,

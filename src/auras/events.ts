@@ -5,7 +5,7 @@ import type { AuraCause, AuraHook } from './aura-def.ts';
 import type { AuraEvent, AuraEventBus } from './aura-event.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { type AuraTables, CHANGES } from './compile.ts';
-import type { AuraRegistry } from './define-auras.ts';
+import { type AuraRegistry, QUIET } from './define-auras.ts';
 import { isTagEdge } from './edges.ts';
 import { setOf } from './state.ts';
 
@@ -201,7 +201,12 @@ export class AuraEvents<G extends AuraTypes> {
   #isHeard(code: number, id: number): boolean {
     const events = this.#parts.events;
 
-    return this.#heard[code]?.has(id) === true || events?.bus.hears(events.changed) === true;
+    return this.#heard[code]?.has(id) === true || (events?.bus.hears(events.changed) === true && !this.#isQuiet(id));
+  }
+
+  /** Whether an aura raises nothing on the bus. */
+  #isQuiet(id: number): boolean {
+    return ((this.#parts.registry.columns.flags[id] ?? 0) & QUIET) !== 0;
   }
 
   /** Queues one event, unless the bearer is silent; true when it was queued. */
@@ -320,7 +325,7 @@ export class AuraEvents<G extends AuraTypes> {
   #publish(i: number, bearer: G['bearer'], item: AuraItem<G>): void {
     const events = this.#parts.events;
 
-    if (events === undefined || !events.bus.hears(events.changed)) {
+    if (events === undefined || !events.bus.hears(events.changed) || this.#isQuiet(item.id)) {
       return;
     }
 

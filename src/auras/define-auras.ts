@@ -44,6 +44,9 @@ export const BOUND_TO_SOURCE = 16;
 /** Flag bit: a prediction mirror rebuilds it from the wire. */
 export const PREDICTED = 32;
 
+/** Flag bit: it raises nothing on the aura bus. */
+export const QUIET = 128;
+
 /** The most stacks an aura can declare. */
 const MAX_STACKS = 65_535;
 
@@ -129,7 +132,8 @@ const flagsOf = <G extends AuraTypes>(def: AuraDef<G>): number =>
   (def.audience === 'owner' ? OWNER_ONLY : 0) |
   (def.audience === 'party' ? PARTY_ONLY : 0) |
   (def.boundToSource === true ? BOUND_TO_SOURCE : 0) |
-  (def.predicted === true ? PREDICTED : 0);
+  (def.predicted === true ? PREDICTED : 0) |
+  (def.quiet === true ? QUIET : 0);
 
 /** Whether a duration is sound: absent, infinite, a function, or a finite number of seconds from 0. */
 const isSoundDuration = (duration: unknown): boolean =>

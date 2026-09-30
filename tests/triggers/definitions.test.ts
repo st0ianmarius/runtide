@@ -189,6 +189,7 @@ describe('internal cooldowns as derived auras', () => {
       duration: 0.5,
       stacking: 'refresh',
       audience: 'owner',
+      quiet: true,
       clock: 'world',
       tags: ['cooldown']
     });

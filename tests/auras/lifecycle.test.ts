@@ -184,6 +184,23 @@ describe('aura events on the bus', () => {
     ]);
   });
 
+  it('are never raised for a quiet aura, whose hooks still run', () => {
+    const bus = createBus({ aura: createAuraEvent<TestAuras> });
+    const heard: string[] = [];
+
+    const { auras, id, unit, log } = makeGame(
+      { hush: aura({ duration: 4, quiet: true, ...logged('hush') }) },
+      { events: { bus, changed: bus.kind.aura } }
+    );
+
+    const u = unit();
+
+    bus.on(bus.kind.aura, (event) => heard.push(event.change ?? '?'));
+    auras.apply(u, id.hush);
+    auras.remove(u, id.hush);
+    assert.deepEqual([heard, log.length], [[], 2]);
+  });
+
   it('are not filled when nothing listens', () => {
     const bus = createBus({ aura: createAuraEvent<TestAuras> });
     const { auras, id, unit } = makeGame(defs, { events: { bus, changed: bus.kind.aura } });

@@ -172,6 +172,12 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
    */
   readonly predicted?: boolean;
 
+  /**
+   * Whether it raises nothing on the aura bus (`changed`), so the game's listeners, triggers on aura events and a combat
+   * log never hear it: bookkeeping such as a trigger's internal cooldown. Its hooks and tag edges still run.
+   */
+  readonly quiet?: boolean;
+
   /** Bearer states whose entry removes it (`enterState`): going down, dying, leaving. */
   readonly removedOn?: readonly G['state'][];
 
