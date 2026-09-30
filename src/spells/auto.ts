@@ -1,4 +1,3 @@
-import { countDown, isRunOut } from '../core/index.ts';
 import { type AutoActivation, isAuto } from './activation.ts';
 import type { CastReport, Report } from './cast-request.ts';
 import { recordOf } from './caster.ts';
@@ -49,8 +48,8 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
 };
 
 /**
- * Counts one armed clock down (its index in `autos`); the spell's activation when the clock ran out and the caster is
- * `ready`, so the spell casts, else `undefined`.
+ * Whether one armed clock (its index in `autos`) ran out by the caster's step count; the spell's activation when it
+ * did and the caster is `ready`, so the spell casts, else `undefined`.
  */
 const countClock = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -58,11 +57,8 @@ const countClock = <G extends SpellTypes>(
   index: number
 ): AutoActivation<G> | undefined => {
   const record = recordOf(caster);
-  const left = countDown(record.clocks[index] ?? 0, engine.clock.dt);
 
-  record.clocks[index] = left;
-
-  if (!isRunOut(left)) {
+  if (record.steps < (record.dues[index] ?? 0)) {
     return undefined;
   }
 
@@ -77,8 +73,9 @@ const countClock = <G extends SpellTypes>(
  * its spell. After the cast the clock is set, with no carry-over, to what its activation's `next` answers (`autoNext`
  * by default: the interval read at the cast, or the next step). A clock whose activation says the caster is not
  * `ready` waits at zero, casting nothing. The walk goes by spell, not by index, since a cast may arm or disarm clocks:
- * one armed during it after the spell that cast is stepped too, as it would have been armed before. A caster with
- * nothing armed costs one length check.
+ * one armed during it after the spell that cast is stepped too, as it would have been armed before. The clocks
+ * count the caster's own steps, stamped with the step each runs out on, so a caster none of whose clocks is due costs
+ * an increment and a compare.
  */
 export const stepAutoClocks = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -86,36 +83,52 @@ export const stepAutoClocks = <G extends SpellTypes>(
   cast: (caster: G['bearer'], spell: SpellId) => Report<G>
 ): void => {
   const record = recordOf(caster);
+
+  record.steps += 1;
+
+  if (record.steps < record.nextDue) {
+    return;
+  }
+
+  const { dt } = engine.clock;
   let index = 0;
   let spell = record.autos[0];
 
   while (spell !== undefined) {
+    record.walking = spell;
+
     const activation = countClock(engine, caster, index);
 
     if (activation !== undefined) {
       const report = cast(caster, spell);
 
-      record.settle(spell, nextOf(engine, caster, [spell, activation, report]));
+      record.settle(spell, nextOf(engine, caster, [spell, activation, report]), dt);
     }
 
     index = record.after(spell);
     spell = record.autos[index];
   }
+
+  record.walking = -1;
+  record.resetDue();
 };
 
 /** The seconds left on a caster's `auto` clock for a spell; 0 for a spell it has not armed. */
-export const autoClockOf = (caster: SpellCaster, spell: SpellId): number => {
+export const autoClockOf = (caster: SpellCaster, [spell, dt]: readonly [SpellId, number]): number => {
   const record = recordOf(caster);
   const index = record.autoAt(spell);
 
-  return index < 0 ? 0 : (record.clocks[index] ?? 0);
+  return index < 0 ? 0 : record.leftAt(index, dt);
 };
 
 /**
  * Sets the seconds left on a caster's armed `auto` clock for a spell (a creature's swing reset as its other cast
  * ends); false for a spell it has not armed. Throws for seconds that are not finite from 0.
  */
-export const setAutoClock = (caster: SpellCaster, [spell, seconds]: readonly [SpellId, number]): boolean => {
+export const setAutoClock = (
+  caster: SpellCaster,
+  [spell, seconds, dt]: readonly [SpellId, number, number]
+): boolean => {
   if (!(seconds >= 0) || !Number.isFinite(seconds)) {
     throw new RangeError(`An auto clock is set to finite seconds from 0; got ${seconds}.`);
   }
@@ -127,7 +140,8 @@ export const setAutoClock = (caster: SpellCaster, [spell, seconds]: readonly [Sp
     return false;
   }
 
-  record.clocks[index] = seconds;
+  record.setClock(index, seconds, dt);
+  record.resetDue();
 
   return true;
 };
@@ -147,7 +161,7 @@ export const armAuto = <G extends SpellTypes>(
     throw new RangeError(`An auto clock is armed with finite seconds from 0; got ${at.seconds}.`);
   }
 
-  return recordOf(caster).arm(at.spell, at.seconds);
+  return recordOf(caster).arm(at.spell, at.seconds, engine.clock.dt);
 };
 
 /** A rescale of a caster's pending clocks: what `spells.rescaleClocks` takes and the `rescaleClocks` proc makes. */
@@ -169,18 +183,22 @@ const rescaleAuto = <G extends SpellTypes>(
   caster: G['bearer'],
   [factor, scope]: readonly [number, number]
 ): number => {
-  const { autos, clocks } = recordOf(caster);
+  const record = recordOf(caster);
+  const { autos } = record;
+  const { dt } = engine.clock;
   let rescaled = 0;
 
   for (let i = 0; i < autos.length; i++) {
     const spell = autos[i];
-    const left = clocks[i] ?? 0;
+    const left = record.leftAt(i, dt);
 
     if (spell !== undefined && left > 0 && inScope(engine, spell, scope)) {
-      clocks[i] = left * factor;
+      record.setClock(i, left * factor, dt);
       rescaled += 1;
     }
   }
+
+  record.resetDue();
 
   return rescaled;
 };

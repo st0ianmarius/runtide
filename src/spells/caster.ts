@@ -1,3 +1,4 @@
+import { stepsUntil } from '../core/index.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
 import type { SpellCaster, SpellId } from './spell-types.ts';
 
@@ -19,8 +20,23 @@ export class CasterRecord implements CasterState {
   /** The armed `auto` spells, in registry order: a caster steps only these (a mob's one swing, not the game's). */
   readonly autos: SpellId[] = [];
 
-  /** The seconds left on each armed spell's clock, by its index in `autos`. */
-  readonly clocks: number[] = [];
+  /** Each armed clock's seconds as it was last set, by its index in `autos`. */
+  readonly lefts: number[] = [];
+
+  /** The caster's step on which each armed clock was last set. */
+  readonly sets: number[] = [];
+
+  /** The caster's step on which each armed clock runs out (`stepsUntil` its seconds from when it was set). */
+  readonly dues: number[] = [];
+
+  /** How many times its clocks were stepped: they count on the caster's own steps, so one not stepped waits. */
+  steps = 0;
+
+  /** At or below the earliest `dues`: a step before it has nothing to run out, and costs a compare. */
+  nextDue = Number.POSITIVE_INFINITY;
+
+  /** The spell whose clock the running step walks now; −1 outside a step. */
+  walking = -1;
 
   /** How many casts run. */
   count = 0;
@@ -33,8 +49,8 @@ export class CasterRecord implements CasterState {
     return this.autos.indexOf(spell);
   }
 
-  /** Arms a spell's clock with `seconds` left, in registry order; false when it was armed already. */
-  arm(spell: SpellId, seconds: number): boolean {
+  /** Arms a spell's clock with `seconds` left on steps of `dt`, in registry order; false when it was armed already. */
+  arm(spell: SpellId, seconds: number, dt: number): boolean {
     if (this.autos.includes(spell)) {
       return false;
     }
@@ -43,21 +59,64 @@ export class CasterRecord implements CasterState {
     const index = at < 0 ? this.autos.length : at;
 
     this.autos.splice(index, 0, spell);
-    this.clocks.splice(index, 0, seconds);
+    this.lefts.splice(index, 0, 0);
+    this.sets.splice(index, 0, 0);
+    this.dues.splice(index, 0, 0);
+    // Armed during a step, after the spell being walked: the walk reaches it, so it counts this step as before.
+    this.setClock(index, seconds, dt);
+
+    if (this.walking >= 0 && spell > this.walking) {
+      this.sets[index] = this.steps - 1;
+      this.dues[index] = (this.dues[index] ?? 0) - 1;
+      this.nextDue = Math.min(this.nextDue, this.dues[index] ?? 0);
+    }
 
     return true;
+  }
+
+  /** Sets an armed clock to `seconds` left from now, on steps of `dt`. */
+  setClock(index: number, seconds: number, dt: number): void {
+    const due = this.steps + stepsUntil(seconds, dt);
+
+    this.lefts[index] = seconds;
+    this.sets[index] = this.steps;
+    this.dues[index] = due;
+
+    if (due < this.nextDue) {
+      this.nextDue = due;
+    }
+  }
+
+  /** The seconds left on an armed clock: what it was set to, less the steps since, and 0 once it ran out. */
+  leftAt(index: number, dt: number): number {
+    if (this.steps >= (this.dues[index] ?? 0)) {
+      return 0;
+    }
+
+    return (this.lefts[index] ?? 0) - (this.steps - (this.sets[index] ?? 0)) * dt;
   }
 
   /**
    * Sets an armed clock after its cast to the seconds it now has left. The cast may have armed or disarmed clocks (a
    * proc of the game's), so the clock is found again by its spell.
    */
-  settle(spell: SpellId, left: number): void {
+  settle(spell: SpellId, left: number, dt: number): void {
     const index = this.autos.indexOf(spell);
 
     if (index >= 0) {
-      this.clocks[index] = left;
+      this.setClock(index, left, dt);
     }
+  }
+
+  /** Makes `nextDue` the earliest of the armed clocks' ends again. */
+  resetDue(): void {
+    let next = Number.POSITIVE_INFINITY;
+
+    for (const due of this.dues) {
+      next = due < next ? due : next;
+    }
+
+    this.nextDue = next;
   }
 
   /** The index of the first armed spell after `spell` in registry order, or how many are armed. */
@@ -84,7 +143,9 @@ export class CasterRecord implements CasterState {
     }
 
     this.autos.splice(index, 1);
-    this.clocks.splice(index, 1);
+    this.lefts.splice(index, 1);
+    this.sets.splice(index, 1);
+    this.dues.splice(index, 1);
 
     return true;
   }

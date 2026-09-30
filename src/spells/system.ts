@@ -146,10 +146,11 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
   readonly disarm = (caster: G['bearer'], spell: SpellId): boolean => recordOf(caster).disarm(spell);
 
-  readonly autoClock = (caster: G['bearer'], spell: SpellId): number => autoClockOf(caster, spell);
+  readonly autoClock = (caster: G['bearer'], spell: SpellId): number =>
+    autoClockOf(caster, [spell, this.#engine.clock.dt]);
 
   readonly setClock = (caster: G['bearer'], spell: SpellId, seconds: number): boolean =>
-    setAutoClock(caster, [spell, seconds]);
+    setAutoClock(caster, [spell, seconds, this.#engine.clock.dt]);
 
   readonly stepDelayed = (slot?: TickSlotId): number => this.#engine.delayed.land(slot ?? 0);
 
