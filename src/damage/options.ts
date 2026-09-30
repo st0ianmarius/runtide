@@ -125,19 +125,13 @@ export interface DamageHost<G extends DamageTypes> {
   readonly isInert?: (unit: G['bearer']) => boolean;
 }
 
-/** The heal pipeline's stats and heal-block tags. */
+/** The heal pipeline's stats. */
 export interface HealOptions<G extends DamageTypes> {
   /** The target's multiplier stat every heal is multiplied by (healing received). */
   readonly received?: G['stat'];
 
   /** The healer's multiplier stat every heal it gives is multiplied by (healing done). */
   readonly done?: G['stat'];
-
-  /** Tags that block every heal on their bearer (a wound). */
-  readonly blockedBy?: readonly G['tag'][];
-
-  /** The flat stat `regenerate` heals per second. */
-  readonly regeneration?: G['stat'];
 }
 
 /** What a damage system is built from: the game's tables and host, and the stages it configures. */

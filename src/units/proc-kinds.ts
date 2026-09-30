@@ -1,4 +1,3 @@
-import type { Vec2 } from '../math/index.ts';
 import {
   PROC_LANDED,
   PROC_SKIPPED,
@@ -92,33 +91,27 @@ const summonStats = <G extends UnitTypes>(
   return stats;
 };
 
-/** Where one summon stands: the proc's point, its read point, or one picked around the owner. */
-const summonPoint = <G extends UnitTypes>(
-  engine: UnitEngine<G>,
+/** Spawns one summon of a summon proc: at its point, on its side, owned by `owner`, held by the running cast. */
+const spawnSummon = <G extends UnitTypes>(
+  parts: UnitKindParts<G>,
   [proc, ctx, owner]: readonly [SummonProc<G>, ProcContext<G>, G['bearer']],
-): Vec2 | undefined => {
+  [template, stats]: readonly [UnitId, Readonly<Partial<Record<G['stat'], number>>> | undefined],
+): void => {
   const at = proc.atOf?.(ctx) ?? proc.at;
-  const { around } = proc;
+  const spec: SpawnUnit<G> = { side: proc.side ?? unitOf<G>(owner).side, owner, isBound: proc.isBound !== false };
 
-  if (at !== undefined || around === undefined) {
-    return at;
-  }
-
-  const world = engine.options.world ?? noWorld();
-
-  return world.pickPoint({
-    centre: world.positionOf(owner),
-    min: around.min ?? 0,
-    max: around.max,
-    clearance: around.clearance ?? 0,
-    attempts: around.attempts ?? 8,
-    random: ctx.random(),
+  const unit = parts.spawn(template, {
+    ...spec,
+    ...(stats === undefined ? {} : { stats }),
+    ...(at === undefined ? {} : { at }),
   });
-};
 
-/** The unit system has no world to pick a summon's point in. */
-const noWorld = (): never => {
-  throw new TypeError('A summon placed around its owner needs the unit system’s world.');
+  const { spells } = parts.engine.options;
+  const cast = spells.current;
+
+  if (cast !== NO_CAST && spells.retain(cast)) {
+    unitOf<G>(unit).cast = cast;
+  }
 };
 
 /** The `summon` kind. */
@@ -134,23 +127,9 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
     const template = templateOf(engine, proc.unit);
     const count = Math.max(0, Math.floor(proc.countOf?.(ctx) ?? proc.count ?? 1));
     const stats = summonStats(engine, [proc, owner]);
-    const { spells } = engine.options;
 
     for (let i = 0; i < count; i++) {
-      const at = summonPoint(engine, [proc, ctx, owner]);
-      const spec: SpawnUnit<G> = { side: proc.side ?? unitOf<G>(owner).side, owner, isBound: proc.isBound !== false };
-
-      const unit = parts.spawn(template, {
-        ...spec,
-        ...(stats === undefined ? {} : { stats }),
-        ...(at === undefined ? {} : { at }),
-      });
-
-      const cast = spells.current;
-
-      if (cast !== NO_CAST && spells.retain(cast)) {
-        unitOf<G>(unit).cast = cast;
-      }
+      spawnSummon(parts, [proc, ctx, owner], [template, stats]);
     }
 
     return counted(count);
@@ -159,10 +138,6 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
   prepare: (proc) => {
     if (proc.count !== undefined && !(Number.isInteger(proc.count) && proc.count >= 0)) {
       throw new RangeError(`a summon proc's count is a whole number from 0; got ${proc.count}.`);
-    }
-
-    if (proc.around !== undefined && parts.engine.options.world === undefined) {
-      noWorld();
     }
 
     return { ...proc, unit: templateOf(parts.engine, proc.unit) };

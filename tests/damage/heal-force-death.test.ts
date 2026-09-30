@@ -3,10 +3,8 @@ import { describe, it } from 'node:test';
 
 import { aura, makeDamageGame } from '../helpers/damage-game.ts';
 
-/** Heal stats: healing received and done, a wound tag that blocks heals, regeneration. */
-const HEALING = {
-  heal: { received: 'healing', done: 'healingDone', blockedBy: ['wound'], regeneration: 'regen' },
-} as const;
+/** Heal stats: healing received and done. */
+const HEALING = { heal: { received: 'healing', done: 'healingDone' } } as const;
 
 describe('the heal pipeline', () => {
   it('multiplies by the healer’s healing done and the target’s healing received, up to maximum health', () => {
@@ -26,8 +24,8 @@ describe('the heal pipeline', () => {
     assert.deepEqual([capped.amount, capped.overheal, capped.healthAfter, target.hp], [20, 40, 100, 100]);
   });
 
-  it('is blocked by a heal-block tag, skipped on a dead unit or with no or an infinite amount', () => {
-    const { damage, auras, id, unit } = makeDamageGame({ wounded: aura({ duration: 5, tags: ['wound'] }) }, HEALING);
+  it('is skipped on a dead unit or with no or an infinite amount', () => {
+    const { damage, unit } = makeDamageGame({}, HEALING);
     const target = unit(1);
     const dead = unit(2);
 
@@ -37,16 +35,19 @@ describe('the heal pipeline', () => {
     assert.equal(damage.heal({ target: dead, amount: 10 }).status, 'skipped');
     assert.equal(damage.heal({ target, amount: Infinity }).status, 'skipped');
     assert.equal(damage.heal({ target, amount: 0 }).status, 'skipped');
-    auras.apply(target, id.wounded);
-    assert.deepEqual([damage.heal({ target, amount: 10 }).status, target.hp], ['blocked', 50]);
   });
 
-  it('takes game stages at their positions', () => {
-    const { damage, unit } = makeDamageGame(
-      {},
+  it('takes game stages at their positions, one blocking a wounded target’s heals', () => {
+    const { damage, auras, id, unit } = makeDamageGame(
+      { wounded: aura({ duration: 5, tags: ['wound'] }) },
       {
         healStages: {
-          downed: { before: 'block', run: (heal) => (heal.target.id === 9 ? 'blocked' : undefined) },
+          wound: {
+            before: 'done',
+
+            run: (heal, damage) =>
+              damage.auras.hasTag(heal.target, damage.auras.tags.id.wound) ? 'blocked' : undefined,
+          },
 
           halve: {
             before: 'health',
@@ -61,14 +62,15 @@ describe('the heal pipeline', () => {
       },
     );
 
-    const [target, downed] = [unit(1), unit(9)];
+    const [target, wounded] = [unit(1), unit(9)];
 
     target.hp = 50;
-    downed.hp = 50;
+    wounded.hp = 50;
+    auras.apply(wounded, id.wounded);
 
-    assert.deepEqual(damage.healStages, ['downed', 'block', 'done', 'received', 'halve', 'health', 'outcome']);
+    assert.deepEqual(damage.healStages, ['wound', 'done', 'received', 'halve', 'health', 'outcome']);
     assert.equal(damage.heal({ target, amount: 10 }).amount, 5);
-    assert.equal(damage.heal({ target: downed, amount: 10 }).status, 'blocked');
+    assert.deepEqual([damage.heal({ target: wounded, amount: 10 }).status, wounded.hp], ['blocked', 50]);
   });
 
   it('raises the heal event for a landed heal', () => {
@@ -79,17 +81,6 @@ describe('the heal pipeline', () => {
     target.hp = 90;
     damage.heal({ target, amount: 20 });
     assert.deepEqual(log, ['healed 10@1']);
-  });
-
-  it('regenerates by the regeneration stat for the seconds given', () => {
-    const { damage, unit, set } = makeDamageGame({}, HEALING);
-    const target = unit(1);
-
-    target.hp = 10;
-    set(target, 'regen', 4);
-
-    assert.equal(damage.regenerate(target, 0.5).amount, 2);
-    assert.equal(target.hp, 12);
   });
 });
 

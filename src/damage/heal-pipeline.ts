@@ -1,17 +1,9 @@
-import type { AuraTagId } from '../auras/index.ts';
 import type { DamageTypes } from './damage-types.ts';
 import type { DamageEngine } from './engine.ts';
 import type { Heal, HealRecord, HealSpec } from './heal.ts';
 
 /** One stage of the heal pipeline, built in or the game's. */
 type HealRun<G extends DamageTypes> = (heal: HealRecord<G>) => 'blocked' | undefined;
-
-/** Whether the target holds a heal-block tag. */
-const isHealBlocked = <G extends DamageTypes>(
-  engine: DamageEngine<G>,
-  tags: readonly AuraTagId[],
-  heal: HealRecord<G>,
-): boolean => tags.some((tag) => engine.auras.hasTag(heal.target, tag));
 
 /** Health: the heal is given up to the target's maximum health (when the host knows it). */
 const giveHealth = <G extends DamageTypes>(engine: DamageEngine<G>, heal: HealRecord<G>): void => {
@@ -50,14 +42,10 @@ const raiseHealed = <G extends DamageTypes>(engine: DamageEngine<G>, heal: HealR
 };
 
 /** A built-in heal stage by name. */
-const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, name: string, tags: readonly AuraTagId[]) => {
+const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, name: string) => {
   const { healDone, healReceived } = engine.stats;
 
   switch (name) {
-    case 'block': {
-      return (heal: HealRecord<G>) => (tags.length > 0 && isHealBlocked(engine, tags, heal) ? 'blocked' : undefined);
-    }
-
     case 'done': {
       return (heal: HealRecord<G>) => {
         if (healDone !== undefined && heal.healer !== undefined) {
@@ -101,12 +89,10 @@ const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, name: string, t
 
 /** The stages of one system's heal pipeline, in order. */
 const compileHealRuns = <G extends DamageTypes>(engine: DamageEngine<G>): readonly HealRun<G>[] => {
-  const blockTags = engine.stats.healBlock;
-
   return engine.healOrder.names.map((name, index): HealRun<G> => {
     const run = engine.healOrder.runs[index];
 
-    return run === undefined ? builtIn(engine, name, blockTags) : (heal) => engine.healStage(run, heal);
+    return run === undefined ? builtIn(engine, name) : (heal) => engine.healStage(run, heal);
   });
 };
 

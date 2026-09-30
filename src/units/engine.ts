@@ -14,7 +14,6 @@ import {
   type StatView,
 } from '../modifiers/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
-import type { WorldQuery } from '../world/index.ts';
 import type { UnitEvents } from './events.ts';
 import type { InterruptingState, UnitStateTable } from './states.ts';
 import type { UnitRegistry } from './unit-def.ts';
@@ -49,9 +48,6 @@ export interface UnitSystemBase<G extends UnitTypes> {
    * states' interrupts hold (`interrupts`). Every unit has the shared empty brain when absent.
    */
   readonly ai?: AiSystem<G>;
-
-  /** The world a summon's point is picked in (`summon`'s `around`); none when absent. */
-  readonly world?: Pick<WorldQuery<G['bearer']>, 'positionOf' | 'pickPoint'>;
 
   /**
    * The script system's side (`scripts.forUnits`), or a function giving it, since the script system is made after the

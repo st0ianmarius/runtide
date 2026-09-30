@@ -77,9 +77,6 @@ export interface DamageSystem<G extends DamageTypes> {
    */
   readonly setHealth: (unit: G['bearer'], health: number, credit?: HealthCredit<G>) => ProcOutcome;
 
-  /** Heals a unit by its regeneration stat for `seconds`, through the heal pipeline. */
-  readonly regenerate: (unit: G['bearer'], seconds: number) => Heal<G>;
-
   /** Whether a unit is dead by the system's rule. */
   readonly isDead: (unit: G['bearer']) => boolean;
 
@@ -157,31 +154,6 @@ const setHealthWith =
     return SET_KILLED;
   };
 
-/** A regeneration heal's spec, reused, since the heal pipeline copies it at once. */
-interface RegenSpec<G extends DamageTypes> {
-  /** Who regenerates. */
-  target: G['bearer'];
-
-  /** How much. */
-  amount: number;
-}
-
-/** Builds `regenerate` over the heal pipeline, with a reused spec. */
-const regenerateWith = <G extends DamageTypes>(engine: DamageEngine<G>, heal: (spec: HealSpec<G>) => Heal<G>) => {
-  const stat = engine.stats.regeneration;
-  let spec: RegenSpec<G> | undefined;
-
-  return (unit: G['bearer'], seconds: number): Heal<G> => {
-    const perSecond = stat === undefined ? 0 : engine.viewOf(unit, undefined).total(stat);
-
-    spec ??= { target: unit, amount: 0 };
-    spec.target = unit;
-    spec.amount = perSecond * seconds;
-
-    return heal(spec);
-  };
-};
-
 /** The names of the game's own stages, by pipeline. */
 const gameStagesOf = <G extends DamageTypes>(engine: DamageEngine<G>): readonly string[] =>
   Object.freeze([
@@ -204,7 +176,6 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
   readonly heal: (spec: HealSpec<G>) => Heal<G>;
   readonly force: (spec: ForceSpec<G>) => Force<G>;
   readonly setHealth: (unit: G['bearer'], health: number, credit?: HealthCredit<G>) => ProcOutcome;
-  readonly regenerate: (unit: G['bearer'], seconds: number) => Heal<G>;
   readonly #engine: DamageEngine<G>;
 
   constructor(options: DamageSystemOptions<G>, engine: DamageEngine<G>) {
@@ -229,7 +200,6 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
     this.heal = heal;
     this.force = force;
     this.setHealth = setHealth;
-    this.regenerate = regenerateWith(engine, heal);
     this.#engine = engine;
 
     this.procKinds = createDamageProcKinds(engine, {

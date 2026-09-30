@@ -54,7 +54,6 @@ import {
   type UnitProcs,
   type UnitSystem,
 } from '../../src/units/index.ts';
-import type { WorldQuery } from '../../src/world/index.ts';
 
 /** The unit test game's types. */
 export interface UnitGame extends ScriptTypes {
@@ -268,9 +267,6 @@ export interface UnitGameOptions<Extra extends string = never> {
 
   /** The scripts templates and spawns name; none when absent. */
   readonly scripts?: ScriptRegistry<UnitGame>;
-
-  /** The world summons are placed in; none when absent. */
-  readonly world?: Pick<WorldQuery<Unit<UnitGame>>, 'positionOf' | 'pickPoint'>;
 }
 
 /** A small unit test game. */
@@ -380,7 +376,6 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     auras,
     ai,
     spells,
-    ...(options.world === undefined ? {} : { world: options.world }),
     ...(options.folds === false ? {} : { modifiers: { system: modifiers, base: 'base' as const } }),
     health: { stat: 'maxHealth', ...(options.policy === undefined ? {} : { policy: options.policy }) },
     states: UNIT_STATES,

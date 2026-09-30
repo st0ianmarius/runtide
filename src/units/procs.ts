@@ -17,26 +17,11 @@ export interface ReviveProc<G extends UnitTypes> extends ProcShape {
   readonly health?: number;
 }
 
-/** Where a summon stands around its owner: a point picked in an annulus, clear of walls, in a few tries. */
-export interface SummonPlacement {
-  /** The nearest it stands to its owner; 0 when absent. */
-  readonly min?: number;
-
-  /** The farthest it stands. */
-  readonly max: number;
-
-  /** The room it needs at the point; none when absent. */
-  readonly clearance?: number;
-
-  /** How many points are tried; 8 when absent. */
-  readonly attempts?: number;
-}
-
 /**
  * Summons units: spawns `count` units of a template owned by the unit it lands on (the
  * list's self by default), on its side, credited to it, held by the cast whose procs are running, and
- * despawned with it unless `isBound` is false. Each stands at `at`, `atOf`'s point, or a point picked `around` its
- * owner, which the `spawned` event hands the game's world. Its amount is how many it summoned.
+ * despawned with it unless `isBound` is false. Each stands at `at` or `atOf`'s point (a game picks one around the owner
+ * with its world's `pickPoint`), which the `spawned` event hands the game's world. Its amount is how many it summoned.
  */
 export interface SummonProc<G extends UnitTypes> extends ProcShape {
   /** The discriminant. */
@@ -59,9 +44,6 @@ export interface SummonProc<G extends UnitTypes> extends ProcShape {
 
   /** Reads the point when the proc applies, in place of `at`. */
   readonly atOf?: (ctx: ProcContext<G>) => Vec2 | undefined;
-
-  /** A point picked around the owner for each, through the unit system's world; in place of `at`. */
-  readonly around?: SummonPlacement;
 
   /** Their own base stats, over their template's (spawned at another wave's numbers). */
   readonly stats?: Readonly<Partial<Record<G['stat'], number>>>;

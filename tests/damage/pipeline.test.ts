@@ -247,8 +247,8 @@ describe('the load-time checks', () => {
     );
     assert.throws(() => makeDamageGame({}, invalid<DamageOverrides>({}, { outgoing: ['nothing'] })), /no stat nothing/);
     assert.throws(
-      () => makeDamageGame({}, invalid<DamageOverrides>({}, { heal: { blockedBy: ['nothing'] } })),
-      /no aura tag nothing/,
+      () => makeDamageGame({}, invalid<DamageOverrides>({}, { heal: { received: 'nothing' } })),
+      /no stat nothing/,
     );
     assert.throws(() => makeDamageGame({}, { maxDepth: 0 }), /maxDepth/);
   });

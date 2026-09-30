@@ -1,4 +1,3 @@
-import type { AuraTagId } from '../auras/index.ts';
 import type { StatId, StatTable } from '../modifiers/index.ts';
 import type { DamageTypes } from './damage-types.ts';
 import type { DamageKindTable } from './kinds.ts';
@@ -28,10 +27,10 @@ export const DAMAGE_STAGES = Object.freeze([
 ] as const);
 
 /**
- * The heal pipeline's built-in stages: heal-block tags, the healer's healing done, the target's healing
- * received and health; then the event.
+ * The heal pipeline's built-in stages: the healer's healing done, the target's healing received and health; then
+ * the event. A game blocks a heal with a stage of its own (a wound's).
  */
-export const HEAL_STAGES = Object.freeze(['block', 'done', 'received', 'health', 'outcome'] as const);
+export const HEAL_STAGES = Object.freeze(['done', 'received', 'health', 'outcome'] as const);
 
 /** The force pipeline's built-in stages: the `onIncomingForce` hooks, then the host moves the unit. */
 export const FORCE_STAGES = Object.freeze(['resist', 'apply'] as const);
@@ -46,12 +45,6 @@ export interface StageStats {
 
   /** The healing done stat. */
   readonly healDone: StatId | undefined;
-
-  /** The regeneration stat. */
-  readonly regeneration: StatId | undefined;
-
-  /** The heal-block tags. */
-  readonly healBlock: readonly AuraTagId[];
 }
 
 /** Throws a load-time error about the damage system's options. */
@@ -78,15 +71,6 @@ const statIn = (stats: StatTable | undefined, name: string | undefined, isMultip
   return id;
 };
 
-/** Resolves the heal-block tags. */
-const healBlockOf = <G extends DamageTypes>(options: DamageSystemOptions<G>): readonly AuraTagId[] => {
-  const ids: Readonly<Record<string, AuraTagId | undefined>> = options.auras.tags.id;
-
-  return Object.freeze(
-    (options.heal?.blockedBy ?? []).map((tag) => ids[tag] ?? refuse(`there is no aura tag ${tag}.`)),
-  );
-};
-
 /** Resolves every stat and tag the built-in stages read, checking each one's kind. */
 export const compileStats = <G extends DamageTypes>(options: DamageSystemOptions<G>): StageStats => {
   const { stats } = options;
@@ -96,8 +80,6 @@ export const compileStats = <G extends DamageTypes>(options: DamageSystemOptions
     outgoing: outgoing.filter((id): id is StatId => id !== undefined),
     healReceived: statIn(stats, options.heal?.received, true),
     healDone: statIn(stats, options.heal?.done, true),
-    regeneration: statIn(stats, options.heal?.regeneration, false),
-    healBlock: healBlockOf(options),
   };
 };
 
@@ -107,7 +89,7 @@ export const checkHost = <G extends DamageTypes>(options: DamageSystemOptions<G>
 
   const readsStats =
     stats.outgoing.length > 0 ||
-    [stats.healReceived, stats.healDone, stats.regeneration].some((stat) => stat !== undefined) ||
+    [stats.healReceived, stats.healDone].some((stat) => stat !== undefined) ||
     options.mitigation !== undefined ||
     options.rolls !== undefined;
 

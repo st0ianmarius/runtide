@@ -26,7 +26,6 @@ export {
   revive,
   type ReviveProc,
   summon,
-  type SummonPlacement,
   type SummonProc,
   type UnitProcKinds,
   type UnitProcs,

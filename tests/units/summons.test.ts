@@ -151,12 +151,18 @@ describe('summoning', () => {
     assert.equal(spells.get(cast), undefined);
   });
 
-  it('places each around its owner through the world, and refuses that without one', () => {
+  it('places each where its atOf says: a point the game picks around the owner in its world', () => {
     const world = createMemoryWorld<object>({ bounds: { minX: -50, minZ: -50, maxX: 50, maxZ: 50 } });
-    const { procs, units, caster, log } = summoning({ world });
+    const { procs, units, caster, log } = summoning();
 
     world.add(caster, { id: caster.id, at: { x: 10, z: 10 }, radius: 0.5, side: 1 });
-    procs.apply(summon<UnitGame>('add', { around: { min: 2, max: 3 } }), { self: caster });
+
+    const around = summon<UnitGame>('add', {
+      atOf: (ctx) =>
+        world.pickPoint({ centre: world.positionOf(ctx.self), min: 2, max: 3, attempts: 8, random: ctx.random() }),
+    });
+
+    procs.apply(around, { self: caster });
 
     const point =
       log
@@ -169,10 +175,6 @@ describe('summoning', () => {
 
     assert.equal(units.summonsOf(caster).length, 1);
     assert.ok(distance >= 2 && distance <= 3, `${distance}`);
-    assert.throws(
-      () => summoning().procs.prepare([summon<UnitGame>('add', { around: { max: 3 } })], 'Test'),
-      /needs the unit system’s world/,
-    );
     assert.throws(() => summoning().procs.prepare([summon<UnitGame>('add', { count: 1.5 })], 'Test'), /whole number/);
   });
 });
