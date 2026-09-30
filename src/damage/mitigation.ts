@@ -1,5 +1,3 @@
-// Hot path: every blow that is not true damage walks the rows, so the loops are indexed.
-/* oxlint-disable typescript/prefer-for-of */
 import { createRegistry, type Registry } from '../core/index.ts';
 import {
   compileCurve,
@@ -233,19 +231,4 @@ export const rowFactor = (row: CompiledRow, ctx: RowContext): number => {
   const value = evaluateCurve(row.curve, rating, ctx);
 
   return isAmplifyingAt(row, rating) ? value : 1 - value;
-};
-
-/** Runs every row that covers a kind over the context's amount, in order, and returns the amount left. */
-export const mitigate = (rows: readonly CompiledRow[], kind: DamageKindId, ctx: RowContext): number => {
-  let left = ctx.amount;
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-
-    if (row?.kinds[kind] === 1) {
-      left *= rowFactor(row, ctx);
-    }
-  }
-
-  return left;
 };

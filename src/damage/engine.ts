@@ -12,7 +12,7 @@ import {
   checkHost,
   compileBypass,
   compileStats,
-  DAMAGE_STAGES,
+  damageStagesOf,
   FORCE_STAGES,
   HEAL_STAGES,
   orderOf,
@@ -119,7 +119,13 @@ export class DamageEngine<G extends DamageTypes> {
     this.kinds = options.kinds;
     this.stats = compileStats(options);
     checkHost(options, this.stats);
-    this.order = orderOf('Damage', { builtIn: DAMAGE_STAGES, boundary: 'health' }, options.stages);
+    const damageStages = damageStagesOf(options.mitigation?.names ?? []);
+
+    this.order = orderOf(
+      'Damage',
+      { builtIn: damageStages.stages, boundary: 'health', groups: damageStages.groups },
+      options.stages,
+    );
     this.healOrder = orderOf('Heal', { builtIn: HEAL_STAGES, boundary: 'health' }, options.healStages);
     this.forceOrder = orderOf('Force', { builtIn: FORCE_STAGES, boundary: 'apply' }, options.forceStages);
     this.bypass = compileBypass(options.kinds, this.order);

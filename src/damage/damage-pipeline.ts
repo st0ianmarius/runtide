@@ -9,6 +9,7 @@ import {
   rollStage,
 } from './blow-stages.ts';
 import type { Blow, BlowRecord, BlowSpec } from './blow.ts';
+import { checkSkippable, isNamed } from './compile.ts';
 import type { BlowStop, DamageTypes } from './damage-types.ts';
 import type { DeathSpec } from './death.ts';
 import type { DamageEngine } from './engine.ts';
@@ -110,7 +111,7 @@ const builtInStages = <G extends DamageTypes>(
     ignore: (_engine, blow) => (engine.eachHook(walks.ignore, blow) ? 'ignored' : undefined),
     outgoing: outgoingStage(engine, walks),
     roll: rollStage,
-    mitigation: mitigationStage,
+    ...Object.fromEntries(engine.rows.map((row) => [`mitigation.${row.key}`, mitigationStage<G>(row)])),
 
     absorb: (_engine, blow) => {
       if (blow.amount > 0) {
@@ -169,19 +170,26 @@ const traceStep = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRec
   blow.trace?.push({ stage: engine.order.names[index] ?? '', amount: blow.amount, status: blow.status });
 };
 
-/** Whether a blow skips the stage at `index`: its kind does, or the blow names it. */
+/** Whether a blow names a stage to skip, or a group it belongs to. */
+const blowSkips = (bypass: readonly string[], stage: string): boolean => {
+  for (const name of bypass) {
+    if (isNamed(stage, name)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+/** Whether a blow skips the stage at `index`: its kind does, or the blow names it (or its group). */
 const skipsStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>, index: number): boolean =>
   engine.bypass[blow.kind * engine.order.names.length + index] === 1 ||
-  (blow.bypass.length > 0 && blow.bypass.includes(engine.order.names[index] ?? ''));
+  (blow.bypass.length > 0 && blowSkips(blow.bypass, engine.order.names[index] ?? ''));
 
-/** Throws for a stage a blow names to skip that is not one before health. */
+/** Throws for a stage a blow names to skip that is not one (or a group) before health. */
 const checkBypass = <G extends DamageTypes>(engine: DamageEngine<G>, bypass: readonly string[]): void => {
   for (const stage of bypass) {
-    const at = engine.order.names.indexOf(stage);
-
-    if (at < 0 || at >= engine.order.afterFrom - 1) {
-      throw new RangeError(`A blow cannot skip ${stage}: no such stage before health.`);
-    }
+    checkSkippable(engine.order, [stage, 'A blow']);
   }
 };
 

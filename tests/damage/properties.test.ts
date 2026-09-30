@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import fc from 'fast-check';
 
-import { DAMAGE_STAGES, type DamageStage } from '../../src/damage/index.ts';
+import { type DamageStage } from '../../src/damage/index.ts';
 import { aura, BLOCK, type Game, makeDamageGame } from '../helpers/damage-game.ts';
 
 /** An absorb that keeps its aura when emptied, so its value can be read afterwards. */
@@ -110,7 +110,8 @@ describe('armor, for any rating at or above zero', () => {
 describe('game stage positions, for any declarations', () => {
   it('keep the built-in order and put each stage right where it asked', () => {
     const noop: DamageStage<Game> = () => undefined;
-    const anchors = DAMAGE_STAGES.filter((name) => name !== 'death');
+    const builtIn = makeDamageGame({}).damage.stages;
+    const anchors = builtIn.filter((name) => name !== 'death');
 
     fc.assert(
       fc.property(
@@ -129,7 +130,7 @@ describe('game stage positions, for any declarations', () => {
 
           assert.deepEqual(
             order.filter((name) => !name.startsWith('game')),
-            [...DAMAGE_STAGES],
+            [...builtIn],
           );
 
           specs.forEach((spec, index) => {

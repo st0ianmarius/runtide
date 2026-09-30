@@ -108,6 +108,9 @@ describe('the mitigation rows', () => {
 
     set(target, 'armor', 100);
     assert.equal(damage.hit({ target, amount: 90, bypass: ['mitigation'] }).amount, 90);
+    target.hp = 100;
+    assert.equal(damage.hit({ target, amount: 90, bypass: ['mitigation.armor'] }).amount, 90);
+    target.hp = 100;
     assert.throws(() => damage.hit({ target, amount: 90, bypass: ['health'] }), /cannot skip health/);
   });
 

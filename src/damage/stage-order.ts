@@ -72,6 +72,17 @@ const slotFor = (order: Building, [name, at]: readonly [string, StagePosition]):
   return slot;
 };
 
+/** A stage's position with a group's name put as its first stage (before) or its last (after). */
+const ungrouped = <Run>(
+  def: StageDef<Run>,
+  groups: Readonly<Record<string, readonly string[]>> | undefined,
+): StageDef<Run> => {
+  const before = def.before === undefined ? undefined : (groups?.[def.before]?.[0] ?? def.before);
+  const after = def.after === undefined ? undefined : (groups?.[def.after]?.at(-1) ?? def.after);
+
+  return { ...def, ...(before === undefined ? {} : { before }), ...(after === undefined ? {} : { after }) };
+};
+
 /** Checks one game stage's definition against the order built so far. */
 const checkStage = <Run>(names: readonly string[], parts: { what: string; name: string; def: StageDef<Run> }) => {
   const { what, name, def } = parts;
@@ -112,10 +123,20 @@ export const compileStageOrder = <Run>(spec: {
 
   /** The game's stages, by name, in declaration order. */
   readonly game: Readonly<Record<string, StageDef<Run>>> | undefined;
+
+  /**
+   * Names that stand for a run of built-in stages (`mitigation` for `mitigation.armor`, `mitigation.resist`): a stage
+   * before one goes before its first, a stage after one after its last.
+   */
+  readonly groups?: Readonly<Record<string, readonly string[]>>;
 }): StageOrder<Run> => {
   const order: Building = { names: [...spec.builtIn], hangsFrom: new Map() };
   const runs: (Run | undefined)[] = spec.builtIn.map(() => undefined);
-  const game = Object.entries(spec.game ?? {});
+
+  const game = Object.entries(spec.game ?? {}).map(([name, def]): [string, StageDef<Run>] => [
+    name,
+    ungrouped(def, spec.groups),
+  ]);
 
   for (const [name, def] of game) {
     checkStage(order.names, { what: spec.what, name, def });

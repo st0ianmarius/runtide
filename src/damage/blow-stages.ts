@@ -4,7 +4,7 @@ import type { ActiveAura, AuraContext, BlowChange } from '../auras/index.ts';
 import type { BlowRecord } from './blow.ts';
 import type { BlowStop, DamageTypes } from './damage-types.ts';
 import { type DamageEngine, type HookWalk, missing } from './engine.ts';
-import { mitigate } from './mitigation.ts';
+import { type CompiledRow, rowFactor } from './mitigation.ts';
 import { chanceOf, type CompiledRollRow, ROLL_EFFECTS, valueOf } from './rolls.ts';
 
 /** A built-in stage of the damage pipeline. */
@@ -292,23 +292,25 @@ export const rollStage = <G extends DamageTypes>(
   return stop;
 };
 
-/** The mitigation rows that cover the blow's kind, in order. */
-export const mitigationStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
-  if (engine.rows.length === 0) {
+/** One mitigation row's stage: the row, if it covers the blow's kind, over the blow's amount. */
+export const mitigationStage =
+  <G extends DamageTypes>(row: CompiledRow): BuiltInStage<G> =>
+  (engine, blow) => {
+    if (row.kinds[blow.kind] !== 1) {
+      return undefined;
+    }
+
+    const ctx = engine.rowContext;
+    const before = blow.amount;
+
+    ctx.caster = engine.attackerView(blow);
+    ctx.target = engine.viewOf(blow.target, blow);
+    ctx.amount = before;
+    blow.amount = before * rowFactor(row, ctx);
+    blow.mitigated += before - blow.amount;
+
     return undefined;
-  }
-
-  const ctx = engine.rowContext;
-  const before = blow.amount;
-
-  ctx.caster = engine.attackerView(blow);
-  ctx.target = engine.viewOf(blow.target, blow);
-  ctx.amount = before;
-  blow.amount = mitigate(engine.rows, blow.kind, ctx);
-  blow.mitigated = before - blow.amount;
-
-  return undefined;
-};
+  };
 
 /** Health: the damage left is taken off, and whether it killed is decided by the system's death rule. */
 export const healthStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {

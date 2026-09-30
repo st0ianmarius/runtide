@@ -6,14 +6,15 @@ import { type DamageOverrides, makeDamageGame, STATS } from '../helpers/damage-g
 import { invalid } from '../helpers/trigger-game.ts';
 
 describe('the damage pipeline order', () => {
-  it('runs the built-in stages in their documented order', () => {
+  it('runs the built-in stages in their documented order, one stage per mitigation row in the rows’ order', () => {
     const { damage } = makeDamageGame({});
 
     assert.deepEqual(damage.stages, [
       'ignore',
       'outgoing',
       'roll',
-      'mitigation',
+      'mitigation.armor',
+      'mitigation.taken',
       'absorb',
       'lethal',
       'health',
@@ -21,7 +22,10 @@ describe('the damage pipeline order', () => {
       'outcome',
       'death',
     ]);
-    assert.deepEqual(damage.stages, DAMAGE_STAGES);
+    assert.deepEqual(
+      damage.stages.filter((stage) => stage !== 'mitigation.taken').map((stage) => stage.replace(/\..*/, '')),
+      DAMAGE_STAGES,
+    );
     assert.deepEqual(damage.healStages, HEAL_STAGES);
     assert.deepEqual(damage.forceStages, FORCE_STAGES);
   });
@@ -54,7 +58,7 @@ describe('the damage pipeline order', () => {
       'dusk',
       'outgoing',
     ]);
-    assert.deepEqual(damage.stages.slice(13, 16), ['health', 'shove', 'dealt']);
+    assert.deepEqual(damage.stages.slice(14, 17), ['health', 'shove', 'dealt']);
     assert.deepEqual(damage.gameStages, [
       'damage.window',
       'damage.shelter',
@@ -65,6 +69,23 @@ describe('the damage pipeline order', () => {
       'damage.scar',
       'damage.dusk',
     ]);
+  });
+
+  it('places a game stage between two mitigation rows, or around them all by the group’s name', () => {
+    const run = (): undefined => undefined;
+
+    const { damage } = makeDamageGame(
+      {},
+      {
+        stages: {
+          between: { after: 'mitigation.armor', run },
+          early: { before: 'mitigation', run },
+          late: { after: 'mitigation', run },
+        },
+      },
+    );
+
+    assert.deepEqual(damage.stages.slice(3, 8), ['early', 'mitigation.armor', 'between', 'mitigation.taken', 'late']);
   });
 
   it('records every stage of a traced blow, with the amount and status after it', () => {
@@ -79,7 +100,8 @@ describe('the damage pipeline order', () => {
         'ignore:30:landed',
         'outgoing:30:landed',
         'roll:30:landed',
-        'mitigation:30:landed',
+        'mitigation.armor:30:landed',
+        'mitigation.taken:30:landed',
         'absorb:30:landed',
         'lethal:30:landed',
         'health:30:landed',

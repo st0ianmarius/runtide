@@ -107,6 +107,21 @@ export const checkHost = <G extends DamageTypes>(options: DamageSystemOptions<G>
   }
 };
 
+/**
+ * Whether a stage name is `name`, or one of the stages `name` stands for (`mitigation.armor` for `mitigation`).
+ */
+export const isNamed = (stage: string, name: string): boolean =>
+  stage === name || (stage.length > name.length && stage.startsWith(name) && stage[name.length] === '.');
+
+/** Throws unless a name skipped by a kind or a blow is a stage, or a group of stages, before health. */
+export const checkSkippable = (order: StageOrder<unknown>, [stage, what]: readonly [string, string]): void => {
+  const at = order.names.findIndex((name) => isNamed(name, stage));
+
+  if (at < 0 || at >= order.afterFrom - 1) {
+    refuse(`${what} cannot skip ${stage}: no such stage before health.`);
+  }
+};
+
 /** The stages each kind skips, as one flag per kind and stage position, checked against the stage order. */
 export const compileBypass = (kinds: DamageKindTable, order: StageOrder<unknown>): Uint8Array => {
   const size = order.names.length;
@@ -114,25 +129,47 @@ export const compileBypass = (kinds: DamageKindTable, order: StageOrder<unknown>
 
   for (const kind of kinds.ids) {
     for (const stage of kinds.get(kind).bypass ?? []) {
-      const at = order.names.indexOf(stage);
+      checkSkippable(order, [stage, `damage kind ${kinds.name(kind)}`]);
 
-      if (at < 0 || at >= order.afterFrom - 1) {
-        refuse(`damage kind ${kinds.name(kind)} cannot skip ${stage}: no such stage before health.`);
+      for (let at = 0; at < order.afterFrom - 1; at++) {
+        flags[kind * size + at] ||= isNamed(order.names[at] ?? '', stage) ? 1 : 0;
       }
-
-      flags[kind * size + at] = 1;
     }
   }
 
   return flags;
 };
 
+/**
+ * The damage pipeline's built-in stages for a game's mitigation rows: `mitigation` stands for one stage per row
+ * (`mitigation.armor`, `mitigation.resist`), so a game stage may sit between two rows; a game with no rows keeps one
+ * `mitigation` stage, which does nothing. The group, for anchors.
+ */
+export const damageStagesOf = (
+  rowNames: readonly string[],
+): { readonly stages: readonly string[]; readonly groups: Readonly<Record<string, readonly string[]>> } => {
+  if (rowNames.length === 0) {
+    return { stages: DAMAGE_STAGES, groups: {} };
+  }
+
+  const rows = rowNames.map((name) => `mitigation.${name}`);
+
+  return {
+    stages: DAMAGE_STAGES.flatMap((stage) => (stage === 'mitigation' ? rows : [stage])),
+    groups: { mitigation: rows },
+  };
+};
+
 /** Compiles one pipeline's stage order with the game's stages. */
 export const orderOf = <Run>(
   what: string,
-  parts: { readonly builtIn: readonly string[]; readonly boundary: string },
+  parts: {
+    readonly builtIn: readonly string[];
+    readonly boundary: string;
+    readonly groups?: Readonly<Record<string, readonly string[]>>;
+  },
   game: Readonly<Record<string, StageDef<Run>>> | undefined,
-): StageOrder<Run> => compileStageOrder({ what, builtIn: parts.builtIn, boundary: parts.boundary, game });
+): StageOrder<Run> => compileStageOrder({ what, ...parts, game });
 
 /** Compiles the mitigation rows, if any, checking every kind that does not skip mitigation is covered. */
 export const rowsOf = <G extends DamageTypes>(
@@ -145,12 +182,12 @@ export const rowsOf = <G extends DamageTypes>(
     return [];
   }
 
-  const at = parts.order.names.indexOf('mitigation');
   const size = parts.order.names.length;
+  const rowStages = parts.order.names.flatMap((name, at) => (isNamed(name, 'mitigation') ? [at] : []));
 
   return compileMitigation(mitigation, {
     stats: stats ?? refuse('mitigation needs the game stat table (stats).'),
     kinds: options.kinds,
-    skips: (kind) => parts.bypass[kind * size + at] === 1,
+    skips: (kind) => rowStages.every((at) => parts.bypass[kind * size + at] === 1),
   });
 };
