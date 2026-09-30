@@ -4,7 +4,7 @@ import type { AreaEngine } from './engine.ts';
 
 /**
  * What one owner has live: how many of each kind (for `perOwner` limits and owner auras), and its area
- * triggers in each tick-order list, in that list's order, so `stepOwner` walks the owner's own and nothing else.
+ * triggers in each kind's list, in that list's order, so `stepOwner` walks the owner's own and nothing else.
  */
 export class OwnerAreas<G extends AreaTriggerTypes> {
   /** How many of each kind, by kind id. */
@@ -13,7 +13,7 @@ export class OwnerAreas<G extends AreaTriggerTypes> {
   /** How many in all. */
   total = 0;
 
-  /** The first and last of the owner's in each tick-order list, by kind. */
+  /** The first and last of the owner's of each kind, in creation order. */
   readonly heads: (AreaTrigger<G> | undefined)[];
   readonly tails: (AreaTrigger<G> | undefined)[];
 
@@ -79,46 +79,10 @@ const unlinkOwner = <G extends AreaTriggerTypes>(owned: OwnerAreas<G> | undefine
   }
 };
 
-/** Links an area trigger last in its kind's tick-order list, and in its owner's. */
-export const linkTick = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
-  const tail = engine.tickTails[area.kind];
-
-  area.tickPrev = tail;
-  area.tickNext = undefined;
-
-  if (tail === undefined) {
-    engine.tickHeads[area.kind] = area;
-  } else {
-    tail.tickNext = area;
-  }
-
-  engine.tickTails[area.kind] = area;
-
-  const owned = engine.ownerFor(area.owner);
-
-  linkOwner(owned, area, owned.tails[area.kind]);
-};
-
-/** Takes an area trigger out of the tick order. */
-export const unlinkTick = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
-  const { tickPrev: prev, tickNext: next } = area;
-
-  unlinkOwner(engine.ownerOf(area.owner), area);
-
-  if (prev === undefined) {
-    engine.tickHeads[area.kind] = next;
-  } else {
-    prev.tickNext = next;
-  }
-
-  if (next === undefined) {
-    engine.tickTails[area.kind] = prev;
-  } else {
-    next.tickPrev = prev;
-  }
-};
-
-/** Links an area trigger last in its kind's creation order. */
+/**
+ * Links an area trigger last in its kind's list, in creation order (the tick order within its kind), and in its
+ * owner's.
+ */
 export const linkKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const tail = engine.kindTails[area.kind];
 
@@ -132,11 +96,17 @@ export const linkKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area
   }
 
   engine.kindTails[area.kind] = area;
+
+  const owned = engine.ownerFor(area.owner);
+
+  linkOwner(owned, area, owned.tails[area.kind]);
 };
 
-/** Takes an area trigger out of its kind's creation order. */
+/** Takes an area trigger out of its kind's list and its owner's. */
 export const unlinkKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const { kindPrev: prev, kindNext: next } = area;
+
+  unlinkOwner(engine.ownerOf(area.owner), area);
 
   if (prev === undefined) {
     engine.kindHeads[area.kind] = next;

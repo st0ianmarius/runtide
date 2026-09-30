@@ -23,7 +23,7 @@ import { AreaQueryApi } from './queries.ts';
 
 /**
  * The area trigger machinery's shared state: the registry and its resolved tables, the pool, each kind's
- * tick-order list and creation-order list, each owner's counts and tick-order lists, the reusable proc lists and snapshots, and the area
+ * list in creation order (its tick order), each owner's counts and lists, the reusable proc lists and snapshots, and the area
  * trigger whose procs are running. Spawning, stepping and ending (`spawner.ts`, `stepper.ts`, `ender.ts`) are
  * functions over it.
  */
@@ -42,11 +42,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   readonly pauseMasks: Int32Array;
   readonly pool: Pool<AreaTrigger<G>>;
 
-  /** The head and tail of each kind's tick-order list. */
-  readonly tickHeads: (AreaTrigger<G> | undefined)[];
-  readonly tickTails: (AreaTrigger<G> | undefined)[];
-
-  /** The head and tail of each kind's list in creation order. */
+  /** The head and tail of each kind's list in creation order, which is also its tick order. */
   readonly kindHeads: (AreaTrigger<G> | undefined)[];
   readonly kindTails: (AreaTrigger<G> | undefined)[];
 
@@ -107,8 +103,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.pauseMasks = parts.pauseMasks;
     this.areaAuras = parts.areaAuras;
     this.queries = new AreaQueryApi<G>(this);
-    this.tickHeads = Array.from({ length: kinds }, () => undefined);
-    this.tickTails = Array.from({ length: kinds }, () => undefined);
     this.kindHeads = Array.from({ length: kinds }, () => undefined);
     this.kindTails = Array.from({ length: kinds }, () => undefined);
     this.#procs = parts.procs;
@@ -180,7 +174,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     return id;
   }
 
-  /** What an owner has live: its counts by kind and its tick-order lists; `undefined` for an owner with none. */
+  /** What an owner has live: its counts by kind and its lists; `undefined` for an owner with none. */
   ownerOf(owner: G['bearer']): OwnerAreas<G> | undefined {
     return this.#owners.get(owner);
   }
@@ -225,8 +219,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.cast = undefined;
     area.state = undefined;
     area.input = undefined;
-    area.tickNext = undefined;
-    area.tickPrev = undefined;
     area.kindNext = undefined;
     area.kindPrev = undefined;
     area.ownerNext = undefined;

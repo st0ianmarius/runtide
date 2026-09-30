@@ -5,7 +5,7 @@ import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaEngine } from './engine.ts';
 import { catchIn, deliver, recordHit } from './hits.ts';
 import { closeLedgers } from './ledgers.ts';
-import { unlinkKind, unlinkTick } from './order.ts';
+import { unlinkKind } from './order.ts';
 
 /** Its landing as it expires: the units in its shape, handed to `onLand` (and its cast, when it says). */
 const land = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
@@ -76,7 +76,6 @@ export const endArea = <G extends AreaTriggerTypes>(
   runEndHook(engine, area, end.reason);
   dropAreaAuras(engine, area);
   closeLedgers(engine, area);
-  unlinkTick(engine, area);
   unlinkKind(engine, area);
   engine.count(area.owner, [area.kind, -1]);
   engine.holdOwnerAura(area, false);

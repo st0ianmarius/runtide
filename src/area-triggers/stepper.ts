@@ -126,7 +126,7 @@ export const stepArea = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area
   }
 };
 
-/** Writes the handles of every area trigger of some kinds' tick-order lists into `out`; returns how many. */
+/** Writes the handles of every area trigger of some kinds' lists into `out`; returns how many. */
 const snapshotAll = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   kinds: readonly number[],
@@ -135,7 +135,7 @@ const snapshotAll = <G extends AreaTriggerTypes>(
   let count = 0;
 
   for (const kind of kinds) {
-    for (let walk = engine.tickHeads[kind]; walk !== undefined; walk = walk.tickNext) {
+    for (let walk = engine.kindHeads[kind]; walk !== undefined; walk = walk.kindNext) {
       out[count] = walk.handle;
       count += 1;
     }
@@ -144,7 +144,7 @@ const snapshotAll = <G extends AreaTriggerTypes>(
   return count;
 };
 
-/** Writes the handles of one owner's area triggers in some kinds' tick-order lists into `out`; returns how many. */
+/** Writes the handles of one owner's area triggers of some kinds into `out`; returns how many. */
 const snapshotOwned = <G extends AreaTriggerTypes>(
   owned: OwnerAreas<G>,
   kinds: readonly number[],
