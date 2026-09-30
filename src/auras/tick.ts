@@ -60,18 +60,29 @@ const countBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer
   }
 };
 
-/** Takes off every aura that ran out, in list order, each raising `expired`. */
+/**
+ * Takes off every aura that ran out, in list order, each raising `expired`, and sets each clock's due count to the
+ * earliest end left on it.
+ */
 const expire = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer']): void => {
   const set = setOf<G>(bearer);
   let expired = 0;
 
+  set.due.fill(Number.POSITIVE_INFINITY);
+
   for (let i = 0; i < set.items.length; i++) {
     const item = set.items[i];
 
-    if (item !== undefined && engine.isDue(set, item)) {
+    if (item === undefined) {
+      continue;
+    }
+
+    if (engine.isDue(set, item)) {
       takeOff(engine, bearer, { index: i, change: EXPIRED });
       i -= 1;
       expired += 1;
+    } else {
+      set.noteEnd(item);
     }
   }
 
@@ -81,26 +92,12 @@ const expire = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'])
 };
 
 /**
- * Whether a step of `clock` has anything to do on a bearer: an aura beating on it, or any aura that has run out. Asked before the step opens its events, so a bearer holding only
- * auras with nothing due (a passive, a long buff) costs a scan of its list and nothing more.
+ * Whether a step of `clock` has anything to do on a bearer: an aura beating on it, or a clock whose count reached the
+ * earliest end on it. Asked before the step opens its events, so a bearer holding only auras with nothing due (a
+ * passive, a long buff) costs a few compares.
  */
-const hasWork = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, clock: number): boolean => {
-  const { items } = set;
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-
-    if (item === undefined) {
-      continue;
-    }
-
-    if (engine.tables.beatClock[item.id] === clock || engine.isDue(set, item)) {
-      return true;
-    }
-  }
-
-  return false;
-};
+const hasWork = <G extends AuraTypes>(set: AuraSet<G>, clock: number): boolean =>
+  (set.beats[clock] ?? 0) > 0 || set.isAnyDue();
 
 /**
  * Steps a bearer's clock once: the clock's count rises; in list order the beats counting on it come due, and
@@ -114,7 +111,7 @@ export const tickAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
 
   set.clocks[clock] = (set.clocks[clock] ?? 0) + 1;
 
-  if (!hasWork(engine, set, clock)) {
+  if (!hasWork(set, clock)) {
     return;
   }
 

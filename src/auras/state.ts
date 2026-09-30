@@ -47,12 +47,44 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
   readonly tags = createBitset();
   readonly clocks: Float64Array;
   readonly isSilent: boolean;
+
+  /**
+   * By clock, a count no aura on it runs out before: at or below the earliest end stamp, so a tick whose count is below
+   * it has nothing to expire. Lowered as ends are set, made exact again as a tick walks the list.
+   */
+  readonly due: Float64Array;
+
+  /** By clock, how many of its auras beat on it: a tick of a clock with none and nothing due does nothing. */
+  readonly beats: Int32Array;
+
   changes = 0;
   serials = 0;
 
   constructor(clocks: number, isSilent: boolean) {
     this.clocks = new Float64Array(clocks);
+    this.due = new Float64Array(clocks).fill(Number.POSITIVE_INFINITY);
+    this.beats = new Int32Array(clocks);
     this.isSilent = isSilent;
+  }
+
+  /** Lowers its clock's due count to an aura's end stamp, if that is earlier. */
+  noteEnd(item: AuraItem<G>): void {
+    if (item.end < (this.due[item.clock] ?? 0)) {
+      this.due[item.clock] = item.end;
+    }
+  }
+
+  /** Whether any clock's count has reached its due count: an aura may have run out. */
+  isAnyDue(): boolean {
+    const { clocks, due } = this;
+
+    for (let clock = 0; clock < clocks.length; clock++) {
+      if ((clocks[clock] ?? 0) >= (due[clock] ?? 0)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   get list(): readonly ActiveAura[] {

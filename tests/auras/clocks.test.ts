@@ -91,6 +91,23 @@ describe('clocks and stamps', () => {
     assert.equal(auras.has(u, id.flash), false);
   });
 
+  it('runs each aura out on its own step whatever came and went before it, a shortened one too', () => {
+    const { auras, id, unit, run } = makeGame(defs);
+    const u = unit();
+
+    auras.apply(u, id.forever);
+    auras.apply(u, { aura: id.shield, duration: 0.5 });
+    auras.remove(u, id.shield);
+    auras.apply(u, id.shield);
+    run(u, 3);
+    auras.apply(u, { aura: id.shield, duration: 0.25 });
+    run(u, 1);
+    assert.equal(auras.has(u, id.shield), true);
+    run(u, 1);
+    assert.equal(auras.has(u, id.shield), false);
+    assert.equal(auras.has(u, id.forever), true);
+  });
+
   it('refuses an aura with no length of its own unless the application gives one', () => {
     const { auras, id, unit } = makeGame(defs);
     const u = unit();

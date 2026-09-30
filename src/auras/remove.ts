@@ -22,7 +22,13 @@ const INDEPENDENT = STACKINGS.indexOf('independent');
  * `pop`, never by setting the length: a length set to 0 drops the list's storage, and the bearer's next aura would
  * allocate it again, where `pop` keeps a small list's storage.
  */
-const cut = <G extends AuraTypes>(set: AuraSet<G>, index: number): void => {
+const cut = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, index: number): void => {
+  const beatClock = engine.tables.beatClock[set.items[index]?.id ?? 0] ?? -1;
+
+  if (beatClock >= 0) {
+    set.beats[beatClock] = (set.beats[beatClock] ?? 0) - 1;
+  }
+
   set.items.copyWithin(index, index + 1);
   set.items.pop();
 };
@@ -40,7 +46,7 @@ export const takeOff = <G extends AuraTypes>(
     return;
   }
 
-  cut(set, at.index);
+  cut(engine, set, at.index);
   set.changes += 1;
   engine.events.retire(item);
   engine.events.raise(at.change, bearer, item);
@@ -170,6 +176,8 @@ export const releaseAll = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G
 
   if (count > 0) {
     set.changes += 1;
+    set.beats.fill(0);
+    set.due.fill(Number.POSITIVE_INFINITY);
     engine.refreshTags(set);
   }
 

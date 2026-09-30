@@ -97,6 +97,7 @@ export class AuraEngine<G extends AuraTypes> {
   setClock(set: AuraSet<G>, item: AuraItem<G>, seconds: number): void {
     item.duration = seconds;
     item.end = Number.isFinite(seconds) ? (set.clocks[item.clock] ?? 0) + this.stepsFor(item, seconds) : Infinity;
+    set.noteEnd(item);
   }
 
   /** The seconds left on an aura: its ticks left times its clock's step; `Infinity` for an infinite one. */
@@ -147,10 +148,15 @@ export class AuraEngine<G extends AuraTypes> {
     }
   }
 
-  /** Inserts an aura keeping registry order, after the instances of its own aura already there. */
+  /** Inserts an aura keeping registry order, after the instances of its own aura already there, counting its beats. */
   insert(set: AuraSet<G>, item: AuraItem<G>): void {
     const { items } = set;
+    const beatClock = this.tables.beatClock[item.id] ?? -1;
     let at = items.length;
+
+    if (beatClock >= 0) {
+      set.beats[beatClock] = (set.beats[beatClock] ?? 0) + 1;
+    }
 
     items.push(item);
 

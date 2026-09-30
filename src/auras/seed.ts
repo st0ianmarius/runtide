@@ -40,6 +40,7 @@ const setSeededClock = <G extends AuraTypes>(
   item.end = Number.isFinite(view.remaining)
     ? (set.clocks[item.clock] ?? 0) + Math.max(0, view.end - serverNow)
     : Infinity;
+  set.noteEnd(item);
 };
 
 /**

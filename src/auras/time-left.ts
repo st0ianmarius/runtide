@@ -24,6 +24,7 @@ const setTimeLeft = <G extends AuraTypes>(
   seconds: number,
 ): void => {
   item.end = (set.clocks[item.clock] ?? 0) + engine.stepsFor(item, seconds);
+  set.noteEnd(item);
 };
 
 /**
