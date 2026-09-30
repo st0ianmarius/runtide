@@ -17,6 +17,9 @@ export interface CompiledCooldown<G extends SpellTypes> {
 
   /** Whether it lands as the cast releases, not as it starts. */
   readonly onRelease: boolean;
+
+  /** How many of its aura's stacks hold the spell. */
+  readonly charges: number;
 }
 
 /** When cooldowns land: as a cast starts, as it releases, or all at once (a press that commits them). */
@@ -25,13 +28,13 @@ export type CooldownMoment = 'start' | 'release' | 'all';
 /** No cooldowns. */
 const NONE: readonly never[] = Object.freeze([]);
 
-/** Resolves one cooldown against the aura registry, checked. */
-const compileOne = <G extends SpellTypes>(
-  auras: AuraSystem<G>,
-  cooldown: SpellCooldown<G>,
-  name: string
-): CompiledCooldown<G> => {
-  const { seconds, startsOn } = cooldown;
+/** Throws unless a cooldown's seconds, start and charges are sound. */
+const checkNumbers = <G extends SpellTypes>(cooldown: SpellCooldown<G>, name: string): void => {
+  const { seconds, startsOn, charges = 1 } = cooldown;
+
+  if (!Number.isInteger(charges) || charges < 1) {
+    throw new RangeError(`Spell ${name}: a cooldown's charges are a whole number from 1.`);
+  }
 
   if (typeof seconds === 'number' && !(seconds >= 0 && Number.isFinite(seconds))) {
     throw new RangeError(`Spell ${name}: its cooldown lasts a finite number of seconds from 0.`);
@@ -40,6 +43,17 @@ const compileOne = <G extends SpellTypes>(
   if (startsOn !== undefined && startsOn !== 'start' && startsOn !== 'release') {
     throw new RangeError(`Spell ${name}: a cooldown starts on 'start' or 'release'.`);
   }
+};
+
+/** Resolves one cooldown against the aura registry, checked. */
+const compileOne = <G extends SpellTypes>(
+  auras: AuraSystem<G>,
+  cooldown: SpellCooldown<G>,
+  name: string
+): CompiledCooldown<G> => {
+  const { seconds, startsOn, charges = 1 } = cooldown;
+
+  checkNumbers(cooldown, name);
 
   const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
   const id = typeof cooldown.aura === 'string' ? ids[cooldown.aura] : cooldown.aura;
@@ -48,7 +62,7 @@ const compileOne = <G extends SpellTypes>(
     throw new RangeError(`Spell ${name}: its cooldown aura ${cooldown.aura} is not a live aura.`);
   }
 
-  return Object.freeze({ aura: id, seconds, onRelease: startsOn === 'release' });
+  return Object.freeze({ aura: id, seconds, onRelease: startsOn === 'release', charges });
 };
 
 /** Whether a spell names a list of cooldowns, not one. */
@@ -107,7 +121,7 @@ export class Cooldowns<G extends SpellTypes> {
     for (let i = 0; i < list.length; i++) {
       const cooldown = list[i];
 
-      if (cooldown !== undefined && this.#auras.has(caster, cooldown.aura)) {
+      if (cooldown !== undefined && this.#holds(caster, cooldown)) {
         return true;
       }
     }
@@ -123,7 +137,10 @@ export class Cooldowns<G extends SpellTypes> {
     for (let i = 0; i < list.length; i++) {
       const cooldown = list[i];
 
-      most = cooldown === undefined ? most : Math.max(most, this.#auras.remaining(caster, cooldown.aura));
+      most =
+        cooldown === undefined || !this.#holds(caster, cooldown)
+          ? most
+          : Math.max(most, this.#auras.remaining(caster, cooldown.aura));
     }
 
     return most;
@@ -174,6 +191,13 @@ export class Cooldowns<G extends SpellTypes> {
         this.#land(caster, cooldown, [cooldown.seconds, releaseAfter]);
       }
     }
+  }
+
+  /** Whether a cooldown holds its spell on a caster: its aura is on it, as many stacks as its charges. */
+  #holds(caster: G['bearer'], cooldown: CompiledCooldown<G>): boolean {
+    return cooldown.charges === 1
+      ? this.#auras.has(caster, cooldown.aura)
+      : this.#auras.stacks(caster, cooldown.aura) >= cooldown.charges;
   }
 
   /**

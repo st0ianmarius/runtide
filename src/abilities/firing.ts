@@ -51,25 +51,6 @@ const failedRule = <G extends AbilityTypes>(
     : undefined;
 };
 
-/** Whether a bearer holds one of a button spell's cooldowns. */
-const isCooling = <G extends AbilityTypes>(
-  engine: AbilityEngine<G>,
-  bearer: G['bearer'],
-  button: CompiledButton<G>
-): boolean => {
-  const { cooldowns } = button;
-
-  for (let i = 0; i < cooldowns.length; i++) {
-    const aura = cooldowns[i];
-
-    if (aura !== undefined && engine.auras.has(bearer, aura)) {
-      return true;
-    }
-  }
-
-  return false;
-};
-
 /**
  * Why the ability in a slot may not fire now, or `undefined` when it may: the slot holds none (`empty`), one of its
  * spell's cooldowns is on the bearer (`cooldown`), or one of the button's own rules fails. Reads only the bearer, so a
@@ -87,7 +68,7 @@ export const refusalAt = <G extends AbilityTypes>(
     return 'empty';
   }
 
-  return isCooling(engine, bearer, button) ? 'cooldown' : failedRule(engine, bearer, button);
+  return engine.spells.isCooling(bearer, spell) ? 'cooldown' : failedRule(engine, bearer, button);
 };
 
 /** Asks a button's `checkCast` with a `MirrorCtx` of the press; true for a button with none. */
@@ -121,7 +102,7 @@ const commit = <G extends AbilityTypes>(
   bearer: G['bearer'],
   [spell, button]: readonly [SpellId, CompiledButton<G>]
 ): ButtonRefusal | undefined => {
-  if (isCooling(engine, bearer, button)) {
+  if (engine.spells.isCooling(bearer, spell)) {
     return 'cooldown';
   }
 

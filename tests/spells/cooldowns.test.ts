@@ -64,6 +64,46 @@ describe('a spell’s cooldowns', () => {
     assert.equal(game.spells.cooldownLeft(hero, game.id.bolt), 2);
   });
 
+  it('hold a spell only once every charge is spent, each recharging on its own clock', () => {
+    const game = makeSpellGame(
+      {
+        dash: spell({
+          activation: { kind: 'trigger' },
+          cooldown: { aura: 'dashCharge', seconds: 1, charges: 2 },
+          release: () => undefined
+        })
+      },
+      { auras: { dashCharge: aura({ duration: 9, stacking: 'independent', maxStacks: 2 }) } }
+    );
+
+    const hero = game.unit(1);
+
+    game.spells.cast(hero, game.id.dash);
+    assert.deepEqual(
+      [game.spells.isCooling(hero, game.id.dash), game.spells.cooldownLeft(hero, game.id.dash)],
+      [false, 0]
+    );
+    game.spells.cast(hero, game.id.dash);
+    assert.deepEqual(
+      [game.spells.check(hero, game.id.dash), game.spells.cooldownLeft(hero, game.id.dash)],
+      ['cooldown', 1]
+    );
+    assert.throws(
+      () =>
+        makeSpellGame(
+          {
+            bad: spell({
+              activation: { kind: 'trigger' },
+              cooldown: { aura: 'x', charges: 0 },
+              release: () => undefined
+            })
+          },
+          { auras: { x: aura({ duration: 1 }) } }
+        ),
+      /charges are a whole number from 1/
+    );
+  });
+
   it('land none for a cooldown reduced to nothing', () => {
     const game = makeSpellGame(
       {

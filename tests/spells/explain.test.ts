@@ -141,9 +141,9 @@ describe('explainSpell', () => {
     assert.deepEqual(slam.activation.values, {});
     assert.deepEqual(slam.timeline, { windup: 1.2, channel: undefined, every: 0, recover: 0.5 });
     assert.deepEqual(slam.cooldowns, [
-      { aura: 'slamCooldown', seconds: 3, startsOn: 'start' },
-      { aura: 'global', seconds: 'cast', startsOn: 'release' },
-      { aura: 'rage', seconds: 'aura', startsOn: 'start' }
+      { aura: 'slamCooldown', seconds: 3, startsOn: 'start', charges: 1 },
+      { aura: 'global', seconds: 'cast', startsOn: 'release', charges: 1 },
+      { aura: 'rage', seconds: 'aura', startsOn: 'start', charges: 1 }
     ]);
     assert.deepEqual(slam.reach, { range: 8, minRange: 'cast', sight: true, hasRule: true });
     assert.deepEqual(swing.cooldowns, []);

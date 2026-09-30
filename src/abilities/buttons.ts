@@ -13,9 +13,6 @@ export interface CompiledButton<G extends AbilityTypes> {
   /** Whether a press commits only once its cast is admitted (`commitsOn: 'cast'`). */
   readonly commitsOnCast: boolean;
 
-  /** Its spell's cooldown auras, which refuse a press while one is held. */
-  readonly cooldowns: readonly AuraId[];
-
   /** The aura its cost spends, or −1 for none. */
   readonly costAura: number;
 
@@ -35,10 +32,9 @@ export interface CompiledButton<G extends AbilityTypes> {
   readonly applies: readonly AuraId[];
 }
 
-/** What compiling one spell's button reads: the aura table, the spell's cooldown auras, and the spell for messages. */
+/** What compiling one spell's button reads: the aura table, and the spell for messages. */
 interface Compiling<G extends AbilityTypes> {
   readonly auras: AuraSystem<G>;
-  readonly cooldowns: readonly AuraId[];
   readonly what: string;
 }
 
@@ -88,7 +84,6 @@ const compileButton = <G extends AbilityTypes>(state: Compiling<G>, def: ButtonA
   return Object.freeze({
     def,
     commitsOnCast: def.commitsOn === 'cast',
-    cooldowns: state.cooldowns,
     costAura: cost === undefined ? -1 : checkAura(state, cost.aura),
     costStacks: cost?.stacks ?? 1,
     requires: tagsOf(state, def.requires),
@@ -114,7 +109,7 @@ export const compileButtons = <G extends AbilityTypes>(
     }
 
     const { activation } = registry.get(id);
-    const state = { auras, cooldowns: spells.cooldownsOf(id), what: `spell ${registry.name(id)}` };
+    const state = { auras, what: `spell ${registry.name(id)}` };
 
     return isButton<G>(activation) ? compileButton(state, activation) : undefined;
   });
