@@ -189,6 +189,26 @@ describe('the cast order', () => {
     assert.equal(game.cues.count, 1);
     assert.equal(game.cues.events[0]?.owner, 1);
   });
+
+  it('raises no end event for a cast cancelled in begin, whose start event never went out', () => {
+    const game = makeSpellGame({
+      fizzle: spell({
+        activation: { kind: 'trigger' },
+
+        begin: (ctx) => {
+          game.spells.cancel(ctx.cast);
+
+          return undefined;
+        },
+
+        release: () => [mark('release')],
+        onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)]
+      })
+    });
+
+    game.spells.cast(game.unit(1), game.id.fizzle);
+    assert.deepEqual(game.log, ['onEnd cancelled@1']);
+  });
 });
 
 describe('pooled casts', () => {

@@ -49,6 +49,7 @@ const initCast = <G extends SpellTypes>(
   cast.beat = 0;
   cast.went = 0;
   cast.hasReleased = false;
+  cast.hasStarted = false;
   cast.hasStats = false;
 };
 
@@ -189,7 +190,11 @@ export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast
   recordOf(cast.caster).remove(cast.cast);
   engine.fire(cast, def.cues?.end?.(cast, outcome));
   runEnd(engine, cast);
-  engine.raise('end', cast);
+
+  if (cast.hasStarted) {
+    engine.raise('end', cast);
+  }
+
   engine.unhold(cast);
 };
 
@@ -232,13 +237,14 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
   cast.hasReleased = true;
   cast.went = runRelease(engine, cast);
 
-  if (isEnded(cast)) {
+  // A `release` hook or listener may have ended or finished it: then it is past its windup.
+  if (cast.stage !== 'windup') {
     return;
   }
 
   engine.raise('release', cast);
 
-  if (isEnded(cast)) {
+  if (cast.stage !== 'windup') {
     return;
   }
 
@@ -296,6 +302,7 @@ const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, 
     return;
   }
 
+  cast.hasStarted = true;
   engine.raise('start', cast);
 
   if (cast.stage === 'windup' && cast.pauses === 0 && isRunOut(cast.remaining)) {

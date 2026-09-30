@@ -54,6 +54,24 @@ describe('a spell’s cooldowns', () => {
     assert.equal(game.spells.cooldownLeft(other, game.id.slam), 1);
   });
 
+  it('land none for a cooldown reduced to nothing', () => {
+    const game = makeSpellGame(
+      {
+        zap: spell({
+          activation: { kind: 'trigger' },
+          cooldown: { aura: 'zapCooldown', seconds: 0 },
+          release: () => undefined
+        })
+      },
+      { auras: { zapCooldown: aura({ duration: 9 }) } }
+    );
+
+    const hero = game.unit(1);
+
+    game.spells.cast(hero, game.id.zap);
+    assert.equal(game.spells.isCooling(hero, game.id.zap), false);
+  });
+
   it('start all at once for a press that commits them, and a committed cast neither asks nor lands them', () => {
     const game = cooldownGame();
     const hero = game.unit(1);

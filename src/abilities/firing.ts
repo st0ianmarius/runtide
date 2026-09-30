@@ -113,13 +113,18 @@ const pay = <G extends AbilityTypes>(
  * Commits a press of a button: pays its cost, runs `activate`, starts its spell's cooldowns when it commits at the
  * press (and on a prediction mirror, whose casts never start), lands its `applies` in order, then clears its `resets`. A prediction mirror lands only the `predicted` auras
  * of `applies`: the rest touch nothing it steps, and its seed replaces predicted auras alone, so it would keep them.
- * `cost` when an earlier slot of the same press spent what it needed.
+ * `cooldown` when an earlier slot of the same press started a cooldown it shares (a global cooldown, a category), and
+ * `cost` when one spent what it needed.
  */
 const commit = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
   [spell, button]: readonly [SpellId, CompiledButton<G>]
 ): ButtonRefusal | undefined => {
+  if (isCooling(engine, bearer, button)) {
+    return 'cooldown';
+  }
+
   if (!pay(engine, bearer, button)) {
     return 'cost';
   }

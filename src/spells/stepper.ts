@@ -40,13 +40,18 @@ const stepWindup = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>)
     }
   }
 
+  // `track` may have ended or finished it.
+  if (cast.stage !== 'windup') {
+    return;
+  }
+
   if (timeline?.windup?.cancelIf?.(cast, cast.target) === true) {
     endCast(engine, cast, 'cancelled');
 
     return;
   }
 
-  if (isOut) {
+  if (isOut && cast.stage === 'windup') {
     releaseCast(engine, cast);
   }
 };

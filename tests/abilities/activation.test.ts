@@ -237,6 +237,34 @@ describe('a press', () => {
     assert.equal(abilities.cooldownLeft(hero, ultimate), 0);
   });
 
+  it('drops a later slot of the same press whose cooldown an earlier one started (a shared category)', () => {
+    const game = makeAbilityGame({
+      roll: spell({
+        activation: { kind: 'button' },
+        cooldown: { aura: 'dodgeCooldown', seconds: 2 },
+        release: () => undefined
+      }),
+      hop: spell({
+        activation: { kind: 'button' },
+        cooldown: { aura: 'dodgeCooldown', seconds: 2 },
+        release: () => undefined
+      })
+    });
+
+    const hero = game.hero(1);
+    const { abilities } = game;
+    const { dodge, skill } = abilities.slots.id;
+    const refusals: (PressRefusal<AbilityGame> | undefined)[] = [];
+
+    abilities.equip(hero, dodge, game.id.roll);
+    abilities.equip(hero, skill, game.id.hop);
+    assert.equal(
+      abilities.tryActivate(hero, abilities.bit(dodge) | abilities.bit(skill), { refusals }),
+      abilities.bit(dodge)
+    );
+    assert.equal(refusals[skill], 'cooldown');
+  });
+
   it('holds its requires and blockedBy tags', () => {
     const { game, hero } = setUp();
     const { abilities, auras } = game;

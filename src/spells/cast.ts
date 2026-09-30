@@ -104,6 +104,9 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
   /** Whether its payload went out. */
   hasReleased = false;
 
+  /** Whether its `start` event went out: a cast ended in `begin` raises no `end` either. */
+  hasStarted = false;
+
   /** Whether its stats were taken. */
   hasStats = false;
 

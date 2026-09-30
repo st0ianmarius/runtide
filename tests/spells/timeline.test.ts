@@ -53,6 +53,53 @@ describe('stage order', () => {
     assert.equal(game.spells.isRunning(handle), false);
   });
 
+  it('keeps an outcome finished from the release, and releases nothing for a cast track ended', () => {
+    const game = timeline({
+      charge: spell({
+        activation: { kind: 'trigger' },
+        timeline: { channel: { seconds: 1, every: 0.25, tick: () => [mark('beat')] }, recover: { seconds: 0.25 } },
+
+        release: (ctx) => {
+          game.spells.finish(ctx.cast, 'blocked');
+
+          return undefined;
+        }
+      }),
+
+      slam: spell({
+        activation: { kind: 'trigger' },
+        target: () => ({ x: 1, z: 0 }),
+
+        timeline: {
+          windup: {
+            seconds: 0.25,
+
+            track: (ctx, aim) => {
+              game.spells.cancel(ctx.cast);
+
+              return aim;
+            }
+          }
+        },
+
+        release: () => [mark('slam')]
+      })
+    });
+
+    game.spells.cast(game.a, game.id.charge);
+    game.spells.cast(game.a, game.id.slam);
+    game.advance(3);
+    assert.deepEqual(game.log, [
+      'start charge@1',
+      'start slam@1',
+      't1',
+      'end charge@1 blocked',
+      'end slam@1 cancelled',
+      't2',
+      't3'
+    ]);
+  });
+
   it('tracks the target through its windup until lockBefore’s lock', () => {
     let aims = 0;
 

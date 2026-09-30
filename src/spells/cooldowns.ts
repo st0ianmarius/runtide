@@ -170,8 +170,15 @@ export class Cooldowns<G extends SpellTypes> {
     }
   }
 
-  /** Lands one cooldown aura for some seconds, or its own duration. */
+  /**
+   * Lands one cooldown aura for some seconds, or its own duration; none for 0 seconds or less (a cooldown reduced to
+   * nothing), which would hold the spell until the next step.
+   */
   #land(caster: G['bearer'], aura: AuraId, seconds: number | undefined): void {
+    if (seconds !== undefined && seconds <= 0) {
+      return;
+    }
+
     const application = this.#application;
 
     application.aura = aura;

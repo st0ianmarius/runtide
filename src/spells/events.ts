@@ -44,7 +44,7 @@ export interface SpellEvents<G extends SpellTypes> {
   /** A delivery of a cast caught units (`spells.hit`), after `onHit`. */
   readonly hit?: EventKind<SpellEvent<G>>;
 
-  /** A cast ended, after `onEnd`. */
+  /** A cast ended, after `onEnd`; one whose `start` never went out (ended in `begin`) raises none, so they pair. */
   readonly end?: EventKind<SpellEvent<G>>;
 }
 
