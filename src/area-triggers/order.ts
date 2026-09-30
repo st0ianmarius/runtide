@@ -22,6 +22,14 @@ export class OwnerAreas<G extends AreaTriggerTypes> {
     this.heads = Array.from({ length: kinds }, () => undefined);
     this.tails = Array.from({ length: kinds }, () => undefined);
   }
+
+  /** Empties the record for its next owner. */
+  clear(): void {
+    this.counts.fill(0);
+    this.total = 0;
+    this.heads.fill(undefined);
+    this.tails.fill(undefined);
+  }
 }
 
 /** The owner's area trigger just before `area` in its tick-order list, walking back past other owners'. */

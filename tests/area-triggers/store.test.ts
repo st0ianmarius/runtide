@@ -348,4 +348,20 @@ describe('the tick order', () => {
     assert.equal(game.areaTriggers.step(), 0);
     assert.deepEqual(game.log, ['b3', `late${game.areaTriggers.get(late)?.id}`, 'b2']);
   });
+
+  it('hands an owner left with none its record back, for the next owner to start empty', () => {
+    const game = makeSpellGame({}, { areaTriggers: kinds });
+    const [one, two] = [game.unit(1), game.unit(2)];
+
+    game.areaTriggers.despawn(game.areaTriggers.spawn(game.areaId.b, { owner: one, at: vec2(0, 0) }));
+    game.areaTriggers.spawn(game.areaId.b, { owner: two, at: vec2(0, 0) });
+    game.step();
+    game.log.length = 0;
+    assert.deepEqual(
+      [game.areaTriggers.countOf(one, game.areaId.b), game.areaTriggers.countOf(two, game.areaId.b)],
+      [0, 1],
+    );
+    assert.deepEqual([game.areaTriggers.stepOwner(one), game.areaTriggers.stepOwner(two)], [0, 1]);
+    assert.deepEqual(game.log, ['b2']);
+  });
 });

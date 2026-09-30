@@ -93,6 +93,9 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   readonly #streams: AreaEngineParts<G>['streams'];
   readonly #resetExt: AreaEngineParts<G>['resetExt'];
   readonly #owners = new Map<G['bearer'], OwnerAreas<G>>();
+
+  /** Owner records given back as their owners' last area trigger ended, reused by the next owner to spawn one. */
+  readonly #spareOwners: OwnerAreas<G>[] = [];
   readonly #ownerClocks = new Map<G['bearer'], (SharedClock | undefined)[]>();
   readonly #lists: ProcList<G>[] = [];
   readonly #place = new AreaPlace();
@@ -211,12 +214,12 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     return this.#owners.get(owner);
   }
 
-  /** What an owner has live, made on its first area trigger. */
+  /** What an owner has live, taken (a spare record, else a new one) on its first area trigger. */
   ownerFor(owner: G['bearer']): OwnerAreas<G> {
     let owned = this.#owners.get(owner);
 
     if (owned === undefined) {
-      owned = new OwnerAreas<G>(this.registry.size);
+      owned = this.#spareOwners.pop() ?? new OwnerAreas<G>(this.registry.size);
       this.#owners.set(owner, owned);
     }
 
@@ -228,7 +231,10 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     return this.#owners.get(owner)?.counts[kind] ?? 0;
   }
 
-  /** Counts one more (or one fewer) of a kind for an owner, forgetting an owner left with none. */
+  /**
+   * Counts one more (or one fewer) of a kind for an owner. An owner left with none is forgotten, and its record kept
+   * for the next owner, so a caster whose telegraph ends before its next cast allocates nothing.
+   */
   count(owner: G['bearer'], [kind, by]: readonly [number, number]): void {
     const owned = this.ownerFor(owner);
 
@@ -237,6 +243,8 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
 
     if (owned.total <= 0) {
       this.#owners.delete(owner);
+      owned.clear();
+      this.#spareOwners.push(owned);
     }
   }
 
