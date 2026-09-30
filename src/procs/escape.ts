@@ -58,7 +58,7 @@ export interface EscapeSpells {
 }
 
 /**
- * What the escape report reads from any other system with proc kinds (area triggers, abilities, units, AI): its proc
+ * What the escape report reads from any other system with proc kinds (area triggers, units, AI): its proc
  * kinds, which are the framework's own and not hatches.
  */
 export interface EscapeKinds {
@@ -100,9 +100,6 @@ export const escapeReport = <G extends ProcTypes>(registries: {
   /** The game's area trigger system, if it has one. */
   readonly areaTriggers?: EscapeKinds;
 
-  /** The game's ability system, if it has one. */
-  readonly abilities?: EscapeKinds;
-
   /** The game's unit system, if it has one. */
   readonly units?: EscapeKinds;
 
@@ -115,8 +112,8 @@ export const escapeReport = <G extends ProcTypes>(registries: {
   const { kinds, runs } = registries.procs;
   const { damage, spells } = registries;
 
-  const { areaTriggers, abilities, units, ai } = registries;
-  const systems = [damage, spells, areaTriggers, abilities, units, ai].map((system) => system?.procKinds);
+  const { areaTriggers, units, ai } = registries;
+  const systems = [damage, spells, areaTriggers, units, ai].map((system) => system?.procKinds);
 
   return {
     procKinds: kinds.names.filter((name, index) => !isCore(name, kinds.defs[index], systems)),

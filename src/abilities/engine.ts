@@ -1,13 +1,7 @@
 import type { AuraSystem } from '../auras/index.ts';
-import type { StatId, StatView } from '../modifiers/index.ts';
-import {
-  type CastOptions,
-  type MirrorCtx,
-  OPEN_WORLD,
-  type SpellId,
-  type SpellSystem,
-  type StaticWorld,
-} from '../spells/index.ts';
+import { basesView, type StatView } from '../modifiers/index.ts';
+import { type CastOptions, OPEN_WORLD, type SpellId, type SpellSystem, type StaticWorld } from '../spells/index.ts';
+import { MirrorContext } from '../spells/mirror.ts';
 import type { AbilityTypes } from './ability-types.ts';
 import { compileButtons, type CompiledButton, liveAura } from './buttons.ts';
 import type { SlotTable } from './slots.ts';
@@ -17,37 +11,6 @@ class PressOptions<G extends AbilityTypes> implements CastOptions<G> {
   input: G['input'] | undefined = undefined;
   key = 0;
   rank = 1;
-}
-
-/** A stat view of a stat table's bases: what a cooldown reads with no stats host, and in a preview. */
-class BaseView implements StatView {
-  readonly #bases: ArrayLike<number>;
-
-  constructor(bases: ArrayLike<number>) {
-    this.#bases = bases;
-  }
-
-  total(stat: StatId): number {
-    return this.#bases[stat] ?? 0;
-  }
-
-  base(stat: StatId): number {
-    return this.#bases[stat] ?? 0;
-  }
-}
-
-/** The one mirror context of an engine, reused for every motion hook (they never nest). */
-export class MirrorContext<G extends AbilityTypes> implements MirrorCtx<G> {
-  bearer: G['bearer'];
-  input: G['input'] | undefined = undefined;
-  stats: StatView | undefined = undefined;
-  readonly world: StaticWorld;
-  dt = 0;
-
-  constructor(world: StaticWorld, bearer: G['bearer']) {
-    this.world = world;
-    this.bearer = bearer;
-  }
 }
 
 /** What an ability system is built from: the spell and aura systems, the slots, and the caster's stats. */
@@ -130,7 +93,7 @@ export class AbilityEngine<G extends AbilityTypes> {
         ? -1
         : liveAura(parts.auras.registry, aura, `Slot ${parts.slots.name(slot)}'s cooldown`);
     });
-    this.baseView = new BaseView(parts.spells.registry.stats?.columns.base ?? []);
+    this.baseView = basesView(parts.spells.registry.stats?.columns.base ?? []);
     this.#statsOf = parts.statsOf;
     this.dt = parts.clock.dt;
     this.isMirror = parts.mirror === true;

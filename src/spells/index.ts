@@ -97,8 +97,6 @@ export { defineSpellTags, type SpellTagDef, type SpellTagTable } from './tags.ts
 
 export {
   type Channel,
-  lockAtShare,
-  lockAtStart,
   lockBefore,
   type Recover,
   type Timeline,

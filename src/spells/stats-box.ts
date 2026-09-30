@@ -1,8 +1,8 @@
 import {
+  basesView,
   finishScaled,
   type ScaledSnapshot,
   snapshotScaled,
-  type StatId,
   type StatTable,
   type StatView,
 } from '../modifiers/index.ts';
@@ -29,25 +29,8 @@ export class StatsBox {
   }
 }
 
-/** A view of the stat table's bases: what a cast reads when the host has no `statsOf`. */
-class BaseView implements StatView {
-  readonly #bases: ArrayLike<number>;
-
-  constructor(bases: ArrayLike<number>) {
-    this.#bases = bases;
-  }
-
-  total(stat: StatId): number {
-    return this.#bases[stat] ?? 0;
-  }
-
-  base(stat: StatId): number {
-    return this.#bases[stat] ?? 0;
-  }
-}
-
 /** The view of the bases of a game's stat table, or of no stats (every read 0) when it has none. */
-export const baseView = (stats: StatTable | undefined): StatView => new BaseView(stats?.columns.base ?? []);
+export const baseView = (stats: StatTable | undefined): StatView => basesView(stats?.columns.base ?? []);
 
 /** The free boxes of every spell, by spell id. */
 export class StatsBoxes {

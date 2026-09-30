@@ -1,6 +1,5 @@
 import {
   type AbilityBearer,
-  type AbilityProcs,
   type AbilitySystem,
   type AbilityTypes,
   createAbilitySystem,
@@ -123,7 +122,7 @@ export interface AbilityGame extends AbilityTypes {
   readonly host: GameHost;
 
   /** The spell and ability systems' kinds. */
-  readonly gameProc: SpellProcs<AbilityGame> | AbilityProcs<AbilityGame>;
+  readonly gameProc: SpellProcs<AbilityGame>;
 
   /** Spell names are open strings. */
   readonly spellName: string;
@@ -307,7 +306,7 @@ export const makeAbilityGame = <const Spell extends string>(
   const abilities = createAbilitySystem<AbilityGame>({ spells, auras, slots, clock, world, mirror, statsOf: viewOf });
 
   const procs = createProcSystem<AbilityGame>({
-    kinds: createProcRegistry<AbilityGame>({ ...CORE_PROCS, ...spells.procKinds, ...abilities.procKinds }),
+    kinds: createProcRegistry<AbilityGame>({ ...CORE_PROCS, ...spells.procKinds }),
     auras,
     host,
   });

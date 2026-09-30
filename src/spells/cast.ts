@@ -20,7 +20,6 @@ export class StatsCall<G extends SpellTypes> implements StatsContext<G> {
   caster: G['bearer'] | undefined = undefined;
   spell: SpellId = toId<'spells'>(0);
   rank = 1;
-  variant = 0;
   view: StatView | undefined = undefined;
 }
 
@@ -65,7 +64,6 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
   cast: CastHandle = NO_CAST;
   source = NO_SOURCE;
   rank = 1;
-  variant = 0;
   input: G['input'] | undefined = undefined;
   target: unknown = undefined;
   stats: Readonly<Record<string, unknown>> = NO_STATS;

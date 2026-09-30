@@ -202,7 +202,7 @@ export const setPause = <G extends SpellTypes>(
   return true;
 };
 
-/** Cancels a running cast: `onCancel`, then its end; false for a stale or ended one. */
+/** Cancels a running cast: its end; false for a stale or ended one. */
 export const cancelCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: CastHandle): boolean => {
   const cast = running(engine, handle);
 

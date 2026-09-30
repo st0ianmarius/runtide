@@ -84,9 +84,6 @@ export interface Timeline<G extends SpellTypes, Source extends StatsSource<G>, T
    * until the interrupt ends) or `cancel`. An interrupt it does not name leaves it running.
    */
   readonly interrupts?: Readonly<Partial<Record<G['interrupt'], 'pause' | 'cancel'>>>;
-
-  /** The cast was cancelled, before `onEnd` (withdraw its own unfired telegraphs). */
-  onCancel?(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target, out: ProcOut<G>): ProcReturn<G>;
 }
 
 /** Tracks the target (through `target` again) until `seconds` before the release, then locks. */
@@ -94,12 +91,3 @@ export const lockBefore =
   (seconds: number) =>
   <Target>(ctx: TrackContext<Target>, target: Target): Target | 'lock' =>
     ctx.remaining <= seconds ? 'lock' : (ctx.retarget() ?? target);
-
-/** Tracks the target until `share` of the windup has passed (0.5: half way), then locks. */
-export const lockAtShare =
-  (share: number) =>
-  <Target>(ctx: TrackContext<Target>, target: Target): Target | 'lock' =>
-    ctx.elapsed >= share * ctx.stageSeconds ? 'lock' : (ctx.retarget() ?? target);
-
-/** Locks at once: the aim taken at the start holds. */
-export const lockAtStart = <Target>(_ctx: TrackContext<Target>, _target: Target): Target | 'lock' => 'lock';

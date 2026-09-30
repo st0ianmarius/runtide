@@ -1,6 +1,5 @@
 import {
   type AbilityBearer,
-  type AbilityProcs,
   type AbilityTypes,
   createAbilitySystem,
   defineSlots,
@@ -92,7 +91,7 @@ interface BenchGame extends AbilityTypes {
   readonly host: object;
 
   /** The spell and ability systems' kinds. */
-  readonly gameProc: SpellProcs<BenchGame> | AbilityProcs<BenchGame>;
+  readonly gameProc: SpellProcs<BenchGame>;
 
   /** Open spell names. */
   readonly spellName: string;
@@ -209,7 +208,7 @@ const ABILITIES = createAbilitySystem<BenchGame>({
 });
 
 late.procs = createProcSystem<BenchGame>({
-  kinds: createProcRegistry<BenchGame>({ ...CORE_PROCS, ...SPELL_SYSTEM.procKinds, ...ABILITIES.procKinds }),
+  kinds: createProcRegistry<BenchGame>({ ...CORE_PROCS, ...SPELL_SYSTEM.procKinds }),
   auras: AURA_SYSTEM,
   host: HOST,
   resources: ['focus'],

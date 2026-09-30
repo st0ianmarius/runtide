@@ -619,8 +619,10 @@ export const makeSpellGame = <
     views.set(made, viewOf(made));
     world.add(made, { id, at: made.at, radius: 0.5, side: id >= 100 ? 1 : 0 });
 
-    for (const auto of registry.autoIds) {
-      spells.arm(made, auto);
+    for (const spell of registry.ids) {
+      if (registry.get(spell).activation.kind === 'auto') {
+        spells.arm(made, spell);
+      }
     }
 
     return made;

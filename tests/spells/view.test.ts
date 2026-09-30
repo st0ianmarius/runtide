@@ -24,7 +24,6 @@ describe('cast views', () => {
     assert.deepEqual(game.spells.viewOf(handle), {
       spell: game.id.bolt,
       rank: 2,
-      variant: 0,
       stage: CAST_STAGES.indexOf('windup'),
       seconds: 1,
       end: 8,

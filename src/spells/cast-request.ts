@@ -46,9 +46,6 @@ export interface CastOptions<G extends SpellTypes> {
   /** Its rank, from 1; the caster's own (`host.rankOf`), else 1, when absent. */
   readonly rank?: number | undefined;
 
-  /** Its variant; the caster's own (`host.variantOf`), else 0, when absent. */
-  readonly variant?: number | undefined;
-
   /** The entity id its hits are credited to; the caster's (`host.idOf`) when absent. */
   readonly source?: number | undefined;
 

@@ -5,6 +5,8 @@
  * explanations.
  */
 
+export { basesView } from './bases-view.ts';
+
 export type {
   CompiledCurve,
   CompiledLookup,

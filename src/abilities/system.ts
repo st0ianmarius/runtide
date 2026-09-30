@@ -4,10 +4,8 @@ import type { SpellId } from '../spells/index.ts';
 import type { AbilityTypes, ButtonRefusal, SlotId } from './ability-types.ts';
 import { AbilityEngine, type AbilityParts } from './engine.ts';
 import { type ButtonExplanation, explainButton } from './explain.ts';
-import { cooldownSeconds, press, refusalAt, slotHolding, spellAt, travel, triggerButton } from './firing.ts';
+import { cooldownSeconds, press, refusalAt, slotHolding, spellAt, travel } from './firing.ts';
 import { loadoutOf, LoadoutRecord, type LoadoutState } from './loadout.ts';
-import { createAbilityProcKinds } from './proc-kinds.ts';
-import type { AbilityProcKinds } from './procs.ts';
 import type { SlotTable } from './slots.ts';
 
 /** One press's data: what its casts are handed, and the key their predicted cast cues carry. */
@@ -51,9 +49,6 @@ export type AbilitySystemOptions<G extends AbilityTypes> = AbilityParts<G>;
 export interface AbilitySystem<G extends AbilityTypes> {
   /** The game's slots. */
   readonly slots: SlotTable<G['slot']>;
-
-  /** The proc kind `useAbility`: `createProcRegistry({ ...CORE_PROCS, ...abilities.procKinds })`. */
-  readonly procKinds: AbilityProcKinds<G>;
 
   /**
    * The auras and tags a press reads and writes on its bearer: what a prediction mirror must rebuild, so each such aura
@@ -99,12 +94,6 @@ export interface AbilitySystem<G extends AbilityTypes> {
    * fired. The game calls it inside its motion step, on the server and on a prediction mirror alike.
    */
   readonly tryActivate: (bearer: G['bearer'], pressed: number, press?: Press<G>) => number;
-
-  /**
-   * The trigger path: fires a button spell with no slot cooldown (none gates it, none starts), gated by its
-   * own rules; it pays, lands its auras and casts at the rank of the slot holding it. False when it did not fire.
-   */
-  readonly trigger: (bearer: G['bearer'], spell: SpellId, input?: G['input']) => boolean;
 
   /**
    * Runs every equipped ability's `travel` hook, in slot order, each with a `MirrorCtx` of the bearer, its stats for
@@ -206,7 +195,6 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
 
   return {
     slots,
-    procKinds: createAbilityProcKinds(engine),
     mirrorReads: mirrorReadsOf(engine),
     createLoadout: () => new LoadoutRecord(slots.size),
 
@@ -250,8 +238,6 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
 
       return press(engine, bearer, pressed);
     },
-
-    trigger: (bearer, spell, input) => triggerButton(engine, bearer, [spell, input]),
 
     travel: (bearer, dt) => {
       travel(engine, bearer, dt);

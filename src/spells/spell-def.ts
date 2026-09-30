@@ -62,9 +62,6 @@ export interface StatsContext<G extends SpellTypes> {
   /** Its rank, from 1. */
   readonly rank: number;
 
-  /** Its variant (0 for the plain one; a game's legendary form, say). */
-  readonly variant: number;
-
   /** The caster's stats for this spell (`host.statsOf`), when there are any. */
   readonly view: StatView | undefined;
 }
@@ -107,9 +104,6 @@ export interface GateContext<G extends SpellTypes> {
 
   /** Its rank, from 1. */
   readonly rank: number;
-
-  /** Its variant. */
-  readonly variant: number;
 
   /** What the activation handed it. */
   readonly input: G['input'] | undefined;

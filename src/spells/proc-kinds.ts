@@ -12,7 +12,6 @@ import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 class ProcCastOptions<G extends SpellTypes> implements CastOptions<G> {
   input: G['input'] | undefined = undefined;
   rank: number | undefined = undefined;
-  variant: number | undefined = undefined;
   source: number | undefined = undefined;
 }
 
@@ -111,7 +110,6 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
 
       options.input = proc.inputOf === undefined ? proc.input : proc.inputOf(ctx);
       options.rank = proc.rank ?? parent?.rank;
-      options.variant = parent?.variant;
       options.source = ctx.source;
 
       const { status } = parts.cast(caster, spellIdOf(engine, proc.spell, false), options);

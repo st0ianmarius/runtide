@@ -34,10 +34,4 @@ export interface SpellHost<G extends SpellTypes> extends ProcHost<G> {
    * (and an absent hook) gives rank 1.
    */
   readonly rankOf?: (caster: G['bearer'], spell: SpellId) => number | undefined;
-
-  /**
-   * A caster's variant of a spell (1 for a legendary), what a cast is given when its options name none.
-   * `undefined` (and an absent hook) gives variant 0.
-   */
-  readonly variantOf?: (caster: G['bearer'], spell: SpellId) => number | undefined;
 }

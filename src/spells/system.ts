@@ -148,7 +148,7 @@ export interface SpellSystem<G extends SpellTypes> {
   /** Resumes a cast `pause` paused (an interrupt's own pause stays until the interrupt ends). */
   readonly resume: (cast: CastHandle) => boolean;
 
-  /** Cancels a running cast: `onCancel`, `onEnd` and the end event, with no recovery; false for a stale or ended one. */
+  /** Cancels a running cast: `onEnd` and the end event, with no recovery; false for a stale or ended one. */
   readonly cancel: (cast: CastHandle) => boolean;
 
   /**

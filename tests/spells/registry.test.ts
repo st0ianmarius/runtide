@@ -11,8 +11,6 @@ import {
   defineActivations,
   defineSpell,
   defineSpells,
-  lockAtShare,
-  lockAtStart,
   lockBefore,
   type SpellRegistryOptions,
   type TrackContext,
@@ -92,11 +90,10 @@ describe('the spell registry', () => {
     );
   });
 
-  it("holds each spell's tags as a bitset, and lists the auto spells in order", () => {
+  it("holds each spell's tags as a bitset", () => {
     const registry = SPELLS();
 
     assert.deepEqual(registry.tagSets[1]?.toArray(), [SPELL_TAGS.id.area, SPELL_TAGS.id.melee]);
-    assert.deepEqual(registry.autoIds, [registry.id.swing]);
   });
 
   it('compiles a stats table at load, and the outgoing shares by stat id', () => {
@@ -237,14 +234,5 @@ describe('tracking helpers', () => {
   it('lockBefore re-aims until that many seconds before the release', () => {
     assert.equal(lockBefore(0.25)(at(0.5), 1), 9);
     assert.equal(lockBefore(0.25)(at(0.75), 1), 'lock');
-  });
-
-  it('lockAtShare re-aims until that share of the windup has passed', () => {
-    assert.equal(lockAtShare(0.5)(at(0.25), 1), 9);
-    assert.equal(lockAtShare(0.5)(at(0.5), 1), 'lock');
-  });
-
-  it('lockAtStart locks at once', () => {
-    assert.equal(lockAtStart(at(0), 1), 'lock');
   });
 });

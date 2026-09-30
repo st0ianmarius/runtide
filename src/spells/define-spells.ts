@@ -26,9 +26,6 @@ export const STATS_TABLE = 2;
 /** Flag bit: its stats are a function. */
 export const STATS_FUNCTION = 4;
 
-/** Flag bit: the caster holds an aura while it casts. */
-const CAST_AURA = 8;
-
 /** The hooks every spell registry builds dispatch tables for. */
 const SPELL_HOOKS = ['state', 'canCast', 'target', 'begin', 'release', 'onHit', 'onEnd'] as const;
 
@@ -77,9 +74,6 @@ export interface SpellRegistry<G extends SpellTypes = SpellTypes, Name extends s
   /** Each spell's outgoing shares by stat id, NaN for a stat it leaves out; `undefined` when it declares none. */
   readonly shares: readonly (Float64Array | undefined)[];
 
-  /** The ids of the `auto` spells, in registry order: the caster's auto clocks, one per entry. */
-  readonly autoIds: readonly SpellId[];
-
   /**
    * Every way a cast can end, in code order (what an `outcome` filter resolves to and the combat log codes by): the
    * framework's (`CAST_OUTCOMES`), then the game's own.
@@ -119,8 +113,7 @@ const liveDef = <G extends SpellTypes>(entry: AnySpellDef<G> | Tombstone | undef
 const flagsOf = <G extends SpellTypes>(def: AnySpellDef<G>): number =>
   (def.live === true ? LIVE : 0) |
   (isStatsTable<G>(def.stats) ? STATS_TABLE : 0) |
-  (typeof def.stats === 'function' ? STATS_FUNCTION : 0) |
-  (def.castAura === undefined ? 0 : CAST_AURA);
+  (typeof def.stats === 'function' ? STATS_FUNCTION : 0);
 
 /** A column of one number per slot (0 for a tombstone). */
 const columnOf = <G extends SpellTypes, C extends Column>(
@@ -234,8 +227,6 @@ export const defineSpells = <G extends SpellTypes, const Name extends string>(
   });
 
   const slots = Object.freeze(base.names.map((name) => liveDef(byName.get(name))));
-  const kindIds: Readonly<Record<string, number | undefined>> = activations.id;
-  const autoKind = kindIds['auto'];
   const columns = buildColumns(slots, [activations, base.names]);
 
   return Object.freeze({
@@ -256,7 +247,6 @@ export const defineSpells = <G extends SpellTypes, const Name extends string>(
     tagSets: buildTagSets(slots, tags),
     compiled: Object.freeze(slots.map((def, id) => def && compileStats(base.names[id] ?? '', def, options.stats))),
     shares: Object.freeze(slots.map((def, id) => def && compileShares(base.names[id] ?? '', def, options.stats))),
-    autoIds: base.ids.filter((id) => autoKind !== undefined && columns.activation[id] === autoKind),
     outcomes: outcomesOf<G>(options.outcomes),
   });
 };

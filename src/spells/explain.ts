@@ -12,13 +12,10 @@ import type { SpellRegistry } from './define-spells.ts';
 import type { ActivationKindId, ActivationShape, SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 import { baseView } from './stats-box.ts';
 
-/** How a preview or an explanation reads a spell: at which rank and variant, with whose stats. */
+/** How a preview or an explanation reads a spell: at which rank, with whose stats. */
 export interface PreviewOptions<G extends SpellTypes> {
   /** The rank, from 1; 1 when absent. */
   readonly rank?: number;
-
-  /** The variant; 0 when absent. */
-  readonly variant?: number;
 
   /** The caster a `stats` function reads, if any; a preview has no world, so it is usually absent. */
   readonly caster?: G['bearer'];
@@ -103,7 +100,7 @@ const viewOf = <G extends SpellTypes>(registry: SpellRegistry<G>, options: Previ
 /**
  * A spell's stats as a cast at a rank would take them, with no world: a table's values evaluated against
  * the given stats (the stat table's bases by default) and a target's when given (else target terms are left out), or
- * what a `stats` function returns for the rank and variant. A new object, for the client's previews and tooltips.
+ * what a `stats` function returns for the rank. A new object, for the client's previews and tooltips.
  */
 export const previewStats = <G extends SpellTypes>(
   registry: SpellRegistry<G>,
@@ -134,7 +131,6 @@ export const previewStats = <G extends SpellTypes>(
   call.caster = options.caster;
   call.spell = spell;
   call.rank = rank;
-  call.variant = options.variant ?? 0;
   call.view = view;
 
   return def.stats(call);

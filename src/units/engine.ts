@@ -4,6 +4,7 @@ import type { AuraSystem } from '../auras/index.ts';
 import type { DamageSystem } from '../damage/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import {
+  basesView,
   type Modifier,
   type ModifierList,
   type ModifierSystem,
@@ -14,7 +15,6 @@ import {
 } from '../modifiers/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
 import type { WorldQuery } from '../world/index.ts';
-import { BaseView } from './base-view.ts';
 import type { UnitEvents } from './events.ts';
 import type { InterruptingState, UnitStateTable } from './states.ts';
 import type { UnitRegistry } from './unit-def.ts';
@@ -280,7 +280,7 @@ export class UnitEngine<G extends UnitTypes> {
     const { sheet } = unit;
 
     if (modifiers === undefined || sheet === undefined) {
-      unit.view = new BaseView(unit.base);
+      unit.view = basesView(unit.base);
 
       return;
     }

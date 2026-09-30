@@ -270,32 +270,6 @@ export const slotHolding = (bearer: AbilityBearer, spell: SpellId): SlotId | und
   return index < 0 ? undefined : toId<'slots'>(index);
 };
 
-/**
- * The trigger path: a button spell fired by something other than its key (a `useAbility` proc, an aura's
- * trigger). No slot cooldown gates it and none starts; its own rules gate it; it pays, lands `applies` and `resets`,
- * and casts at the rank of the slot that holds it (1 when none does). Its `activate` does not run: the motion half is
- * the key's. False when it did not fire.
- */
-export const triggerButton = <G extends AbilityTypes>(
-  engine: AbilityEngine<G>,
-  bearer: G['bearer'],
-  [spell, input]: readonly [SpellId, G['input'] | undefined],
-): boolean => {
-  const button = engine.buttons[spell];
-
-  if (button === undefined || failedRule(engine, bearer, button) !== undefined || !pay(engine, bearer, button)) {
-    return false;
-  }
-
-  const slot = slotHolding(bearer, spell);
-  const rank = slot === undefined ? 1 : (loadoutOf(bearer).ranks[slot] ?? 1);
-
-  land(engine, bearer, spell);
-  castButton(engine, bearer, [spell, rank, input]);
-
-  return true;
-};
-
 /** Runs the `travel` hook of every equipped ability, in slot order: the motion half on a motion step. */
 export const travel = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], dt: number): void => {
   const record = loadoutOf(bearer);

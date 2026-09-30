@@ -9,7 +9,6 @@ import type { AreaEngine } from './engine.ts';
 export class AreaCastOptions<G extends AreaTriggerTypes> implements CastOptions<G> {
   input: G['input'] | undefined = undefined;
   rank = 1;
-  variant = 0;
   source: number | undefined = undefined;
 }
 

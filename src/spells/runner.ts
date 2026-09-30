@@ -30,7 +30,6 @@ const initCast = <G extends SpellTypes>(
 
   cast.spell = parts.spell;
   cast.rank = options.rank ?? engine.host.rankOf?.(cast.caster, parts.spell) ?? 1;
-  cast.variant = options.variant ?? engine.host.variantOf?.(cast.caster, parts.spell) ?? 0;
   cast.input = options.input;
   cast.casterId = casterId;
   cast.source = options.source ?? casterId;
@@ -169,18 +168,11 @@ const runRelease = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>)
   }
 };
 
-/** Runs `onCancel` (for a cancelled cast) and `onEnd`. */
-const runEnd = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def: AnySpellDef<G>): void => {
+/** Runs `onEnd`. */
+const runEnd = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
   const list = engine.takeList();
 
   try {
-    const onCancel = def.timeline?.onCancel;
-
-    if (cast.outcome === 'cancelled' && onCancel !== undefined) {
-      engine.run(cast, onCancel(cast, cast.target, list), list);
-      list.clear();
-    }
-
     const onEnd = engine.registry.hooks.onEnd[cast.spell];
 
     if (onEnd !== undefined) {
@@ -192,7 +184,7 @@ const runEnd = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def
 };
 
 /**
- * Ends a cast, once: it leaves its caster's casts, then `onCancel` for a cancel, its end cue, `onEnd`, its
+ * Ends a cast, once: it leaves its caster's casts, then its end cue, `onEnd`, its
  * cast aura comes off, the caster's clocks that reset after a cast reset, and the `end` event. Its record goes back to the pool once nothing holds it.
  */
 export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, outcome: CastOutcome<G>): void => {
@@ -209,7 +201,7 @@ export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast
   cast.remaining = 0;
   recordOf(cast.caster).remove(cast.cast);
   engine.fire(cast, def.cues?.end?.(cast, outcome));
-  runEnd(engine, cast, def);
+  runEnd(engine, cast);
   engine.holdCastAura(cast, false);
   resetAfterCast(engine, cast.caster, cast.spell);
   engine.raise('end', cast);

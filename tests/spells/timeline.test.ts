@@ -81,7 +81,7 @@ describe('stage order', () => {
     assert.equal(game.log.at(-1), 'end slam@1 released');
   });
 
-  it('cancels a windup whose cancelIf holds: onCancel, then onEnd, with no release and no recovery', () => {
+  it('cancels a windup whose cancelIf holds: onEnd, with no release and no recovery', () => {
     let isLost = false;
 
     const game = timeline({
@@ -90,7 +90,6 @@ describe('stage order', () => {
         timeline: {
           windup: { seconds: 1, cancelIf: () => isLost },
           recover: { seconds: 1 },
-          onCancel: () => [mark('withdraw')],
         },
         release: () => [mark('release')],
         onEnd: (_ctx, outcome) => [mark(`onEnd ${outcome}`)],
@@ -101,14 +100,7 @@ describe('stage order', () => {
     game.advance(1);
     isLost = true;
     game.advance(1);
-    assert.deepEqual(game.log, [
-      'start tether@1',
-      't1',
-      't2',
-      'withdraw@1',
-      'onEnd cancelled@1',
-      'end tether@1 cancelled',
-    ]);
+    assert.deepEqual(game.log, ['start tether@1', 't1', 't2', 'onEnd cancelled@1', 'end tether@1 cancelled']);
   });
 
   it('beats a channel every `every` seconds, the last on its last step, then recovers', () => {

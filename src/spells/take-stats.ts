@@ -9,7 +9,7 @@ import { takeTable } from './stats-box.ts';
 /**
  * Takes a cast's stats (decision 2): a stats table's values snapshotted from the caster's stats for the
  * spell (`host.statsOf`, else the stat table's bases) into the cast's box, a `stats` function called with the caster,
- * rank, variant and view, or none. Called once at the start, and again before every hook of a `live` spell.
+ * rank and view, or none. Called once at the start, and again before every hook of a `live` spell.
  */
 export const takeStats = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def: AnySpellDef<G>): void => {
   cast.hasStats = true;
@@ -42,7 +42,6 @@ export const takeStats = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Ca
   call.caster = cast.caster;
   call.spell = cast.spell;
   call.rank = cast.rank;
-  call.variant = cast.variant;
   call.view = view;
   cast.stats = typeof stats === 'function' ? stats(call) : NO_STATS;
   cast.scaled = NO_SCALED;

@@ -18,9 +18,6 @@ export interface CastView {
   /** Its rank. */
   readonly rank: number;
 
-  /** Its variant. */
-  readonly variant: number;
-
   /** Its stage, by index in `CAST_STAGES`. */
   readonly stage: number;
 
@@ -53,7 +50,6 @@ export const viewCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: C
   return {
     spell: cast.spell,
     rank: cast.rank,
-    variant: cast.variant,
     stage: CAST_STAGES.indexOf(cast.stage),
     seconds: cast.stageSeconds,
     end: cast.isPaused ? Infinity : clock.tick + stepsUntil(cast.remaining, clock.dt),
