@@ -75,7 +75,7 @@ describe('the weighted anti-repeat picker (§I.7.1 F17, §II.6 C3)', () => {
   });
 });
 
-describe('the focus and the movement intent (§II.6 C5, C9)', () => {
+describe('the focus (§II.6 C5)', () => {
   it('is set by the game or by the setFocus proc, and cleared', () => {
     const { ai, procs, units, id, beast } = picking();
     const hero = units.spawn(id.beast, { side: 0 });
@@ -87,27 +87,5 @@ describe('the focus and the movement intent (§II.6 C5, C9)', () => {
     assert.equal(ai.focusOf(beast), -1);
     ai.setFocus(beast, 7);
     assert.equal(beast.brain.focus, 7);
-  });
-
-  it('writes one reused intent per unit, each kind resetting what the last one set', () => {
-    const { ai, beast } = picking();
-    const intent = ai.intentOf(beast);
-
-    intent.chase(4, 1.5).speed = 1.3;
-    assert.deepEqual(
-      [intent.kind, intent.target, intent.distance, intent.face, intent.speed],
-      ['chase', 4, 1.5, 'target', 1.3],
-    );
-    intent.moveTo({ x: 2, z: 3 });
-    assert.deepEqual(
-      [intent.kind, intent.target, intent.point, intent.speed, intent.face],
-      ['point', -1, { x: 2, z: 3 }, 1, 'move'],
-    );
-    assert.equal(intent.hold().face, 'keep');
-    assert.equal(intent.keepRange(4, 6).kind, 'keepRange');
-    assert.equal(intent.flee(4, 8).distance, 8);
-    assert.equal(intent.fleePoint({ x: 1, z: 1 }, 5).target, -1);
-    assert.equal(intent.clear().kind, 'none');
-    assert.equal(ai.intentOf(beast), intent);
   });
 });

@@ -1,8 +1,6 @@
-import { MoveIntent } from './intent.ts';
-
 /**
- * What the AI system keeps on a unit (`AiBearer.brain`): its timers, its focus, its last pick and its movement
- * intent. The game reads the focus, the last pick and the intent here, and changes them through the system.
+ * What the AI system keeps on a unit (`AiBearer.brain`): its timers, its focus and its last pick. The game reads the
+ * focus and the last pick here, and changes them through the system; where a unit wants to go is the game's own.
  */
 export interface BrainState {
   /** The entity id of the unit it focuses (a tether's target, a sticky target); −1 for none. */
@@ -10,9 +8,6 @@ export interface BrainState {
 
   /** The spell it last picked (`ai.pick`); −1 before its first. */
   readonly lastPick: number;
-
-  /** Where it wants to go and face, which the game's movement steers by (§II.6 C9). */
-  readonly intent: MoveIntent;
 }
 
 /** A brain's record: a class for fast properties, its timer columns typed arrays (§I.5.4). */
@@ -34,7 +29,6 @@ export class Brain implements BrainState {
 
   focus = -1;
   lastPick = -1;
-  readonly intent = new MoveIntent();
 
   constructor(slot: number, timers: number) {
     this.slot = slot;

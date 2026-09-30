@@ -1,7 +1,6 @@
 import type { SpellClock, SpellId, SpellSystem } from '../spells/index.ts';
 import type { AiTypes, TimerId } from './ai-types.ts';
 import { brainOf, type BrainState } from './brain.ts';
-import type { MoveIntent } from './intent.ts';
 import { Picker, type PickOptions } from './picker.ts';
 import { createAiProcKinds } from './proc-kinds.ts';
 import type { AiProcKinds } from './procs.ts';
@@ -32,8 +31,8 @@ export interface AiSystemOptions<G extends AiTypes> {
 /**
  * An AI system (§I.7.1 F17): the toolkit every brain is built from, and nothing more. Named timers on a timing wheel
  * (TrinityCore's `EventMap`), one weighted anti-repeat spell picker that reads each spell's own cast rules, a focus
- * the procs may set, and a movement intent per unit. What a brain decides with them (its reactions, its budget, its
- * target policy, its movement) is the game's, until scripts (F19) give it a shape.
+ * the procs may set. What a brain decides with them (its reactions, its budget, its target policy, its movement) is
+ * the game's.
  */
 export interface AiSystem<G extends AiTypes> {
   /** The game's timers. */
@@ -100,9 +99,6 @@ export interface AiSystem<G extends AiTypes> {
 
   /** Sets the entity id a unit focuses; −1 clears it. */
   readonly setFocus: (unit: G['bearer'], focus: number) => void;
-
-  /** A unit's movement intent, which its brain writes and the game's movement reads (§II.6 C9). */
-  readonly intentOf: (unit: G['bearer']) => MoveIntent;
 }
 
 /** Creates the AI system: `createAiSystem({ spells, clock, timers: TIMERS, heldBy: ['stun', 'freeze'] })`. */
@@ -150,8 +146,6 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
     setFocus: (unit, focus) => {
       brainOf(unit.brain).focus = focus;
     },
-
-    intentOf: (unit) => unit.brain.intent,
   };
 
   return Object.freeze(system);

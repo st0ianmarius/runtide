@@ -46,20 +46,16 @@ const summons: { of?: (unit: UnitGame['bearer']) => readonly UnitGame['bearer'][
 /** Whether an event's spawns are all gone. */
 const isEmpty = (unit: UnitGame['bearer']): boolean => (summons.of?.(unit).length ?? 0) === 0;
 
-/** A formation: it steers each of its members toward a unit on every step. */
+/** A formation: it steers each of its members on every step, through the game's own fields on them. */
 const march = behaviour({
   tick: (ctx) => {
     for (const member of summons.of?.(ctx.unit) ?? []) {
-      intents.of?.(member).chase(99, 1);
+      member.ext.marks += 1;
     }
 
     return undefined;
   },
 });
-
-/** The game's intents, set once the game is made. */
-const intents: { of?: (unit: UnitGame['bearer']) => ReturnType<ReturnType<typeof makeUnitGame>['ai']['intentOf']> } =
-  {};
 
 /** The world scripts: a Blood Horde twice over (sharing one behaviour), and a formation. */
 const SCRIPTS = defineScripts<UnitGame, 'bloodHorde' | 'hordeAgain' | 'march'>({
@@ -73,7 +69,6 @@ const world = () => {
   const game = makeUnitGame(TEMPLATES, { scripts: SCRIPTS });
 
   summons.of = game.units.summonsOf;
-  intents.of = game.ai.intentOf;
 
   const tick = (units: readonly UnitGame['bearer'][]) => {
     game.clock.step();
@@ -162,18 +157,15 @@ describe('world scripts: scripts on bodiless units (§I.7.1 F21)', () => {
     );
   });
 
-  it('steer the members a formation owns through their movement intents, bound members leaving with it', () => {
+  it('steer the members a formation owns, bound members leaving with it', () => {
     const game = world();
     const group = game.start('march');
 
     game.procs.apply(summon<UnitGame>('rogue', { count: 2 }), { self: group });
     game.tick([group]);
     assert.deepEqual(
-      game.units.summonsOf(group).map((member) => [game.ai.intentOf(member).kind, game.ai.intentOf(member).target]),
-      [
-        ['chase', 99],
-        ['chase', 99],
-      ],
+      game.units.summonsOf(group).map((member) => member.ext.marks),
+      [1, 1],
     );
     const members = [...game.units.summonsOf(group)];
 

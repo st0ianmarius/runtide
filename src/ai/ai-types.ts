@@ -7,7 +7,7 @@ export type TimerId = Id<'timers'>;
 
 /**
  * A unit with a brain: a caster that also holds a brain state (`ai.createBrain()`), where the AI system keeps its
- * timers, its focus, its last pick and its movement intent, so every per-unit read is a field read.
+ * timers, its focus and its last pick, so every per-unit read is a field read.
  */
 export interface AiBearer extends SpellCaster {
   /** The unit's brain, made by the AI system; the game reads and changes it through the system. */

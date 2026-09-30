@@ -83,7 +83,6 @@ export class Scheduler<G extends AiTypes> {
     brain.holds = 0;
     brain.focus = -1;
     brain.lastPick = -1;
-    brain.intent.clear();
     this.#owners[brain.slot] = undefined;
     this.#isLive[brain.slot] = false;
     this.#free.push(brain.slot);
