@@ -1,6 +1,7 @@
 import { NO_SOURCE } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import type { ProcOutcome } from '../procs/index.ts';
+import type { Blow } from './blow.ts';
 import type { DamageTypes, ForceKind, ForceStatus } from './damage-types.ts';
 
 /** What a caller asks the force pipeline for (§II.6 D4): a knockback, push or pull on one unit. */
@@ -25,6 +26,9 @@ export interface ForceSpec<G extends DamageTypes> {
 
   /** The direction of a push, when it has one of its own. */
   readonly direction?: Vec2 | undefined;
+
+  /** The blow whose knockback it is, when a blow caused it. */
+  readonly blow?: Blow<G> | undefined;
 }
 
 /**
@@ -57,6 +61,9 @@ export interface Force<G extends DamageTypes> extends ProcOutcome {
   /** Its own direction, if given. */
   readonly direction: Vec2 | undefined;
 
+  /** The blow whose knockback it is (read while the force runs: the blow is reused after), if a blow caused it. */
+  readonly blow: Blow<G> | undefined;
+
   /** How it ended; `landed` while it runs. */
   readonly status: ForceStatus;
 }
@@ -71,6 +78,7 @@ export class ForceRecord<G extends DamageTypes> implements Force<G> {
   amount = 0;
   from: Vec2 | undefined = undefined;
   direction: Vec2 | undefined = undefined;
+  blow: Blow<G> | undefined = undefined;
   status: ForceStatus = 'landed';
   readonly hasKilled = false;
 
@@ -88,6 +96,7 @@ export class ForceRecord<G extends DamageTypes> implements Force<G> {
     this.amount = spec.strength;
     this.from = spec.from;
     this.direction = spec.direction;
+    this.blow = spec.blow;
     this.status = 'landed';
   }
 }

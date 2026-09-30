@@ -199,6 +199,13 @@ export interface DamageSystemOptions<G extends DamageTypes> {
    */
   readonly rollChance?: (chance: number, slot: RollSlot, blow: Blow<G>) => boolean;
 
+  /**
+   * A game's own knockback rule: the strength a finished blow knocks with (a default shove for a blow that carries
+   * none, none for a dodge), read by the `knock` after-stage for every blow that entered the pipeline and whose knock no hook cancelled.
+   * The blow's `knock`, or none when it was blocked, by default. The force it makes carries the blow and its direction.
+   */
+  readonly knock?: (blow: Blow<G>) => number;
+
   /** A game's own rule for when health means dead (`health <= 1e-8`); `health <= 0` by default. */
   readonly isDead?: (health: number) => boolean;
 

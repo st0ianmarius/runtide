@@ -189,6 +189,33 @@ describe('the force pipeline (§II.6 D4)', () => {
     damage.hit({ target: unit(1), attacker: unit(2), amount: 5, knock: 1, from: { x: 3, z: 4 } });
     assert.deepEqual(origins, ['3,4 2']);
   });
+
+  it('knocks along the blow’s direction, handing the force its blow, as strong as the game’s rule says', () => {
+    const seen: string[] = [];
+
+    const { damage, unit } = makeDamageGame(
+      {},
+      {
+        knock: (blow) => (blow.status === 'landed' ? blow.knock || 0.5 : 0),
+
+        forceStages: {
+          probe: {
+            before: 'apply',
+
+            run: (force) => {
+              seen.push(`${force.amount} ${force.direction?.x},${force.direction?.z} ${force.blow?.amount}`);
+
+              return undefined;
+            },
+          },
+        },
+      },
+    );
+
+    damage.hit({ target: unit(1), amount: 5, direction: { x: 1, z: 0 } });
+    damage.hit({ target: unit(1), amount: 6, knock: 2, direction: { x: 0, z: -1 } });
+    assert.deepEqual(seen, ['0.5 1,0 5', '2 0,-1 6']);
+  });
 });
 
 describe('the death pipeline (§II.6 D5)', () => {
