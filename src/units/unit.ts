@@ -99,8 +99,8 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   maxHealth = 0;
 
   /**
-   * The units it owns that are neither dead nor despawned, in the order they spawned: its summons, which
-   * `units.summonsOf` reads.
+   * The units it owns that are neither dead nor despawned, in the order they joined (a revived one last), whether it
+   * lives or not: its summons, which `units.summonsOf` reads.
    */
   readonly summons: G['bearer'][] = [];
 

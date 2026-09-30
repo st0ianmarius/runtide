@@ -2,7 +2,7 @@ import type { EventKind } from '../core/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import type { UnitEvent } from './events.ts';
-import { adoptSummons, despawnBound, leaveOwner, orphanSummons, rejoinOwner } from './summons.ts';
+import { despawnBound, leaveOwner, orphanSummons, rejoinOwner } from './summons.ts';
 import type { Lifecycle, UnitTypes } from './unit-types.ts';
 
 /**
@@ -117,7 +117,7 @@ const despawned = <G extends UnitTypes>(
  * Moves a unit to a lifecycle state, when its state allows the move: a unit leaving life has every cast it
  * runs cancelled, enters the aura system's matching bearer state (its auras' `onState`, then those
  * `removedOn` it go: a death burst is an aura's `onState` of `dead`), leaves its owner's summons and takes its bound
- * summons along; a revive sets health (the maximum by default) and rejoins its owner's summons, if its owner lives. Raises `changed`, or `despawned` with its
+ * summons along; a revive sets health (the maximum by default) and rejoins its owner's summons, if it still has one. Raises `changed`, or `despawned` with its
  * reason for a despawn, which also forgets the unit's entity id and frees its brain. A move asked for from its hooks or
  * events (a revive from a death's `onState`) waits until this one is done, so its events follow this one's; such
  * moves run in the order asked, each checked when its turn comes. False when the move is not allowed.
@@ -149,6 +149,11 @@ export const moveTo = <G extends UnitTypes>(
 
   try {
     enter(engine, bearer, [from, to, health, reason]);
+  } catch (error) {
+    // A hook threw: the move stops where it is, and the moves it asked for are dropped, not left for the next one.
+    unit.nextMoves.length = 0;
+
+    throw error;
   } finally {
     unit.isMoving = false;
   }
@@ -183,7 +188,6 @@ const enter = <G extends UnitTypes>(
   if (to === 'alive') {
     unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
     rejoinOwner(bearer);
-    adoptSummons(bearer);
   } else {
     leaveFor(engine, bearer, [from, to]);
   }

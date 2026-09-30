@@ -4,7 +4,7 @@ import { moveTo } from './lifecycle.ts';
 import type { UnitTypes } from './unit-types.ts';
 
 /**
- * A spawned unit with an owner joins what its owner owns, and its summons while the owner lives; an owner despawned
+ * A spawned unit with an owner joins what its owner owns and its summons, the owner alive or dead; an owner despawned
  * already lets go of it at once, as its despawn would have.
  */
 export const joinOwner = (bearer: UnitTypes['bearer']): void => {
@@ -25,31 +25,15 @@ export const joinOwner = (bearer: UnitTypes['bearer']): void => {
   }
 
   record.owned.push(bearer);
-
-  if (record.lifecycle === 'alive') {
-    record.summons.push(bearer);
-  }
+  record.summons.push(bearer);
 };
 
-/** A revived unit joins its owner's summons again, last, if its owner is still alive. */
+/** A revived unit joins its owner's summons again, last, if it still has an owner (alive or dead). */
 export const rejoinOwner = (bearer: UnitTypes['bearer']): void => {
   const { owner } = unitOf<UnitTypes>(bearer);
 
-  if (owner !== undefined && unitOf<UnitTypes>(owner).lifecycle === 'alive') {
+  if (owner !== undefined) {
     unitOf<UnitTypes>(owner).summons.push(bearer);
-  }
-};
-
-/** A revived owner takes back the living units it owns as its summons, in the order they spawned. */
-export const adoptSummons = (bearer: UnitTypes['bearer']): void => {
-  const { summons, owned } = unitOf<UnitTypes>(bearer);
-
-  summons.length = 0;
-
-  for (const unit of owned) {
-    if (unitOf<UnitTypes>(unit).lifecycle === 'alive') {
-      summons.push(unit);
-    }
   }
 };
 

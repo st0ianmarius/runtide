@@ -171,8 +171,8 @@ describe('summoning', () => {
     assert.equal(pet === undefined ? -1 : units.creditOf(pet), caster.id);
   });
 
-  it('takes back its living units as summons when the owner revives', () => {
-    const { procs, units, caster } = summoning();
+  it('keeps its living units as summons while the owner is dead, a revived or new one joining last', () => {
+    const { procs, units, caster, id } = summoning();
 
     procs.apply(summon<UnitGame>('pet', { isBound: false, count: 2 }), { self: caster });
 
@@ -181,10 +181,14 @@ describe('summoning', () => {
     if (first !== undefined && second !== undefined) {
       units.kill(first);
       units.kill(caster);
-      units.revive(first);
       assert.deepEqual(units.summonsOf(caster), [second]);
+      units.revive(first);
+
+      const late = units.spawn(id.pet, { side: 1, owner: caster });
+
+      assert.deepEqual(units.summonsOf(caster), [second, first, late]);
       units.revive(caster);
-      assert.deepEqual(units.summonsOf(caster), [first, second]);
+      assert.deepEqual(units.summonsOf(caster), [second, first, late]);
     }
   });
 

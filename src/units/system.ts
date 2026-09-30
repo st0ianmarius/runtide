@@ -42,7 +42,8 @@ export interface UnitSystem<G extends UnitTypes> {
   readonly despawn: (unit: G['bearer'], reason?: string) => boolean;
 
   /**
-   * A unit's summons: the units it owns that are neither dead nor despawned, in the order they spawned.
+   * A unit's summons: the units it owns that are neither dead nor despawned, in the order they joined (a revived one
+   * last), whether it lives or not.
    * The system's own list: read it, never keep or change it.
    */
   readonly summonsOf: (unit: G['bearer']) => readonly G['bearer'][];
