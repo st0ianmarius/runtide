@@ -72,6 +72,7 @@ export type AuraCause =
   | 'evict'
   | 'remove'
   | 'removeByTag'
+  | 'dispel'
   | 'spendStacks'
   | 'spendValue'
   | 'refresh'

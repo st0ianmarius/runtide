@@ -116,6 +116,7 @@ export const recordAura = <Unit, Spell>(recording: Recording<Unit, Spell>, event
   const entry = recording.begin(kind);
 
   entry.source = aura.source;
+  entry.actor = event.remover ?? -1;
   entry.target = recording.idOf(event.bearer);
   entry.aura = aura.id;
   entry.amount = aura.stacks;

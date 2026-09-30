@@ -49,7 +49,7 @@ export interface CombatEntry {
   /** The entity it is credited to (a blow's, heal's or death's source, an aura's source, a cast's credit, an owner). */
   readonly source: number;
 
-  /** The entity that acted (the attacker, the healer, the killer, the caster); −1 for none. */
+  /** The entity that acted (the attacker, the healer, the killer, the caster, an aura's dispeller); −1 for none. */
   readonly actor: number;
 
   /** The entity it happened to (the target, the one who died, the aura's bearer); −1 for none. */

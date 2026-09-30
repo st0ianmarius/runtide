@@ -7,6 +7,7 @@ import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
 import type { CollectedHook } from './collect.ts';
 import { type AuraClock, type AuraModifiers, compileAuras } from './compile.ts';
 import type { AuraRegistry } from './define-auras.ts';
+import type { Dispel } from './dispel.ts';
 import { AuraEngine } from './engine.ts';
 import { type AuraExplanation, explainIn } from './explain.ts';
 import { operationsOf, queriesOf } from './operations.ts';
@@ -110,6 +111,12 @@ export interface AuraSystem<G extends AuraTypes> {
 
   /** Removes every aura granting a tag (a cleanse or dispel); how many went. */
   readonly removeByTag: (bearer: G['bearer'], tag: AuraTagId) => number;
+
+  /**
+   * Dispels: up to a limit of the auras granting a tag that its filter keeps, in list order, with the dispeller as
+   * their remover (`onRemoved`'s `ctx.remover`, the aura event's `remover`). Returns how many went.
+   */
+  readonly dispel: (bearer: G['bearer'], spec: Dispel<G>) => number;
 
   /** Sets every instance's clock again, to `seconds` or the aura's own length; true when there was one. */
   readonly refresh: (bearer: G['bearer'], aura: AuraId, seconds?: number) => boolean;

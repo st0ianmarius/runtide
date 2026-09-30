@@ -104,13 +104,13 @@ const strip = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], 
   return removed;
 };
 
-/** Runs a removal as one operation with its cause: strips, then dispatches its events. */
+/** Runs a removal as one operation with its cause (and its remover): strips, then dispatches its events. */
 const removeWhere = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  removal: Removal<G> & { readonly cause: AuraCause },
+  removal: Removal<G> & { readonly cause: AuraCause; readonly remover?: number },
 ): number => {
-  const from = engine.events.open(removal.cause);
+  const from = engine.events.open(removal.cause, removal.remover);
   const removed = strip(engine, bearer, removal);
 
   engine.events.close(from);

@@ -6,6 +6,7 @@ import { applyAura } from './apply.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
 import { type CollectedHook, collectIn } from './collect.ts';
 import { PREDICTED } from './define-auras.ts';
+import { dispel, type Dispel } from './dispel.ts';
 import type { AuraEngine } from './engine.ts';
 import {
   enterState,
@@ -29,6 +30,7 @@ type Operations<G extends AuraTypes> = Pick<
   | 'apply'
   | 'remove'
   | 'removeByTag'
+  | 'dispel'
   | 'refresh'
   | 'spendStacks'
   | 'spendValue'
@@ -65,6 +67,7 @@ export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operat
   apply: (bearer: G['bearer'], aura: AuraId | AuraApplication<G>) => applyAura(engine, bearer, aura),
   remove: (bearer: G['bearer'], aura: AuraId) => removeAura(engine, bearer, aura),
   removeByTag: (bearer: G['bearer'], tag: AuraTagId) => removeByTag(engine, bearer, tag),
+  dispel: (bearer: G['bearer'], spec: Dispel<G>) => dispel(engine, bearer, spec),
   refresh: (bearer: G['bearer'], id: AuraId, seconds?: number) => refreshAura(engine, bearer, { id, seconds }),
   spendStacks: (bearer: G['bearer'], id: AuraId, count: number) => spendStacks(engine, bearer, { id, count }),
 

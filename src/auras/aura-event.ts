@@ -22,6 +22,9 @@ export interface AuraEvent<G extends AuraTypes = AuraTypes> {
 
   /** The bearer state entered, for `stateEntered`; `undefined` for any other change. */
   state: G['state'] | undefined;
+
+  /** Who removed it, for a removal someone made (a dispel's caster); `NO_SOURCE` otherwise. */
+  remover: number;
 }
 
 /** Makes an empty aura event payload: the factory a game registers the aura event kind on its bus with. */
@@ -31,6 +34,7 @@ export const createAuraEvent = <G extends AuraTypes = AuraTypes>(): AuraEvent<G>
   bearer: undefined,
   aura: undefined,
   state: undefined,
+  remover: -1,
 });
 
 /** The part of a bus the aura system raises its events on (a core `Bus` is one). */

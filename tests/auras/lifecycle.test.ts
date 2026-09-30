@@ -194,4 +194,38 @@ describe('aura events on the bus', () => {
     auras.apply(u, id.renew);
     assert.equal(bus.payload(bus.kind.aura).bearer, undefined);
   });
+
+  it('carry a dispel’s cause and dispeller, which the removed aura’s onRemoved reads too', () => {
+    const bus = createBus({ aura: createAuraEvent<TestAuras> });
+    const heard: string[] = [];
+    const removers: number[] = [];
+
+    const { auras, unit, id } = makeGame(
+      {
+        curse: aura({ duration: 9, tags: ['magic'], onRemoved: (ctx) => void removers.push(ctx.remover) }),
+        hex: aura({ duration: 9, tags: ['magic'] }),
+        blight: aura({ duration: 9, tags: ['magic'], value: 3 }),
+        ward: aura({ duration: 9, tags: ['boon'] }),
+      },
+      { events: { bus, changed: bus.kind.aura } },
+    );
+
+    const u = unit();
+
+    bus.on(bus.kind.aura, (event) => {
+      if (event.change === 'removed') {
+        heard.push(`${event.cause} ${event.aura?.id} by ${event.remover}`);
+      }
+    });
+
+    for (const each of [id.curse, id.hex, id.blight, id.ward]) {
+      auras.apply(u, each);
+    }
+
+    assert.equal(auras.dispel(u, { tag: TAGS.id.magic, limit: 2, filter: (active) => active.value === 0, by: 7 }), 2);
+    assert.deepEqual(heard, ['dispel 0 by 7', 'dispel 1 by 7']);
+    assert.deepEqual(removers, [7]);
+    assert.equal(auras.dispel(u, { tag: TAGS.id.magic }), 1);
+    assert.throws(() => auras.dispel(u, { tag: TAGS.id.magic, limit: -1 }), /limit from 0/);
+  });
 });

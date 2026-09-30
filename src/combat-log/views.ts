@@ -98,6 +98,9 @@ export interface AuraEventView<Unit> {
   /** The change: `applied`, `refreshed`, `expired`, `removed` or `stateEntered`. */
   readonly change: string;
 
+  /** Who removed it (a dispel's caster), or −1. */
+  readonly remover?: number;
+
   /** The bearer. */
   readonly bearer: Unit | undefined;
 

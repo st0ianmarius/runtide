@@ -69,6 +69,9 @@ export interface AuraContext<G extends AuraTypes = AuraTypes> {
    * attacker's `onDealt`), which the hook's procs reach as `other`; `undefined` for a lifecycle hook.
    */
   readonly other: G['bearer'] | undefined;
+
+  /** Who removed it, for a removal someone made (a dispel's caster, as `auras.dispel` names it); `NO_SOURCE` else. */
+  readonly remover: number;
 }
 
 /** The mutable instance behind an `ActiveAura`, pooled by its system. */
@@ -100,6 +103,7 @@ export class MutableContext<G extends AuraTypes> implements AuraContext<G> {
   stats: StatView | undefined = undefined;
   cause: AuraCause = 'apply';
   other: G['bearer'] | undefined = undefined;
+  remover = NO_SOURCE;
 
   constructor(bearer: G['bearer'], aura: ActiveAura<G>) {
     this.bearer = bearer;

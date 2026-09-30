@@ -1,5 +1,5 @@
 import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
-import { type ActiveAura, type AuraItem, MutableContext } from './active-aura.ts';
+import { type ActiveAura, type AuraItem, MutableContext, NO_SOURCE } from './active-aura.ts';
 import type { AuraHost } from './application.ts';
 import type { AuraCause, AuraHook } from './aura-def.ts';
 import type { AuraEvent, AuraEventBus } from './aura-event.ts';
@@ -65,6 +65,8 @@ export class AuraEvents<G extends AuraTypes> {
   readonly #stateBits: number[] = [];
   readonly #causes: AuraCause[] = [];
   readonly #openCauses: AuraCause[] = [];
+  readonly #removers: number[] = [];
+  readonly #openRemovers: number[] = [];
   readonly #retired: (AuraItem<G> | undefined)[] = [];
   readonly #contexts: MutableContext<G>[] = [];
   readonly #heard: readonly Bitset[];
@@ -83,9 +85,13 @@ export class AuraEvents<G extends AuraTypes> {
     );
   }
 
-  /** Opens an operation with its cause, which its events carry. Returns where its events start; close it with it. */
-  open(cause: AuraCause): number {
+  /**
+   * Opens an operation with its cause, and who did it (a dispel's caster; `NO_SOURCE` when absent), which its events
+   * carry. Returns where its events start; close it with it.
+   */
+  open(cause: AuraCause, remover = NO_SOURCE): number {
     this.#openCauses.push(cause);
+    this.#openRemovers.push(remover);
 
     return this.#count;
   }
@@ -101,6 +107,7 @@ export class AuraEvents<G extends AuraTypes> {
       this.finish(from);
     } finally {
       this.#openCauses.pop();
+      this.#openRemovers.pop();
     }
   }
 
@@ -154,6 +161,7 @@ export class AuraEvents<G extends AuraTypes> {
     context.aura = aura;
     context.stats = this.#parts.host.statsOf?.(bearer);
     context.cause = this.#openCauses.at(-1) ?? 'apply';
+    context.remover = this.#openRemovers.at(-1) ?? NO_SOURCE;
     context.other = other;
 
     return context;
@@ -192,6 +200,7 @@ export class AuraEvents<G extends AuraTypes> {
     this.#handles[i] = item.handle;
     this.#stateBits[i] = 0;
     this.#causes[i] = this.#openCauses.at(-1) ?? 'apply';
+    this.#removers[i] = this.#openRemovers.at(-1) ?? NO_SOURCE;
     this.#count = i + 1;
 
     return true;
@@ -259,6 +268,7 @@ export class AuraEvents<G extends AuraTypes> {
     const context = this.take(bearer, item);
 
     context.cause = this.#causes[i] ?? 'apply';
+    context.remover = this.#removers[i] ?? NO_SOURCE;
 
     try {
       this.run(onState === undefined ? hook?.(context) : onState(context, this.#stateOf(i)), context);
@@ -290,6 +300,7 @@ export class AuraEvents<G extends AuraTypes> {
 
     payload.change = CHANGES[this.#codes[i] ?? 0] ?? 'applied';
     payload.cause = this.#causes[i] ?? 'apply';
+    payload.remover = this.#removers[i] ?? NO_SOURCE;
     payload.bearer = bearer;
     payload.aura = item;
     payload.state = this.#codes[i] === STATE_ENTERED ? this.#stateOf(i) : undefined;
