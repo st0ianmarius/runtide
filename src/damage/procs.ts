@@ -42,6 +42,9 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
   /** The outcome rows it cannot roll (`['block']`: unblockable), by name. */
   readonly skips?: readonly string[];
 
+  /** The stages its blow skips beside its kind's (`['mitigation']`: ignores armor), by name. */
+  readonly bypass?: readonly string[];
+
   /**
    * Procs that follow it in the same list when the blow ends with a status of `on` (the frost nova's slow
    * lands only if the hit did), aimed at the blow's target, after its kill is noted.

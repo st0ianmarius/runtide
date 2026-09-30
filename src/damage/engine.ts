@@ -160,6 +160,11 @@ export class DamageEngine<G extends DamageTypes> {
     return this.isDead(this.host.health(unit));
   }
 
+  /** A blow's attacker's stats: its snapshot when it carries one, else the attacker's live ones for its spell. */
+  attackerView(blow: Blow<G>): StatView {
+    return blow.attackerStats ?? this.viewOf(blow.attacker, blow);
+  }
+
   /** A unit's stats for a blow's or a heal's spell (folded for it by the host), or none for no unit. */
   viewOf(unit: G['bearer'] | undefined, scope: { readonly spell: G['spell'] | undefined } | undefined): StatView {
     return unit === undefined ? NO_STATS : (this.host.statsOf ?? missing('statsOf'))(unit, scope?.spell);

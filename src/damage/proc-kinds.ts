@@ -66,6 +66,7 @@ class ProcBlowSpec<G extends DamageTypes> implements BlowSpec<G> {
   direction: Vec2 | undefined = undefined;
   ext: G['blowExt'] | undefined = undefined;
   skips: readonly string[] | undefined = undefined;
+  bypass: readonly string[] | undefined = undefined;
 
   constructor(target: G['bearer']) {
     this.target = target;
@@ -142,6 +143,7 @@ const damageKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: P
       spec.direction = proc.direction;
       spec.ext = proc.ext;
       spec.skips = proc.skips;
+      spec.bypass = proc.bypass;
 
       return pipelines.hit(spec);
     },

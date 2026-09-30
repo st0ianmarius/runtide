@@ -169,17 +169,36 @@ const traceStep = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRec
   blow.trace?.push({ stage: engine.order.names[index] ?? '', amount: blow.amount, status: blow.status });
 };
 
-/** Runs a blow's stages, skipping those its kind bypasses, until one ends it; then every after-stage. */
+/** Whether a blow skips the stage at `index`: its kind does, or the blow names it. */
+const skipsStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>, index: number): boolean =>
+  engine.bypass[blow.kind * engine.order.names.length + index] === 1 ||
+  (blow.bypass.length > 0 && blow.bypass.includes(engine.order.names[index] ?? ''));
+
+/** Throws for a stage a blow names to skip that is not one before health. */
+const checkBypass = <G extends DamageTypes>(engine: DamageEngine<G>, bypass: readonly string[]): void => {
+  for (const stage of bypass) {
+    const at = engine.order.names.indexOf(stage);
+
+    if (at < 0 || at >= engine.order.afterFrom - 1) {
+      throw new RangeError(`A blow cannot skip ${stage}: no such stage before health.`);
+    }
+  }
+};
+
+/** Runs a blow's stages, skipping those its kind or itself bypasses, until one ends it; then every after-stage. */
 const runBlowStages = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   runs: readonly BuiltInStage<G>[],
   blow: BlowRecord<G>,
 ): void => {
   const { afterFrom } = engine.order;
-  const row = blow.kind * runs.length;
+
+  if (blow.bypass.length > 0) {
+    checkBypass(engine, blow.bypass);
+  }
 
   for (let i = 0; i < afterFrom; i++) {
-    const stop: BlowStop | undefined = engine.bypass[row + i] === 1 ? undefined : runs[i]?.(engine, blow);
+    const stop: BlowStop | undefined = skipsStage(engine, blow, i) ? undefined : runs[i]?.(engine, blow);
 
     if (stop !== undefined) {
       blow.status = stop;

@@ -102,6 +102,15 @@ describe('the mitigation rows', () => {
     assert.deepEqual([blow.amount, blow.mitigated], [30, 30]);
   });
 
+  it('are skipped by a blow that names the stage, as its kind would, and a blow may name only a stage before health', () => {
+    const { damage, unit, set } = makeDamageGame({}, { mitigation: PENETRATING });
+    const target = unit(1);
+
+    set(target, 'armor', 100);
+    assert.equal(damage.hit({ target, amount: 90, bypass: ['mitigation'] }).amount, 90);
+    assert.throws(() => damage.hit({ target, amount: 90, bypass: ['health'] }), /cannot skip health/);
+  });
+
   it('apply the attacker’s penetration in order, a percentage then a flat amount', () => {
     const { damage, unit, set } = makeDamageGame({}, { mitigation: PENETRATING });
     const [target, attacker] = [unit(1), unit(2)];

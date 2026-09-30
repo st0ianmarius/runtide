@@ -137,11 +137,11 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
 const outgoingStats = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
   const stats = engine.stats.outgoing;
 
-  if (blow.attacker === undefined || stats.length === 0) {
+  if ((blow.attacker === undefined && blow.attackerStats === undefined) || stats.length === 0) {
     return undefined;
   }
 
-  const view = engine.viewOf(blow.attacker, blow);
+  const view = engine.attackerView(blow);
 
   for (let i = 0; i < stats.length; i++) {
     const stat = stats[i];
@@ -273,7 +273,7 @@ export const rollStage = <G extends DamageTypes>(
 
   const views = engine.rollViews;
 
-  views.shared.view = engine.viewOf(blow.attacker, blow);
+  views.shared.view = engine.attackerView(blow);
   views.shared.spell = blow.spell;
   views.target = engine.viewOf(blow.target, blow);
 
@@ -294,7 +294,7 @@ export const mitigationStage = <G extends DamageTypes>(engine: DamageEngine<G>, 
   const ctx = engine.rowContext;
   const before = blow.amount;
 
-  ctx.caster = engine.viewOf(blow.attacker, blow);
+  ctx.caster = engine.attackerView(blow);
   ctx.target = engine.viewOf(blow.target, blow);
   ctx.amount = before;
   blow.amount = mitigate(engine.rows, blow.kind, ctx);

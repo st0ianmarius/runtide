@@ -34,6 +34,17 @@ describe('outgoing multipliers', () => {
     assert.equal(damage.hit({ target: unit(1), amount: 10, attacker, spell: 7, kind: fire }).amount, 14);
   });
 
+  it('read a blow’s snapshot of its attacker’s stats in place of the live ones, even with no attacker', () => {
+    const { damage, unit, set, stat } = makeDamageGame({}, ATTACKER);
+    const attacker = unit(2);
+    const fire = damage.kinds.id.fire;
+    const snapshot = { total: (id: number): number => (id === stat('power') ? 2 : 0), base: (): number => 0 };
+
+    set(attacker, 'power', 0.5);
+    assert.equal(damage.hit({ target: unit(1), amount: 10, attacker, attackerStats: snapshot, kind: fire }).amount, 20);
+    assert.equal(damage.hit({ target: unit(1), amount: 10, attackerStats: snapshot, kind: fire }).amount, 20);
+  });
+
   it('do not apply to a blow nobody deals', () => {
     const { damage, unit, set, log } = makeDamageGame({}, ATTACKER);
     const target = unit(1);

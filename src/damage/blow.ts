@@ -1,9 +1,10 @@
 import { NO_SOURCE } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
+import type { StatView } from '../modifiers/index.ts';
 import type { ProcOutcome } from '../procs/index.ts';
 import type { BlowStatus, DamageKindId, DamageTypes } from './damage-types.ts';
 
-/** No skipped outcome rows. */
+/** No skipped outcome rows or stages. */
 const NO_SKIPS: readonly string[] = Object.freeze([]);
 
 /** One stage a traced blow went through (explanations are data): the stage and the amount after it. */
@@ -50,6 +51,18 @@ export interface BlowSpec<G extends DamageTypes> {
    */
   readonly skips?: readonly string[] | undefined;
 
+  /**
+   * The stages it skips, by name, beside the ones its kind skips: a spell that ignores armor skips `mitigation`, one
+   * that goes through shields skips `absorb`. The after-stages and `health` cannot be skipped. None when absent.
+   */
+  readonly bypass?: readonly string[] | undefined;
+
+  /**
+   * The attacker's stats to read in place of its live ones: a snapshot taken as a damage over time was cast, so its
+   * ticks keep the multipliers and crit they had (even once the caster is gone). The live ones when absent.
+   */
+  readonly attackerStats?: StatView | undefined;
+
   /** The game's own fields for this blow. */
   readonly ext?: G['blowExt'] | undefined;
 
@@ -95,6 +108,12 @@ export interface Blow<G extends DamageTypes> extends ProcOutcome {
 
   /** The outcome rows it cannot roll. */
   readonly skips: readonly string[];
+
+  /** The stages it skips beside its kind's. */
+  readonly bypass: readonly string[];
+
+  /** The attacker's stats it reads in place of the live ones, if any. */
+  readonly attackerStats: StatView | undefined;
 
   /** The outcome row it rolled that decided or changed it (`dodge`, `block`, `crit`); `undefined` for none. */
   readonly outcome: string | undefined;
@@ -145,6 +164,8 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   from: Vec2 | undefined = undefined;
   direction: Vec2 | undefined = undefined;
   skips: readonly string[] = NO_SKIPS;
+  bypass: readonly string[] = NO_SKIPS;
+  attackerStats: StatView | undefined = undefined;
   outcome: string | undefined = undefined;
   isCrit = false;
   mitigated = 0;
@@ -178,6 +199,8 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
     this.from = spec.from;
     this.direction = spec.direction;
     this.skips = spec.skips ?? NO_SKIPS;
+    this.bypass = spec.bypass ?? NO_SKIPS;
+    this.attackerStats = spec.attackerStats;
     this.ext = spec.ext;
     this.trace = spec.trace;
     this.clearOutcome();
