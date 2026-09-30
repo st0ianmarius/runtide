@@ -1,7 +1,10 @@
 import type { AuraId, AuraSystem, AuraTagId, AuraTypes } from '../auras/index.ts';
 import { compileCondition, type ConditionTables, isMirrorSafe } from '../conditions/index.ts';
 
-/** What the shared motion step reads beyond the presses: auras, aura tags and stats, by the game's names. */
+/**
+ * What the shared motion step reads beyond the presses, by the game's names: auras, aura tags and stats, the reads of
+ * its mirror-safe hooks (`activate`, `checkCast`) included, since only what is declared here is held predicted.
+ */
 export interface MotionReads<G extends AuraTypes> {
   /** Auras it reads by id (a knockback guard, a dodge's own state). */
   readonly auras?: readonly AuraId[];
@@ -18,7 +21,7 @@ export interface PredictedRuleOptions<G extends AuraTypes> {
   /** The aura system whose registry is checked. */
   readonly auras: AuraSystem<G>;
 
-  /** The ability system, whose presses read and write their slots' cooldowns, costs, applied auras and tags. */
+  /** The ability system, whose presses read their slots' cooldowns, costs and tags. */
   readonly abilities?: {
     /** What its presses read and write (`abilities.mirrorReads`). */
     readonly mirrorReads: {
@@ -126,10 +129,12 @@ const unsafeOf = <G extends AuraTypes>(options: PredictedRuleOptions<G>): AuraId
 
 /**
  * Checks the predicted rule over a game's auras, both ways: every aura the prediction mirror reads (the
- * presses' cooldowns, costs and applied auras, an aura granting a tag a press or the motion step reads, an aura with a
+ * presses' cooldowns and costs, an aura granting a tag a press or the motion step reads, an aura with a
  * modifier on a stat the motion step folds, an aura the motion step names) must be `predicted`, and a `predicted` aura
  * nothing reads is reported as unread; with the condition tables, a predicted aura whose modifiers wait on a condition
- * that is not mirror-safe is reported as unsafe. A game runs it in its tests over its registries.
+ * that is not mirror-safe is reported as unsafe. An aura a press lands is not a read: a mirror lands only the predicted
+ * ones, and one the mirror depends on is read through a tag or a declared motion read. A game runs it in its tests over
+ * its registries.
  */
 export const checkPredicted = <G extends AuraTypes>(options: PredictedRuleOptions<G>): PredictedReport => {
   const { auras } = options;

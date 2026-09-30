@@ -117,6 +117,27 @@ describe('the mirror-safe cast cue', () => {
 });
 
 describe('presses on a prediction mirror', () => {
+  it('land only the predicted auras a button applies; the server lands them all', () => {
+    const rush = spell({
+      activation: { kind: 'button', applies: [auraNamed('sprint'), auraNamed('stance')] },
+      release: logRelease('rush'),
+    });
+
+    const landed = (mirror: boolean): boolean[] => {
+      const game = makeAbilityGame({ rush }, { mirror });
+      const hero = game.hero(4);
+      const { abilities } = game;
+
+      abilities.equip(hero, abilities.slots.id.skill, game.id.rush);
+      abilities.tryActivate(hero, abilities.bit(abilities.slots.id.skill));
+
+      return [game.auras.has(hero, auraNamed('sprint')), game.auras.has(hero, auraNamed('stance'))];
+    };
+
+    assert.deepEqual(landed(true), [true, false]);
+    assert.deepEqual(landed(false), [true, true]);
+  });
+
   it('run the motion half, cooldowns and costs, fire only the cast cues with the press’s key, and cast nothing', () => {
     lines.length = 0;
 

@@ -166,15 +166,15 @@ const aura = defineAura<AbilityGame>;
 const TAGS = defineAuraTags(['cooldown.dodge', 'cooldown.skill', 'cooldown.ultimate', 'stance', 'rooted']);
 
 /**
- * The test auras: a cooldown per slot, a charge (stacks that add up), a two-second sprint, an endless stance and an
- * endless root.
+ * The test auras: a cooldown per slot, a charge (stacks that add up), a two-second predicted sprint, an endless stance
+ * and an endless root.
  */
 const AURAS = defineAuras<AbilityGame, string>({
   dodgeCooldown: aura({ duration: 1, tags: ['cooldown.dodge'] }),
   skillCooldown: aura({ duration: 1, tags: ['cooldown.skill'] }),
   ultimateCooldown: aura({ duration: 1, tags: ['cooldown.ultimate'] }),
   charge: aura({ duration: 'infinite', stacking: 'stack', maxStacks: 9 }),
-  sprint: aura({ duration: 2 }),
+  sprint: aura({ duration: 2, predicted: true }),
   stance: aura({ duration: 'infinite', tags: ['stance'] }),
   root: aura({ duration: 'infinite', tags: ['rooted'] }),
 });

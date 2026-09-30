@@ -29,9 +29,9 @@ export interface Equipped {
   readonly rank?: number;
 }
 
-/** What a press reads and writes on its bearer: the auras and tags a prediction mirror must rebuild. */
+/** What a press reads on its bearer: the auras and tags a prediction mirror must rebuild. */
 export interface MirrorReads {
-  /** The slots' cooldown auras, and every button's cost aura and applied auras, in id order. */
+  /** The slots' cooldown auras and every button's cost aura, in id order. */
   readonly auras: readonly AuraId[];
 
   /** Every tag a button's `requires`, `blockedBy` or `resets` names, in id order. */
@@ -51,8 +51,9 @@ export interface AbilitySystem<G extends AbilityTypes> {
   readonly slots: SlotTable<G['slot']>;
 
   /**
-   * The auras and tags a press reads and writes on its bearer: what a prediction mirror must rebuild, so each such aura
-   * is `predicted` (`checkPredicted`).
+   * The auras and tags a press reads on its bearer (its slots' cooldowns, its costs, the tags of `requires`, `blockedBy`
+   * and `resets`): what a prediction mirror must rebuild, so each such aura is `predicted` (`checkPredicted`). The auras
+   * a press lands are not reads: one that matters is read through a tag or through the game's motion reads.
    */
   readonly mirrorReads: MirrorReads;
 
@@ -152,7 +153,7 @@ const equipIn = <G extends AbilityTypes>(
   record.ranks[slot] = rank;
 };
 
-/** The auras and tags an engine's presses read and write, sorted and without repeats. */
+/** The auras and tags an engine's presses read, sorted and without repeats. */
 const mirrorReadsOf = <G extends AbilityTypes>(engine: AbilityEngine<G>): MirrorReads => {
   const auras = new Set<number>([...engine.cooldowns].filter((aura) => aura >= 0));
   const tags = new Set<AuraTagId>();
@@ -161,10 +162,6 @@ const mirrorReadsOf = <G extends AbilityTypes>(engine: AbilityEngine<G>): Mirror
     if (button !== undefined) {
       if (button.costAura >= 0) {
         auras.add(button.costAura);
-      }
-
-      for (const aura of button.applies) {
-        auras.add(aura);
       }
 
       for (const tag of [...button.requires, ...button.blockedBy, ...button.resets]) {

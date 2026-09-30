@@ -118,7 +118,8 @@ const startCooldown = <G extends AbilityTypes>(
 
 /**
  * What a button lands on its caster as it fires, after its cost, motion and cooldown: its `applies` in order (each
- * for its aura's own length), then its `resets`.
+ * for its aura's own length), then its `resets`. A prediction mirror lands only the `predicted` ones: the rest touch
+ * nothing it steps, and its seed replaces predicted auras alone, so it would keep them.
  */
 const land = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], spell: SpellId): void => {
   const button = engine.buttons[spell];
@@ -132,7 +133,7 @@ const land = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
   for (let i = 0; i < button.applies.length; i++) {
     const aura = button.applies[i];
 
-    if (aura !== undefined) {
+    if (aura !== undefined && (!engine.isMirror || auras.isPredicted(aura))) {
       auras.apply(bearer, aura);
     }
   }
