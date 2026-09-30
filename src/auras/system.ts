@@ -39,7 +39,7 @@ export interface AuraSystemBase<G extends AuraTypes> {
   /** The bearer states `removedOn` may name, at most 32. */
   readonly states?: readonly G['state'][];
 
-  /** The host: proc runner, stats, application policy, clock rescales. */
+  /** The host: proc runner, stats, application policy, tag edges. */
   readonly host?: AuraHost<G>;
 
   /** The bus and event kind lifecycle events are raised on (registered with `createAuraEvent`). */

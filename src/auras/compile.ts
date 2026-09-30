@@ -1,5 +1,5 @@
 import { type Bitset, createBitset, stepsUntil } from '../core/index.ts';
-import type { Modifier, ModifierList, SourceId, SourceTable, StatId, StatTable } from '../modifiers/index.ts';
+import type { Modifier, ModifierList, SourceId, SourceTable, StatTable } from '../modifiers/index.ts';
 import type { AuraChange, AuraDef } from './aura-def.ts';
 import type { AuraTagId, AuraTypes } from './aura-types.ts';
 import type { AuraRegistry } from './define-auras.ts';
@@ -94,12 +94,6 @@ export interface AuraTables {
   /** The compiled modifier list of each aura, gated on its id. */
   readonly lists: readonly (ModifierList | undefined)[];
 
-  /** The rescale stat of each aura, `undefined` for none. */
-  readonly rescaleStat: readonly (StatId | undefined)[];
-
-  /** The rescale edges of each aura, as a mask over change codes. */
-  readonly rescaleOn: Uint8Array;
-
   /** The clocks, by id. */
   readonly clocks: readonly AuraClock[];
 
@@ -180,25 +174,6 @@ const compileList = <G extends AuraTypes>(
   return list;
 };
 
-/** The rescale stat id of an aura, `undefined` for none. */
-const rescaleStatOf = <G extends AuraTypes>(
-  input: CompileInput<G>,
-  def: AuraDef<G>,
-  what: string,
-): StatId | undefined => {
-  if (def.rescale === undefined) {
-    return undefined;
-  }
-
-  const stat = input.modifiers?.stats.index.idOf(def.rescale.stat);
-
-  if (stat === undefined) {
-    throw new RangeError(`${what}: a rescale needs the modifier system and a known stat.`);
-  }
-
-  return stat;
-};
-
 /** An empty set of tables, one slot per aura id. */
 const emptyTables = <G extends AuraTypes>(input: CompileInput<G>, size: number) => ({
   tagBits: Array.from({ length: size }, () => createBitset()),
@@ -211,8 +186,6 @@ const emptyTables = <G extends AuraTypes>(input: CompileInput<G>, size: number) 
   removedOn: new Uint32Array(size),
   fixedSteps: new Float64Array(size).fill(-1),
   lists: Array.from<ModifierList | undefined>({ length: size }),
-  rescaleStat: Array.from<StatId | undefined>({ length: size }),
-  rescaleOn: new Uint8Array(size),
   clocks: Object.values<AuraClock>(input.clocks),
   clockNames: Object.keys(input.clocks),
   stateNames: [...(input.states ?? [])],
@@ -262,11 +235,9 @@ const compileOne = <G extends AuraTypes>(
   tables.clock[id] = clock;
   tables.removedOn[id] = stateMask(tables.stateNames, def.removedOn ?? [], what);
   tables.lists[id] = compileList(input, { id, def, what }, at.bySource);
-  tables.rescaleStat[id] = rescaleStatOf(input, def, what);
-  tables.rescaleOn[id] = (def.rescale?.on ?? []).reduce((mask, change) => mask | (1 << CHANGES.indexOf(change)), 0);
 
   if (def.periodic !== undefined) {
-    tables.beatClock[id] = clockId(tables.clockNames, def.periodic.clock ?? tables.clockNames[clock] ?? '', what);
+    tables.beatClock[id] = clock;
   }
 
   if (typeof def.duration === 'number' && rule !== undefined) {

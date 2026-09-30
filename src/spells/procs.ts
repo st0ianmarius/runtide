@@ -82,7 +82,7 @@ export type DelayBound<G extends SpellTypes> = {
 
 /**
  * Rescales the clocks of the unit it lands on: its `auto` clocks still counting in scope
- * (a spell tag, or every one), times the factor; with `clocks: 'all'` its running casts' stage time left too.
+ * (a spell tag, or every one), times the factor.
  */
 export interface RescaleClocksProc<G extends SpellTypes> extends ProcShape {
   /** The discriminant. */
@@ -93,9 +93,6 @@ export interface RescaleClocksProc<G extends SpellTypes> extends ProcShape {
 
   /** The spell tag whose clocks rescale: its name in data, its id in code; every clock when absent. */
   readonly tag?: G['spellTag'] | SpellTagId;
-
-  /** `pending` (the `auto` clocks, the default) or `all` (running casts' stages too). */
-  readonly clocks?: 'pending' | 'all';
 
   /** Whose clocks; the list's self when absent. */
   readonly to?: ProcTarget<G>;

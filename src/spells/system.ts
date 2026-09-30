@@ -213,9 +213,8 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly shareOf: (spell: SpellId, stat: StatId) => number | undefined;
 
   /**
-   * Rescales a caster's clocks: its `auto` clocks still counting in scope (a spell tag, or
-   * every one), and with `clocks: 'all'` its running casts' stage time left. An aura system's host passes its
-   * rescales here: `rescaleClocks: (unit, rescale) => spells.rescaleClocks(unit, rescale)`. Returns how many rescaled.
+   * Rescales a caster's clocks: its `auto` clocks still counting in scope (a spell tag, or every one); a haste aura's
+   * hooks call it (or return the `rescaleClocks` proc) as it lands and ends. Returns how many rescaled.
    */
   readonly rescaleClocks: (caster: G['bearer'], rescale: ClockScale) => number;
 

@@ -1,4 +1,4 @@
-import type { StatId, StatView } from '../modifiers/index.ts';
+import type { StatView } from '../modifiers/index.ts';
 import type { AuraContext } from './active-aura.ts';
 import type { AuraStacking } from './aura-def.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
@@ -57,24 +57,6 @@ export interface AuraDecision<G extends AuraTypes = AuraTypes> {
   readonly after?: readonly AuraApplication<G>[];
 }
 
-/** A rescale of a bearer's pending activation clocks, handed to the host. */
-export interface ClockRescale {
-  /** The aura whose edge it is. */
-  readonly aura: AuraId;
-
-  /** The stat whose multiplier the factor is. */
-  readonly stat: StatId;
-
-  /** What the clocks' time left is multiplied by. */
-  readonly factor: number;
-
-  /** The spell tag whose clocks rescale (a spell tag id), or -1 for every clock. */
-  readonly tag: number;
-
-  /** `pending` (only the `auto` clocks still counting) or `all` (running casts' stages too). */
-  readonly clocks: 'pending' | 'all';
-}
-
 /**
  * The narrow host an aura system runs against: what it cannot do itself. Every member is optional; without
  * one, the matching feature does nothing.
@@ -88,9 +70,6 @@ export interface AuraHost<G extends AuraTypes = AuraTypes> {
 
   /** The bearer's application policy, asked before anything else; `undefined` accepts the application as it is. */
   readonly onIncomingAura?: (bearer: G['bearer'], application: AuraApplication<G>) => AuraDecision<G> | undefined;
-
-  /** Rescales the bearer's pending activation clocks. */
-  readonly rescaleClocks?: (bearer: G['bearer'], rescale: ClockRescale) => void;
 
   /**
    * A tagged aura was applied to the bearer, or left it: its tags, and so its derived states, may have

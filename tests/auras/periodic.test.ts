@@ -171,24 +171,6 @@ describe('periodic beats', () => {
     assert.deepEqual(ticks, [16, 32, 40, 48], 'the period after each beat is read as it fires');
   });
 
-  it('counts on a beat clock of its own, independent of the lifetime clock', () => {
-    const { auras, id, unit, run, log } = makeGame({
-      storm: aura({
-        duration: 1,
-        clock: 'motion',
-        periodic: { every: 0.25, clock: 'world', onBeat: () => ['strike'] },
-      }),
-    });
-
-    const u = unit();
-
-    auras.apply(u, id.storm);
-    run(u, 8);
-    assert.deepEqual(log.length, 4, 'four world beats while the motion clock stood still');
-    run(u, 8, 'motion');
-    assert.equal(auras.has(u, id.storm), false);
-  });
-
   it('runs no beat on a silent bearer, which still counts and expires', () => {
     const { auras, id, unit, run, log } = makeGame({
       dot: aura({ duration: 1, periodic: { every: 0.25, onBeat: () => ['tick'] } }),

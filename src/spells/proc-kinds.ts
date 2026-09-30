@@ -214,7 +214,7 @@ const rescaleKind = <G extends SpellTypes>(engine: SpellEngine<G>): ProcKindDef<
     }
 
     const tag = tagIdOf(engine, proc.tag) ?? -1;
-    const rescaled = rescaleClocks(engine, unit, { factor: proc.factor, tag, clocks: proc.clocks ?? 'pending' });
+    const rescaled = rescaleClocks(engine, unit, { factor: proc.factor, tag });
 
     return rescaled === 0 ? PROC_SKIPPED : PROC_LANDED;
   },

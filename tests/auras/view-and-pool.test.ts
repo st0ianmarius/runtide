@@ -18,7 +18,8 @@ const defs = {
     tags: ['poison'],
     blockedBy: ['immune'],
     removes: ['boon', 'magic'],
-    periodic: { every: 1.5, clock: 'motion', onBeat: () => undefined },
+    clock: 'motion',
+    periodic: { every: 1.5, onBeat: () => undefined },
   }),
 
   live: aura({ duration: () => 1, periodic: { every: () => 2, onBeat: () => undefined } }),
@@ -58,7 +59,7 @@ describe('explainAura', () => {
       aura: id.bleed,
       stacks: 2,
       duration: 'infinite',
-      clock: 0,
+      clock: 1,
       stacking: 'custom',
       maxStacks: 9,
       isPerSource: true,

@@ -7,7 +7,7 @@
 
 export { type ActiveAura, type AuraContext, NO_SOURCE } from './active-aura.ts';
 
-export type { ApplyResult, AuraApplication, AuraDecision, AuraHost, ClockRescale } from './application.ts';
+export type { ApplyResult, AuraApplication, AuraDecision, AuraHost } from './application.ts';
 
 export {
   type AuraChange,
@@ -16,7 +16,6 @@ export {
   type AuraMerge,
   type AuraMergeRule,
   type AuraPeriodic,
-  type AuraRescale,
   type AuraStacking,
   type AuraStackingRule,
   defineAura,

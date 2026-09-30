@@ -95,33 +95,11 @@ export interface AuraPeriodic<G extends AuraTypes> {
    */
   readonly every: number | ((ctx: AuraContext<G>) => number);
 
-  /** The clock the beat counts on; the aura's own clock when absent. */
-  readonly clock?: G['clock'];
-
   /** Whether a due beat fires; a skipped beat still counts (a regeneration paused by a wound). */
   readonly when?: (ctx: AuraContext<G>) => boolean;
 
   /** The beat: procs credited to the aura's source. `weight` is 1, or the tick's step for an every-tick beat. */
   readonly onBeat: (ctx: AuraContext<G>, weight: number) => readonly G['proc'][] | undefined;
-}
-
-/**
- * A clock rescale on the aura's own edges: the aura's own multiplier on `stat` (its `mul` modifiers on
- * it, at its stacks) rescales the bearer's pending activation clocks, which the host owns. On `applied` and
- * `refreshed` the clocks are divided by it, on `expired` and `removed` multiplied back.
- */
-export interface AuraRescale<G extends AuraTypes> {
-  /** The stat whose own multiplier is the factor. */
-  readonly stat: G['stat'];
-
-  /** The edges that rescale. */
-  readonly on: readonly Exclude<AuraChange, 'stateEntered'>[];
-
-  /** Whether only clocks still pending (the default) or every clock rescales. */
-  readonly clocks?: 'pending' | 'all';
-
-  /** The spell tag (its id) whose clocks rescale; every clock when absent. */
-  readonly tag?: number;
 }
 
 /**
@@ -192,9 +170,6 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
 
   /** Whether it is removed when its source is gone (`sourceGone`). */
   readonly boundToSource?: boolean;
-
-  /** A clock rescale on its edges. */
-  readonly rescale?: AuraRescale<G>;
 
   /**
    * The event listeners it owns: active exactly while it is on its bearer. The aura system never reads

@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ClockRescale } from '../../src/auras/index.ts';
 import { timeLeft } from '../../src/procs/index.ts';
 import { rescaleClocks } from '../../src/spells/index.ts';
 import { type AbilityGame, auraNamed, makeAbilityGame } from '../helpers/ability-game.ts';
-import { type Game, makeSpellGame, mark, spell, SPELL_TAGS, STATS } from '../helpers/spell-game.ts';
+import { type Game, makeSpellGame, mark, spell, SPELL_TAGS } from '../helpers/spell-game.ts';
 
 describe('time left on cooldown auras', () => {
   it('scales and caps what is left of every aura with a tag, keeping its duration', () => {
@@ -85,32 +84,13 @@ describe('rescaling clocks', () => {
     assert.throws(() => game.spells.rescaleClocks(hero, { factor: Number.NaN }), /finite factor from 0/);
   });
 
-  it('rescales running casts’ stages only when asked for every clock', () => {
-    const game = clockGame();
-    const hero = game.unit(1);
-    const { handle } = game.spells.cast(hero, game.id.channel);
-
-    game.spells.rescaleClocks(hero, { factor: 0.5 });
-    assert.equal(game.spells.viewOf(handle)?.end, 4);
-    game.spells.rescaleClocks(hero, { factor: 0.5, clocks: 'all' });
-    assert.equal(game.spells.viewOf(handle)?.end, 2);
-  });
-
-  it('takes an aura system’s rescale as it comes (a ClockRescale), and is the rescaleClocks proc', () => {
+  it('rescales from a game hook as it comes, and is the rescaleClocks proc', () => {
     const game = clockGame();
     const hero = game.unit(1);
 
     game.spells.stepAuto(hero);
 
-    const fromAura: ClockRescale = {
-      aura: auraNamed('stance'),
-      stat: STATS.id.power,
-      factor: 0.75,
-      tag: -1,
-      clocks: 'pending',
-    };
-
-    game.spells.rescaleClocks(hero, fromAura);
+    game.spells.rescaleClocks(hero, { factor: 0.75 });
     assert.equal(game.spells.autoClock(hero, game.id.bolt), 3);
 
     const proc = rescaleClocks<Game>(2, { tag: 'fire' });

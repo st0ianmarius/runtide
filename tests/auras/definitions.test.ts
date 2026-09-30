@@ -76,7 +76,6 @@ describe('createAuraSystem', () => {
     assert.throws(system(defineAura({ tags: ['cursed'] })), /Aura def tag: there is no cursed/);
     assert.throws(system(defineAura({ clock: 'solar' })), /Aura def: there is no clock solar/);
     assert.throws(system(defineAura({ removedOn: ['dead'] })), /Aura def: there is no bearer state dead/);
-    assert.throws(system(defineAura({ rescale: { stat: 'damage', on: ['applied'] } })), /Aura def: a rescale/);
   });
 
   it('numbers its clocks by declaration order, the first the default', () => {

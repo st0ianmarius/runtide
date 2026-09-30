@@ -6,7 +6,7 @@ import type { AuraEvent, AuraEventBus } from './aura-event.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { type AuraTables, CHANGES } from './compile.ts';
 import type { AuraRegistry } from './define-auras.ts';
-import { isTagEdge, rescaleOn } from './edges.ts';
+import { isTagEdge } from './edges.ts';
 import { setOf } from './state.ts';
 
 /** The code of a queued beat, after the lifecycle change codes. */
@@ -79,14 +79,7 @@ export class AuraEvents<G extends AuraTypes> {
   constructor(parts: EventParts<G>) {
     this.#parts = parts;
     this.#heard = HOOK_NAMES.map((name, code) =>
-      createBitset(
-        parts.registry.ids.filter(
-          (id) =>
-            parts.registry.has[name].has(id) ||
-            ((parts.tables.rescaleOn[id] ?? 0) & (1 << code)) !== 0 ||
-            isTagEdge(parts, code, id),
-        ),
-      ),
+      createBitset(parts.registry.ids.filter((id) => parts.registry.has[name].has(id) || isTagEdge(parts, code, id))),
     );
   }
 
@@ -179,7 +172,7 @@ export class AuraEvents<G extends AuraTypes> {
     }
   }
 
-  /** Whether anything hears a change of an aura: its hook, its rescale, or the bus. */
+  /** Whether anything hears a change of an aura: its hook, a tag edge, or the bus. */
   #isHeard(code: number, id: number): boolean {
     const events = this.#parts.events;
 
@@ -243,15 +236,9 @@ export class AuraEvents<G extends AuraTypes> {
     }
   }
 
-  /** Dispatches queued lifecycle change `i`: the rescale, the hook and its procs, then the bus. */
+  /** Dispatches queued lifecycle change `i`: the tag edge, the hook and its procs, then the bus. */
   #change(i: number, bearer: G['bearer'], item: AuraItem<G>): void {
     const code = this.#codes[i] ?? 0;
-    const rescale = rescaleOn(this.#parts, code, item);
-
-    if (rescale !== undefined) {
-      this.#parts.host.rescaleClocks?.(bearer, rescale);
-    }
-
     if (isTagEdge(this.#parts, code, item.id)) {
       this.#parts.host.onTagsChanged?.(bearer);
     }
