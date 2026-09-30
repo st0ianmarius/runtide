@@ -1,5 +1,6 @@
 import {
   type AuraBearer,
+  type AuraContext,
   type AuraDef,
   type AuraId,
   type AuraState,
@@ -27,6 +28,7 @@ import {
   defineMitigation,
   defineRollTable,
   type Force,
+  type Heal,
   type HealEvent,
   TRUE_DAMAGE,
 } from '../../src/damage/index.ts';
@@ -98,6 +100,15 @@ export interface Game extends DamageTypes, TriggerTypes {
 
   /** The framework's blow. */
   readonly blow: Blow<Game>;
+
+  /** The framework's heal. */
+  readonly heal: Heal<Game>;
+
+  /** The game's own aura hooks: a threat hook, answering the threat its aura adds. */
+  readonly auraHooks: {
+    /** The threat an aura adds. */
+    readonly onThreat: (ctx: AuraContext<Game>) => number;
+  };
 
   /** The framework's force. */
   readonly force: Force<Game>;
@@ -201,6 +212,9 @@ const makeBus = () =>
 /** The test game's bus. */
 type TestBus = ReturnType<typeof makeBus>;
 
+/** The spell every stats read was scoped to, in order; a test clears it. */
+export const STAT_SPELLS: unknown[] = [];
+
 /** Overrides of the damage system's options (the auras, kinds and host are the helper's). */
 export type DamageOverrides = Partial<Omit<DamageSystemOptions<Game>, 'auras' | 'kinds'>>;
 
@@ -299,7 +313,13 @@ export const makeDamageGame = <const Name extends string>(
       },
 
       maxHealth: (unit) => unit.maxHp,
-      statsOf: (unit) => VIEWS.get(unit) ?? viewOf(unit),
+
+      statsOf: (unit, spell) => {
+        STAT_SPELLS.push(spell);
+
+        return VIEWS.get(unit) ?? viewOf(unit);
+      },
+
       idOf: (unit) => unit.id,
       shareOf: (spell, stat) => shares.get(`${spell}:${stat}`),
       unitOf: (source) => units.get(source),

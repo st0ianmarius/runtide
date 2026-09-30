@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { aura, makeDamageGame } from '../helpers/damage-game.ts';
+import type { ActiveAura } from '../../src/auras/index.ts';
+import { aura, type Game, makeDamageGame, STAT_SPELLS } from '../helpers/damage-game.ts';
 
 /** Heal stats: healing received and done. */
 const HEALING = { heal: { received: 'healing', done: 'healingDone' } } as const;
@@ -68,7 +69,16 @@ describe('the heal pipeline', () => {
     wounded.hp = 50;
     auras.apply(wounded, id.wounded);
 
-    assert.deepEqual(damage.healStages, ['wound', 'done', 'received', 'halve', 'health', 'outcome']);
+    assert.deepEqual(damage.healStages, [
+      'wound',
+      'done',
+      'outgoing',
+      'received',
+      'incoming',
+      'halve',
+      'health',
+      'outcome',
+    ]);
     assert.equal(damage.heal({ target, amount: 10 }).amount, 5);
     assert.deepEqual([damage.heal({ target: wounded, amount: 10 }).status, wounded.hp], ['blocked', 50]);
   });
@@ -88,6 +98,72 @@ describe('the heal pipeline', () => {
     damage.heal({ target: warded, amount: 20 });
     damage.heal({ target, amount: 0 });
     assert.deepEqual(log, ['healed landed 10@1', 'healed blocked 0@2']);
+  });
+});
+
+describe('the heal hooks', () => {
+  it('change a heal from the healer’s side, then the target’s: a heal absorb spends its value', () => {
+    const { damage, auras, id, unit } = makeDamageGame({
+      blessed: aura({ duration: 5, onOutgoingHeal: (ctx) => (ctx.other?.id === 1 ? { scale: 2 } : undefined) }),
+      necrotic: aura({
+        duration: 5,
+        value: 15,
+        onIncomingHeal: (ctx, heal) => ({ absorb: Math.min(ctx.aura.value, heal.amount) }),
+      }),
+    });
+
+    const [target, healer] = [unit(1), unit(2)];
+
+    target.hp = 50;
+    auras.apply(healer, id.blessed);
+    auras.apply(target, id.necrotic);
+
+    const healed = damage.heal({ target, healer, amount: 10 });
+
+    assert.deepEqual([healed.amount, healed.absorbed, target.hp, auras.has(target, id.necrotic)], [5, 15, 55, false]);
+    assert.deepEqual([damage.heal({ target, healer, amount: 10 }).amount, target.hp], [20, 75]);
+  });
+
+  it('read heal stats for the heal’s spell, as the host folds them', () => {
+    const { damage, unit } = makeDamageGame({}, HEALING);
+    const target = unit(1);
+
+    target.hp = 50;
+    STAT_SPELLS.length = 0;
+    damage.heal({ target, healer: unit(2), amount: 10, spell: 7 });
+    assert.deepEqual(STAT_SPELLS, [7, 7]);
+  });
+});
+
+describe('the game’s own aura hooks', () => {
+  it('are walked by name by the game’s own stages', () => {
+    const { auras, id, unit } = makeDamageGame({
+      taunt: aura({ duration: 5, on: { onThreat: () => 10 } }),
+      menace: aura({ duration: 5, on: { onThreat: (ctx) => ctx.aura.stacks * 2 } }),
+      plain: aura({ duration: 5 }),
+    });
+
+    const tank = unit(1);
+    const out: (ActiveAura<Game> | undefined)[] = [];
+
+    auras.apply(tank, id.taunt);
+    auras.apply(tank, id.menace);
+    auras.apply(tank, id.plain);
+
+    const count = auras.collect(tank, 'onThreat', out);
+
+    const threat = out.slice(0, count).reduce((sum, active) => {
+      const ctx = active === undefined ? undefined : auras.takeContext(tank, active);
+      const hook = active === undefined ? undefined : auras.registry.on.onThreat?.[active.id];
+      const value = ctx === undefined || hook === undefined ? 0 : hook(ctx);
+
+      auras.giveContext();
+
+      return sum + value;
+    }, 0);
+
+    assert.deepEqual([count, threat], [2, 12]);
+    assert.equal(auras.registry.hasOn['onThreat']?.has(id.plain), false);
   });
 });
 

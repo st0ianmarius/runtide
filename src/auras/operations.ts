@@ -4,7 +4,7 @@ import { type ActiveAura, type AuraContext, MutableContext } from './active-aura
 import type { AuraApplication } from './application.ts';
 import { applyAura } from './apply.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
-import { type AuraPipelineHook, collectIn } from './collect.ts';
+import { type CollectedHook, collectIn } from './collect.ts';
 import { PREDICTED } from './define-auras.ts';
 import type { AuraEngine } from './engine.ts';
 import {
@@ -124,7 +124,7 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
   hasTag: (bearer: G['bearer'], tag: AuraTagId) => setOf<G>(bearer).tags.has(tag),
   lengthOf: (id: AuraId, bearer: G['bearer']) => engine.lengthOf(id, bearer),
 
-  collect: (bearer: G['bearer'], hook: AuraPipelineHook, out: (ActiveAura<G> | undefined)[]) =>
+  collect: (bearer: G['bearer'], hook: CollectedHook<G>, out: (ActiveAura<G> | undefined)[]) =>
     collectIn(engine, bearer, { hook, out }),
 
   context: (bearer: G['bearer'], aura: ActiveAura<G>): AuraContext<G> => {

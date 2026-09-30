@@ -83,10 +83,10 @@ export interface DamageHost<G extends DamageTypes> {
   readonly maxHealth?: (unit: G['bearer']) => number;
 
   /**
-   * A unit's stats for one blow (the attacker's may be folded for the blow's spell, as a scoped modifier needs) or,
-   * with no blow, in general. Outgoing multipliers, crit, block, mitigation, heal stats and scaled values read it.
+   * A unit's stats for a spell (a blow's or a heal's: folded for the spell, as a scoped modifier needs) or, with none,
+   * in general. Outgoing multipliers, crit, block, mitigation, heal stats and scaled values read it.
    */
-  readonly statsOf?: (unit: G['bearer'], blow: Blow<G> | undefined) => StatView;
+  readonly statsOf?: (unit: G['bearer'], spell: G['spell'] | undefined) => StatView;
 
   /**
    * A spell's share of an outgoing multiplier stat (`SpellDef.scaling`), looked up through the blow's source

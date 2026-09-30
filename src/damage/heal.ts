@@ -46,6 +46,9 @@ export interface Heal<G extends DamageTypes> extends ProcOutcome {
   /** What the health stage could not give because the target was full. */
   readonly overheal: number;
 
+  /** What the target's `onIncomingHeal` hooks took out of it (a heal absorb). */
+  readonly absorbed: number;
+
   /** How it ended; `landed` while it runs. */
   readonly status: HealStatus;
 
@@ -65,6 +68,7 @@ export class HealRecord<G extends DamageTypes> implements Heal<G> {
   base = 0;
   amount = 0;
   overheal = 0;
+  absorbed = 0;
   status: HealStatus = 'landed';
   healthBefore = 0;
   healthAfter = 0;
@@ -83,6 +87,7 @@ export class HealRecord<G extends DamageTypes> implements Heal<G> {
     this.base = spec.amount;
     this.amount = spec.amount;
     this.overheal = 0;
+    this.absorbed = 0;
     this.status = 'landed';
     this.healthBefore = 0;
     this.healthAfter = 0;

@@ -149,6 +149,12 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   /** Whether it stays when its value is spent to 0 (an absorb keeping its clock); it is removed when absent. */
   readonly keepWhenDepleted?: boolean;
 
+  /**
+   * The game's own hooks this aura answers (`AuraTypes.auraHooks`), which the game's own stages walk: a threat hook, a
+   * resource hook. None when absent.
+   */
+  readonly on?: Readonly<Partial<G['auraHooks']>>;
+
   /** A beat while it lasts. */
   readonly periodic?: AuraPeriodic<G>;
 

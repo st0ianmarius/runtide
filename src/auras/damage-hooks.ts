@@ -19,6 +19,15 @@ export interface OutgoingChange {
   readonly scale?: number;
 }
 
+/** What a heal hook does to a heal: `onOutgoingHeal` on the healer's side, `onIncomingHeal` on the target's. */
+export interface HealChange {
+  /** Healing this aura takes out of the heal (a heal absorb spends its `value` by the same amount). */
+  readonly absorb?: number;
+
+  /** A factor the remaining healing is multiplied by. */
+  readonly scale?: number;
+}
+
 /** What an `onIncomingForce` hook does to a knockback, push or pull. */
 export interface ForceChange {
   /** A factor the force's strength is multiplied by. */
@@ -38,9 +47,9 @@ export interface LethalOutcome<Proc> {
 }
 
 /**
- * The damage pipeline's aura hooks: before a blow lands on a bearer, each of its auras with a hook sees it,
- * in registry order. They are declared here and built into the registry's hook tables; the damage system's pipelines
- * call them.
+ * The damage and heal pipelines' aura hooks: before a blow or a heal lands on a bearer, each of its auras with a
+ * hook sees it, in registry order. They are declared here and built into the registry's hook tables; the damage
+ * system's pipelines call them.
  */
 export interface AuraDamageHooks<G extends AuraTypes> {
   /** The ignore stage: true lets the blow pass the bearer by (invulnerability, shelter, an immunity). */
@@ -63,4 +72,10 @@ export interface AuraDamageHooks<G extends AuraTypes> {
 
   /** The force stage: changes a knockback, push or pull, or `undefined` to leave it alone. */
   readonly onIncomingForce?: (ctx: AuraContext<G>, force: G['force']) => ForceChange | undefined;
+
+  /** The healer side of a heal, after its healing done: changes it (a stronger heal on a marked target). */
+  readonly onOutgoingHeal?: (ctx: AuraContext<G>, heal: G['heal']) => HealChange | undefined;
+
+  /** The target side of a heal, after its healing received: changes it (a heal absorb, a healing-taken aura). */
+  readonly onIncomingHeal?: (ctx: AuraContext<G>, heal: G['heal']) => HealChange | undefined;
 }

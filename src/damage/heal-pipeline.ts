@@ -1,5 +1,6 @@
 import type { DamageTypes } from './damage-types.ts';
 import type { DamageEngine } from './engine.ts';
+import { createHealWalks, type HealWalks } from './heal-hooks.ts';
 import type { Heal, HealRecord, HealSpec } from './heal.ts';
 
 /** One stage of the heal pipeline, built in or the game's. */
@@ -42,14 +43,25 @@ const raiseHealed = <G extends DamageTypes>(engine: DamageEngine<G>, heal: HealR
 };
 
 /** A built-in heal stage by name. */
-const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, name: string) => {
+const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, [name, walks]: readonly [string, HealWalks<G>]) => {
   const { healDone, healReceived } = engine.stats;
 
   switch (name) {
+    case 'outgoing':
+    case 'incoming': {
+      const walk = walks[name];
+
+      return (heal: HealRecord<G>) => {
+        engine.eachHook(walk, heal);
+
+        return undefined;
+      };
+    }
+
     case 'done': {
       return (heal: HealRecord<G>) => {
         if (healDone !== undefined && heal.healer !== undefined) {
-          heal.amount *= engine.viewOf(heal.healer, undefined).total(healDone);
+          heal.amount *= engine.viewOf(heal.healer, heal).total(healDone);
         }
 
         return undefined;
@@ -59,7 +71,7 @@ const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, name: string) =
     case 'received': {
       return (heal: HealRecord<G>) => {
         if (healReceived !== undefined) {
-          heal.amount *= engine.viewOf(heal.target, undefined).total(healReceived);
+          heal.amount *= engine.viewOf(heal.target, heal).total(healReceived);
         }
 
         return undefined;
@@ -89,10 +101,12 @@ const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, name: string) =
 
 /** The stages of one system's heal pipeline, in order. */
 const compileHealRuns = <G extends DamageTypes>(engine: DamageEngine<G>): readonly HealRun<G>[] => {
+  const walks = createHealWalks(engine);
+
   return engine.healOrder.names.map((name, index): HealRun<G> => {
     const run = engine.healOrder.runs[index];
 
-    return run === undefined ? builtIn(engine, name) : (heal) => engine.healStage(run, heal);
+    return run === undefined ? builtIn(engine, [name, walks]) : (heal) => engine.healStage(run, heal);
   });
 };
 

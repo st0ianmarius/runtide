@@ -26,7 +26,15 @@ export {
 export type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
 export type { AuraClock, AuraModifiers } from './compile.ts';
 export { auraCue, checkAuraCues } from './cues.ts';
-export type { AuraDamageHooks, BlowChange, ForceChange, LethalOutcome, OutgoingChange } from './damage-hooks.ts';
+
+export type {
+  AuraDamageHooks,
+  BlowChange,
+  ForceChange,
+  HealChange,
+  LethalOutcome,
+  OutgoingChange,
+} from './damage-hooks.ts';
 
 export {
   AURA_HOOKS,
@@ -35,13 +43,14 @@ export {
   type AuraHookTables,
   type AuraRegistry,
   defineAuras,
+  type GameHookTables,
 } from './define-auras.ts';
 
 export { type AuraEvent, type AuraEventBus, createAuraEvent } from './aura-event.ts';
 export type { AuraExplanation } from './explain.ts';
 export { type AuraBearer, auraGates, auraStacks, type AuraState } from './state.ts';
 
-export type { AuraPipelineHook } from './collect.ts';
+export type { AuraPipelineHook, CollectedHook } from './collect.ts';
 
 export {
   type AuraSystem,

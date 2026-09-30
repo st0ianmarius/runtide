@@ -25,10 +25,11 @@ export const DAMAGE_STAGES = Object.freeze([
 ] as const);
 
 /**
- * The heal pipeline's built-in stages: the healer's healing done, the target's healing received and health; then
- * the event. A game blocks a heal with a stage of its own (a wound's).
+ * The heal pipeline's built-in stages: the healer's healing done and its `onOutgoingHeal` hooks, the target's healing
+ * received and its `onIncomingHeal` hooks (a heal absorb), and health; then the event. A game blocks a heal with a
+ * stage of its own (a wound's).
  */
-export const HEAL_STAGES = Object.freeze(['done', 'received', 'health', 'outcome'] as const);
+export const HEAL_STAGES = Object.freeze(['done', 'outgoing', 'received', 'incoming', 'health', 'outcome'] as const);
 
 /** The force pipeline's built-in stages: the `onIncomingForce` hooks, then the host moves the unit. */
 export const FORCE_STAGES = Object.freeze(['resist', 'apply'] as const);

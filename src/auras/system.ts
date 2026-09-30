@@ -4,7 +4,7 @@ import type { ActiveAura, AuraContext } from './active-aura.ts';
 import type { ApplyResult, AuraApplication, AuraHost } from './application.ts';
 import type { AuraEvent, AuraEventBus } from './aura-event.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
-import type { AuraPipelineHook } from './collect.ts';
+import type { CollectedHook } from './collect.ts';
 import { type AuraClock, type AuraModifiers, compileAuras } from './compile.ts';
 import type { AuraRegistry } from './define-auras.ts';
 import { AuraEngine } from './engine.ts';
@@ -173,7 +173,7 @@ export interface AuraSystem<G extends AuraTypes> {
    * `out` keeps its storage (it is never shrunk, so a reused array allocates nothing); entries past the count that an
    * earlier call wrote are cleared to `undefined`, so it keeps no references.
    */
-  readonly collect: (bearer: G['bearer'], hook: AuraPipelineHook, out: (ActiveAura<G> | undefined)[]) => number;
+  readonly collect: (bearer: G['bearer'], hook: CollectedHook<G>, out: (ActiveAura<G> | undefined)[]) => number;
 
   /** A context for calling one aura's hook from a pipeline; a new object, which the caller may keep for the call. */
   readonly context: (bearer: G['bearer'], aura: ActiveAura<G>) => AuraContext<G>;

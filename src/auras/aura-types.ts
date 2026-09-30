@@ -49,6 +49,16 @@ export interface AuraTypes {
   /** The force the force hooks read (knockback, push, pull). */
   readonly force: unknown;
 
+  /** The heal the heal hooks read (the heal pipeline's). */
+  readonly heal: unknown;
+
+  /**
+   * The game's own aura hooks, by name: each a function of the hook context and what the game hands it, which an
+   * aura defines under `on` and the game's own stages walk (`auras.collect` by name, then `registry.on`): a threat
+   * hook, a resource hook. None when a game declares none.
+   */
+  readonly auraHooks: object;
+
   /** The game's own data on a definition (`AuraDef.data`), which the framework never reads. */
   readonly data: unknown;
 

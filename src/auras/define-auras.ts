@@ -58,7 +58,17 @@ export const AURA_HOOKS = [
   'onOutgoingDamage',
   'onDealt',
   'onIncomingForce',
+  'onOutgoingHeal',
+  'onIncomingHeal',
 ] as const;
+
+/**
+ * The dispatch tables of the game's own hooks (`AuraTypes.auraHooks`), by name, each indexed by aura id: a table for
+ * every name some aura's `on` uses.
+ */
+export type GameHookTables<G extends AuraTypes> = {
+  readonly [Hook in keyof G['auraHooks']]?: readonly (G['auraHooks'][Hook] | undefined)[];
+};
 
 /** The name of one hook an aura registry dispatches. */
 export type AuraHookName = (typeof AURA_HOOKS)[number];
@@ -86,6 +96,12 @@ export interface AuraRegistry<G extends AuraTypes = AuraTypes, Name extends stri
 
   /** The ids that have each hook. */
   readonly has: Readonly<Record<AuraHookName, Bitset>>;
+
+  /** The dispatch tables of the game's own hooks, by name (`AuraDef.on`), for the game's own stages to call. */
+  readonly on: GameHookTables<G>;
+
+  /** The ids that answer each of the game's own hooks, by name. */
+  readonly hasOn: Readonly<Record<string, Bitset>>;
 }
 
 /** The column code of a definition's stacking rule. */
@@ -199,7 +215,65 @@ const buildHooks = <G extends AuraTypes>(slots: readonly (AuraDef<G> | undefined
   onOutgoingDamage: tableOf(slots, 'onOutgoingDamage'),
   onDealt: tableOf(slots, 'onDealt'),
   onIncomingForce: tableOf(slots, 'onIncomingForce'),
+  onOutgoingHeal: tableOf(slots, 'onOutgoingHeal'),
+  onIncomingHeal: tableOf(slots, 'onIncomingHeal'),
 });
+
+/** The dispatch table and `has` bitset of each of the game's own hooks, by name: every name an aura's `on` uses. */
+const buildGameHooks = <G extends AuraTypes>(
+  slots: readonly (AuraDef<G> | undefined)[],
+): { readonly on: GameHookTables<G>; readonly hasOn: Readonly<Record<string, Bitset>> } => {
+  const names = [...new Set(slots.flatMap((def) => Object.keys(def?.on ?? {})))].toSorted();
+
+  const hookOf = (def: AuraDef<G> | undefined, name: string): unknown =>
+    def?.on === undefined ? undefined : Reflect.get(def.on, name);
+
+  for (const name of names) {
+    if (slots.some((def) => !['undefined', 'function'].includes(typeof hookOf(def, name)))) {
+      throw new TypeError(`Aura hook ${name} must be a function.`);
+    }
+  }
+
+  const on = Object.freeze(
+    Object.fromEntries(
+      names.map((name) => [
+        name,
+        Object.freeze(
+          slots.map((def) => {
+            const hook = hookOf(def, name);
+
+            return isHook(hook) ? hook : undefined;
+          }),
+        ),
+      ]),
+    ),
+  );
+
+  if (!isGameTables<G>(on)) {
+    throw new Error('The game hook tables were lost while they were built.');
+  }
+
+  return {
+    on,
+    hasOn: Object.freeze(
+      Object.fromEntries(
+        names.map((name) => [
+          name,
+          createBitset(slots.flatMap((def, index) => (hookOf(def, name) === undefined ? [] : [index]))),
+        ]),
+      ),
+    ),
+  };
+};
+
+/** Whether a value read from a definition is a hook: a function. */
+const isHook = (value: unknown): value is (...args: never[]) => unknown => typeof value === 'function';
+
+/**
+ * Whether built tables are the game's hook tables: always, since each was built from the definitions' `on`, whose
+ * type is the game's; the check only lets the compiler see it.
+ */
+const isGameTables = <G extends AuraTypes>(tables: object): tables is GameHookTables<G> => typeof tables === 'object';
 
 /** The `has` bitset of every hook. */
 const buildHas = <G extends AuraTypes>(
@@ -250,5 +324,6 @@ export const defineAuras = <G extends AuraTypes, const Name extends string>(
     columns: buildColumns(slots),
     hooks: buildHooks(slots),
     has: buildHas(slots),
+    ...buildGameHooks(slots),
   });
 };
