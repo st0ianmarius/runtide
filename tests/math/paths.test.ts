@@ -11,17 +11,28 @@ import {
   difference,
   lane,
   outside,
-  type PathCrossing,
-  pathCrossings,
   pathIntervals,
   point,
   polygon,
   ring,
-  secondsInside,
   type Shape,
+  type TickPath,
   union,
   vec2,
 } from '../../src/math/index.ts';
+
+/** The seconds a body on `path` spends inside `shape`: the sum of its intervals. */
+const secondsInside = (shape: Shape, path: TickPath): number => {
+  const out: number[] = [];
+  const count = pathIntervals(shape, path, out);
+  let seconds = 0;
+
+  for (let i = 0; i < count; i++) {
+    seconds += (out[i * 2 + 1] ?? 0) - (out[i * 2] ?? 0);
+  }
+
+  return seconds;
+};
 
 const close = (actual: number | undefined, expected: number): void => {
   assert.ok(actual !== undefined && Math.abs(actual - expected) < 1e-9, `${actual} is not close to ${expected}`);
@@ -60,7 +71,7 @@ describe('boundsOf', () => {
   });
 });
 
-describe('pathIntervals and secondsInside: a body crossing a shape over one tick', () => {
+describe('pathIntervals: a body crossing a shape over one tick', () => {
   const across = { from: vec2(-10, 0), to: vec2(10, 0), t0: 0, t1: 2 };
 
   it('finds when a point is inside a circle, to the solved crossing', () => {
@@ -108,17 +119,6 @@ describe('pathIntervals and secondsInside: a body crossing a shape over one tick
   it('holds a whole tick for a body that stands inside, and none for one that stands outside', () => {
     close(secondsInside(circle(1), { from: vec2(0, 0), to: vec2(0, 0), t0: 3, t1: 4 }), 1);
     close(secondsInside(circle(1), { from: vec2(5, 0), to: vec2(5, 0), t0: 3, t1: 4 }), 0);
-  });
-
-  it('counts only an exposure window, and leaves out a sub-tick invulnerability window', () => {
-    close(secondsInside(circle(5), across, { only: { from: 1, to: 2 } }), 0.5);
-    close(secondsInside(circle(5), across, { except: { from: 0.75, to: 1 } }), 0.75);
-  });
-
-  it('samples a shape that changes over the tick at the middle of each piece', () => {
-    const growing = (share: number): Shape => circle(share * 20);
-
-    close(secondsInside(growing, { from: vec2(5, 0), to: vec2(5, 0), t0: 0, t1: 1, steps: 4 }), 0.75);
   });
 
   it('agrees with covers for a body a rounding short of a ring inner rim (fast-check seed -148015370)', () => {
@@ -207,32 +207,5 @@ describe('pathIntervals and secondsInside: a body crossing a shape over one tick
         },
       ),
     );
-  });
-});
-
-describe('pathCrossings: the edge-crossing hook', () => {
-  it('reports entering and leaving in time order, reusing its records', () => {
-    const out: PathCrossing[] = [];
-    const path = { from: vec2(-10, 0), to: vec2(10, 0), t0: 0, t1: 2 };
-
-    assert.equal(pathCrossings(ring(2, 4), path, out), 4);
-    assert.deepEqual(
-      out.map((crossing) => crossing.isEntering),
-      [true, false, true, false],
-    );
-
-    const first = out[0];
-
-    assert.equal(pathCrossings(circle(5), path, out), 2);
-    assert.equal(out[0], first);
-    close(out[0]?.time, 0.5);
-  });
-
-  it('does not count starting or ending inside as a crossing', () => {
-    const out: PathCrossing[] = [];
-
-    assert.equal(pathCrossings(circle(5), { from: vec2(0, 0), to: vec2(10, 0), t0: 0, t1: 1 }, out), 1);
-    assert.equal(out[0]?.isEntering, false);
-    close(out[0]?.time, 0.5);
   });
 });

@@ -8,16 +8,7 @@ export { angleDelta, directionOf, headingOf, turnToward, wrap } from './angles.t
 export { boundsOf, type Box, emptyBox, type MutableBox } from './bounds.ts';
 export { covers } from './covers.ts';
 
-export {
-  type ExposureOptions,
-  type PathCrossing,
-  pathCrossings,
-  pathIntervals,
-  secondsInside,
-  type ShapeAt,
-  type TickPath,
-  type TimeWindow,
-} from './path.ts';
+export { pathIntervals, type TickPath } from './path.ts';
 
 export { inPolygon, polygonEdgeDistanceSq, segmentDistanceSq } from './polygon.ts';
 

@@ -1,5 +1,5 @@
 import { stream } from '../src/core/index.ts';
-import { circle, secondsInside, vec2 } from '../src/math/index.ts';
+import { circle, pathIntervals, vec2 } from '../src/math/index.ts';
 import { createMemoryWorld, type MemoryWorld } from '../src/world/index.ts';
 
 /** A bench unit: its place, which it wanders from each tick. */
@@ -63,6 +63,9 @@ const NEAR = { ...FOES, range: 10, limit: 1 } as const;
 const SWEEP = { ...FOES, radius: 0.5 } as const;
 const SEGMENT = [vec2(-20, 0), vec2(20, 0)] as const;
 const CIRCLE = circle(6, vec2(10, 10));
+
+/** The crossing bench's intervals, reused. */
+const INTERVALS: number[] = [];
 let step = 0;
 
 /** Every unit wanders a little: what a tick of movement costs the point index. */
@@ -126,9 +129,13 @@ export const WORLD_TASKS: readonly (readonly [string, () => void, number])[] = [
     1000,
   ],
   [
-    'world: seconds inside a ring over one tick',
+    'world: a body crossing a circle over one tick',
     () => {
-      worldCounter.found += secondsInside(CIRCLE, { from: vec2(0, 10), to: vec2(20, 10), t0: 0, t1: 1 / 30 });
+      worldCounter.found += pathIntervals(
+        CIRCLE,
+        { from: vec2(0, 10), to: vec2(20, 10), t0: 0, t1: 1 / 30 },
+        INTERVALS,
+      );
     },
     1,
   ],
