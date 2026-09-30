@@ -53,7 +53,7 @@ export {
 } from './explain.ts';
 
 export { type CastHandle, NO_CAST } from './ids.ts';
-export { type MirrorCtx, type MirrorHook, OPEN_WORLD, type StaticWorld } from './mirror.ts';
+export { type MirrorCtx, OPEN_WORLD, type StaticWorld } from './mirror.ts';
 export type { ProcOut } from './proc-out.ts';
 
 export {

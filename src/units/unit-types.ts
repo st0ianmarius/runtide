@@ -16,15 +16,6 @@ export type UnitTagId = Id<'unitTags'>;
  */
 export type Lifecycle = 'standing' | 'downed' | 'dead' | 'disconnected' | 'despawned';
 
-/** The lifecycle states, in the code order views and events carry. */
-export const LIFECYCLES: readonly Lifecycle[] = Object.freeze([
-  'standing',
-  'downed',
-  'dead',
-  'disconnected',
-  'despawned',
-]);
-
 /**
  * What every unit is (§I.7.1 F13): one shape for heroes, creatures and summons. It bears auras, casts, has a loadout
  * (an empty one for a unit with no buttons) and its own stat sheet; a game's `bearer` is the system's `Unit`.

@@ -1,6 +1,6 @@
 import { countDown, isRunOut } from '../core/index.ts';
 import { type AutoActivation, isAuto } from './activation.ts';
-import type { CastReport } from './cast-request.ts';
+import type { CastReport, Report } from './cast-request.ts';
 import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
 import { NO_CAST } from './ids.ts';
@@ -55,7 +55,7 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
 export const stepAutoClocks = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  cast: (caster: G['bearer'], spell: SpellId) => CastReport,
+  cast: (caster: G['bearer'], spell: SpellId) => Report,
 ): void => {
   const record = recordOf(caster);
   const { autos, clocks } = record;

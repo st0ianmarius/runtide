@@ -38,7 +38,7 @@ const segmentEnd = (xs: Float64Array, x: number): number => {
 };
 
 /** Piecewise linear interpolation over ascending `xs`; below the first and above the last x the end values hold. */
-export const tableAt = (xs: Float64Array, ys: Float64Array, x: number): number => {
+const tableAt = (xs: Float64Array, ys: Float64Array, x: number): number => {
   const last = xs.length - 1;
 
   if (x <= (xs[0] ?? 0)) {

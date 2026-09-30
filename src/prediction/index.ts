@@ -4,8 +4,6 @@
  * (`auras.seed`), and `checkPredicted` holds that rule over a game's registries.
  */
 
-export type { CosmeticWorld } from './mirror.ts';
-
 export {
   checkPredicted,
   type MotionReads,

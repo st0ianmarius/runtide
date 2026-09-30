@@ -15,22 +15,18 @@ export type {
   StatView,
 } from './compiled.ts';
 
-export { compileModifiers } from './compile-modifiers.ts';
 export { compileCurve, type CompileOptions, compileScaled } from './compile-values.ts';
 
 export {
   avoidance,
   type AvoidanceCurve,
   byLevel,
-  checkCurve,
   type Curve,
   type CurveId,
   type CurveParam,
   type CurveRef,
   type CurveTable,
   type CustomCurve,
-  customCurve,
-  DEFAULT_CURVES,
   defineCurves,
   type HasteCurve,
   hasteCurve,
@@ -47,7 +43,7 @@ export {
   type TableCurve,
 } from './curves.ts';
 
-export { evaluateCurve, evaluateScaled, rankSlot, shareOf, tableAt } from './evaluate.ts';
+export { evaluateCurve, evaluateScaled, shareOf } from './evaluate.ts';
 
 export {
   type Contribution,
@@ -95,7 +91,7 @@ export {
 
 export type { FoldRead, StatSheet } from './sheet.ts';
 export { finishScaled, type ScaledSnapshot, snapshotScaled } from './snapshot.ts';
-export { defineSources, MAX_SOURCES, type SourceDef, type SourceId, sourceMask, type SourceTable } from './sources.ts';
+export { defineSources, type SourceDef, type SourceId, sourceMask, type SourceTable } from './sources.ts';
 export type { NamedCurve, StatId, StatIndex } from './stat-id.ts';
 
 export {

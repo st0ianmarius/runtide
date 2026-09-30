@@ -32,9 +32,6 @@ export interface MirrorCtx<G extends SpellTypes> {
   readonly dt: number;
 }
 
-/** A mirror-safe hook: a function of `MirrorCtx` only, run alike on the server and on a prediction mirror. */
-export type MirrorHook<G extends SpellTypes, Result = void> = (ctx: MirrorCtx<G>) => Result;
-
 /** A static world with no geometry and no bounds: every line is clear and every move is made in full. */
 export const OPEN_WORLD: StaticWorld = Object.freeze({
   bounds: Object.freeze({

@@ -7,7 +7,7 @@
 
 export type { AiBearer, AiTypes, TimerId } from './ai-types.ts';
 export { type BrainState, NO_BRAIN } from './brain.ts';
-export { type FaceKind, MoveIntent, type MoveKind } from './intent.ts';
+export type { FaceKind, MoveIntent, MoveKind } from './intent.ts';
 export type { PickOptions } from './picker.ts';
 
 export {
@@ -22,4 +22,4 @@ export {
 } from './procs.ts';
 
 export { type AiSystem, type AiSystemOptions, createAiSystem } from './system.ts';
-export { defineTimers, MAX_TIMERS, type TimerTable } from './timers.ts';
+export { defineTimers, type TimerTable } from './timers.ts';

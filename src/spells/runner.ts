@@ -3,7 +3,7 @@ import { isRunOut } from '../core/index.ts';
 import type { ActivationKindDef, CastSeconds } from './activation.ts';
 import { resetAfterCast } from './auto.ts';
 import { fireCastCue } from './cast-cue.ts';
-import type { CastOptions, CastRefusal, CastReport, CastRequest, Report } from './cast-request.ts';
+import type { CastOptions, CastRefusal, CastRequest, Report } from './cast-request.ts';
 import type { Cast } from './cast.ts';
 import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
@@ -291,7 +291,7 @@ export const startCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   request: CastRequest<G>,
   report: Report,
-): CastReport => {
+): Report => {
   const def = engine.registry.get(request.spell);
   const cast = engine.acquire(request.caster);
 

@@ -49,11 +49,4 @@ export {
   type UnitTraits,
 } from './unit-def.ts';
 
-export {
-  type Lifecycle,
-  LIFECYCLES,
-  type UnitId,
-  type UnitShape,
-  type UnitTagId,
-  type UnitTypes,
-} from './unit-types.ts';
+export { type Lifecycle, type UnitId, type UnitShape, type UnitTagId, type UnitTypes } from './unit-types.ts';

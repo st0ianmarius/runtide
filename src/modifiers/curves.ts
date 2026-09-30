@@ -173,7 +173,7 @@ export const stacking = <const S extends string = never>(rate: CurveParam<S>): S
 export const table = (points: readonly (readonly [number, number])[]): TableCurve => ({ kind: 'table', points });
 
 /** A game's own curve from a pure function. */
-export const customCurve = (map: (x: number) => number): CustomCurve => ({ kind: 'custom', map });
+const customCurve = (map: (x: number) => number): CustomCurve => ({ kind: 'custom', map });
 
 /** A parameter read from the bearer's `stat` (by default `level`) through a piecewise linear table. */
 export const byLevel = <const S extends string = 'level'>(

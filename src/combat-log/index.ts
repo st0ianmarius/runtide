@@ -5,7 +5,6 @@
  */
 
 export {
-  COMBAT_ENTRY_KINDS,
   type CombatEntry,
   type CombatEntryKind,
   ENTRY_CRIT,

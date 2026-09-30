@@ -273,6 +273,10 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly cast = (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>): CastReport =>
     startCast(this.#engine, this.#requestOf(caster, spell, options), this.#report);
 
+  /** An auto clock's cast: the system's report, with the interval the clock reads. */
+  readonly #castAuto = (caster: G['bearer'], spell: SpellId): Report =>
+    startCast(this.#engine, this.#requestOf(caster, spell, undefined), this.#report);
+
   /** The system's one request, rewritten: the cast order reads it before any hook runs, so a nested cast may reuse it. */
   #requestOf(caster: G['bearer'], spell: SpellId, options: CastOptions<G> | undefined): CastRequest<G> {
     const request = (this.#request ??= new MutableRequest<G>(caster, spell));
@@ -302,7 +306,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly castsOf = (caster: G['bearer'], out: CastHandle[]): number => recordOf(caster).copyInto(out);
 
   readonly stepAuto = (caster: G['bearer']): void => {
-    stepAutoClocks(this.#engine, caster, this.cast);
+    stepAutoClocks(this.#engine, caster, this.#castAuto);
   };
 
   readonly arm = (caster: G['bearer'], spell: SpellId, seconds = 0): boolean =>

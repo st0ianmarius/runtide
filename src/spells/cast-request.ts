@@ -24,12 +24,6 @@ export interface CastReport {
 
   /** Whether its payload went out within the call (a spell with no windup), whatever its procs did. */
   readonly hasReleased: boolean;
-
-  /**
-   * For an `auto` spell, its interval read at the cast (§II.6 S2), with the cast's stats (taken for a refusal at the
-   * gate too, when the interval reads them); NaN for any other spell.
-   */
-  readonly interval: number;
 }
 
 /** How a cast is started, beyond the caster and the spell. */
@@ -75,6 +69,11 @@ export class Report implements CastReport {
   refusal: CastRefusal | undefined = undefined;
   went = 0;
   hasReleased = false;
+
+  /**
+   * For an `auto` spell, its interval read at the cast (§II.6 S2), with the cast's stats (taken for a refusal at the
+   * gate too, when the interval reads them); NaN for any other spell. The auto clock's own: not on the public report.
+   */
   interval = Number.NaN;
 }
 

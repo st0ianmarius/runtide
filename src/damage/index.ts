@@ -82,7 +82,6 @@ export type { StageDef, StagePosition } from './stage-order.ts';
 export {
   type CompiledRollRow,
   defineRollTable,
-  ROLL_EFFECTS,
   type RollEffect,
   type RollMode,
   type RollRow,
