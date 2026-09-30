@@ -14,7 +14,7 @@ export interface SpellSystemBase<G extends SpellTypes> {
   /** The game's spells (`defineSpells`). */
   readonly registry: SpellRegistry<G>;
 
-  /** The aura system cast auras land through (the proc system's). */
+  /** The aura system cooldowns land through (the proc system's). */
   readonly auras: AuraSystem<G>;
 
   /**

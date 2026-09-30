@@ -1,4 +1,4 @@
-import { type AuraApplication, type AuraId, type AuraSystem, NO_SOURCE } from '../auras/index.ts';
+import type { AuraSystem } from '../auras/index.ts';
 import { toHandle } from '../core/ids.ts';
 import { createPool, type Pool, type Random } from '../core/index.ts';
 import type { CueBuffer, CueEvent, CuePlace, CueSpec } from '../cues/index.ts';
@@ -7,7 +7,6 @@ import type { StatView } from '../modifiers/index.ts';
 import type { Proc, ProcOutcome, ProcSystem } from '../procs/index.ts';
 import type { CastPlan } from './cast-plan.ts';
 import { Cast, type CastServices, NO_SCALED, NO_STATS, StatsCall } from './cast.ts';
-import { recordOf } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import { DelayedProcs } from './delayed.ts';
 import type { SpellEvent, SpellEvents } from './events.ts';
@@ -29,16 +28,6 @@ export interface SpellClock {
   readonly dt: number;
 }
 
-/** The application a cast aura lands with, reused. */
-class CastAuraApplication implements AuraApplication {
-  aura: AuraId;
-  source = NO_SOURCE;
-
-  constructor(aura: AuraId) {
-    this.aura = aura;
-  }
-}
-
 /** Where a spell's cues sit: on the caster, credited to it. */
 class CasterPlace implements CuePlace {
   owner = 0;
@@ -52,7 +41,7 @@ export interface EngineParts<G extends SpellTypes> {
   /** The spells. */
   readonly registry: SpellRegistry<G>;
 
-  /** The aura system cast auras land through. */
+  /** The aura system cooldowns land through. */
   readonly auras: AuraSystem<G>;
 
   /** The proc system hooks' procs run through, or a function returning it (resolved on first use). */
@@ -81,9 +70,6 @@ export interface EngineParts<G extends SpellTypes> {
 
   /** Each spell's plan, by id. */
   readonly plans: readonly (CastPlan<G> | undefined)[];
-
-  /** Each spell's cast aura, by id; `undefined` for none. */
-  readonly castAuras: readonly (AuraId | undefined)[];
 
   /** The free stats boxes. */
   readonly boxes: StatsBoxes;
@@ -121,7 +107,6 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   readonly cues: CueBuffer | undefined;
   readonly world: StaticWorld;
   readonly plans: readonly (CastPlan<G> | undefined)[];
-  readonly castAuras: readonly (AuraId | undefined)[];
   readonly boxes: StatsBoxes;
   readonly baseView: StatView;
   readonly pool: Pool<Cast<G>>;
@@ -155,7 +140,6 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   readonly #handles: CastHandle[][] = [];
   #handleDepth = 0;
   readonly #place = new CasterPlace();
-  #application: CastAuraApplication | undefined = undefined;
   #depth = 0;
   #pending: G['bearer'] | undefined = undefined;
 
@@ -168,7 +152,6 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     this.cues = parts.cues;
     this.world = parts.world;
     this.plans = parts.plans;
-    this.castAuras = parts.castAuras;
     this.boxes = parts.boxes;
     this.baseView = parts.baseView;
     this.interruptBits = parts.interruptBits;
@@ -338,45 +321,6 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     payload.hit = hit;
     payload.outcome = kind === 'end' ? cast.outcome : undefined;
     events.bus.raise(event, payload);
-  }
-
-  /**
-   * Puts on (or takes off) the aura a spell's caster holds while it casts, credited to the caster; nothing
-   * when another running cast of the same caster holds the same aura, so overlapping casts share one.
-   */
-  holdCastAura(cast: Cast<G>, isOn: boolean): void {
-    const aura = this.castAuras[cast.spell];
-
-    if (aura === undefined || this.#isHeldElsewhere(cast, aura)) {
-      return;
-    }
-
-    if (!isOn) {
-      this.auras.remove(cast.caster, aura);
-
-      return;
-    }
-
-    const application = (this.#application ??= new CastAuraApplication(aura));
-
-    application.aura = aura;
-    application.source = cast.casterId;
-    this.auras.apply(cast.caster, application);
-  }
-
-  /** Whether another running cast of the same caster holds the same cast aura. */
-  #isHeldElsewhere(cast: Cast<G>, aura: AuraId): boolean {
-    const record = recordOf(cast.caster);
-
-    for (let i = 0; i < record.count; i++) {
-      const other = this.castOf(record.handles[i] ?? NO_CAST);
-
-      if (other !== undefined && other !== cast && this.castAuras[other.spell] === aura) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   /** Puts an ended cast's record back: its stats box, the game's fields, its references. */

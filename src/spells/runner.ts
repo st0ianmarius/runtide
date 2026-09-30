@@ -184,8 +184,8 @@ const runEnd = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): vo
 };
 
 /**
- * Ends a cast, once: it leaves its caster's casts, then its end cue, `onEnd`, its
- * cast aura comes off, the caster's clocks that reset after a cast reset, and the `end` event. Its record goes back to the pool once nothing holds it.
+ * Ends a cast, once: it leaves its caster's casts, then its end cue, `onEnd`, the
+ * caster's clocks that reset after a cast reset, and the `end` event. Its record goes back to the pool once nothing holds it.
  */
 export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, outcome: CastOutcome<G>): void => {
   if (cast.stage === 'ended') {
@@ -202,7 +202,6 @@ export const endCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast
   recordOf(cast.caster).remove(cast.cast);
   engine.fire(cast, def.cues?.end?.(cast, outcome));
   runEnd(engine, cast);
-  engine.holdCastAura(cast, false);
   resetAfterCast(engine, cast.caster, cast.spell);
   engine.raise('end', cast);
   engine.unhold(cast);
@@ -269,13 +268,12 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
 };
 
 /**
- * Begins an admitted cast: it joins its caster's casts, makes its own state, puts on its cast aura, enters its windup,
+ * Begins an admitted cast: it joins its caster's casts, makes its own state, enters its windup,
  * fires its start cue, runs `begin` and raises `start`; a windup already run out releases at once.
  */
 const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def: AnySpellDef<G>): void => {
   recordOf(cast.caster).add(cast.cast);
   cast.state = engine.registry.hooks.state[cast.spell]?.();
-  engine.holdCastAura(cast, true);
   enterStage(cast, 'windup', engine.plans[cast.spell]?.windup);
   cast.isLocked = engine.plans[cast.spell]?.track === undefined;
   if (def.cues?.cast !== undefined) {

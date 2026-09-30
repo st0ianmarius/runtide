@@ -394,68 +394,6 @@ describe('spell events and the cast aura', () => {
       ['fire@1', 'punched@1'],
     );
   });
-
-  it('holds the cast aura while the cast runs, so its triggers are the spell’s own, and takes it off before the end event', () => {
-    const seen: boolean[] = [];
-
-    const game = makeSpellGame(
-      {
-        bolt: spell({
-          activation: { kind: 'trigger' },
-          castAura: 'focus',
-
-          release: (ctx) => {
-            seen.push(game0.auras.has(ctx.caster, game0.auraId.focus));
-
-            return undefined;
-          },
-
-          onEnd: (ctx) => {
-            seen.push(game0.auras.has(ctx.caster, game0.auraId.focus));
-
-            return undefined;
-          },
-        }),
-        other: spell({ activation: { kind: 'trigger' }, release: () => undefined }),
-      },
-      {
-        auras: {
-          focus: aura({
-            duration: 'infinite',
-            triggers: [{ on: 'spellRelease', do: [mark('focused')] }],
-          }),
-        },
-      },
-    );
-
-    const game0 = game;
-    const a = game.unit(1);
-
-    game.spells.cast(a, game.id.bolt);
-    game.spells.cast(a, game.id.other);
-    assert.deepEqual(seen, [true, true]);
-    assert.equal(game.auras.has(a, game.auraId.focus), false);
-    assert.deepEqual(
-      game.log.filter((line) => line.startsWith('focused')),
-      ['focused@1'],
-    );
-  });
-
-  it('refuses at load a cast aura that is unknown or not infinite', () => {
-    assert.throws(
-      () =>
-        makeSpellGame({ bolt: spell({ activation: { kind: 'trigger' }, castAura: 'nope', release: () => undefined }) }),
-      /Spell bolt: its cast aura nope is not a live aura/,
-    );
-    assert.throws(
-      () =>
-        makeSpellGame(
-          { bolt: spell({ activation: { kind: 'trigger' }, castAura: 'short', release: () => undefined }) },
-          { auras: { short: aura({ duration: 2 }) } },
-        ),
-      /duration is 'infinite'/,
-    );
-  });
 });
 
 describe('hooks and procs', () => {

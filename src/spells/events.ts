@@ -44,7 +44,7 @@ export interface SpellEvents<G extends SpellTypes> {
   /** A delivery of a cast caught units (`spells.hit`), after `onHit`. */
   readonly hit?: EventKind<SpellEvent<G>>;
 
-  /** A cast ended, after `onEnd` and after its cast aura left the caster. */
+  /** A cast ended, after `onEnd`. */
   readonly end?: EventKind<SpellEvent<G>>;
 }
 
@@ -80,7 +80,7 @@ const codeIn =
 /**
  * A spell event kind as a trigger event: about the cast's caster, with the filters `spell` (by name or id),
  * `tag` (a spell tag, by name or id) and `outcome` (by name, for an end). A trigger names them in `when`: an aura that
- * answers every fire spell its bearer casts, or the spell's own cast aura that answers its own hits.
+ * answers every fire spell its bearer casts, or one the game holds on the caster while a spell runs.
  */
 export const spellTriggerEvent = <G extends SpellTypes & TriggerTypes>(
   kind: EventKind<SpellEvent<G>>,

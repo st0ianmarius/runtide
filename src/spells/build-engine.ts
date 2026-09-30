@@ -1,11 +1,9 @@
-import type { AuraId, AuraSystem } from '../auras/index.ts';
 import { type ActivationRegistry, CORE_ACTIVATIONS, isAuto } from './activation.ts';
 import { type CastPlan, planOf } from './cast-plan.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import { SpellEngine } from './engine.ts';
 import { OPEN_WORLD } from './mirror.ts';
 import type { ReachPlan } from './reach.ts';
-import type { AnySpellDef } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
 import { baseView, StatsBoxes } from './stats-box.ts';
 import type { SpellSystemOptions } from './system-options.ts';
@@ -30,32 +28,6 @@ const extFactory = <G extends SpellTypes>(options: SpellSystemOptions<G>): (() =
       return none;
     })
   );
-};
-
-/** Resolves a spell's cast aura against the aura registry at load: a live aura that lasts while the cast runs. */
-const castAuraOf = <G extends SpellTypes>(
-  auras: AuraSystem<G>,
-  def: AnySpellDef<G> | undefined,
-  name: string,
-): AuraId | undefined => {
-  const aura = def?.castAura;
-
-  if (aura === undefined) {
-    return undefined;
-  }
-
-  const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
-  const id = typeof aura === 'string' ? ids[aura] : aura;
-
-  if (id === undefined || id < 0 || id >= auras.registry.size || auras.registry.isRetired(id)) {
-    throw new RangeError(`Spell ${name}: its cast aura ${aura} is not a live aura.`);
-  }
-
-  if (auras.registry.get(id).duration !== 'infinite') {
-    throw new RangeError(`Spell ${name}: its cast aura lasts while the cast runs, so its duration is 'infinite'.`);
-  }
-
-  return id;
 };
 
 /** Checks at load that spells with cues have a buffer to fire into and a host that places them. */
@@ -144,7 +116,6 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     cues: options.cues,
     world: options.world ?? OPEN_WORLD,
     plans,
-    castAuras: registry.defs.map((def, id) => castAuraOf(options.auras, def, registry.names[id] ?? '')),
     boxes: new StatsBoxes(registry.compiled),
     baseView: baseView(registry.stats),
     interruptBits: interruptBitsOf(registry, options.interrupts ?? []),

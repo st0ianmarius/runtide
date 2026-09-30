@@ -40,8 +40,7 @@ import { type CastView, viewCast } from './view.ts';
 
 /**
  * A spell system: the runner over one game's spells, for any caster. It starts casts in the cast order, runs
- * their hooks' procs credited to them, raises spell events and fires spell cues, and holds each spell's cast aura on
- * its caster while it casts.
+ * their hooks' procs credited to them, raises spell events and fires spell cues.
  */
 export interface SpellSystem<G extends SpellTypes> {
   /** The game's spells. */
@@ -388,7 +387,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
 /**
  * Creates the spell system over a game's spells: `createSpellSystem({ registry: SPELLS, auras, procs: () =>
- * procs, clock, host })`. Every cast aura is resolved and every plan built at load; nothing is looked up by name
+ * procs, clock, host })`. Every plan is built at load; nothing is looked up by name
  * afterwards.
  */
 export const createSpellSystem = <G extends SpellTypes>(options: SpellSystemOptions<G>): SpellSystem<G> =>

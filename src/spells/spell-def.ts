@@ -1,4 +1,3 @@
-import type { AuraId } from '../auras/index.ts';
 import type { Random } from '../core/index.ts';
 import type { CueSpec } from '../cues/index.ts';
 import type { Shape, Vec2 } from '../math/index.ts';
@@ -249,9 +248,6 @@ export interface SpellDef<
 
   /** Whether hooks read its stats live (evaluated again before every hook) instead of the snapshot taken at the start. */
   readonly live?: boolean;
-
-  /** An aura the caster holds while the cast runs: its triggers are the spell's own. */
-  readonly castAura?: G['auraName'] | AuraId;
 
   /** The game's own data, which the framework never reads. */
   readonly data?: G['spellData'];
