@@ -7,6 +7,7 @@ import {
   KEEP_DEPLETED,
   MERGES,
   OWNER_ONLY,
+  PARTY_ONLY,
   PER_SOURCE,
   STACKINGS,
 } from './define-auras.ts';
@@ -50,8 +51,8 @@ export interface AuraExplanation {
   /** Whether it stays when its value is spent. */
   readonly keepsWhenDepleted: boolean;
 
-  /** Whether only the bearer's own client sees it. */
-  readonly isOwnerOnly: boolean;
+  /** Who sees it on the wire. */
+  readonly audience: 'owner' | 'party' | 'all';
 
   /** The tags it grants. */
   readonly tags: readonly AuraTagId[];
@@ -98,8 +99,17 @@ const rulesOf = <G extends AuraTypes>(engine: AuraEngine<G>, id: AuraId) => {
     isPerSource: (flags & PER_SOURCE) !== 0,
     merge: merge === CUSTOM_MERGE ? ('custom' as const) : (MERGES[merge] ?? 'replace'),
     keepsWhenDepleted: (flags & KEEP_DEPLETED) !== 0,
-    isOwnerOnly: (flags & OWNER_ONLY) !== 0,
+    audience: auraAudience(flags),
   };
+};
+
+/** Who sees an aura of these flags. */
+const auraAudience = (flags: number): 'owner' | 'party' | 'all' => {
+  if ((flags & OWNER_ONLY) !== 0) {
+    return 'owner';
+  }
+
+  return (flags & PARTY_ONLY) === 0 ? 'all' : 'party';
 };
 
 /** The tags part of an explanation. */

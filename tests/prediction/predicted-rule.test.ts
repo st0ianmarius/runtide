@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { auraGates, auraStacks } from '../../src/auras/index.ts';
 import { defineConditions } from '../../src/conditions/index.ts';
-import { createModifierSystem, defineSources, defineStats, mul } from '../../src/modifiers/index.ts';
+import { createModifierSystem, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
 import { checkPredicted } from '../../src/prediction/index.ts';
 import { auraNamed, makeAbilityGame, spell } from '../helpers/ability-game.ts';
 import { aura, makeGame, TAGS } from '../helpers/aura-game.ts';
@@ -32,6 +32,8 @@ const setUp = () => {
       haste: aura({ duration: 3, modifiers: [mul('speed', 1.3)] }),
       might: aura({ duration: 3, modifiers: [mul('damage', 1.3)] }),
       ghost: aura({ duration: 3, predicted: true }),
+      dash: aura({ duration: 1, predicted: true, onLand: () => undefined, modifiers: [plus('speed', 2)] }),
+      sprint: aura({ duration: 1, predicted: true, modifiers: [mul('speed', 1.5), plus('armor', 3)] }),
       halo: aura({ duration: 3, tags: ['boon'] }),
     },
     { modifiers, fold: 'auras' },
@@ -57,16 +59,27 @@ describe('the predicted rule', () => {
       ],
       unread: [id.ghost],
       unsafe: [],
+      unseedable: [id.dash],
+      inexact: [id.dash],
     });
+  });
+
+  it('finds predicted auras a seed cannot rebuild, and those a split fold of a motion stat folds inexactly', () => {
+    const { auras, id } = setUp();
+    const report = checkPredicted({ auras, motion: { stats: ['speed'] } });
+
+    assert.deepEqual([report.unseedable, report.inexact], [[id.dash], [id.dash]]);
   });
 
   it('holds when everything read is predicted, and refuses a motion tag the game does not have', () => {
     const { auras, id } = setUp();
 
-    assert.deepEqual(checkPredicted({ auras, motion: { auras: [id.cooldown, id.root, id.ghost] } }), {
+    assert.deepEqual(checkPredicted({ auras, motion: { auras: [id.cooldown, id.root, id.ghost, id.sprint] } }), {
       unpredicted: [],
-      unread: [],
+      unread: [id.dash],
       unsafe: [],
+      unseedable: [id.dash],
+      inexact: [],
     });
 
     const motion = { tags: ['stun' as const] };

@@ -65,6 +65,19 @@ export interface PredictedReport {
 
   /** `predicted` auras with a modifier whose condition is not mirror-safe (checked when `conditions` is given). */
   readonly unsafe: readonly AuraId[];
+
+  /**
+   * `predicted` auras a seed cannot put back as the mirror would land them: one with an `onLand` hook, whose payload
+   * (its game fields) the wire does not carry.
+   */
+  readonly unseedable: readonly AuraId[];
+
+  /**
+   * `predicted` auras with an `add` or `min` modifier on a stat the motion step folds: a split fold (the wire's stats
+   * folded without the predicted auras, the mirror multiplying its own in) is exact only for multipliers, so these
+   * drift unless the mirror folds the whole stat itself.
+   */
+  readonly inexact: readonly AuraId[];
 }
 
 /** The names of the tags the mirror reads: the game's motion tags and the presses' tags. */
@@ -153,5 +166,22 @@ export const checkPredicted = <G extends AuraTypes>(options: PredictedRuleOption
     }
   }
 
-  return { unpredicted, unread, unsafe: unsafeOf(options) };
+  return { unpredicted, unread, unsafe: unsafeOf(options), ...seedReport(options) };
+};
+
+/** The predicted auras a seed cannot rebuild, and those a split fold of the motion stats would fold inexactly. */
+const seedReport = <G extends AuraTypes>(
+  options: PredictedRuleOptions<G>,
+): Pick<PredictedReport, 'unseedable' | 'inexact'> => {
+  const { auras } = options;
+  const { registry } = auras;
+  const stats = new Set<string>(options.motion?.stats ?? []);
+  const predicted = registry.ids.filter((aura) => !registry.isRetired(aura) && auras.isPredicted(aura));
+
+  return {
+    unseedable: predicted.filter((aura) => registry.get(aura).onLand !== undefined),
+    inexact: predicted.filter((aura) =>
+      (registry.get(aura).modifiers ?? []).some((modifier) => modifier.op !== 'mul' && stats.has(modifier.stat)),
+    ),
+  };
 };

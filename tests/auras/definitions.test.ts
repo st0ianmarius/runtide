@@ -28,7 +28,7 @@ describe('defineAuras', () => {
   it('builds typed columns, hook tables and has bitsets', () => {
     const registry = defineAuras({
       bleed: aura({ duration: 1, stacking: 'stack', maxStacks: 300, merge: 'add', onApplied }),
-      stun: aura({ duration: 2, stacking: (): undefined => undefined, ownerOnly: true, perSource: true }),
+      stun: aura({ duration: 2, stacking: (): undefined => undefined, audience: 'owner', perSource: true }),
     });
 
     assert.deepEqual(Array.from(registry.columns.stacking), [2, 5]);

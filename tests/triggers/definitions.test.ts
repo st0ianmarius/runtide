@@ -166,7 +166,7 @@ describe('internal cooldowns as derived auras', () => {
     assert.deepEqual(all.defs['icd.aura.rush.2'], {
       duration: 0.5,
       stacking: 'refresh',
-      ownerOnly: true,
+      audience: 'owner',
       clock: 'world',
       tags: ['cooldown'],
     });

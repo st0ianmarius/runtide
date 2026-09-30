@@ -18,7 +18,7 @@ const viewsOf = <Bearer>(
 
 const defs = {
   shell: aura({ duration: 10, value: 40, stacking: 'highest', merge: 'max', keepWhenDepleted: true, tags: ['boon'] }),
-  cooldown: aura({ ownerOnly: true, clock: 'motion' }),
+  cooldown: aura({ audience: 'owner', clock: 'motion' }),
   echo: aura({ duration: 3, stacking: 'independent', maxStacks: 2 }),
 
   bleed: aura({
@@ -38,6 +38,19 @@ const defs = {
 };
 
 describe('views for the wire', () => {
+  it('show each viewer what it may see: the owner everything, the party all but owner auras, others all auras', () => {
+    const { auras, id, unit } = makeGame({ ...defs, frame: aura({ duration: 5, audience: 'party' }) });
+    const u = unit();
+    const seen = (viewer: 'owner' | 'party' | 'other') => viewsOf(auras, u, { for: viewer }).map((view) => view.aura);
+
+    auras.apply(u, id.shell);
+    auras.apply(u, { aura: id.cooldown, duration: 2 });
+    auras.apply(u, id.frame);
+    assert.deepEqual(seen('owner'), [id.shell, id.cooldown, id.frame]);
+    assert.deepEqual(seen('party'), [id.shell, id.frame]);
+    assert.deepEqual(seen('other'), [id.shell]);
+  });
+
   it('fill the caller’s records from index 0, reused from call to call', () => {
     const { auras, id, unit } = makeGame(defs);
     const u = unit();
@@ -65,7 +78,7 @@ describe('views for the wire', () => {
     assert.deepEqual(viewsOf(auras, u), [
       { aura: id.shell, serial: 0, stacks: 1, value: 40, duration: 10, remaining: 9.5, end: 80, clock: 0, source: 7 },
     ]);
-    assert.deepEqual(viewsOf(auras, u, { forOwner: true })[1], {
+    assert.deepEqual(viewsOf(auras, u, { for: 'owner' })[1], {
       aura: id.cooldown,
       serial: 0,
       stacks: 1,
@@ -95,7 +108,7 @@ describe('explainAura', () => {
       merge: 'custom',
       value: 0,
       keepsWhenDepleted: false,
-      isOwnerOnly: false,
+      audience: 'all',
       tags: [TAGS.id.poison],
       blockedBy: [TAGS.id.immune],
       removes: [TAGS.id.boon, TAGS.id.magic],

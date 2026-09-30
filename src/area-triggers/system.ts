@@ -1,5 +1,5 @@
 import type { TickSlotId } from '../core/index.ts';
-import type { EndReason } from './area-def.ts';
+import type { AreaTriggerContext, EndReason } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import { areaEngineOf } from './build-engine.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
@@ -76,10 +76,10 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
   readonly ownerGone: (owner: G['bearer']) => number;
 
   /**
-   * Writes the replicated state of every live area trigger whose kind replicates its state into `out` from index 0
-   *, in kind order then creation order, each value rounded as its kind declares; returns how many.
+   * Writes the replicated state of every live area trigger whose kind replicates its state, and that `admit` keeps (a
+   * client's interest: those near its unit), into `out` from index 0; returns how many. `out` keeps its replicas.
    */
-  readonly replicate: (out: AreaReplica[]) => number;
+  readonly replicate: (out: AreaReplica[], admit?: (area: AreaTriggerContext<G>) => boolean) => number;
 }
 
 /** An area trigger system: a class for fast properties, its functions arrow fields so they work detached. */
@@ -159,7 +159,8 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
     return despawnWhere(this.#engine, query, reason);
   };
 
-  readonly replicate = (out: AreaReplica[]): number => replicateAreas(this.#engine, out);
+  readonly replicate = (out: AreaReplica[], admit?: (area: AreaTriggerContext<G>) => boolean): number =>
+    replicateAreas(this.#engine, out, admit);
 }
 
 /**

@@ -2,7 +2,7 @@
 /* oxlint-disable typescript/prefer-for-of */
 import { toId } from '../core/ids.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
-import { OWNER_ONLY } from './define-auras.ts';
+import { OWNER_ONLY, PARTY_ONLY } from './define-auras.ts';
 import type { AuraEngine } from './engine.ts';
 import { setOf } from './state.ts';
 
@@ -42,9 +42,21 @@ export interface AuraView {
 
 /** Who a view is for. */
 export interface ViewOptions {
-  /** Whether it is for the bearer's own client, which also sees `ownerOnly` auras; false when absent. */
-  readonly forOwner?: boolean;
+  /**
+   * Whose client it is for: the bearer's own (`owner`, which sees every aura), a party member's (`party`, which also
+   * sees `party` auras), or anyone else's (`other`, the default, which sees only `all` auras).
+   */
+  readonly for?: 'owner' | 'party' | 'other';
 }
+
+/** Whether a viewer sees an aura of these flags: the owner sees all, the party all but `owner`, others only `all`. */
+const isSeen = (flags: number, viewer: 'owner' | 'party' | 'other'): boolean => {
+  if (viewer === 'owner') {
+    return true;
+  }
+
+  return (flags & OWNER_ONLY) === 0 && (viewer === 'party' || (flags & PARTY_ONLY) === 0);
+};
 
 /** A new view record, which `viewAuras` fills. */
 const newView = (): AuraView => ({
@@ -60,8 +72,8 @@ const newView = (): AuraView => ({
 });
 
 /**
- * Writes a bearer's auras as views into `out` from index 0, in list order (registry order), leaving out `ownerOnly`
- * ones unless it is for the owner; returns how many. `out` keeps its records between calls, so a steady bearer's
+ * Writes a bearer's auras as views into `out` from index 0, in list order (registry order), leaving out the auras the viewer
+ * does not see (its audience); returns how many. `out` keeps its records between calls, so a steady bearer's
  * views allocate nothing.
  */
 export const viewAuras = <G extends AuraTypes>(
@@ -75,7 +87,7 @@ export const viewAuras = <G extends AuraTypes>(
   for (let i = 0; i < set.items.length; i++) {
     const item = set.items[i];
 
-    if (item === undefined || (options.forOwner !== true && ((engine.flags[item.id] ?? 0) & OWNER_ONLY) !== 0)) {
+    if (item === undefined || !isSeen(engine.flags[item.id] ?? 0, options.for ?? 'other')) {
       continue;
     }
 

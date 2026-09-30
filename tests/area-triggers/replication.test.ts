@@ -80,6 +80,22 @@ describe('area trigger replication', () => {
     assert.equal(out[0]?.handle, second);
   });
 
+  it('writes only the area triggers a client’s admit keeps', () => {
+    const game = replicationGame();
+    const owner = game.unit(1);
+    const out: AreaReplica[] = [];
+
+    game.areaTriggers.spawn(game.areaId.pool, { owner, at: vec2(1, 0) });
+
+    const far = game.areaTriggers.spawn(game.areaId.pool, { owner, at: vec2(40, 0) });
+
+    assert.equal(
+      game.areaTriggers.replicate(out, (area) => Math.abs(area.position.x) > 20),
+      1,
+    );
+    assert.equal(out[0]?.handle, far);
+  });
+
   it('refuses repeated or no entries, entries with no view, and bad rounding', () => {
     const view = () => ({ x: 0 });
 

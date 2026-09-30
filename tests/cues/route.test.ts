@@ -92,6 +92,26 @@ describe('predicted cue echoes', () => {
     );
   });
 
+  it('settles the noted cues the server has acknowledged without echoing, handing each on once', () => {
+    const echoes = createCueEchoes(CUES);
+    const mine = createCueBuffer(CUES);
+    const server = createCueBuffer(CUES);
+    const missed: string[] = [];
+
+    for (const key of [3, 4, 5]) {
+      echoes.note(fireCue(mine, { cue: CUES.id.step, key }, OWNED));
+    }
+
+    echoes.isEcho(fireCue(server, { cue: CUES.id.step, key: 3 }, OWNED));
+    assert.equal(
+      echoes.settle(4, (cue, owner, key) => missed.push(`${cue}@${owner}#${key}`)),
+      1,
+    );
+    assert.deepEqual(missed, [`${CUES.id.step}@${OWNED.owner}#4`]);
+    assert.equal(echoes.settle(4), 0);
+    assert.equal(echoes.isEcho(fireCue(server, { cue: CUES.id.step, key: 5 }, OWNED)), true);
+  });
+
   it('notes nothing without a key or for a cue that is not predicted, and forgets the oldest past its capacity', () => {
     const echoes = createCueEchoes(CUES, 2);
     const out = createCueBuffer(CUES);

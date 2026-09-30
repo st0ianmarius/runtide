@@ -159,8 +159,11 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   /** A beat while it lasts. */
   readonly periodic?: AuraPeriodic<G>;
 
-  /** Whether only its bearer's own client sees it (a cooldown); everyone does when absent. */
-  readonly ownerOnly?: boolean;
+  /**
+   * Who sees it on the wire: its bearer's own client alone (`owner`: a cooldown), its bearer's party too (`party`: a
+   * raid frame's debuffs), or everyone (`all`, the default).
+   */
+  readonly audience?: 'owner' | 'party' | 'all';
 
   /**
    * Whether a prediction mirror rebuilds it from the wire (`auras.seed`): an aura the shared motion step

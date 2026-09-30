@@ -26,3 +26,42 @@ export const stream = (seed: number, salt = 0): Random => {
     return ((t ^ (t >>> 14)) >>> 0) / UINT32_RANGE;
   };
 };
+
+/** A sequential stream whose state can be saved and restored: a checkpoint, a replay, a rollback. */
+export interface SavableStream {
+  /** One draw. */
+  readonly random: Random;
+
+  /** Its state now: a whole number, which `restore` takes back. */
+  readonly save: () => number;
+
+  /** Puts it back to a saved state, so it draws on from there. */
+  readonly restore: (state: number) => void;
+}
+
+/** A sequential stream (`stream(seed, salt)`, draw for draw) whose state can be saved and restored. */
+export const savableStream = (seed: number, salt = 0): SavableStream => {
+  let state = seed ^ salt;
+
+  return Object.freeze({
+    random: (): number => {
+      state = (state + 0x6d2b79f5) | 0;
+
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+
+      return ((t ^ (t >>> 14)) >>> 0) / UINT32_RANGE;
+    },
+
+    save: (): number => state,
+
+    restore: (saved: number): void => {
+      if (!Number.isInteger(saved)) {
+        throw new RangeError(`A stream restores a whole-number state; got ${saved}.`);
+      }
+
+      state = saved | 0;
+    },
+  });
+};

@@ -16,7 +16,7 @@ const REMOVED = CHANGES.indexOf('removed');
  * against.
  */
 export interface AuraSeed {
-  /** The views (`auras.view(bearer, out, { forOwner: true })` on the server). */
+  /** The views (`auras.view(bearer, out, { for: 'owner' })` on the server). */
   readonly views: readonly AuraView[];
 
   /** How many of `views` to seed from, the first; all of them when absent. */

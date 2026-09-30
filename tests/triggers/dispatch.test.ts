@@ -254,7 +254,7 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
     game.hit(u);
     game.hit(u);
     assert.deepEqual(
-      viewsOf(game.auras, u, { forOwner: true }).map((view) => view.aura),
+      viewsOf(game.auras, u, { for: 'owner' }).map((view) => view.aura),
       [game.id.echo, cooldown],
     );
     assert.deepEqual(

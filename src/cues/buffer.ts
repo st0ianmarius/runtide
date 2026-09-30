@@ -29,6 +29,12 @@ export interface CueBuffer<Table extends CueTable = CueTable> {
 
   /** Forgets every event, keeping the records. */
   readonly clear: () => void;
+
+  /**
+   * Forgets the events from `count` on, keeping the earlier ones and every record: a prediction client replaying
+   * presses it already played drops the cues the replay fires again (note the count before, truncate after).
+   */
+  readonly truncate: (count: number) => void;
 }
 
 /** A cue buffer's state: a class for fast properties, its functions arrow fields so they work detached. */
@@ -71,6 +77,14 @@ class CueEvents<Table extends CueTable> implements CueBuffer<Table> {
 
   readonly clear = (): void => {
     this.#count = 0;
+  };
+
+  readonly truncate = (count: number): void => {
+    if (!(Number.isInteger(count) && count >= 0)) {
+      throw new RangeError(`A cue buffer truncates to a whole count from 0; got ${count}.`);
+    }
+
+    this.#count = Math.min(this.#count, count);
   };
 }
 

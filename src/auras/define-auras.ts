@@ -35,6 +35,9 @@ export const KEEP_DEPLETED = 4;
 /** Flag bit: only its bearer's own client sees it. */
 export const OWNER_ONLY = 8;
 
+/** Flag bit: only its bearer's own client and its party's see it. */
+export const PARTY_ONLY = 64;
+
 /** Flag bit: it is removed when its source is gone. */
 export const BOUND_TO_SOURCE = 16;
 
@@ -117,7 +120,8 @@ const flagsOf = <G extends AuraTypes>(def: AuraDef<G>): number =>
   (def.perSource === true ? PER_SOURCE : 0) |
   (def.credit === 'first' ? CREDIT_FIRST : 0) |
   (def.keepWhenDepleted === true ? KEEP_DEPLETED : 0) |
-  (def.ownerOnly === true ? OWNER_ONLY : 0) |
+  (def.audience === 'owner' ? OWNER_ONLY : 0) |
+  (def.audience === 'party' ? PARTY_ONLY : 0) |
   (def.boundToSource === true ? BOUND_TO_SOURCE : 0) |
   (def.predicted === true ? PREDICTED : 0);
 

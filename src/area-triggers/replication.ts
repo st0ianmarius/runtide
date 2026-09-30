@@ -1,4 +1,4 @@
-import type { AnyAreaTriggerDef } from './area-def.ts';
+import type { AnyAreaTriggerDef, AreaTriggerContext } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import type { AreaEngine } from './engine.ts';
@@ -126,10 +126,15 @@ const writeReplica = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Writes the replicated state of every live area trigger whose kind replicates its state into `out` from index 0, kind by kind in registry order and each kind in creation order; returns how many. `out` keeps its
- * replicas and their value arrays between calls.
+ * Writes the replicated state of every live area trigger whose kind replicates its state (and that `admit` keeps, for
+ * one client's interest: those near its unit) into `out` from index 0, kind by kind in registry order and each kind
+ * in creation order; returns how many. `out` keeps its replicas and their value arrays between calls.
  */
-export const replicateAreas = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, out: AreaReplica[]): number => {
+export const replicateAreas = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  out: AreaReplica[],
+  admit?: (area: AreaTriggerContext<G>) => boolean,
+): number => {
   let count = 0;
 
   for (const kind of engine.registry.ids) {
@@ -138,7 +143,7 @@ export const replicateAreas = <G extends AreaTriggerTypes>(engine: AreaEngine<G>
     }
 
     for (let walk = engine.kindHeads[kind]; walk !== undefined; walk = walk.kindNext) {
-      if (!walk.isEnding) {
+      if (!walk.isEnding && admit?.(walk) !== false) {
         const replica = (out[count] ??= { handle: NO_AREA_TRIGGER, id: 0, kind, values: [] });
 
         writeReplica(engine, walk, replica);

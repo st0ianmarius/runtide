@@ -41,7 +41,7 @@ const cooldownAura = <G extends TriggerTypes>(icd: number, options: CooldownOpti
   defineAura<G>({
     duration: icd,
     stacking: 'refresh',
-    ownerOnly: true,
+    audience: 'owner',
     ...(options.clock === undefined ? {} : { clock: options.clock }),
     ...(options.tags === undefined ? {} : { tags: options.tags }),
   });

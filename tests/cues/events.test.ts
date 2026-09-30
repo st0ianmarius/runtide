@@ -50,6 +50,21 @@ describe('the cue buffer', () => {
     assert.equal(first.values.length, CUES.slots);
   });
 
+  it('truncates to a count, keeping the earlier events and every record, and refuses a count that is not whole', () => {
+    const out = createCueBuffer(CUES);
+    const first = out.emit(CUES.id.struck);
+
+    out.emit(CUES.id.flare);
+    out.truncate(1);
+    assert.deepEqual([out.count, out.events[0]], [1, first]);
+    out.truncate(5);
+    assert.equal(out.count, 1);
+    assert.equal(out.created, 2);
+    assert.throws(() => {
+      out.truncate(-1);
+    }, /whole count/);
+  });
+
   it('keeps its records across clears, so a steady-state tick makes none, and resets a reused one', () => {
     const out = createCueBuffer(CUES);
 

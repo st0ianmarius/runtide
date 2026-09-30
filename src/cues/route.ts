@@ -46,6 +46,13 @@ export interface CueEchoes {
   /** Whether a received event is the echo of a noted one; a match is forgotten, so each echo is dropped once. */
   readonly isEcho: (event: CueEvent) => boolean;
 
+  /**
+   * Settles the noted events the server has had its chance to confirm: every one whose key is at or below `key` (the
+   * last press the server acknowledged) and was not echoed is handed to `unconfirmed` (a predicted cast bar to cancel,
+   * a miss to count) and forgotten. Returns how many.
+   */
+  readonly settle: (key: number, unconfirmed?: (cue: number, owner: number, key: number) => void) => number;
+
   /** Forgets every noted event. */
   readonly clear: () => void;
 }
@@ -87,6 +94,20 @@ export const createCueEchoes = (registry: CueRegistry, capacity = 64): CueEchoes
       }
 
       return false;
+    },
+
+    settle: (key, unconfirmed) => {
+      let settled = 0;
+
+      for (let i = 0; i < capacity; i++) {
+        if ((cues[i] ?? -1) >= 0 && (keys[i] ?? 0) <= key) {
+          unconfirmed?.(cues[i] ?? -1, owners[i] ?? 0, keys[i] ?? 0);
+          cues[i] = -1;
+          settled += 1;
+        }
+      }
+
+      return settled;
     },
 
     clear: () => {

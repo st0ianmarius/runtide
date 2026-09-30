@@ -16,7 +16,7 @@ export { int, pick, shuffle, weighted } from './draws.ts';
 export type { EventKind, Handle, Id } from './ids.ts';
 export { keyed, roll, rollKey } from './keyed-roll.ts';
 export { createPool, NO_HANDLE, type Pool, type PoolOptions } from './pool.ts';
-export { type Random, stream } from './random.ts';
+export { type Random, type SavableStream, savableStream, stream } from './random.ts';
 
 export {
   checkOrder,

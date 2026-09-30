@@ -16,7 +16,7 @@ const viewsOf = <Bearer>(
 };
 
 const defs = {
-  dash: aura({ duration: 2, predicted: true, tags: ['boon'], ownerOnly: true }),
+  dash: aura({ duration: 2, predicted: true, tags: ['boon'], audience: 'owner' }),
   sprint: aura({ duration: 3, predicted: true, stacking: 'stack', maxStacks: 5, value: 4 }),
   stance: aura({ duration: 'infinite', predicted: true }),
   glow: aura({ duration: 5 }),
@@ -49,14 +49,14 @@ describe('seeding a prediction mirror', () => {
     run(mirror, 10);
 
     const seeded = auras.seed(mirror, {
-      views: viewsOf(auras, server, { forOwner: true }),
+      views: viewsOf(auras, server, { for: 'owner' }),
       clocks: server.auras.clocks,
       serials: server.auras.serials,
     });
 
     assert.equal(seeded, 3);
     assert.deepEqual(
-      viewsOf(auras, mirror, { forOwner: true }).map((view) => [
+      viewsOf(auras, mirror, { for: 'owner' }).map((view) => [
         view.aura,
         view.stacks,
         view.value,
@@ -118,10 +118,10 @@ describe('seeding a prediction mirror', () => {
 
     auras.apply(server, id.dash);
     auras.apply(server, id.sprint);
-    assert.equal(auras.view(server, out, { forOwner: true }), 2);
+    assert.equal(auras.view(server, out, { for: 'owner' }), 2);
     assert.equal(auras.seed(mirror, { views: out, count: 1, clocks: server.auras.clocks, serials: 0 }), 1);
     assert.deepEqual(
-      viewsOf(auras, mirror, { forOwner: true }).map((view) => view.aura),
+      viewsOf(auras, mirror, { for: 'owner' }).map((view) => view.aura),
       [id.dash],
     );
   });
