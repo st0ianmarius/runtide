@@ -118,7 +118,7 @@ describe('world scripts: scripts on bodiless units (§I.7.1 F21)', () => {
       game.units.kill(rogue);
     }
 
-    assert.equal(event.lifecycle, 'standing');
+    assert.equal(event.lifecycle, 'alive');
     game.units.kill(rogues[2] ?? event);
     assert.equal(event.lifecycle, 'despawned');
     assert.ok(game.log.includes('reason ended'));
@@ -130,7 +130,7 @@ describe('world scripts: scripts on bodiless units (§I.7.1 F21)', () => {
     game.units.despawn(early);
     assert.deepEqual(
       game.units.summonsOf(early).map((rogue) => rogue.lifecycle),
-      ['standing', 'standing', 'standing'],
+      ['alive', 'alive', 'alive'],
     );
   });
 

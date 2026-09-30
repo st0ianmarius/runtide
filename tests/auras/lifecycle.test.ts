@@ -12,7 +12,7 @@ const logged = (name: string) =>
     onRefreshed: () => [`refreshed:${name}`],
     onExpired: () => [`expired:${name}`],
     onRemoved: () => [`removed:${name}`],
-    onBearerDeath: () => [`bearerDeath:${name}`],
+    onState: (_ctx: unknown, state: string) => [`${state}:${name}`],
   }) as const;
 
 const defs = {
@@ -82,7 +82,7 @@ describe('lifecycle hooks and their raise rules (§II.6 A1)', () => {
     ]);
   });
 
-  it('raise expired once, in list order after the whole list has counted, and bearerDeath without removing', () => {
+  it('raise expired once, in list order after the whole list has counted, and a state entered without removing', () => {
     const { auras, id, unit, run, log } = makeGame(defs);
     const u = unit();
 
@@ -90,8 +90,8 @@ describe('lifecycle hooks and their raise rules (§II.6 A1)', () => {
     auras.apply(u, { aura: id.renew, duration: 0.125 });
     run(u, 1);
     auras.apply(u, id.ward);
-    auras.bearerDied(u);
-    assert.deepEqual(log.slice(2), ['expired:renew@1', 'expired:echo@1', 'applied:ward@1', 'bearerDeath:ward@1']);
+    auras.enterState(u, 'down');
+    assert.deepEqual(log.slice(2), ['expired:renew@1', 'expired:echo@1', 'applied:ward@1', 'down:ward@1']);
     assert.equal(auras.has(u, id.ward), true);
     run(u, 100);
     assert.equal(log.filter((line) => line.startsWith('expired')).length, 3);

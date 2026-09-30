@@ -14,9 +14,6 @@ const REFRESHED = CHANGES.indexOf('refreshed');
 /** The change code of `removed`. */
 const REMOVED = CHANGES.indexOf('removed');
 
-/** The change code of `bearerDeath`. */
-const BEARER_DEATH = CHANGES.indexOf('bearerDeath');
-
 /** The code of the `independent` stacking rule. */
 const INDEPENDENT = STACKINGS.indexOf('independent');
 
@@ -123,7 +120,10 @@ export const removeAura = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G
 export const removeByTag = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], tag: AuraTagId): number =>
   removeWhere(engine, bearer, { cause: 'removeByTag', match: byTag, arg: tag });
 
-/** Removes every aura whose `removedOn` names the state the bearer enters; how many went. */
+/**
+ * A bearer enters a state: every aura on it hears `stateEntered` (its `onState`), in list order and dispatched first,
+ * then every aura whose `removedOn` names the state goes; how many went.
+ */
 export const enterState = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
@@ -134,6 +134,19 @@ export const enterState = <G extends AuraTypes>(
   if (bit < 0) {
     throw new RangeError(`There is no bearer state ${state}.`);
   }
+
+  const set = setOf<G>(bearer);
+  const from = engine.events.open('enterState');
+
+  for (let i = 0; i < set.items.length; i++) {
+    const item = set.items[i];
+
+    if (item !== undefined) {
+      engine.events.raiseState(bearer, item, bit);
+    }
+  }
+
+  engine.events.close(from);
 
   return removeWhere(engine, bearer, { cause: 'enterState', match: byState, arg: bit });
 };
@@ -330,20 +343,4 @@ export const refreshAura = <G extends AuraTypes>(
   engine.events.close(from);
 
   return found;
-};
-
-/** Raises `bearerDeath` for every aura on a bearer that died, in list order; the auras stay (see `enterState`). */
-export const bearerDied = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer']): void => {
-  const set = setOf<G>(bearer);
-  const from = engine.events.open('bearerDied');
-
-  for (let i = 0; i < set.items.length; i++) {
-    const item = set.items[i];
-
-    if (item !== undefined) {
-      engine.events.raise(BEARER_DEATH, bearer, item);
-    }
-  }
-
-  engine.events.close(from);
 };

@@ -38,7 +38,7 @@ export {
   defineAuras,
 } from './define-auras.ts';
 
-export { type AuraEvent, type AuraEventBus, createAuraEvent } from './events.ts';
+export { type AuraEvent, type AuraEventBus, createAuraEvent } from './aura-event.ts';
 export type { AuraExplanation } from './explain.ts';
 export { type AuraBearer, auraGates, auraStacks, type AuraState } from './state.ts';
 

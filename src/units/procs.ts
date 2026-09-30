@@ -3,9 +3,8 @@ import type { ChanceOption, ProcContext, ProcKindDef, ProcShape, ProcTarget } fr
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
 /**
- * Revives the unit it lands on (§II.6 P3, U3): a downed or dead unit stands again, at a health or at its maximum. The
- * completion of a revive channel returns it beside `setHealth` and an invulnerability. `skipped` for a unit that
- * cannot be revived (standing, disconnected, despawned).
+ * Revives the unit it lands on (§II.6 P3, U3): a dead unit lives again, at a health or at its maximum. `skipped` for a
+ * unit that is alive or despawned. Standing a downed hero back up is the game's own: its down aura removed.
  */
 export interface ReviveProc<G extends UnitTypes> extends ProcShape {
   /** The discriminant. */

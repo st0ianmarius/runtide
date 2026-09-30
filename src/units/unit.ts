@@ -74,7 +74,7 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   /** Its class tags. */
   readonly tags: Bitset;
 
-  lifecycle: Lifecycle = 'standing';
+  lifecycle: Lifecycle = 'alive';
   health = 0;
 
   /** The maximum health the resource policy last saw (§II.6 M7). */

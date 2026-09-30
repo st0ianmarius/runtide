@@ -219,21 +219,11 @@ describe('the force pipeline (§II.6 D4)', () => {
 });
 
 describe('the death pipeline (§II.6 D5)', () => {
-  it('runs the death burst, the rewards before, the death and kill events, the rewards after, then removal', () => {
+  it('runs the rewards before, the death and kill events, the rewards after, then removal', () => {
     const order: string[] = [];
 
-    const { damage, id, unit, bus, log } = makeDamageGame(
-      {
-        brand: aura({
-          duration: 5,
-
-          onBearerDeath: () => {
-            order.push('burst');
-
-            return undefined;
-          },
-        }),
-      },
+    const { damage, unit, bus, log } = makeDamageGame(
+      {},
       {
         death: {
           before: [(death) => order.push(`souls ${death.unit.id}`)],
@@ -246,10 +236,9 @@ describe('the death pipeline (§II.6 D5)', () => {
 
     bus.on(bus.kind.death, (event) => order.push(`death ${event.death?.unit.id}`));
     bus.on(bus.kind.kill, (event) => order.push(`kill ${event.death?.killer?.id}`));
-    damage.auras.apply(target, id.brand);
     damage.hit({ target, attacker: killer, amount: 150 });
 
-    assert.deepEqual(order, ['burst', 'souls 1', 'death 1', 'kill 2', 'loot 100']);
+    assert.deepEqual(order, ['souls 1', 'death 1', 'kill 2', 'loot 100']);
     assert.deepEqual(log, ['remove@1']);
   });
 

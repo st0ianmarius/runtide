@@ -8,7 +8,7 @@ const BLOW_CODES: readonly string[] = BLOW_STATUSES;
 /** A heal's statuses by code: `skipped`, `blocked`, `landed`. */
 const HEAL_CODES: readonly string[] = ['skipped', 'blocked', 'landed'];
 
-/** The entry kind of each aura change; `bearerDeath` is not logged (the death is). */
+/** The entry kind of each aura change; `stateEntered` is not logged (the death or despawn is). */
 const AURA_KINDS: Readonly<Record<string, CombatEntryKind | undefined>> = {
   applied: 'auraApplied',
   refreshed: 'auraRefreshed',

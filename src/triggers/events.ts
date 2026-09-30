@@ -72,7 +72,7 @@ export const triggerEvent = <Payload, G extends TriggerTypes = TriggerTypes>(
 };
 
 /** The lifecycle changes, in the aura system's code order: a `change` filter's argument is one of them, by name. */
-const CHANGES: readonly AuraChange[] = ['applied', 'refreshed', 'expired', 'removed', 'bearerDeath'];
+const CHANGES: readonly AuraChange[] = ['applied', 'refreshed', 'expired', 'removed', 'stateEntered'];
 
 /** Resolves a change's name to its code. */
 const changeCode = (name: string): number => {

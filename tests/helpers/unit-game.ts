@@ -86,7 +86,7 @@ export interface UnitGame extends ScriptTypes {
   readonly clock: 'world';
 
   /** The lifecycle states auras may be removed on. */
-  readonly state: 'downed' | 'dead' | 'despawned';
+  readonly state: 'dead' | 'despawned';
 
   /** The framework's blow. */
   readonly blow: Blow<UnitGame>;
@@ -203,7 +203,10 @@ const aura = defineAura<UnitGame>;
 /** The test aura tags. */
 export const AURA_TAGS = defineAuraTags(['stun', 'root', 'freeze', 'slow', 'freezeImmune']);
 
-/** The test auras: control, a vigour that raises maximum health, a haste, and a mark gone on death. */
+/** The bearer states the test mark heard, as `state id`; a test clears it. */
+export const HEARD: string[] = [];
+
+/** The test auras: control, a vigour that raises maximum health, a haste, and a mark that hears states and goes. */
 const AURAS = defineAuras<UnitGame, string>({
   stun: aura({ duration: 1, tags: ['stun'] }),
   root: aura({ duration: 2, tags: ['root'] }),
@@ -213,7 +216,16 @@ const AURAS = defineAuras<UnitGame, string>({
   vigour: aura({ duration: 'infinite', modifiers: [plus('maxHealth', 50)] }),
   frail: aura({ duration: 'infinite', modifiers: [mul('maxHealth', 0.5)] }),
   haste: aura({ duration: 'infinite', modifiers: [mul('speed', 2)] }),
-  mark: aura({ duration: 'infinite', removedOn: ['dead', 'despawned'] }),
+  mark: aura({
+    duration: 'infinite',
+    removedOn: ['dead', 'despawned'],
+
+    onState: (ctx, state) => {
+      HEARD.push(`${state} ${ctx.bearer.id}`);
+
+      return undefined;
+    },
+  }),
 });
 
 /** The id of a test aura by name. */
@@ -329,7 +341,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     registry: AURAS,
     tags: AURA_TAGS,
     clocks: { world: clock },
-    states: ['downed', 'dead', 'despawned'],
+    states: ['dead', 'despawned'],
     modifiers,
     fold: 'auras',
     host: {

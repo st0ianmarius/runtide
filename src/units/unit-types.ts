@@ -11,10 +11,10 @@ export type UnitId = Id<'units'>;
 export type UnitTagId = Id<'unitTags'>;
 
 /**
- * Where a unit is in its life (§II.6 U3): `standing`; `downed` (out of the fight, revivable); `dead`; `disconnected`
- * (its player left, the unit stays); `despawned` (removed without dying: no rewards, no kill, no death burst).
+ * Where a unit is in its life (§II.6 U3): `alive`; `dead` (revivable); `despawned` (removed without dying: no rewards,
+ * no kill). Going down and a player leaving are the game's own states: auras whose tags a unit state reads.
  */
-export type Lifecycle = 'standing' | 'downed' | 'dead' | 'disconnected' | 'despawned';
+export type Lifecycle = 'alive' | 'dead' | 'despawned';
 
 /**
  * What every unit is (§I.7.1 F13): one shape for heroes, creatures and summons. It bears auras, casts, has a loadout

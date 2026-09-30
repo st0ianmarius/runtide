@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { defineUnits, IMMOVABLE, INERT, type UnitDef } from '../../src/units/index.ts';
-import { AURA_TAGS, auraId, makeUnitGame, STATS, UNIT_TAGS, type UnitGame } from '../helpers/unit-game.ts';
+import { AURA_TAGS, auraId, HEARD, makeUnitGame, STATS, UNIT_TAGS, type UnitGame } from '../helpers/unit-game.ts';
 
 /** The test templates: a hero with no auto-attack, a grunt, an elite, a boss, a wall and a totem. */
 const TEMPLATES = {
@@ -46,14 +46,14 @@ describe('unit templates (§II.6 U1, U2)', () => {
 });
 
 describe('spawning (§II.6 U1)', () => {
-  it('makes a standing unit at full health with its own ids, stats snapshotted and an optional auto-attack, armed', () => {
+  it('makes a living unit at full health with its own ids, stats snapshotted and an optional auto-attack, armed', () => {
     const game = makeUnitGame(TEMPLATES);
     const { units } = game;
     const hero = units.spawn(game.id.hero, { side: 0 });
     const grunt = units.spawn(game.id.grunt, { side: 1, owner: hero, stats: { maxHealth: 60 } });
 
     assert.deepEqual([hero.id, grunt.id, grunt.side, grunt.owner], [1, 2, 1, hero]);
-    assert.deepEqual([hero.lifecycle, hero.health, grunt.health], ['standing', 200, 60]);
+    assert.deepEqual([hero.lifecycle, hero.health, grunt.health], ['alive', 200, 60]);
     assert.equal(units.statsOf(grunt).total(STATS.id.speed), 4);
     assert.equal(units.autoAttackOf(hero), undefined);
     assert.equal(units.autoAttackOf(grunt), game.spellId.swing);
@@ -67,7 +67,7 @@ describe('spawning (§II.6 U1)', () => {
     assert.equal(hero.loadout.size, 0);
     assert.deepEqual(grunt.ext, { marks: 0, made: `${game.id.grunt}/1` });
     assert.throws(() => units.spawn(game.id.grunt, { side: 1, id: 2 }), /entity id 2 is already a live unit/);
-    assert.deepEqual(game.log, ['spawned 1 standing>standing', 'spawned 2 standing>standing']);
+    assert.deepEqual(game.log, ['spawned 1 alive>alive', 'spawned 2 alive>alive']);
   });
 });
 
@@ -78,17 +78,13 @@ describe('the lifecycle (§II.6 U3)', () => {
     const hero = units.spawn(game.id.hero, { side: 0 });
 
     auras.apply(hero, auraId('mark'));
-    assert.equal(units.down(hero), true);
-    assert.equal(units.down(hero), false);
+    assert.equal(units.revive(hero), false);
+    assert.equal(units.kill(hero), true);
+    assert.equal(units.kill(hero), false);
+    assert.equal(auras.has(hero, auraId('mark')), false);
     assert.equal(units.revive(hero, 50), true);
     assert.equal(hero.health, 50);
-    assert.equal(units.disconnect(hero), true);
-    assert.equal(units.revive(hero), false);
-    assert.equal(units.reconnect(hero), true);
-    assert.equal(auras.has(hero, auraId('mark')), true);
     assert.equal(units.kill(hero), true);
-    assert.equal(auras.has(hero, auraId('mark')), false);
-    assert.equal(units.disconnect(hero), false);
     assert.equal(units.revive(hero), true);
     assert.equal(hero.health, 200);
     assert.equal(units.despawn(hero), true);
@@ -97,14 +93,33 @@ describe('the lifecycle (§II.6 U3)', () => {
     assert.equal(units.live(), 0);
 
     assert.deepEqual(game.log.slice(1), [
-      'changed 1 standing>downed',
-      'changed 1 downed>standing',
-      'changed 1 standing>disconnected',
-      'changed 1 disconnected>standing',
-      'changed 1 standing>dead',
-      'changed 1 dead>standing',
-      'despawned 1 standing>despawned',
+      'changed 1 alive>dead',
+      'changed 1 dead>alive',
+      'changed 1 alive>dead',
+      'changed 1 dead>alive',
+      'despawned 1 alive>despawned',
     ]);
+  });
+});
+
+describe('bearer states on the lifecycle (§II.6 U3, D5)', () => {
+  it("lets a unit's auras hear its death however it dies, and its despawn, before those removed on it go", () => {
+    const game = makeUnitGame(TEMPLATES);
+    const { units, auras, damage } = game;
+    const spawn = (id: (typeof game.id)[keyof typeof TEMPLATES]) => units.spawn(id, { side: 1 });
+    const [hero, grunt, wall] = [spawn(game.id.hero), spawn(game.id.grunt), spawn(game.id.wall)];
+
+    HEARD.length = 0;
+
+    for (const unit of [hero, grunt, wall]) {
+      auras.apply(unit, auraId('mark'));
+    }
+
+    units.kill(hero);
+    damage.hit({ target: grunt, amount: 500 });
+    units.despawn(wall);
+    assert.deepEqual(HEARD, [`dead ${hero.id}`, `dead ${grunt.id}`, `despawned ${wall.id}`]);
+    assert.equal(auras.has(grunt, auraId('mark')), false);
   });
 });
 
@@ -121,7 +136,7 @@ describe('derived states (§I.7.1 F13)', () => {
     assert.deepEqual([units.canAct(hero), units.is(hero, 'stunned')], [false, true]);
     assert.equal(spells.cast(hero, game.spellId.channel).refusal, 'gate');
     auras.removeByTag(hero, AURA_TAGS.id.stun);
-    units.down(hero);
+    units.kill(hero);
     assert.equal(units.canAct(hero), false);
   });
 });

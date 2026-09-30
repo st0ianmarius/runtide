@@ -76,7 +76,7 @@ describe('the damage host (§II.6 D5)', () => {
     assert.equal(grunt.health, 70);
     game.damage.hit({ target: grunt, attacker: hero, amount: 100 });
     assert.equal(grunt.lifecycle, 'dead');
-    assert.deepEqual(game.log.slice(2), ['death 2', 'kill by 1', 'changed 2 standing>dead']);
+    assert.deepEqual(game.log.slice(2), ['death 2', 'kill by 1', 'changed 2 alive>dead']);
   });
 
   it('gives an inert unit no death event and no kill', () => {
@@ -86,7 +86,7 @@ describe('the damage host (§II.6 D5)', () => {
 
     game.damage.hit({ target: wall, attacker: hero, amount: 500 });
     assert.equal(wall.lifecycle, 'dead');
-    assert.deepEqual(game.log.slice(2), ['changed 2 standing>dead']);
+    assert.deepEqual(game.log.slice(2), ['changed 2 alive>dead']);
   });
 });
 

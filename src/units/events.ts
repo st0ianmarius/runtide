@@ -8,7 +8,7 @@ export interface UnitEvent<G extends UnitTypes> {
   /** The unit. */
   unit: G['bearer'] | undefined;
 
-  /** The state it left (`standing` for a spawn). */
+  /** The state it left (`alive` for a spawn). */
   from: Lifecycle;
 
   /** The state it entered. */
@@ -24,8 +24,8 @@ export interface UnitEvent<G extends UnitTypes> {
 /** Makes an empty unit event payload: the factory a game registers the unit event kinds on its bus with. */
 export const createUnitEvent = <G extends UnitTypes>(): UnitEvent<G> => ({
   unit: undefined,
-  from: 'standing',
-  to: 'standing',
+  from: 'alive',
+  to: 'alive',
   at: undefined,
   reason: '',
 });
@@ -38,7 +38,7 @@ export interface UnitEvents<G extends UnitTypes> {
   /** A unit spawned. */
   readonly spawned?: EventKind<UnitEvent<G>>;
 
-  /** A unit moved between lifecycle states (downed, revived, died, disconnected, reconnected). */
+  /** A unit moved between lifecycle states (died, revived). */
   readonly changed?: EventKind<UnitEvent<G>>;
 
   /** A unit despawned: removed without dying. */

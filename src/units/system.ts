@@ -24,7 +24,7 @@ export interface UnitSystem<G extends UnitTypes> {
   /** How many units are live (spawned and not despawned). */
   readonly live: () => number;
 
-  /** Spawns a unit of a template (§II.6 U1): standing, at full health, its stats its template's with the spawn's on top. */
+  /** Spawns a unit of a template (§II.6 U1): alive, at full health, its stats its template's with the spawn's on top. */
   readonly spawn: (template: UnitId, spawn: SpawnUnit<G>) => G['bearer'];
 
   /** A live unit by entity id; `undefined` for none. */
@@ -48,28 +48,19 @@ export interface UnitSystem<G extends UnitTypes> {
    */
   readonly creditOf: (unit: G['bearer']) => number;
 
-  /** A standing or disconnected unit goes down (revivable); false when its state does not allow it. */
-  readonly down: (unit: G['bearer']) => boolean;
-
-  /** A downed or dead unit stands again with some health (its maximum when absent); false when it cannot. */
+  /** A dead unit lives again with some health (its maximum when absent); false when it is not dead. */
   readonly revive: (unit: G['bearer'], health?: number) => boolean;
 
-  /** A unit dies (the damage host's `remove` does this for a death by a blow); false when it cannot. */
+  /** A unit dies (the damage host's `remove` does this for a death by a blow); false when it is not alive. */
   readonly kill: (unit: G['bearer']) => boolean;
-
-  /** A standing or downed unit's player leaves; the unit stays. False when it cannot. */
-  readonly disconnect: (unit: G['bearer']) => boolean;
-
-  /** A disconnected unit's player is back; false when it was not disconnected. */
-  readonly reconnect: (unit: G['bearer']) => boolean;
 
   /** Whether a unit is in a derived state (`stunned`), read from its aura tags now. */
   readonly is: (unit: G['bearer'], state: G['unitState']) => boolean;
 
-  /** Whether a unit may act (cast, attack): it stands, and holds no aura tag of a state that blocks acting. */
+  /** Whether a unit may act (cast, attack): it is alive, and holds no aura tag of a state that blocks acting. */
   readonly canAct: (unit: G['bearer']) => boolean;
 
-  /** Whether a unit may move: it stands, and holds no aura tag of a state that blocks moving. */
+  /** Whether a unit may move: it is alive, and holds no aura tag of a state that blocks moving. */
   readonly canMove: (unit: G['bearer']) => boolean;
 
   /** Whether a unit has a class tag. */
@@ -124,10 +115,8 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
   const { registry } = engine;
   const states = options.states;
 
-  const isStanding = (unit: G['bearer']): boolean => unitOf<G>(unit).lifecycle === 'standing';
-
-  const reviveUnit = (unit: G['bearer'], health?: number): boolean =>
-    unitOf<G>(unit).lifecycle !== 'disconnected' && moveTo(engine, unit, ['standing', health]);
+  const isAlive = (unit: G['bearer']): boolean => unitOf<G>(unit).lifecycle === 'alive';
+  const reviveUnit = (unit: G['bearer'], health?: number): boolean => moveTo(engine, unit, ['alive', health]);
 
   const spawnUnit = (template: UnitId, spawn: SpawnUnit<G>): G['bearer'] => {
     registry.get(template);
@@ -159,15 +148,9 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
     creditOf,
 
-    down: (unit) => moveTo(engine, unit, ['downed', undefined]),
-
     revive: reviveUnit,
 
     kill: (unit) => moveTo(engine, unit, ['dead', undefined]),
-
-    disconnect: (unit) => unitOf<G>(unit).lifecycle !== 'dead' && moveTo(engine, unit, ['disconnected', undefined]),
-
-    reconnect: (unit) => unitOf<G>(unit).lifecycle === 'disconnected' && moveTo(engine, unit, ['standing', undefined]),
 
     is: (unit, state) => {
       const bits = states?.tags[state];
@@ -175,8 +158,8 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
       return bits !== undefined && unit.auras.tags.intersects(bits);
     },
 
-    canAct: (unit) => isStanding(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksAct)),
-    canMove: (unit) => isStanding(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksMove)),
+    canAct: (unit) => isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksAct)),
+    canMove: (unit) => isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksMove)),
 
     hasTag: (unit, tag) => {
       const ids: Readonly<Record<string, number | undefined>> = registry.tags.id;

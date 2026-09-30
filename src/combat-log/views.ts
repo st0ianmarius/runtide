@@ -95,7 +95,7 @@ export interface DeathView<Unit, Spell> {
 
 /** What the log reads of an aura lifecycle event (an aura system's `AuraEvent` is one). */
 export interface AuraEventView<Unit> {
-  /** The change: `applied`, `refreshed`, `expired`, `removed` or `bearerDeath`. */
+  /** The change: `applied`, `refreshed`, `expired`, `removed` or `stateEntered`. */
   readonly change: string;
 
   /** The bearer. */

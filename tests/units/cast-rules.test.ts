@@ -68,9 +68,9 @@ describe('states interrupting casts (§I.7.1 F16)', () => {
   });
 });
 
-describe('leaving standing (§I.7.1 F16)', () => {
-  it('cancels every cast the unit runs: death, going down, leaving', () => {
-    for (const leave of ['kill', 'down', 'despawn', 'disconnect'] as const) {
+describe('leaving life (§I.7.1 F16)', () => {
+  it('cancels every cast the unit runs: death, despawning', () => {
+    for (const leave of ['kill', 'despawn'] as const) {
       const { units, spells, grunt, handle } = casting();
 
       assert.equal(units[leave](grunt), true);
@@ -81,13 +81,13 @@ describe('leaving standing (§I.7.1 F16)', () => {
 });
 
 describe('the revive proc (§II.6 P3, U3)', () => {
-  it('stands a downed or dead unit again, at a health or its maximum, and skips one standing', () => {
+  it('stands a dead unit again, at a health or its maximum, and skips a living one', () => {
     const game = makeUnitGame(TEMPLATES);
     const [hero, ally] = [game.units.spawn(game.id.grunt, { side: 0 }), game.units.spawn(game.id.grunt, { side: 0 })];
 
-    game.units.down(ally);
+    game.units.kill(ally);
     assert.equal(game.procs.apply(revive<UnitGame>({ health: 30 }), { self: hero, target: ally }).status, 'landed');
-    assert.equal(ally.lifecycle, 'standing');
+    assert.equal(ally.lifecycle, 'alive');
     assert.equal(ally.health, 30);
     game.units.kill(ally);
     assert.equal(game.procs.apply(revive<UnitGame>({ to: 'self' }), { self: ally }).status, 'landed');

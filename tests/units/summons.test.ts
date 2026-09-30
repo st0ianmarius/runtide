@@ -94,7 +94,7 @@ describe('summoning (§II.6 P3, C8, §I.7.1 F18)', () => {
 
     units.kill(caster);
     assert.equal(add?.lifecycle, 'despawned');
-    assert.equal(pet?.lifecycle, 'standing');
+    assert.equal(pet?.lifecycle, 'alive');
     assert.ok(log.includes('reason owner'));
     assert.deepEqual(units.summonsOf(caster), [pet]);
   });

@@ -1,7 +1,8 @@
 import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
 import { type ActiveAura, type AuraItem, MutableContext } from './active-aura.ts';
 import type { AuraHost } from './application.ts';
-import type { AuraCause, AuraChange, AuraHook } from './aura-def.ts';
+import type { AuraCause, AuraHook } from './aura-def.ts';
+import type { AuraEvent, AuraEventBus } from './aura-event.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { type AuraTables, CHANGES } from './compile.ts';
 import type { AuraRegistry } from './define-auras.ts';
@@ -12,49 +13,14 @@ import { setOf } from './state.ts';
 const BEAT = CHANGES.length;
 
 /** The lifecycle hook of each change code. */
-const HOOK_NAMES = ['onApplied', 'onRefreshed', 'onExpired', 'onRemoved', 'onBearerDeath'] as const;
+const HOOK_NAMES = ['onApplied', 'onRefreshed', 'onExpired', 'onRemoved', 'onState'] as const;
 
-/**
- * The payload of an aura event on the bus (§II.6 A1): what changed, on which bearer, and the aura. It is reused
- * between raises (the bus's payload reuse), so a listener reads it while it runs and never keeps it.
- */
-export interface AuraEvent<G extends AuraTypes = AuraTypes> {
-  /** What happened. */
-  change: AuraChange;
+/** Whether a table's state name is one of the game's states: always, for a bit the table handed out. */
+// oxlint-disable-next-line typescript/no-unnecessary-type-parameters
+const isState = <G extends AuraTypes>(name: string | undefined): name is G['state'] => name !== undefined;
 
-  /** Why: the operation behind it (a dispel is `removeByTag`, an expiry `tick`, an eviction `evict`). */
-  cause: AuraCause;
-
-  /** The serial of that operation: events of one call share it (a removal of several instances, one spend). */
-  op: number;
-
-  /** The bearer; set on every raise. */
-  bearer: G['bearer'] | undefined;
-
-  /** The aura; set on every raise, and already off its bearer for `expired` and `removed`. */
-  aura: ActiveAura<G> | undefined;
-}
-
-/** Makes an empty aura event payload: the factory a game registers the aura event kind on its bus with. */
-export const createAuraEvent = <G extends AuraTypes = AuraTypes>(): AuraEvent<G> => ({
-  change: 'applied',
-  cause: 'apply',
-  op: 0,
-  bearer: undefined,
-  aura: undefined,
-});
-
-/** The part of a bus the aura system raises its events on (a core `Bus` is one). */
-export interface AuraEventBus {
-  /** Whether anything hears a kind. */
-  readonly hears: (kind: EventKind<unknown>) => boolean;
-
-  /** The reused payload of a kind. */
-  readonly payload: <Payload>(kind: EventKind<Payload>) => Payload;
-
-  /** Raises a filled payload. */
-  readonly raise: <Payload>(kind: EventKind<Payload>, payload: Payload) => void;
-}
+/** The code of `stateEntered`, whose hook is told the state. */
+const STATE_ENTERED = CHANGES.indexOf('stateEntered');
 
 /** What the queue dispatches with. */
 export interface EventParts<G extends AuraTypes> {
@@ -155,6 +121,13 @@ export class AuraEvents<G extends AuraTypes> {
   raise(code: number, bearer: G['bearer'], item: AuraItem<G>): void {
     if (this.#isHeard(code, item.id)) {
       this.#queue(code, bearer, item);
+    }
+  }
+
+  /** Queues a bearer's entry into a state (its bit) for one of its auras, when anything hears it. */
+  raiseState(bearer: G['bearer'], item: AuraItem<G>, bit: number): void {
+    if (this.#isHeard(STATE_ENTERED, item.id) && this.#queue(STATE_ENTERED, bearer, item)) {
+      this.#weights[this.#count - 1] = bit;
     }
   }
 
@@ -279,11 +252,7 @@ export class AuraEvents<G extends AuraTypes> {
 
   /** Dispatches queued lifecycle change `i`: the rescale, the hook and its procs, then the bus. */
   #change(i: number, bearer: G['bearer'], item: AuraItem<G>): void {
-    const { registry } = this.#parts;
     const code = this.#codes[i] ?? 0;
-    const hookName = HOOK_NAMES[code];
-    const hook: AuraHook<G> | undefined = hookName === undefined ? undefined : registry.hooks[hookName][item.id];
-
     const rescale = rescaleOn(this.#parts, code, item);
 
     if (rescale !== undefined) {
@@ -294,19 +263,42 @@ export class AuraEvents<G extends AuraTypes> {
       this.#parts.host.onTagsChanged?.(bearer);
     }
 
-    if (hook !== undefined) {
-      const context = this.take(bearer, item);
+    this.#hook(i, bearer, item);
+    this.#publish(i, bearer, item);
+  }
 
-      context.cause = this.#causes[i] ?? 'apply';
+  /** Runs queued change `i`'s hook, if its aura has one: `onState` told the state, any other with the context alone. */
+  #hook(i: number, bearer: G['bearer'], item: AuraItem<G>): void {
+    const { hooks } = this.#parts.registry;
+    const code = this.#codes[i] ?? 0;
+    const onState = code === STATE_ENTERED ? hooks.onState[item.id] : undefined;
+    const name = HOOK_NAMES[code];
+    const hook: AuraHook<G> | undefined = name === undefined || name === 'onState' ? undefined : hooks[name][item.id];
 
-      try {
-        this.run(hook(context), context);
-      } finally {
-        this.give();
-      }
+    if (hook === undefined && onState === undefined) {
+      return;
     }
 
-    this.#publish(i, bearer, item);
+    const context = this.take(bearer, item);
+
+    context.cause = this.#causes[i] ?? 'apply';
+
+    try {
+      this.run(onState === undefined ? hook?.(context) : onState(context, this.#stateOf(i)), context);
+    } finally {
+      this.give();
+    }
+  }
+
+  /** The state queued `stateEntered` event `i` entered. */
+  #stateOf(i: number): G['state'] {
+    const name = this.#parts.tables.stateNames[this.#weights[i] ?? 0];
+
+    if (!isState<G>(name)) {
+      throw new RangeError('An aura heard a state its system does not have.');
+    }
+
+    return name;
   }
 
   /** Raises queued change `i` on the bus, if anything hears it there. */
@@ -324,7 +316,9 @@ export class AuraEvents<G extends AuraTypes> {
     payload.op = this.#ops[i] ?? 0;
     payload.bearer = bearer;
     payload.aura = item;
+    payload.state = this.#codes[i] === STATE_ENTERED ? this.#stateOf(i) : undefined;
     events.bus.raise(events.changed, payload);
+    payload.state = undefined;
   }
 
   /** Dispatches the events queued since `from`, then drops them (even if a hook throws). */

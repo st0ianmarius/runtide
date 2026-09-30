@@ -15,20 +15,10 @@ const CUES = defineCues({
   fell: defineCue({ anchor: 'entity' }),
 });
 
-/** Auras the tests hook the pipelines with: an immunity, an absorb, and one that notes its bearer's death. */
+/** Auras the tests hook the pipelines with: an immunity and an absorb. */
 const AURAS = {
   immune: aura({ duration: 'infinite', onIgnore: () => true }),
   ward: aura({ duration: 'infinite', value: 10, onIncomingDamage: (ctx) => ({ absorb: ctx.aura.value }) }),
-
-  doomed: aura({
-    duration: 'infinite',
-
-    onBearerDeath: () => {
-      LOG.push('aura hears the death');
-
-      return undefined;
-    },
-  }),
 } as const;
 
 /** What the mappings and listeners saw, in order; cleared by each game. */
@@ -137,14 +127,13 @@ describe('damage cues (§I.5.3, §II.3.9)', () => {
     ]);
   });
 
-  it("fires a death's cues first in the death pipeline, before the dead unit's auras hear it", () => {
-    const { damage, unit, auras, id, fired } = makeCueGame();
+  it("fires a death's cues first in the death pipeline, before its events", () => {
+    const { damage, unit, fired } = makeCueGame();
     const target = unit(1);
 
-    auras.apply(target, id.doomed);
     damage.hit({ target, amount: 500, attacker: unit(2) });
 
-    assert.deepEqual(LOG, ['blow cues (landed)', 'taken event', 'death cues', 'aura hears the death', 'death event']);
+    assert.deepEqual(LOG, ['blow cues (landed)', 'taken event', 'death cues', 'death event']);
     assert.deepEqual(fired(), [
       ['number', 2, 1, 100],
       ['fell', 2, 1, 0],

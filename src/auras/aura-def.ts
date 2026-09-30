@@ -62,7 +62,7 @@ export type AuraMerge = 'max' | 'add' | 'replace';
 export type AuraMergeRule = (current: number, incoming: number) => number;
 
 /** What happened to an aura on its bearer, as hooks and events are told. */
-export type AuraChange = 'applied' | 'refreshed' | 'expired' | 'removed' | 'bearerDeath';
+export type AuraChange = 'applied' | 'refreshed' | 'expired' | 'removed' | 'stateEntered';
 
 /**
  * Why a change happened: the operation (or the step of an application) that caused it, WoW's aura remove mode and
@@ -80,8 +80,7 @@ export type AuraCause =
   | 'refresh'
   | 'tick'
   | 'enterState'
-  | 'sourceGone'
-  | 'bearerDied';
+  | 'sourceGone';
 
 /** A lifecycle hook: procs credited to the aura's source, or `undefined` for none. */
 export type AuraHook<G extends AuraTypes> = (ctx: AuraContext<G>) => readonly G['proc'][] | undefined;
@@ -125,7 +124,7 @@ export interface AuraRescale<G extends AuraTypes> {
   readonly stat: G['stat'];
 
   /** The edges that rescale. */
-  readonly on: readonly Exclude<AuraChange, 'bearerDeath'>[];
+  readonly on: readonly Exclude<AuraChange, 'stateEntered'>[];
 
   /** Whether only clocks still pending (the default) or every clock rescales. */
   readonly clocks?: 'pending' | 'all';
@@ -249,8 +248,11 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   /** It was taken off early: removed, cleansed, spent, evicted or ended by a state. */
   readonly onRemoved?: AuraHook<G>;
 
-  /** Its bearer died while it was on it. */
-  readonly onBearerDeath?: AuraHook<G>;
+  /**
+   * Its bearer entered a bearer state (`auras.enterState`: a death, a despawn, going down) while it was on it, before
+   * the auras `removedOn` that state went: a death burst is an `onState` of `dead`.
+   */
+  readonly onState?: (ctx: AuraContext<G>, state: G['state']) => readonly G['proc'][] | undefined;
 }
 
 /** Fixes an aura definition's types; returns it unchanged. */

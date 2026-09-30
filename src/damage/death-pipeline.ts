@@ -42,10 +42,10 @@ const runSteps = <G extends DamageTypes>(
 };
 
 /**
- * The death pipeline (§II.6 D5): the dead unit's auras hear `bearerDeath` (a death burst), then the rewards before the
- * death event (souls), the `death` event about the unit and the `kill` event about its killer, the rewards after them
- * (a loot roll), and last the host takes the unit out. An inert unit (an objective, a wall) runs no rewards and raises
- * no event. A despawn is not a death and never comes here.
+ * The death pipeline (§II.6 D5): the rewards before the death event (souls), the `death` event about the unit and the
+ * `kill` event about its killer, the rewards after them (a loot roll), and last the host takes the unit out: a unit
+ * system kills it, whose auras hear the `dead` state then (a death burst is an aura's `onState`). An inert unit (an
+ * objective, a wall) runs no rewards and raises no event. A despawn is not a death and never comes here.
  */
 export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: DeathSpec<G>): void => {
   const death = engine.deathRecord(spec.unit);
@@ -59,7 +59,6 @@ export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: D
     const cues = engine.options.cues;
 
     cues?.death?.(death, cues.out);
-    engine.auras.bearerDied(spec.unit);
 
     if (!death.isInert) {
       runSteps(engine, slots?.before, death);

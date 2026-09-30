@@ -2,12 +2,12 @@ import type { CountdownRule, EventKind } from '../core/index.ts';
 import { recordOf } from '../core/records.ts';
 import type { ActiveAura, AuraContext } from './active-aura.ts';
 import type { ApplyResult, AuraApplication, AuraHost } from './application.ts';
+import type { AuraEvent, AuraEventBus } from './aura-event.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
 import type { AuraPipelineHook } from './collect.ts';
 import { type AuraClock, type AuraModifiers, compileAuras } from './compile.ts';
 import type { AuraRegistry } from './define-auras.ts';
 import { AuraEngine } from './engine.ts';
-import type { AuraEvent, AuraEventBus } from './events.ts';
 import { type AuraExplanation, explainIn } from './explain.ts';
 import { operationsOf, queriesOf } from './operations.ts';
 import type { AuraSeed } from './seed.ts';
@@ -126,7 +126,10 @@ export interface AuraSystem<G extends AuraTypes> {
   /** Spends from an aura's value, instance by instance; returns the amount spent. */
   readonly spendValue: (bearer: G['bearer'], aura: AuraId, amount: number) => number;
 
-  /** The bearer enters a state: every aura whose `removedOn` names it is removed; how many went. */
+  /**
+   * The bearer enters a state (a death, a despawn, the game's going down): every aura on it hears it (`onState`), then
+   * every aura whose `removedOn` names it is removed; how many went.
+   */
   readonly enterState: (bearer: G['bearer'], state: G['state']) => number;
 
   /** Whether the system declares a bearer state by this name (a unit system enters its lifecycle's by name). */
@@ -134,9 +137,6 @@ export interface AuraSystem<G extends AuraTypes> {
 
   /** A source is gone: every aura bound to it is removed; how many went. */
   readonly sourceGone: (bearer: G['bearer'], source: number) => number;
-
-  /** The bearer died: `bearerDeath` is raised for every aura on it, in list order. */
-  readonly bearerDied: (bearer: G['bearer']) => void;
 
   /** Steps the bearer's clock once: beats, then expiries. */
   readonly tick: (bearer: G['bearer'], clock: G['clock']) => void;

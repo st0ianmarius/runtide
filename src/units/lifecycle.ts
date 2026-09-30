@@ -6,15 +6,12 @@ import { despawnBound, leaveOwner } from './summons.ts';
 import type { Lifecycle, UnitTypes } from './unit-types.ts';
 
 /**
- * The moves each lifecycle state allows (§II.6 U3): a standing unit goes down, dies, disconnects or despawns; a downed
- * one is revived, dies, disconnects or despawns; a dead one is revived or despawns; a disconnected one comes back
- * standing, or goes down, dies or despawns; a despawned one is gone for good.
+ * The moves each lifecycle state allows (§II.6 U3): a living unit dies or despawns; a dead one is revived or
+ * despawns; a despawned one is gone for good.
  */
 const MOVES: Readonly<Record<Lifecycle, readonly Lifecycle[]>> = Object.freeze({
-  standing: ['downed', 'dead', 'disconnected', 'despawned'],
-  downed: ['standing', 'dead', 'disconnected', 'despawned'],
-  dead: ['standing', 'despawned'],
-  disconnected: ['standing', 'downed', 'dead', 'despawned'],
+  alive: ['dead', 'despawned'],
+  dead: ['alive', 'despawned'],
   despawned: [],
 });
 
@@ -48,16 +45,19 @@ export const raiseSpawned = <G extends UnitTypes>(
   unit: G['bearer'],
   at: Vec2 | undefined,
 ): void => {
-  raise(engine, engine.options.events?.spawned, [unit, 'standing', 'standing', at, '']);
+  raise(engine, engine.options.events?.spawned, [unit, 'alive', 'alive', at, '']);
 };
 
-/** A unit leaves for a state other than `standing`: its casts end if it stood, and it enters the bearer state. */
+/**
+ * A unit leaves life (dies or despawns): its casts end if it lived, it enters the matching bearer state (its auras
+ * hear it, then those `removedOn` it go), and it leaves its owner's summons, taking its bound ones along.
+ */
 const leaveFor = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
-  [from, to]: readonly [Lifecycle, Exclude<Lifecycle, 'standing'>],
+  [from, to]: readonly [Lifecycle, Exclude<Lifecycle, 'alive'>],
 ): void => {
-  if (from === 'standing') {
+  if (from === 'alive') {
     engine.options.spells.cancelAll(bearer);
   }
 
@@ -67,10 +67,8 @@ const leaveFor = <G extends UnitTypes>(
     auras.enterState(bearer, to);
   }
 
-  if (to === 'dead' || to === 'despawned') {
-    leaveOwner(engine, bearer);
-    despawnBound(engine, bearer);
-  }
+  leaveOwner(engine, bearer);
+  despawnBound(engine, bearer);
 };
 
 /** A unit despawned: its id forgotten, its brain freed, the `despawned` event raised, then its script detached. */
@@ -93,12 +91,12 @@ const despawned = <G extends UnitTypes>(
 };
 
 /**
- * Moves a unit to a lifecycle state (§II.6 U3), when its state allows the move: a unit leaving `standing` has every
- * cast it runs cancelled (§I.7.1 F16: a death cancels them, as going down or leaving does) and enters the aura
- * system's matching bearer state (so auras `removedOn` it go); a unit dying or despawning leaves its owner's summons
- * and takes its bound summons along (§I.7.1 F18); a revive sets health (the maximum by default). Raises `changed`, or
- * `despawned` with its reason for a despawn, which also forgets the unit's entity id and frees its brain. False when
- * the move is not allowed.
+ * Moves a unit to a lifecycle state (§II.6 U3), when its state allows the move: a unit leaving life has every cast it
+ * runs cancelled (§I.7.1 F16), enters the aura system's matching bearer state (its auras' `onState`, then those
+ * `removedOn` it go: a death burst is an aura's `onState` of `dead`), leaves its owner's summons and takes its bound
+ * summons along (§I.7.1 F18); a revive sets health (the maximum by default). Raises `changed`, or `despawned` with its
+ * reason for a despawn, which also forgets the unit's entity id and frees its brain. False when the move is not
+ * allowed.
  */
 export const moveTo = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -114,10 +112,8 @@ export const moveTo = <G extends UnitTypes>(
 
   unit.lifecycle = to;
 
-  if (to === 'standing') {
-    if (from === 'downed' || from === 'dead') {
-      unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
-    }
+  if (to === 'alive') {
+    unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
   } else {
     leaveFor(engine, bearer, [from, to]);
   }

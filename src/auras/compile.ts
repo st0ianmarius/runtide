@@ -6,7 +6,7 @@ import type { AuraRegistry } from './define-auras.ts';
 import type { AuraTagTable } from './tags.ts';
 
 /** The lifecycle changes, by code. */
-export const CHANGES: readonly AuraChange[] = ['applied', 'refreshed', 'expired', 'removed', 'bearerDeath'];
+export const CHANGES: readonly AuraChange[] = ['applied', 'refreshed', 'expired', 'removed', 'stateEntered'];
 
 /** A clock auras count on: its fixed step, its countdown rule and how it keeps time (a `SimClock` is one). */
 export interface AuraClock {
