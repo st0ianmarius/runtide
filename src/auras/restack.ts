@@ -45,37 +45,34 @@ const codeOf = <G extends AuraTypes>(engine: AuraEngine<G>, at: Again<G>): numbe
     ? (engine.stacking[at.item.id] ?? 0)
     : STACKINGS.indexOf(at.application.stacking);
 
-/**
- * `extend`: the new length added to what is left. A counting-down clock adds the seconds (the duration becomes the
- * new time left); a stamping one adds the new length's ticks to the end.
- */
+/** `extend`: the new length's ticks added to the end; the duration becomes the new time left. */
 const extend = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): void => {
   const { item, seconds } = at;
 
-  if (engine.countsDown(item.clock) || item.end === Infinity || !Number.isFinite(seconds)) {
+  if (item.end === Infinity || !Number.isFinite(seconds)) {
     engine.setClock(set, item, engine.remainingOf(set, item) + seconds);
 
     return;
   }
 
-  item.end += engine.stepsFor(set, item, seconds);
+  item.end += engine.stepsFor(item, seconds);
   item.duration = engine.remainingOf(set, item);
 };
 
-/** `highest`: whether the new length outlasts what is left, in seconds on a counting-down clock, else in ticks. */
+/** `highest`: whether the new length outlasts what is left, in ticks. */
 const isLonger = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): boolean => {
   const { item, seconds } = at;
 
-  if (engine.countsDown(item.clock) || !Number.isFinite(seconds)) {
+  if (!Number.isFinite(seconds)) {
     return seconds > engine.remainingOf(set, item);
   }
 
-  return (set.clocks[item.clock] ?? 0) + engine.stepsFor(set, item, seconds) > item.end;
+  return (set.clocks[item.clock] ?? 0) + engine.stepsFor(item, seconds) > item.end;
 };
 
 /**
- * A built-in rule on the instance already there; true when the clock or the stacks changed. A stamping clock compares
- * and adds in whole ticks, a counting-down one in seconds.
+ * A built-in rule on the instance already there; true when the clock or the stacks changed. It compares and adds in
+ * whole ticks.
  */
 const builtIn = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): boolean => {
   const { item, seconds } = at;

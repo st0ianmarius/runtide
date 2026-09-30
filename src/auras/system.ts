@@ -1,4 +1,4 @@
-import type { CountdownRule, EventKind } from '../core/index.ts';
+import type { EventKind } from '../core/index.ts';
 import { recordOf } from '../core/records.ts';
 import type { ActiveAura, AuraContext } from './active-aura.ts';
 import type { ApplyResult, AuraApplication, AuraHost } from './application.ts';
@@ -25,7 +25,7 @@ export interface AuraSystemBase<G extends AuraTypes> {
   readonly tags: AuraTagTable<G['tag']>;
 
   /**
-   * The clocks auras count on, by name, each with its fixed step and countdown rule (a core `SimClock` is one). The
+   * The clocks auras count on, by name, each with its fixed step (a core `SimClock` is one). The
    * first is every aura's default. Each bearer counts its own steps on each (`tick`).
    */
   readonly clocks: Readonly<Record<G['clock'], AuraClock>>;
@@ -71,15 +71,9 @@ export type AuraSystemOptions<G extends AuraTypes> = AuraSystemBase<G> &
       });
 
 /** How a bearer's aura state is made. */
-export interface StateOptions<G extends AuraTypes = AuraTypes> {
+export interface StateOptions {
   /** Whether it runs no hooks and raises no events (a preview or a prediction copy); false when absent. */
   readonly isSilent?: boolean;
-
-  /**
-   * Countdown rules this bearer counts some clocks by instead of theirs (a prediction copy that counts every clock
-   * by the motion rule); the clocks' own rules when absent.
-   */
-  readonly countdowns?: Readonly<Partial<Record<G['clock'], CountdownRule>>>;
 }
 
 /**
@@ -106,7 +100,7 @@ export interface AuraSystem<G extends AuraTypes> {
   };
 
   /** A new, empty aura state for one bearer; a silent one runs no hooks and raises no events. */
-  readonly createState: (options?: StateOptions<G>) => AuraState;
+  readonly createState: (options?: StateOptions) => AuraState;
 
   /** Applies an aura (by id, or with an application's options); see `ApplyResult`. */
   readonly apply: (bearer: G['bearer'], aura: AuraId | AuraApplication<G>) => ApplyResult;
@@ -274,7 +268,6 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
   const clockNames = Object.keys(options.clocks).filter((key): key is G['clock'] => Object.hasOwn(options.clocks, key));
   const clockIds = recordOf(clockNames, (name) => clockNames.indexOf(name));
   const activeWhile = registry.hooks.activeWhile;
-  const clockRules = Object.freeze(tables.clocks.map((clock) => clock?.countdown));
 
   const system: AuraSystem<G> = {
     registry,
@@ -294,10 +287,6 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
     createState: (stateOptions = {}) =>
       new AuraSet<G>(tables.clockNames.length, {
         isSilent: stateOptions.isSilent === true,
-        rules:
-          stateOptions.countdowns === undefined
-            ? clockRules
-            : clockNames.map((name, index) => stateOptions.countdowns?.[name] ?? tables.clocks[index]?.countdown),
         activeWhile,
       }),
 

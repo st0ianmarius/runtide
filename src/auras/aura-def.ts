@@ -1,4 +1,3 @@
-import type { CountdownRule } from '../core/index.ts';
 import type { CueId } from '../cues/index.ts';
 import type { Modifier } from '../modifiers/index.ts';
 import type { AuraContext } from './active-aura.ts';
@@ -100,12 +99,6 @@ export interface AuraPeriodic<G extends AuraTypes> {
 
   /** The clock the beat counts on; the aura's own clock when absent. */
   readonly clock?: G['clock'];
-
-  /**
-   * When a beat countdown is due (its epsilon); the beat clock's rule when absent. A game whose beats must tolerate
-   * float drift on a clock with no epsilon gives one here (`defineCountdown({ snap: false, epsilon: 1e-8 })`).
-   */
-  readonly countdown?: CountdownRule;
 
   /** Whether a due beat fires; a skipped beat still counts (a regeneration paused by a wound). */
   readonly when?: (ctx: AuraContext<G>) => boolean;

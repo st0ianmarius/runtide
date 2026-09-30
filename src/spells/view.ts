@@ -27,7 +27,7 @@ export interface CastView {
   /** The stage's length, in seconds. */
   readonly seconds: number;
 
-  /** The tick of the spell clock its stage ends on, walked by the clock's countdown rule; `Infinity` while paused. */
+  /** The tick of the spell clock its stage ends on, counted by `stepsUntil`; `Infinity` while paused. */
   readonly end: number;
 
   /** The tick it started on. */
@@ -56,7 +56,7 @@ export const viewCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: C
     variant: cast.variant,
     stage: CAST_STAGES.indexOf(cast.stage),
     seconds: cast.stageSeconds,
-    end: cast.isPaused ? Infinity : clock.tick + stepsUntil(cast.remaining, clock.dt, clock.countdown),
+    end: cast.isPaused ? Infinity : clock.tick + stepsUntil(cast.remaining, clock.dt),
     started: cast.startTick,
     caster: cast.casterId,
     source: cast.source,

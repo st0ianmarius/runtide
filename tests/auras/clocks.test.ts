@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { type AuraBearer, createAuraSystem, defineAura, defineAuras, defineAuraTags } from '../../src/auras/index.ts';
-import { type CountdownRule, defineCountdown, stepsUntil } from '../../src/core/index.ts';
+import { stepsUntil } from '../../src/core/index.ts';
 import { aura, makeGame } from '../helpers/aura-game.ts';
 
 const defs = {
@@ -15,20 +15,14 @@ const defs = {
   fading: aura({ duration: 'infinite', value: 3, expiresWhen: (ctx) => ctx.aura.value <= 0 }),
 };
 
-/** `max(0, t − dt)`, due only at zero. */
-const PLAIN = defineCountdown({ snap: false, epsilon: 0 });
-
-/** A step landing below `1e-8` lands on zero. */
-const SNAPPED = defineCountdown({ snap: true, epsilon: 1e-8 });
-
-/** A one-aura system on a 1/60 s clock with the given countdown rule, and a bearer. */
-const sixtyHertz = (countdown: CountdownRule, seconds: number) => {
+/** A one-aura system on a 1/60 s clock, and a bearer. */
+const sixtyHertz = (seconds: number) => {
   const registry = defineAuras({ timed: defineAura({ duration: seconds }) });
 
   const auras = createAuraSystem({
     registry,
     tags: defineAuraTags([]),
-    clocks: { world: { dt: 1 / 60, countdown } },
+    clocks: { world: { dt: 1 / 60 } },
   });
 
   const bearer: AuraBearer = { auras: auras.createState() };
@@ -56,34 +50,24 @@ describe('clocks and stamps', () => {
     assert.equal(auras.has(u, id.haste), false, 'gone on the fourth motion step');
   });
 
-  it('stamps an aura on the tick a countdown under its clock rule runs out', () => {
-    for (const countdown of [PLAIN, SNAPPED, defineCountdown({ snap: false, epsilon: 1e-6 })]) {
-      for (const seconds of [0.25, 0.5, 1, 1.08, 1.17, 2, 4.5, 12, 1 / 60]) {
-        const { auras, bearer, id } = sixtyHertz(countdown, seconds);
-        const steps = stepsUntil(seconds, 1 / 60, countdown);
+  it('stamps an aura on the step its seconds take', () => {
+    for (const seconds of [0.25, 0.5, 1, 1.08, 1.17, 2, 3, 4.5, 12, 1 / 60]) {
+      const { auras, bearer, id } = sixtyHertz(seconds);
+      const steps = stepsUntil(seconds, 1 / 60);
 
-        auras.apply(bearer, id);
-        assert.equal(auras.find(bearer, id)?.end, steps, `${seconds} s`);
+      auras.apply(bearer, id);
+      assert.equal(auras.find(bearer, id)?.end, steps, `${seconds} s`);
 
-        for (let i = 1; i < steps; i++) {
-          auras.tick(bearer, 'world');
-        }
-
-        assert.equal(auras.has(bearer, id), true, `${seconds} s, one tick before`);
+      for (let i = 1; i < steps; i++) {
         auras.tick(bearer, 'world');
-        assert.equal(auras.has(bearer, id), false, `${seconds} s, on its tick`);
       }
+
+      assert.equal(auras.has(bearer, id), true, `${seconds} s, one tick before`);
+      auras.tick(bearer, 'world');
+      assert.equal(auras.has(bearer, id), false, `${seconds} s, on its tick`);
     }
-  });
 
-  it('lets the clock rule decide a float a plain countdown leaves a sliver of', () => {
-    const plain = sixtyHertz(PLAIN, 3);
-    const snapped = sixtyHertz(SNAPPED, 3);
-
-    plain.auras.apply(plain.bearer, plain.id);
-    snapped.auras.apply(snapped.bearer, snapped.id);
-    assert.equal(plain.auras.find(plain.bearer, plain.id)?.end, 181, 'max(0, t − dt) leaves a sliver for one tick');
-    assert.equal(snapped.auras.find(snapped.bearer, snapped.id)?.end, 180, 'a snap within 1e-8 does not');
+    assert.equal(stepsUntil(3, 1 / 60), 180, 'no sliver left for one more tick');
   });
 
   it('never runs an infinite aura out; it leaves only when removed', () => {

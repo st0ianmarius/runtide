@@ -9,7 +9,7 @@ import {
   defineAuras,
   defineAuraTags,
 } from '../../src/auras/index.ts';
-import { createBus, defineCountdown } from '../../src/core/index.ts';
+import { createBus } from '../../src/core/index.ts';
 import {
   type Blow,
   createDamageEvent,
@@ -273,7 +273,7 @@ export const makeDamageGame = <const Name extends string>(
   const auras = createAuraSystem<Game>({
     registry,
     tags: TAGS,
-    clocks: { world: { dt: 0.125, countdown: defineCountdown({ snap: false, epsilon: 0 }) } },
+    clocks: { world: { dt: 0.125 } },
     host: { run: (list, ctx) => late.procs?.runAura(list, ctx) },
   });
 

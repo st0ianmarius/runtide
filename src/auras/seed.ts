@@ -1,7 +1,6 @@
 // Seeding walks the bearer's list, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
-import { stepsUntil } from '../core/index.ts';
-import { type AuraItem, NO_STAMP } from './active-aura.ts';
+import type { AuraItem } from './active-aura.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { CHANGES } from './compile.ts';
 import { PREDICTED } from './define-auras.ts';
@@ -27,41 +26,17 @@ export interface AuraSeed {
 }
 
 /**
- * The steps a seeded aura has left on the mirror's clock (the stamp contract, §II.6 R3): its stamp's distance on the
- * server when the mirror counts the clock by the same rule, else its seconds left walked again under the mirror's
- * own rule (the clocks part: a mirror counting a world-clock aura by the motion clock's countdown).
+ * Sets a seeded aura's clock from its view by the stamp contract: infinite, or its stamp's distance on the server
+ * from the mirror's own count of the clock.
  */
-const stepsLeft = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
-  [set, view]: readonly [AuraSet<G>, AuraView],
-  serverNow: number,
-): number => {
-  const clock = engine.tables.clocks[view.clock];
-  const rule = engine.ruleOf(set, view.clock);
-
-  if (view.end !== NO_STAMP && rule === clock?.countdown) {
-    return Math.max(0, view.end - serverNow);
-  }
-
-  return clock === undefined ? 0 : stepsUntil(view.remaining, clock.dt, rule);
-};
-
-/** Sets a seeded aura's clock from its view: infinite, seconds left on a counting-down clock, or a stamp. */
 const setSeededClock = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
   [set, item, view]: readonly [AuraSet<G>, AuraItem<G>, AuraView],
   serverNow: number,
 ): void => {
   item.duration = view.duration;
-  item.left = view.remaining;
-
-  if (!Number.isFinite(view.remaining)) {
-    item.end = Infinity;
-  } else if (engine.countsDown(item.clock)) {
-    item.end = NO_STAMP;
-  } else {
-    item.end = (set.clocks[item.clock] ?? 0) + stepsLeft(engine, [set, view], serverNow);
-  }
+  item.end = Number.isFinite(view.remaining)
+    ? (set.clocks[item.clock] ?? 0) + Math.max(0, view.end - serverNow)
+    : Infinity;
 };
 
 /**
@@ -98,7 +73,7 @@ export const seedAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
         item.stacks = view.stacks;
         item.value = view.value;
         item.source = view.source;
-        setSeededClock(engine, [set, item, view], seed.clocks[item.clock] ?? 0);
+        setSeededClock([set, item, view], seed.clocks[item.clock] ?? 0);
         engine.insert(set, item);
         seeded += 1;
       }

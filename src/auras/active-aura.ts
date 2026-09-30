@@ -7,9 +7,6 @@ import type { AuraId, AuraTypes } from './aura-types.ts';
 /** The source of an aura applied without one. */
 export const NO_SOURCE = -1;
 
-/** The `end` of a finite aura on a clock that counts down instead of stamping. */
-export const NO_STAMP = -1;
-
 /**
  * One aura running on one bearer, as hooks, events and queries see it. Nothing may keep it past the call that handed
  * it over: once it leaves its bearer its slot goes back to the pool, and `handle` tells a kept reference apart from
@@ -34,10 +31,7 @@ export interface ActiveAura<G extends AuraTypes = AuraTypes> {
   /** The length of the application that last set its clock, in seconds; `Infinity` for an infinite aura. */
   readonly duration: number;
 
-  /**
-   * The tick of its bearer's clock on which it runs out, on a stamping clock; `Infinity` for an infinite aura, and
-   * `NO_STAMP` on a counting-down clock (whose time left is `remainingOf`).
-   */
+  /** The tick of its bearer's clock on which it runs out; `Infinity` for an infinite aura. */
   readonly end: number;
 
   /** The id of the clock its lifetime counts on, in the order the system's clocks were declared. */
@@ -87,9 +81,6 @@ export class AuraItem<G extends AuraTypes> implements ActiveAura<G> {
 
   /** Seconds until its next periodic beat, counted down on the beat's clock. */
   nextBeat = 0;
-
-  /** Seconds left, counted down every tick of its clock when that clock keeps countdowns. */
-  left = 0;
 
   constructor(ext: G['ext']) {
     this.ext = ext;

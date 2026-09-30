@@ -229,7 +229,7 @@ export const afterPayload = <G extends SpellTypes>(
   if (recover !== undefined) {
     enterStage(cast, 'recover', recover);
 
-    if (!isRunOut(cast.remaining, engine.clock.countdown)) {
+    if (!isRunOut(cast.remaining)) {
       return;
     }
   }
@@ -271,7 +271,7 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
   enterStage(cast, 'channel', plan.channel);
   cast.beat = plan.every;
 
-  if (isRunOut(cast.remaining, engine.clock.countdown)) {
+  if (isRunOut(cast.remaining)) {
     afterPayload(engine, cast, 'released');
   }
 };
@@ -299,7 +299,7 @@ const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, 
 
   engine.raise('start', cast);
 
-  if (cast.stage === 'windup' && isRunOut(cast.remaining, engine.clock.countdown)) {
+  if (cast.stage === 'windup' && isRunOut(cast.remaining)) {
     releaseCast(engine, cast);
   }
 };

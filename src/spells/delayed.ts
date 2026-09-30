@@ -141,10 +141,10 @@ export class DelayedProcs<G extends SpellTypes> {
       record.cast.holds += 1;
     }
 
-    const { dt, countdown } = engine.clock;
+    const { dt } = engine.clock;
     const wheel = this.#wheels[record.slot] ?? missing(`tick slot ${record.slot}`);
 
-    wheel.schedule(record.anchor + stepsUntil(record.offset, dt, countdown), handle);
+    wheel.schedule(record.anchor + stepsUntil(record.offset, dt), handle);
   }
 
   /**

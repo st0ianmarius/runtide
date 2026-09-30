@@ -13,12 +13,12 @@ export const MANUAL_PAUSE = 1;
 
 /** Counts a cast's stage down by one step; true when it ran out. */
 const countStage = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): boolean => {
-  const { dt, countdown } = engine.clock;
+  const { dt } = engine.clock;
 
-  cast.remaining = countDown(cast.remaining, dt, countdown);
+  cast.remaining = countDown(cast.remaining, dt);
   cast.elapsed = cast.stageSeconds - cast.remaining;
 
-  return isRunOut(cast.remaining, countdown);
+  return isRunOut(cast.remaining);
 };
 
 /**
@@ -89,7 +89,7 @@ const stepChannel = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>
   if (every > 0) {
     cast.beat -= engine.clock.dt;
 
-    while (isRunOut(cast.beat, engine.clock.countdown) && !isEnded(cast)) {
+    while (isRunOut(cast.beat) && !isEnded(cast)) {
       beat(engine, cast);
       cast.beat += every;
     }

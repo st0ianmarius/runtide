@@ -201,8 +201,8 @@ export class Scheduler<G extends AiTypes> {
 
   /** Puts a timer on the wheel `seconds` from now. */
   #schedule(brain: Brain, timer: number, seconds: number): void {
-    const { tick, dt, countdown } = this.#clock;
-    const at = tick + stepsUntil(seconds, dt, countdown);
+    const { tick, dt } = this.#clock;
+    const at = tick + stepsUntil(seconds, dt);
     const generation = (brain.generations[timer] ?? 0) % GENERATION_SPAN;
 
     brain.due[timer] = at;

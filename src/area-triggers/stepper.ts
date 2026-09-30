@@ -92,20 +92,18 @@ const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
 
 /**
  * Steps one area trigger by `dt` (§II.6 W2): its bound is checked (a suspended one waits, its clock too), then its
- * lifetime counts down under the clock's rule around its frame as its expiry mode says: `after` runs the last frame
+ * lifetime counts down around its frame as its expiry mode says: `after` runs the last frame
  * whole, `before` expires without it, `clip` runs it with `dt` cut to the time left. It expires once it ran out.
  */
 export const stepArea = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): void => {
-  const { countdown } = engine.clock;
-
   area.steppedTick = engine.clock.tick;
 
   if (!checkBound(engine, area)) {
     return;
   }
 
-  const next = countDown(area.remaining, dt, countdown);
-  const isOut = isRunOut(next, countdown);
+  const next = countDown(area.remaining, dt);
+  const isOut = isRunOut(next);
   const mode = engine.registry.columns.expiry[area.kind] ?? 0;
 
   if (isOut && mode === EXPIRY_BEFORE) {

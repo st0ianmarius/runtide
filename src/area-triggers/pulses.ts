@@ -228,10 +228,9 @@ const rescheduled = <G extends AreaTriggerTypes>(pulse: AreaPulse<G>, area: Area
 /** Runs an own-clock pulse's beats due after counting `dt` down; they catch up unless told not to. */
 const ownBeats = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
   const pulse = engine.registry.get(area.kind).every?.[index];
-  const rule = engine.clock.countdown;
   let fired = 0;
 
-  while (pulse !== undefined && isRunOut(area.beats[index] ?? 0, rule) && !area.isEnding) {
+  while (pulse !== undefined && isRunOut(area.beats[index] ?? 0) && !area.isEnding) {
     if (fired > 0 && pulse.catchUp === false) {
       area.beats[index] = secondsOf(pulse, area);
 
@@ -248,10 +247,9 @@ const ownBeats = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
 const sharedBeats = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
   const pulse = engine.registry.get(area.kind).every?.[index];
   const clock = sharedClockOf(engine, area, index);
-  const rule = engine.clock.countdown;
   let fired = 0;
 
-  while (pulse !== undefined && isRunOut(clock.remaining, rule) && !area.isEnding) {
+  while (pulse !== undefined && isRunOut(clock.remaining) && !area.isEnding) {
     if (fired > 0 && pulse.catchUp === false) {
       clock.remaining = secondsOf(pulse, area);
 

@@ -1,18 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import {
-  countDown,
-  COUNTDOWN_EPSILON,
-  createClock,
-  DEFAULT_COUNTDOWN,
-  defineCountdown,
-  isRunOut,
-  stepsUntil,
-} from '../../src/core/index.ts';
-
-/** A rule with no epsilon: `max(0, t − dt)`, due only at zero. */
-const EXACT = defineCountdown({ snap: false, epsilon: 0 });
+import { countDown, COUNTDOWN_EPSILON, createClock, isRunOut, stepsUntil } from '../../src/core/index.ts';
 
 describe('the fixed-step clock', () => {
   it('derives time from the integer tick, so it never drifts', () => {
@@ -31,30 +20,28 @@ describe('the fixed-step clock', () => {
     assert.throws(() => createClock({ dt: 0 }), RangeError);
     assert.throws(() => createClock({ dt: Number.POSITIVE_INFINITY }), RangeError);
   });
-
-  it('takes the default rule unless given one', () => {
-    assert.equal(createClock({ dt: 1 / 60 }).countdown, DEFAULT_COUNTDOWN);
-    assert.equal(createClock({ dt: 1 / 60, countdown: EXACT }).countdown, EXACT);
-    assert.deepEqual(DEFAULT_COUNTDOWN, { snap: true, epsilon: 1e-6 });
-    assert.equal(COUNTDOWN_EPSILON, 1e-6);
-  });
 });
 
 describe('stamps', () => {
   it('fall due on the tick a countdown of the same length runs out', () => {
-    for (const countdown of [DEFAULT_COUNTDOWN, EXACT]) {
-      const clock = createClock({ dt: 0.1, countdown });
-      const stamp = clock.stampAt(0.4);
-      let left = 0.4;
+    for (const [dt, seconds] of [
+      [0.1, 0.4],
+      [1 / 60, 0.1],
+      [1 / 60, 2.35],
+      [1 / 30, 17.2],
+    ] as const) {
+      const clock = createClock({ dt });
+      const stamp = clock.stampAt(seconds);
+      let left: number = seconds;
 
-      while (!isRunOut(left, clock.countdown)) {
+      while (!isRunOut(left)) {
         assert.equal(clock.isDue(stamp), false);
-        left = countDown(left, clock.dt, clock.countdown);
+        left = countDown(left, clock.dt);
         clock.step();
       }
 
       assert.equal(clock.isDue(stamp), true);
-      assert.equal(stamp, clock.tick);
+      assert.equal(stamp, clock.tick, `${seconds} s at ${dt} s`);
     }
   });
 
@@ -83,77 +70,57 @@ describe('stamps', () => {
 });
 
 describe('countdowns', () => {
-  it('step a rule without a snap as max(0, t − dt)', () => {
-    assert.equal(countDown(0.5, 0.2, EXACT), 0.3);
-    assert.equal(countDown(0.1, 0.2, EXACT), 0);
-    assert.equal(countDown(5e-9, 0, EXACT), 5e-9);
+  it('step as t − dt, snapping to zero below the epsilon', () => {
+    assert.equal(COUNTDOWN_EPSILON, 1e-6);
+    assert.equal(countDown(0.5, 0.25), 0.25);
+    assert.equal(countDown(0.5 + 5e-7, 0.5), 0);
+    assert.equal(countDown(0.5 + 2e-6, 0.5) > 0, true);
+    assert.equal(countDown(0.1, 0.2), 0);
   });
 
-  it('snap the default rule to zero below 1e-6', () => {
-    assert.equal(countDown(0.5 + 5e-7, 0.5, DEFAULT_COUNTDOWN), 0);
-    assert.equal(countDown(0.5 + 2e-6, 0.5, DEFAULT_COUNTDOWN) > 0, true);
-    assert.equal(countDown(0.5, 0.25, DEFAULT_COUNTDOWN), 0.25);
+  it('run out below the epsilon', () => {
+    assert.equal(isRunOut(0), true);
+    assert.equal(isRunOut(5e-7), true);
+    assert.equal(isRunOut(2e-6), false);
   });
 
-  it('run out by their rule epsilon', () => {
-    const coarse = defineCountdown({ snap: false, epsilon: 1e-3 });
-
-    assert.equal(isRunOut(0, EXACT), true);
-    assert.equal(isRunOut(1e-12, EXACT), false);
-    assert.equal(isRunOut(5e-7, DEFAULT_COUNTDOWN), true);
-    assert.equal(isRunOut(2e-6, DEFAULT_COUNTDOWN), false);
-    assert.equal(isRunOut(5e-4, coarse), true);
-    assert.equal(countDown(0.1005, 0.1, coarse), 0.0005000000000000004, 'no snap: the step itself is not rounded');
+  it('count the steps a length takes, the step its seconds say: no sliver for one more', () => {
+    // Walking 0.4 down by 0.1 leaves 2.8e-17 after four steps, and 3 s at 1/60 s a sliver after 180: the epsilon ends
+    // both on the step their seconds say.
+    assert.equal(stepsUntil(0.4, 0.1), 4);
+    assert.equal(stepsUntil(3, 1 / 60), 180);
+    assert.equal(stepsUntil(0.1, 1 / 60), 6);
+    assert.equal(stepsUntil(0.1 + 1 / 120, 1 / 60), 7);
+    assert.equal(stepsUntil(3000, 1 / 60), 180_000);
+    assert.equal(stepsUntil(2e-6, 1 / 60), 1);
+    assert.equal(stepsUntil(1, 0), 0);
   });
 
-  it('refuse an epsilon that is negative or not finite', () => {
-    assert.throws(() => defineCountdown({ snap: true, epsilon: -1e-6 }), RangeError);
-    assert.throws(() => defineCountdown({ snap: true, epsilon: Number.NaN }), RangeError);
-    assert.throws(() => defineCountdown({ snap: false, epsilon: Number.POSITIVE_INFINITY }), RangeError);
-  });
-
-  it('count the steps by walking the float countdown, not by dividing', () => {
-    // 0.4 / 0.1 is 4, but walking 0.4 down by 0.1 leaves 2.8e-17 after four steps: a rule with no epsilon needs a
-    // fifth, and the default rule snaps it to zero on the fourth. The same holds for 3 s at 1/60 s.
-    assert.equal(stepsUntil(0.4, 0.1, EXACT), 5);
-    assert.equal(stepsUntil(0.4, 0.1, DEFAULT_COUNTDOWN), 4);
-    assert.equal(stepsUntil(3, 1 / 60, EXACT), 181);
-    assert.equal(stepsUntil(3, 1 / 60, DEFAULT_COUNTDOWN), 180);
-    assert.equal(stepsUntil(1, 1 / 60, DEFAULT_COUNTDOWN), 60);
-    assert.equal(stepsUntil(1, 0, DEFAULT_COUNTDOWN), 0);
-  });
-
-  it('remember long walks exactly: a length walked again answers what walking it answers', () => {
-    const walked = (remaining: number, dt: number, rule: typeof EXACT): number => {
+  it('agree with walking the countdown down, for any length', () => {
+    const walked = (remaining: number, dt: number): number => {
       let left = remaining;
       let steps = 0;
 
-      while (!isRunOut(left, rule)) {
-        left = countDown(left, dt, rule);
+      while (!isRunOut(left)) {
+        left = countDown(left, dt);
         steps += 1;
       }
 
       return steps;
     };
 
-    for (const rule of [EXACT, DEFAULT_COUNTDOWN]) {
-      for (const seconds of [0.3, 2.1, 3, 17.35, 60, 600.25]) {
-        for (let pass = 0; pass < 2; pass++) {
-          assert.equal(stepsUntil(seconds, 1 / 60, rule), walked(seconds, 1 / 60, rule), `${seconds} s, pass ${pass}`);
-        }
+    for (const dt of [1 / 60, 1 / 30, 0.125]) {
+      for (const seconds of [0.3, 0.35, 2.1, 3, 17.35, 60, 600.25]) {
+        assert.equal(stepsUntil(seconds, dt), walked(seconds, dt), `${seconds} s at ${dt} s`);
       }
     }
   });
 
-  it('end whole-step lengths on their whole step under the default rule', () => {
+  it('end whole-step lengths on their whole step', () => {
     for (const hertz of [10, 20, 30, 60, 64, 120]) {
       for (let steps = 1; steps <= 2000; steps++) {
-        assert.equal(stepsUntil(steps / hertz, 1 / hertz, DEFAULT_COUNTDOWN), steps, `${steps} steps at ${hertz} Hz`);
+        assert.equal(stepsUntil(steps / hertz, 1 / hertz), steps, `${steps} steps at ${hertz} Hz`);
       }
     }
-  });
-
-  it('divide past 120,000 steps', () => {
-    assert.equal(stepsUntil(3000, 1 / 60, DEFAULT_COUNTDOWN), 180_000);
   });
 });

@@ -64,7 +64,7 @@ export const stepCaster = <G extends AreaTriggerTypes>(
 
   area.castBeat -= dt;
 
-  if (!isRunOut(area.castBeat, engine.clock.countdown)) {
+  if (!isRunOut(area.castBeat)) {
     return;
   }
 
@@ -87,7 +87,7 @@ export const stepCaster = <G extends AreaTriggerTypes>(
 
   area.castBeat += seconds;
 
-  if (isRunOut(area.castBeat, engine.clock.countdown)) {
+  if (isRunOut(area.castBeat)) {
     area.castBeat = seconds;
   }
 };

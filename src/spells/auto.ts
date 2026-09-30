@@ -62,19 +62,15 @@ export const stepAutoClocks = <G extends SpellTypes>(
 ): void => {
   const record = recordOf(caster);
   const { autos, clocks } = record;
-  const { dt, countdown } = engine.clock;
+  const { dt } = engine.clock;
 
   for (let i = 0; i < autos.length; i++) {
     const spell = autos[i];
-    const left = countDown(clocks[i] ?? 0, dt, countdown);
+    const left = countDown(clocks[i] ?? 0, dt);
 
     clocks[i] = left;
 
-    if (
-      spell === undefined ||
-      !isRunOut(left, countdown) ||
-      (record.count > 0 && engine.resetsAfterCast[spell] === 1)
-    ) {
+    if (spell === undefined || !isRunOut(left) || (record.count > 0 && engine.resetsAfterCast[spell] === 1)) {
       continue;
     }
 

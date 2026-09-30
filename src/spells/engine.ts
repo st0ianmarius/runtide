@@ -1,6 +1,6 @@
 import { type AuraApplication, type AuraId, type AuraSystem, NO_SOURCE } from '../auras/index.ts';
 import { toHandle } from '../core/ids.ts';
-import { type CountdownRule, createPool, type Pool, type Random } from '../core/index.ts';
+import { createPool, type Pool, type Random } from '../core/index.ts';
 import type { CueBuffer, CueEvent, CuePlace, CueSpec } from '../cues/index.ts';
 import { fireCue } from '../cues/index.ts';
 import type { StatView } from '../modifiers/index.ts';
@@ -27,9 +27,6 @@ export interface SpellClock {
 
   /** The fixed step in seconds. */
   readonly dt: number;
-
-  /** The countdown rule every stage counts down by. */
-  readonly countdown: CountdownRule;
 }
 
 /** The application a cast aura lands with, reused. */

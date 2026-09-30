@@ -1,6 +1,6 @@
 // Hot path (§I.4.2, §I.5.4): every bearer ticks every tick, so the loops are indexed and nothing is allocated.
 /* oxlint-disable typescript/prefer-for-of */
-import { countDown, isRunOut } from '../core/index.ts';
+import { isRunOut } from '../core/index.ts';
 import type { AuraItem } from './active-aura.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { CHANGES } from './compile.ts';
@@ -42,15 +42,12 @@ const periodOf = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'
 const countBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], item: AuraItem<G>): void => {
   const beatClock = engine.tables.beatClock[item.id] ?? 0;
   const clock = engine.tables.clocks[beatClock];
-  const set = setOf<G>(bearer);
-  const { isSilent } = set;
+  const { isSilent } = setOf<G>(bearer);
   const periodic = engine.registry.defs[item.id]?.periodic;
 
   if (clock === undefined || periodic === undefined) {
     return;
   }
-
-  const rule = periodic.countdown ?? engine.ruleOf(set, beatClock);
 
   if (periodic.every === 0) {
     if (!isSilent) {
@@ -62,7 +59,7 @@ const countBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer
 
   item.nextBeat -= clock.dt;
 
-  while (isRunOut(item.nextBeat, rule)) {
+  while (isRunOut(item.nextBeat)) {
     if (!isSilent) {
       engine.events.beat(bearer, item, 1);
     }
@@ -111,23 +108,13 @@ const expire = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'],
   }
 };
 
-/** Counts down one aura's time left by one step, on a clock that keeps countdowns. */
-const countDownLife = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, item: AuraItem<G>): void => {
-  const clock = engine.tables.clocks[item.clock];
-
-  if (clock !== undefined && item.left !== Infinity) {
-    item.left = countDown(item.left, clock.dt, engine.ruleOf(set, item.clock));
-  }
-};
-
 /**
- * Whether a step of `clock` has anything to do on a bearer (§I.5.4): an aura on it counting down, beating or with its
- * own expiry rule, or any aura that has run out. Asked before the step opens its events, so a bearer holding only
+ * Whether a step of `clock` has anything to do on a bearer (§I.5.4): an aura beating on it or with its own expiry rule
+ * on it, or any aura that has run out. Asked before the step opens its events, so a bearer holding only
  * auras with nothing due (a passive, a long buff) costs a scan of its list and nothing more.
  */
 const hasWork = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, clock: number): boolean => {
   const { items } = set;
-  const isCountdown = engine.countsDown(clock);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -136,12 +123,9 @@ const hasWork = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, cl
       continue;
     }
 
-    const isOwn = item.clock === clock;
-
     if (
       engine.tables.beatClock[item.id] === clock ||
-      (isOwn &&
-        ((isCountdown && item.left !== Infinity) || engine.registry.hooks.expiresWhen[item.id] !== undefined)) ||
+      (item.clock === clock && engine.registry.hooks.expiresWhen[item.id] !== undefined) ||
       engine.isDue(set, item)
     ) {
       return true;
@@ -152,8 +136,8 @@ const hasWork = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, cl
 };
 
 /**
- * Steps a bearer's clock once (§I.5): the clock's count rises; in list order each aura on it counts down (on a clock
- * that keeps countdowns) and the beats counting on it come due, and the beats are dispatched; then every aura that
+ * Steps a bearer's clock once (§I.5): the clock's count rises; in list order the beats counting on it come due, and
+ * the beats are dispatched; then every aura that
  * has run out (or whose own rule says so) expires, in list order, and those events are dispatched. So a beat due on
  * the tick an aura runs out fires before its expiry.
  */
@@ -169,14 +153,8 @@ export const tickAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
 
   const from = engine.events.open('tick');
 
-  const isCountdown = engine.countsDown(clock);
-
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-
-    if (item !== undefined && isCountdown && item.clock === clock) {
-      countDownLife(engine, set, item);
-    }
 
     if (item !== undefined && engine.tables.beatClock[item.id] === clock) {
       countBeat(engine, bearer, item);

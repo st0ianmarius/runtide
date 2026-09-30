@@ -11,136 +11,69 @@ import {
   defineAuras,
   defineAuraTags,
 } from '../../src/auras/index.ts';
-import { createBus, defineCountdown } from '../../src/core/index.ts';
+import { createBus } from '../../src/core/index.ts';
 import { aura, makeGame, TAGS, type TestAuras } from '../helpers/aura-game.ts';
 
-/** `max(0, t − dt)`, due only at zero. */
-const PLAIN = defineCountdown({ snap: false, epsilon: 0 });
+describe('aura lengths in whole steps (§II.6.1 rule 4)', () => {
+  /** A 1/60 s game over `defs`, with a `world` clock and a `motion` clock. */
+  const game = <const Name extends string>(defs: Readonly<Record<Name, AuraDef>>) => {
+    const registry = defineAuras(defs);
 
-/** A step landing below `1e-8` lands on zero. */
-const SNAPPED = defineCountdown({ snap: true, epsilon: 1e-8 });
+    const auras = createAuraSystem({
+      registry,
+      tags: defineAuraTags([]),
+      clocks: { world: { dt: 1 / 60 }, motion: { dt: 1 / 60 } },
+    });
 
-/** A 1/60 s game over `defs` whose `world` clock keeps countdowns and whose `motion` clock stamps. */
-const countingDown = <const Name extends string>(defs: Readonly<Record<Name, AuraDef>>) => {
-  const registry = defineAuras(defs);
+    return { auras, id: registry.id, bearer: (): AuraBearer => ({ auras: auras.createState() }) };
+  };
 
-  const auras = createAuraSystem({
-    registry,
-    tags: defineAuraTags([]),
+  it('run out on the step their seconds say, with no sliver for one more', () => {
+    const { auras, id, bearer } = game({ ward: defineAura({ duration: 3 }), jolt: defineAura({ duration: 0.1 }) });
+    const b = bearer();
 
-    clocks: {
-      world: { dt: 1 / 60, countdown: PLAIN, timing: 'countdown' },
-      motion: { dt: 1 / 60, countdown: SNAPPED },
-    },
+    auras.apply(b, id.ward);
+    auras.apply(b, id.jolt);
+    assert.deepEqual([auras.find(b, id.ward)?.end, auras.find(b, id.jolt)?.end], [180, 6]);
+
+    for (let i = 0; i < 179; i++) {
+      auras.tick(b, 'world');
+    }
+
+    assert.equal(auras.remaining(b, id.ward), 1 / 60);
+    auras.tick(b, 'world');
+    assert.deepEqual([auras.has(b, id.ward), auras.has(b, id.jolt)], [false, false]);
   });
 
-  const bearer = (): AuraBearer => ({ auras: auras.createState() });
+  it('extend and compare a highest in whole steps', () => {
+    const { auras, id, bearer } = game({
+      grace: defineAura({ duration: 2, stacking: 'extend' }),
+      chill: defineAura({ duration: 1, stacking: 'highest' }),
+    });
 
-  return { auras, id: registry.id, bearer };
-};
-
-describe('clocks that keep countdowns', () => {
-  it('count the seconds left down by the rule every tick, and read what is left in seconds', () => {
-    const { auras, id, bearer } = countingDown({ grace: defineAura({ duration: 2, stacking: 'extend' }) });
     const b = bearer();
 
     auras.apply(b, id.grace);
+    auras.apply(b, id.chill);
 
     for (let i = 0; i < 30; i++) {
       auras.tick(b, 'world');
     }
 
     auras.apply(b, id.grace);
-    assert.equal(auras.remaining(b, id.grace), 3.5000000000000018, 'the float a hand-written countdown holds');
-    assert.equal(auras.find(b, id.grace)?.duration, 3.5000000000000018);
-    assert.equal(auras.find(b, id.grace)?.end, -1, 'no stamp');
-  });
-
-  it('run out on the tick the countdown reaches zero, a sliver included', () => {
-    const { auras, id, bearer } = countingDown({ ward: defineAura({ duration: 3 }) });
-    const b = bearer();
-
-    auras.apply(b, id.ward);
-
-    for (let i = 0; i < 180; i++) {
-      auras.tick(b, 'world');
-    }
-
-    assert.equal(auras.has(b, id.ward), true);
-    assert.equal(auras.remaining(b, id.ward) > 0, true, 'a sliver left by max(0, t − dt)');
-    auras.tick(b, 'world');
-    assert.equal(auras.has(b, id.ward), false);
-  });
-
-  it('compare a highest in seconds, so a later length on the same tick still wins', () => {
-    const { auras, id, bearer } = countingDown({ chill: defineAura({ duration: 1, stacking: 'highest' }) });
-    const b = bearer();
-
-    auras.apply(b, id.chill);
-    auras.tick(b, 'world');
-    assert.equal(auras.apply(b, { aura: id.chill, duration: 1 - 1 / 60 + 1e-12 }).changed, true);
+    assert.equal(auras.find(b, id.grace)?.end, 240);
+    assert.equal(auras.remaining(b, id.grace), 3.5);
+    assert.equal(auras.apply(b, { aura: id.chill, duration: 0.5 + 1 / 60 }).changed, true);
     assert.equal(auras.apply(b, { aura: id.chill, duration: 0.5 }).changed, false);
   });
 
   it('run out a zero-length aura on the next tick of any clock', () => {
-    const { auras, id, bearer } = countingDown({ flash: defineAura({ duration: 0 }) });
+    const { auras, id, bearer } = game({ flash: defineAura({ duration: 0 }) });
     const b = bearer();
 
     auras.apply(b, id.flash);
     auras.tick(b, 'motion');
     assert.equal(auras.has(b, id.flash), false);
-  });
-});
-
-describe('countdown rules as extension points', () => {
-  it('let a beat take a rule of its own, so float drift does not cost it a tick', () => {
-    const ticks: [string, number][] = [];
-
-    const beat = (name: string) => ({
-      every: 3,
-
-      onBeat: (ctx: { readonly bearer: AuraBearer }) => {
-        ticks.push([name, ctx.bearer.auras.clocks[0] ?? 0]);
-
-        return undefined;
-      },
-    });
-
-    const { auras, id, bearer } = countingDown({
-      plain: defineAura({ duration: 'infinite', periodic: beat('plain') }),
-      tolerant: defineAura({ duration: 'infinite', periodic: { ...beat('tolerant'), countdown: SNAPPED } }),
-    });
-
-    const b = bearer();
-
-    auras.apply(b, id.plain);
-    auras.apply(b, id.tolerant);
-
-    for (let i = 0; i < 181; i++) {
-      auras.tick(b, 'world');
-    }
-
-    assert.deepEqual(ticks, [
-      ['tolerant', 180],
-      ['plain', 181],
-    ]);
-  });
-
-  it('let one bearer count a clock by another rule (a prediction copy)', () => {
-    const registry = defineAuras({ ward: defineAura({ duration: 3 }) });
-
-    const auras = createAuraSystem({
-      registry,
-      tags: defineAuraTags([]),
-      clocks: { world: { dt: 1 / 60, countdown: PLAIN } },
-    });
-
-    const real: AuraBearer = { auras: auras.createState() };
-    const copy: AuraBearer = { auras: auras.createState({ isSilent: true, countdowns: { world: SNAPPED } }) };
-
-    auras.apply(real, registry.id.ward);
-    auras.apply(copy, registry.id.ward);
-    assert.deepEqual([auras.find(real, registry.id.ward)?.end, auras.find(copy, registry.id.ward)?.end], [181, 180]);
   });
 });
 

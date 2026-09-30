@@ -132,9 +132,9 @@ export class LedgerBook {
 
 /** Whether a unit last hit on tick `last` may be hit again under `rehit`: its cooldown has run since. */
 const isCool = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, cooldown: number, last: number): boolean => {
-  const { dt, countdown, tick } = engine.clock;
+  const { dt, tick } = engine.clock;
 
-  return tick - last >= stepsUntil(cooldown, dt, countdown);
+  return tick - last >= stepsUntil(cooldown, dt);
 };
 
 /**

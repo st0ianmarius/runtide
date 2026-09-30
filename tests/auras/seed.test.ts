@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { defineCountdown } from '../../src/core/index.ts';
 import { aura, makeGame, TAGS } from '../helpers/aura-game.ts';
 
 const defs = {
@@ -11,18 +10,15 @@ const defs = {
   glow: aura({ duration: 5 }),
 };
 
-/** A server unit and a silent mirror of it, the mirror counting its world clock by `countdown` when given. */
-const setUp = (countdown?: ReturnType<typeof defineCountdown>) => {
+/** A server unit and a silent mirror of it. */
+const setUp = () => {
   const game = makeGame(defs);
   const server = game.unit(1);
 
   const mirror = {
     id: 1,
     hp: 100,
-    auras: game.auras.createState({
-      isSilent: true,
-      ...(countdown === undefined ? {} : { countdowns: { world: countdown } }),
-    }),
+    auras: game.auras.createState({ isSilent: true }),
   };
 
   return { ...game, server, mirror };
@@ -73,15 +69,6 @@ describe('seeding a prediction mirror (§II.6 R3)', () => {
       [id.sprint, id.glow],
     );
     assert.equal(auras.hasTag(mirror, TAGS.id.boon), false);
-  });
-
-  it('walks the seconds left again where the mirror counts the clock by another rule', () => {
-    const { auras, id, server, mirror, run } = setUp(defineCountdown({ snap: true, epsilon: 0.2 }));
-
-    auras.apply(server, id.dash);
-    run(server, 4);
-    auras.seed(mirror, { views: auras.view(server, { forOwner: true }), clocks: server.auras.clocks });
-    assert.equal(auras.remaining(mirror, id.dash), 1.375);
   });
 
   it('says which auras are predicted, and seeds only a silent state', () => {

@@ -202,3 +202,20 @@ The hooks themselves cost nothing on the rows they touch. Same Apple Silicon Mac
 | units: spawn + despawn a grunt (template stats)          | 399.2 ns | 408.3 ns, 415.7 ns | 375.1 → 385.4 ns |
 
 A spawn and despawn costs about 10 ns more: the despawn now tells the unit's auras its state (`onState`) and releases them. A blow walks the attacker's `onOutgoingDamage` auras only in a game that has one. The whole-game tick is about 1% of a 30 Hz frame; run alone, outside tinybench, it measures 240–263 µs.
+
+After the review, every clock keeps one timing (§II.6.1 rule 4): a countdown snaps to zero below `1e-6`, and a stamp is `⌈(seconds − 1e-6) / dt⌉` steps away, computed rather than walked step by step (the remembered walks are gone). The per-clock countdown rules, the per-bearer overrides and the auras' countdown mode are gone, so an aura tick no longer asks whether its clock counts down, and a countdown step no longer asks its rule whether it snaps. Same Apple Silicon Mac, one full run against the two full runs above; the rows this change touches:
+
+| benchmark                                                | before (two runs)  | now      |
+| -------------------------------------------------------- | ------------------ | -------- |
+| aura tick, 2,000 bearers x 3 auras (per tick)            | 120.2 µs, 125.3 µs | 104.8 µs |
+| aura tick, 2,000 bearers x 2 auras, nothing due          | 48.3 µs, 49.0 µs   | 43.4 µs  |
+| aura apply x3 + fold two stats                           | 374.8 ns, 375.2 ns | 341.1 ns |
+| spells: auto step, 2,000 casters, 1 of 20 armed (tick)   | 20.7 µs, 20.1 µs   | 18.6 µs  |
+| spells: horde tick, 2,000 casters in flight (tick)       | 119.8 µs, 119.4 µs | 113.9 µs |
+| spells: instant cast, table stats + release              | 350.6 ns, 347.3 ns | 314.8 ns |
+| spells: 1,000 after(0) landing on one tick (tick)        | 153.6 µs, 153.0 µs | 143.7 µs |
+| ai: 2,000 brains, a pick timer each every 1–3 s (tick)   | 24.4 µs, 24.5 µs   | 20.0 µs  |
+| areas: 150 pools + 50 missiles over 2,000 units (tick)   | 50.9 µs, 50.7 µs   | 51.0 µs  |
+| horde: 2,000 mobs + 4 heroes, the whole unit game (tick) | 303.7 µs, 308.2 µs | 304.9 µs |
+
+Rows the change does not touch moved within their usual noise in both directions (the cue ticks 7% faster, the nearest foe in 10 m 4% slower).

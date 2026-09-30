@@ -1,6 +1,6 @@
 // A time change walks the bearer's list, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
-import { type AuraItem, NO_STAMP } from './active-aura.ts';
+import type { AuraItem } from './active-aura.ts';
 import type { AuraTagId, AuraTypes } from './aura-types.ts';
 import type { AuraEngine } from './engine.ts';
 import { type AuraSet, setOf } from './state.ts';
@@ -15,21 +15,15 @@ export interface TimeChange {
 }
 
 /**
- * Sets an aura's time left without touching its duration (its bar keeps its length, only the time left moves): a
- * countdown on a counting-down clock, a stamp on a stamping one. An aura at 0 left runs out on its bearer's next tick.
+ * Sets an aura's time left without touching its duration (its bar keeps its length, only the time left moves): its
+ * stamp. An aura at 0 left runs out on its bearer's next tick.
  */
 const setTimeLeft = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   [set, item]: readonly [AuraSet<G>, AuraItem<G>],
   seconds: number,
 ): void => {
-  item.left = seconds;
-
-  if (engine.countsDown(item.clock)) {
-    item.end = NO_STAMP;
-  } else {
-    item.end = (set.clocks[item.clock] ?? 0) + engine.stepsFor(set, item, seconds);
-  }
+  item.end = (set.clocks[item.clock] ?? 0) + engine.stepsFor(item, seconds);
 };
 
 /**

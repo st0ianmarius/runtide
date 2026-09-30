@@ -89,16 +89,16 @@ const runPhase = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
  * The time of a frame its parts run over (§II.6 W2): all of it once armed, none while arming, and on the tick it arms
  * the time left over after its arming ran out.
  */
-const armedTime = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): number => {
+const armedTime = <G extends AreaTriggerTypes>(area: AreaTrigger<G>, dt: number): number => {
   if (area.arming <= 0) {
     return dt;
   }
 
   const left = area.arming;
 
-  area.arming = countDown(left, dt, engine.clock.countdown);
+  area.arming = countDown(left, dt);
 
-  if (!isRunOut(area.arming, engine.clock.countdown)) {
+  if (!isRunOut(area.arming)) {
     return 0;
   }
 
@@ -127,7 +127,7 @@ export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: A
 
   const order = registry.get(area.kind).order ?? DEFAULT_ORDER;
 
-  area.frameTime = armedTime(engine, area, dt);
+  area.frameTime = armedTime(area, dt);
 
   for (let i = 0; i < order.length && area.frameTime > 0 && !area.isEnding; i++) {
     runPhase(engine, area, order[i] ?? 'frame');

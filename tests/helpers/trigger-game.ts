@@ -13,7 +13,7 @@ import {
   defineAuraTags,
 } from '../../src/auras/index.ts';
 import { defineConditions } from '../../src/conditions/index.ts';
-import { createBus, defineCountdown, type Random } from '../../src/core/index.ts';
+import { createBus, type Random } from '../../src/core/index.ts';
 import {
   CORE_PROCS,
   createProcRegistry,
@@ -169,7 +169,7 @@ export interface KillEvent {
 export const aura = defineAura<Game>;
 
 /** The one test clock: a step of 0.125 s, due at exactly zero. */
-export const CLOCKS = { world: { dt: 0.125, countdown: defineCountdown({ snap: false, epsilon: 0 }) } } as const;
+export const CLOCKS = { world: { dt: 0.125 } } as const;
 
 /** The test tags. */
 export const TAGS = defineAuraTags(['magic', 'curse', 'cooldown']);

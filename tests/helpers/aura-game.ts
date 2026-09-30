@@ -13,7 +13,6 @@ import {
   defineAuras,
   defineAuraTags,
 } from '../../src/auras/index.ts';
-import { defineCountdown } from '../../src/core/index.ts';
 
 /** A test unit: an id, some health, and its auras. */
 export interface Unit extends AuraBearer {
@@ -78,11 +77,8 @@ export interface TestAuras extends AuraTypes {
 /** The step of both test clocks: an exact binary fraction, so every stamp is exact. */
 const DT = 0.125;
 
-/** The rule of both test clocks: `max(0, t − dt)`, due at zero; exact on the binary step. */
-const EXACT = defineCountdown({ snap: false, epsilon: 0 });
-
 /** The two test clocks, `world` then `motion`, both on `DT`. */
-export const CLOCKS = { world: { dt: DT, countdown: EXACT }, motion: { dt: DT, countdown: EXACT } } as const;
+export const CLOCKS = { world: { dt: DT }, motion: { dt: DT } } as const;
 
 /** The test tags. */
 export const TAGS = defineAuraTags(['magic', 'poison', 'stun', 'immune', 'boon']);
