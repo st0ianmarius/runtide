@@ -1,5 +1,5 @@
 import type { Random } from '../core/index.ts';
-import { type Activation, isAi, type SpellId, type SpellSystem } from '../spells/index.ts';
+import type { SpellId, SpellSystem } from '../spells/index.ts';
 import type { AiTypes } from './ai-types.ts';
 import { brainOf } from './brain.ts';
 
@@ -15,8 +15,8 @@ export interface PickOptions<G extends AiTypes> {
   readonly input?: G['input'];
 
   /**
-   * A spell's weight for this caster now (distance, hugged, clumped: the game's reading); its activation's `weight`,
-   * else 1, when absent. A weight of 0 or less leaves the spell out.
+   * A spell's weight for this caster now (distance, hugged, clumped: the game's reading, or its own per-spell
+   * weights); 1 when absent. A weight of 0 or less leaves the spell out.
    */
   readonly weight?: (caster: G['bearer'], spell: SpellId) => number;
 
@@ -26,10 +26,6 @@ export interface PickOptions<G extends AiTypes> {
   /** `avoid` (the default) leaves the last pick out while another spell fits; `allow` does not. */
   readonly repeat?: 'avoid' | 'allow';
 }
-
-/** An activation's own weight: an `ai` activation's `weight`, else 1. */
-const ownWeight = <G extends AiTypes>(activation: Activation<G>): number =>
-  isAi(activation) ? (activation.weight ?? 1) : 1;
 
 /**
  * The one weighted anti-repeat picker: over a pool of spells, each fitting one (a weight above
@@ -100,13 +96,11 @@ export class Picker<G extends AiTypes> {
     }
 
     const weights = this.#weights;
-    const { registry } = this.#spells;
 
     for (let i = 0; i < pool.length; i++) {
       const spell = pool[i];
 
-      const weight =
-        spell === undefined ? 0 : (options.weight?.(caster, spell) ?? ownWeight(registry.get(spell).activation));
+      const weight = spell === undefined ? 0 : (options.weight?.(caster, spell) ?? 1);
 
       const fits =
         spell !== undefined &&

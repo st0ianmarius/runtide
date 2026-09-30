@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { run } from '../../src/procs/index.ts';
-import type { AnySpellDef, CastHandle } from '../../src/spells/index.ts';
+import { type AnySpellDef, type CastHandle, lockBefore } from '../../src/spells/index.ts';
 import { type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
 
 /**
@@ -53,12 +53,13 @@ describe('stage order', () => {
     assert.equal(game.spells.isRunning(handle), false);
   });
 
-  it("takes an ai activation's windup and recovery, tracking the target until its lock", () => {
+  it('tracks the target through its windup until lockBefore’s lock', () => {
     let aims = 0;
 
     const game = timeline({
       slam: spell({
-        activation: { kind: 'ai', windup: 1, lock: 0.5, recover: 0.25 },
+        activation: { kind: 'trigger' },
+        timeline: { windup: { seconds: 1, track: lockBefore(0.5) }, recover: { seconds: 0.25 } },
 
         target: () => {
           aims += 1;

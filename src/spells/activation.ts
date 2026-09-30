@@ -3,7 +3,6 @@ import { createRegistry, type Registry } from '../core/index.ts';
 import type { Scaled } from '../modifiers/index.ts';
 import type { CastReport, GateAnswer } from './cast-request.ts';
 import type { MirrorCtx } from './mirror.ts';
-import type { ReachDefaults } from './reach.ts';
 import type { GateContext, SpellContext, StatsSource } from './spell-def.ts';
 import type { ActivationShape, SpellTypes } from './spell-types.ts';
 
@@ -140,72 +139,26 @@ export interface TriggerActivation {
   readonly kind: 'trigger';
 }
 
-/**
- * An `ai` activation: a creature's brain picks it (F17). Its windup and recovery are the timeline's defaults, and a
- * spell with a `target` hook tracks its target until `lock` seconds before the release (`lockBefore(lock)`).
- */
-export interface AiActivation {
-  /** The discriminant. */
-  readonly kind: 'ai';
-
-  /** Seconds from the cast's start to its release, when the timeline declares no windup. */
-  readonly windup: number;
-
-  /** Seconds before the release when the aim stops tracking; without it the aim locks at the start. */
-  readonly lock?: number;
-
-  /** Seconds the caster stays busy after the release, when the timeline declares no recovery. */
-  readonly recover?: number;
-
-  /** The farthest its target may be as the cast starts (its reach's range). */
-  readonly range?: number;
-
-  /** Whether a clear line to its target is needed as the cast starts (its reach's sight). */
-  readonly sight?: boolean;
-
-  /** The pick weight, as a number: the picker's default for the spell, 1 when absent (F17). */
-  readonly weight?: number;
-}
-
 /** The framework's activation kinds, as a union. */
 export type CoreActivation<G extends SpellTypes = SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
   | AutoActivation<G, Source>
   | ButtonActivation<G>
   | PassiveActivation
-  | TriggerActivation
-  | AiActivation;
+  | TriggerActivation;
 
 /** One activation: a core kind or one of the game's; `Source` types the stats an `auto` interval reads. */
 export type Activation<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> =
   | CoreActivation<G, Source>
   | G['gameActivation'];
 
-/** The timeline an activation kind supplies where the spell's own timeline says nothing. */
-export interface TimelineDefaults {
-  /** The windup's seconds. */
-  readonly windup?: number | undefined;
-
-  /** The recovery's seconds. */
-  readonly recover?: number | undefined;
-
-  /** Tracks the target (through the spell's `target` hook) until this many seconds before the release. */
-  readonly lockBefore?: number | undefined;
-}
-
 /**
- * One activation kind: how its data is checked at load, which timeline it supplies, the gate it adds before
+ * One activation kind: how its data is checked at load, the gate it adds before
  * the spell's own `canCast`, and how it explains itself. A game adds a kind by registering one more.
  * Its functions are standalone: the system may call them detached.
  */
 export interface ActivationKindDef<A extends ActivationShape = ActivationShape, G extends SpellTypes = SpellTypes> {
   /** A problem with a spell's activation data, as a sentence, or `undefined` when it is sound. */
   check?(this: void, activation: A): string | undefined;
-
-  /** The timeline defaults the kind supplies. */
-  timeline?(this: void, activation: A): TimelineDefaults | undefined;
-
-  /** The reach rules the kind supplies where the spell declares none. */
-  reach?(this: void, activation: A): ReachDefaults | undefined;
 
   /**
    * The kind's own gate, asked after the host's `canAct` and before the stats; a false refuses the cast as `gate`, one
@@ -246,10 +199,6 @@ const AUTO: ActivationKindDef<AutoActivation, never> = {
   },
 };
 
-/** Whether an activation is the framework's `ai` kind. */
-export const isAi = <G extends SpellTypes>(activation: Activation<G>): activation is AiActivation =>
-  activation.kind === 'ai' && Object.hasOwn(activation, 'windup');
-
 /** Whether an activation is the framework's `button` kind. */
 export const isButton = <G extends SpellTypes>(activation: Activation<G>): activation is ButtonActivation<G> =>
   activation.kind === 'button';
@@ -275,31 +224,14 @@ const BUTTON: ActivationKindDef<ButtonActivation, never> = {
   },
 };
 
-/** The `ai` kind: its windup, lock and recovery are the timeline's defaults, its range and sight the reach's. */
-const AI: ActivationKindDef<AiActivation, never> = {
-  check: (activation) =>
-    [activation.windup, activation.lock, activation.recover].every(isSeconds) &&
-    (activation.weight === undefined || (Number.isFinite(activation.weight) && activation.weight >= 0))
-      ? undefined
-      : 'an ai activation takes seconds from 0 and a weight from 0.',
-
-  timeline: (activation) => ({
-    windup: activation.windup,
-    recover: activation.recover,
-    lockBefore: activation.lock,
-  }),
-
-  reach: (activation) => ({ range: activation.range, sight: activation.sight }),
-};
-
 /** A kind with nothing to check or supply. */
 const PLAIN: ActivationKindDef<ActivationShape, never> = {};
 
 /**
  * The framework's activation kinds, typed over no game (`never`) since none has a gate, so they register
  * into any game's activation registry: `auto` (the attack clock, `spells.stepAuto`), `button` (abilities,
- * `abilities.tryActivate`), `passive` (cast by the game as a unit gains it), `trigger` (cast by procs and triggers) and
- * `ai` (a creature's brain, F17). A game registers them with its own (a director's `event`, a `totem`):
+ * `abilities.tryActivate`), `passive` (cast by the game as a unit gains it), and `trigger` (cast by procs, triggers and a
+ * creature's brain). A game registers them with its own (a director's `event`, a `totem`):
  * `defineActivations({ ...CORE_ACTIVATIONS, totem: TOTEM })`.
  */
 export const CORE_ACTIVATIONS: {
@@ -307,8 +239,7 @@ export const CORE_ACTIVATIONS: {
   readonly button: ActivationKindDef<ButtonActivation, never>;
   readonly passive: ActivationKindDef<PassiveActivation, never>;
   readonly trigger: ActivationKindDef<TriggerActivation, never>;
-  readonly ai: ActivationKindDef<AiActivation, never>;
-} = Object.freeze({ auto: AUTO, button: BUTTON, passive: PLAIN, trigger: PLAIN, ai: AI });
+} = Object.freeze({ auto: AUTO, button: BUTTON, passive: PLAIN, trigger: PLAIN });
 
 /** A registry of activation kinds: ids by key order, each kind's definition, typed by the game's spell types. */
 export type ActivationRegistry<G extends SpellTypes = SpellTypes> = Registry<

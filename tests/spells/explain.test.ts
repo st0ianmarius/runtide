@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { add, ranks, scaled, type StatView } from '../../src/modifiers/index.ts';
-import { defineSpells, explainSpell, previewStats } from '../../src/spells/index.ts';
+import { defineSpells, explainSpell, lockBefore, previewStats } from '../../src/spells/index.ts';
 import { type Game, spell, SPELL_TAGS, STATS } from '../helpers/spell-game.ts';
 
 /** A view of the stat table's bases with some stats changed. */
@@ -20,7 +20,7 @@ const statsWith = (changes: Readonly<Partial<Record<keyof typeof STATS.id, numbe
   return { total: (stat) => totals[stat] ?? 0, base: (stat) => STATS.columns.base[stat] ?? 0 };
 };
 
-/** The test spells: a scaled nova, a ranked auto swing with a stats function, an ai slam. */
+/** The test spells: a scaled nova, a ranked auto swing with a stats function, a button slam. */
 const SPELLS = () =>
   defineSpells<Game, 'nova' | 'swing' | 'slam'>(
     {
@@ -42,7 +42,8 @@ const SPELLS = () =>
         release: () => undefined,
       }),
       slam: spell({
-        activation: { kind: 'ai', windup: 1.2, lock: 0.3, recover: 0.5 },
+        activation: { kind: 'button', cooldown: 3 },
+        timeline: { windup: { seconds: 1.2, track: lockBefore(0.3) }, recover: { seconds: 0.5 } },
         release: () => undefined,
       }),
     },
@@ -113,7 +114,7 @@ describe('explainSpell', () => {
 
     assert.deepEqual(swing.activation.values, { interval: 1.5 });
     assert.deepEqual(swing.stats, [{ key: 'reach', value: 5 }]);
-    assert.deepEqual(slam.activation.values, { windup: 1.2, lock: 0.3, recover: 0.5 });
+    assert.deepEqual(slam.activation.values, { cooldown: 3 });
     assert.deepEqual(slam.timeline, { windup: 1.2, channel: undefined, every: 0, recover: 0.5 });
   });
 });

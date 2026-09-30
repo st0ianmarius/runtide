@@ -175,12 +175,12 @@ const missing = (): never => {
   throw new Error('The bench proc system is not wired.');
 };
 
-/** Four ai spells a brain picks from, weighted 1 to 4. */
+/** Four spells a brain picks from, weighted 1 to 4 by their id. */
 const POOL_DEFS = defineSpells<BenchGame, 'a' | 'b' | 'c' | 'd'>({
-  a: { activation: { kind: 'ai', windup: 0, weight: 1 }, release: () => undefined },
-  b: { activation: { kind: 'ai', windup: 0, weight: 2 }, release: () => undefined },
-  c: { activation: { kind: 'ai', windup: 0, weight: 3 }, release: () => undefined },
-  d: { activation: { kind: 'ai', windup: 0, weight: 4 }, release: () => undefined },
+  a: { activation: { kind: 'trigger' }, release: () => undefined },
+  b: { activation: { kind: 'trigger' }, release: () => undefined },
+  c: { activation: { kind: 'trigger' }, release: () => undefined },
+  d: { activation: { kind: 'trigger' }, release: () => undefined },
 });
 
 const SPELLS = createSpellSystem<BenchGame>({
@@ -267,7 +267,7 @@ const POOL: readonly SpellId[] = [POOL_DEFS.id.a, POOL_DEFS.id.b, POOL_DEFS.id.c
 const DRAW = stream(5, 17);
 
 /** How every bench pick is made. */
-const PICK = { random: DRAW };
+const PICK = { random: DRAW, weight: (_unit: unknown, spell: SpellId): number => spell + 1 };
 
 /** The script benches' crowds, each of 2,000 units, spawned on first use. */
 const CROWDS = new Map<'plain' | 'idle' | 'thinker', Unit<BenchGame>[]>();

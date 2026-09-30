@@ -20,13 +20,14 @@ import { type Game, spell, SPELL_TAGS, STATS } from '../helpers/spell-game.ts';
 /** A spell that does nothing when it goes out. */
 const release = (): undefined => undefined;
 
-/** Three neutral spells: an auto swing, an ai slam with a windup, a trigger nova with a table of stats. */
+/** Three neutral spells: an auto swing, a button slam with a windup, a trigger nova with a table of stats. */
 const SPELLS = () =>
   defineSpells<Game, 'swing' | 'slam' | 'retired' | 'nova'>(
     {
       swing: spell({ activation: { kind: 'auto', interval: 1.5 }, tags: ['melee'], release }),
       slam: spell({
-        activation: { kind: 'ai', windup: 1.2, lock: 0.3, recover: 0.5 },
+        activation: { kind: 'button' },
+        timeline: { windup: { seconds: 1.2, track: lockBefore(0.3) }, recover: { seconds: 0.5 } },
         tags: ['area', 'melee'],
         target: (ctx) => ctx.input,
         release,
@@ -60,7 +61,7 @@ describe('the spell registry', () => {
   it("builds typed columns: activation kind, ranks, flags and each stage's constant seconds", () => {
     const { columns } = SPELLS();
 
-    assert.deepEqual([...columns.activation], [0, 4, 0, 3]);
+    assert.deepEqual([...columns.activation], [0, 1, 0, 3]);
     assert.deepEqual([...columns.ranks], [1, 1, 0, 3]);
     assert.deepEqual([...columns.flags], [0, 0, 0, 3]);
     assert.deepEqual([...columns.windup], [0, 1.2, 0, 0]);
@@ -164,7 +165,6 @@ describe('checks at load', () => {
       () => one(loose({ activation: { kind: 'auto', interval: 0 }, release })),
       /auto interval must be above 0/,
     );
-    assert.throws(() => one(loose({ activation: { kind: 'ai', windup: -1 }, release })), /ai activation takes seconds/);
   });
 
   it('refuses ranks outside 1–255, an unknown tag, and a hook that is not a function', () => {

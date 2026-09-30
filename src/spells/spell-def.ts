@@ -258,10 +258,7 @@ export interface SpellDef<
   /** The cues it fires at its moments. */
   readonly cues?: SpellCues<G, Source, Target, State>;
 
-  /**
-   * Its reach rules, asked after `target`: a range, a clear line, room at the point. Its activation
-   * kind's (an `ai` activation's `range` and `sight`) when absent.
-   */
+  /** Its reach rules, asked after `target`: a range, a clear line. */
   readonly reach?: Reach<G, Source, Target>;
 
   /** Makes a cast's own state, once per cast (`ctx.state`); `undefined` when absent. */

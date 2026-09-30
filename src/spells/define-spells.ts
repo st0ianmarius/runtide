@@ -134,7 +134,7 @@ const buildColumns = <G extends SpellTypes>(
   [activations, names]: readonly [ActivationRegistry<G>, readonly string[]],
 ): Record<SpellColumn, Column> => {
   const kindIds: Readonly<Record<string, number | undefined>> = activations.id;
-  const plans = slots.map((def, id) => (def === undefined ? undefined : planOf(def, activations, names[id] ?? '')));
+  const plans = slots.map((def, id) => (def === undefined ? undefined : planOf(def, names[id] ?? '')));
   const size = slots.length;
 
   return {

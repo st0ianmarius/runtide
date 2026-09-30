@@ -231,13 +231,14 @@ const GAP = new Float64Array(8192);
 const OTHER_SPELLS = Object.fromEntries(
   Array.from({ length: 36 }, (_unused, i): [string, AnySpellDef<HordeGame>] => [
     `other${i}`,
-    { activation: { kind: 'ai', windup: 0.5 }, release: () => undefined },
+    { activation: { kind: 'trigger' }, timeline: { windup: { seconds: 0.5 } }, release: () => undefined },
   ]),
 );
 
 /** A cast a mob picks: winds up, then enrages it. */
-const picked = (weight: number): AnySpellDef<HordeGame> => ({
-  activation: { kind: 'ai', windup: 0.5, weight },
+const picked = (): AnySpellDef<HordeGame> => ({
+  activation: { kind: 'trigger' },
+  timeline: { windup: { seconds: 0.5 } },
   release: () => [applyAura<HordeGame>('rage', { to: 'self' })],
 });
 
@@ -247,10 +248,10 @@ const SPELL_DEFS = defineSpells<HordeGame, string>({
     target: () => late.hero,
     release: () => late.swing,
   },
-  a: picked(1),
-  b: picked(2),
-  c: picked(3),
-  d: picked(4),
+  a: picked(),
+  b: picked(),
+  c: picked(),
+  d: picked(),
   ...OTHER_SPELLS,
 });
 
@@ -312,7 +313,13 @@ const DRAW = stream(9, 31);
 
 /** The pool a mob picks from, and how its picks are made. */
 const POOL: readonly SpellId[] = ['a', 'b', 'c', 'd'].map((name) => SPELL_DEFS.id[name] ?? missing());
-const PICK = { random: DRAW };
+const WEIGHTS = new Float64Array(SPELL_DEFS.size);
+
+POOL.forEach((spell, i) => {
+  WEIGHTS[spell] = i + 1;
+});
+
+const PICK = { random: DRAW, weight: (_unit: unknown, spell: SpellId): number => WEIGHTS[spell] ?? 0 };
 
 /** The auras every mob holds from its spawn. */
 const HASTE = AURAS.id['haste'] ?? missing();

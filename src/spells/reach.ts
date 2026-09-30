@@ -22,16 +22,7 @@ export interface Reach<G extends SpellTypes, Source extends StatsSource<G> = Sta
   pointOf?(this: void, target: Target): Vec2;
 }
 
-/** The reach an activation kind supplies where the spell declares none (an `ai` activation's `range` and `sight`). */
-export interface ReachDefaults {
-  /** The farthest the target may be. */
-  readonly range?: number | undefined;
-
-  /** Whether a clear line to it is needed. */
-  readonly sight?: boolean | undefined;
-}
-
-/** A spell's reach resolved at load: its own rules over its activation's defaults. */
+/** A spell's reach resolved at load. */
 export interface ReachPlan<G extends SpellTypes> {
   /** The range, or `undefined` for none. */
   readonly range: CastSeconds<G> | undefined;
@@ -55,34 +46,27 @@ const checkRule = <G extends SpellTypes>(rule: ReachPlan<G>, name: string): void
   }
 };
 
-/** A spell's own reach over its activation's defaults. */
-const ruleOf = <G extends SpellTypes>(
-  own: Reach<G> | undefined,
-  defaults: ReachDefaults | undefined,
-): ReachPlan<G> => ({
-  range: own?.range ?? defaults?.range,
-  sight: own?.sight ?? defaults?.sight ?? false,
-  pointOf: own?.pointOf,
+/** A spell's own reach. */
+const ruleOf = <G extends SpellTypes>(own: Reach<G>): ReachPlan<G> => ({
+  range: own.range,
+  sight: own.sight ?? false,
+  pointOf: own.pointOf,
 });
 
 /**
- * Resolves a spell's reach, or `undefined` when it has no rule or no target hook (an activation's defaults apply only
- * to a spell that picks a target). Throws for a reach on a spell with no target, and a range not sound.
+ * Resolves a spell's reach, or `undefined` when it has none. Throws for a reach on a spell with no target, and a
+ * range not sound.
  */
-export const reachOf = <G extends SpellTypes>(
-  def: AnySpellDef<G>,
-  defaults: ReachDefaults | undefined,
-  name: string,
-): ReachPlan<G> | undefined => {
-  if (def.target === undefined) {
-    if (def.reach !== undefined) {
-      throw new RangeError(`Spell ${name}: its reach is checked against its target, so it needs a target hook.`);
-    }
-
+export const reachOf = <G extends SpellTypes>(def: AnySpellDef<G>, name: string): ReachPlan<G> | undefined => {
+  if (def.reach === undefined) {
     return undefined;
   }
 
-  const rule = ruleOf(def.reach, defaults);
+  if (def.target === undefined) {
+    throw new RangeError(`Spell ${name}: its reach is checked against its target, so it needs a target hook.`);
+  }
+
+  const rule = ruleOf(def.reach);
 
   checkRule(rule, name);
 

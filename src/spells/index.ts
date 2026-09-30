@@ -9,7 +9,6 @@ export {
   type Activation,
   type ActivationKindDef,
   type ActivationRegistry,
-  type AiActivation,
   type AutoActivation,
   type ButtonActivation,
   type ButtonCost,
@@ -19,10 +18,8 @@ export {
   type CoreActivation,
   defineActivationKind,
   defineActivations,
-  isAi,
   isButton,
   type PassiveActivation,
-  type TimelineDefaults,
   type TriggerActivation,
 } from './activation.ts';
 
@@ -85,7 +82,7 @@ export {
   type StatsSource,
 } from './spell-def.ts';
 
-export type { Reach, ReachDefaults, ReachRefusal } from './reach.ts';
+export type { Reach, ReachRefusal } from './reach.ts';
 export type { CastOptions, CastRefusal, CastReport, GateAnswer } from './cast-request.ts';
 export type { SpellHost } from './spell-host.ts';
 export type { ActivationKindId, ActivationShape, SpellCaster, SpellId, SpellTagId, SpellTypes } from './spell-types.ts';

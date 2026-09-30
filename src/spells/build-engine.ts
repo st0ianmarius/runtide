@@ -95,9 +95,7 @@ const resetsAfterCastOf = <G extends SpellTypes>(registry: SpellRegistry<G>): Ui
 export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): SpellEngine<G> => {
   const { registry } = options;
 
-  const plans = registry.defs.map((def, id) =>
-    def === undefined ? undefined : planOf(def, registry.activations, registry.names[id] ?? ''),
-  );
+  const plans = registry.defs.map((def, id) => (def === undefined ? undefined : planOf(def, registry.names[id] ?? '')));
 
   checkCues(options);
   checkReach(options, plans);

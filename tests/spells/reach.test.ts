@@ -70,12 +70,13 @@ describe('reach rules', () => {
     assert.equal(game.spells.cast(hero, game.id.glare, { input: game.unit(3) }).status, 'ended');
   });
 
-  it('take an ai activation’s range and sight, and the host’s point of a target', () => {
+  it('take the host’s point of a target', () => {
     const game = makeSpellGame(
       {
         bite: spell({
-          activation: { kind: 'ai', windup: 0, range: 2, sight: true },
+          activation: { kind: 'trigger' },
           target: atInput,
+          reach: { range: 2, sight: true },
           release: () => [mark('bite')],
         }),
       },
