@@ -437,3 +437,46 @@ describe('a limit of one and a count (no sort they do not need)', () => {
     );
   });
 });
+
+describe('a world that finds units by their entity id', () => {
+  it('answers as one keyed by unit, through adds and removes, and refuses an id idOf does not give', () => {
+    fc.assert(
+      fc.property(fc.array(fc.tuple(fc.boolean(), fc.integer({ min: 0, max: 300 })), { maxLength: 400 }), (steps) => {
+        const byId = createMemoryWorld<{ readonly id: number }>({ bounds: BOUNDS, idOf: (unit) => unit.id });
+        const plain = createMemoryWorld<{ readonly id: number }>({ bounds: BOUNDS });
+        const units = new Map<number, { readonly id: number }>();
+
+        for (const [isAdd, id] of steps) {
+          const unit = units.get(id) ?? { id };
+
+          units.set(id, unit);
+
+          if (isAdd && !plain.has(unit)) {
+            byId.add(unit, { id, at: vec2(id % 40, 0) });
+            plain.add(unit, { id, at: vec2(id % 40, 0) });
+          } else if (!isAdd) {
+            assert.equal(byId.remove(unit), plain.remove(unit));
+          }
+        }
+
+        const a: ({ readonly id: number } | undefined)[] = [];
+        const b: ({ readonly id: number } | undefined)[] = [];
+
+        assert.equal(byId.all({}, a), plain.all({}, b));
+        assert.deepEqual(a, b);
+        assert.ok([...units.values()].every((unit) => byId.has(unit) === plain.has(unit)));
+      })
+    );
+
+    const world = createMemoryWorld<{ readonly id: number }>({ bounds: BOUNDS, idOf: (unit) => unit.id });
+
+    assert.throws(() => {
+      world.add({ id: 3 }, { id: 4, at: vec2(0, 0) });
+    }, /idOf does not give/);
+    world.add({ id: 3 }, { id: 3, at: vec2(0, 0) });
+    assert.throws(() => {
+      world.add({ id: 3 }, { id: 3, at: vec2(0, 0) });
+    }, /already in the world/);
+    assert.equal(world.has({ id: 3 }), false);
+  });
+});

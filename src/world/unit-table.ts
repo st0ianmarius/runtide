@@ -1,4 +1,5 @@
 import type { Vec2 } from '../math/index.ts';
+import { IdSlots } from './id-slots.ts';
 
 /** What a unit is added to a memory world with. */
 export interface UnitSpec {
@@ -54,6 +55,15 @@ export class UnitTable<Unit> {
   readonly #slots = new Map<Unit, number>();
   readonly #free: number[] = [];
 
+  /** The game's entity id of a unit, when it gave one: slots are then found by id, not by the unit object. */
+  readonly #idOf: ((unit: Unit) => number) | undefined;
+  readonly #byId = new IdSlots();
+  #count = 0;
+
+  constructor(idOf?: (unit: Unit) => number) {
+    this.#idOf = idOf;
+  }
+
   /** How many slots exist, free ones included: every live slot is below it. */
   get span(): number {
     return this.units.length;
@@ -61,7 +71,7 @@ export class UnitTable<Unit> {
 
   /** How many units there are. */
   get size(): number {
-    return this.#slots.size;
+    return this.#count;
   }
 
   /** The current x of each slot. */
@@ -101,13 +111,7 @@ export class UnitTable<Unit> {
 
   /** Adds a unit and returns its slot; throws when it is already here. */
   add(unit: Unit, spec: UnitSpec): number {
-    if (this.#slots.has(unit)) {
-      throw new RangeError(`Unit ${spec.id} is already in the world.`);
-    }
-
-    if (!(Number.isInteger(spec.id) && spec.id >= 0 && spec.id < 2 ** 32)) {
-      throw new RangeError(`A unit's entity id is a whole number from 0 below 2^32; got ${spec.id}.`);
-    }
+    this.#checkNew(unit, spec.id);
 
     const slot = this.#free.pop() ?? this.units.length;
 
@@ -116,7 +120,14 @@ export class UnitTable<Unit> {
     }
 
     this.units[slot] = unit;
-    this.#slots.set(unit, slot);
+    this.#count += 1;
+
+    if (this.#idOf === undefined) {
+      this.#slots.set(unit, slot);
+    } else {
+      this.#byId.set(spec.id, slot);
+    }
+
     this.x[slot] = spec.at.x;
     this.z[slot] = spec.at.z;
     this.px[slot] = spec.at.x;
@@ -128,15 +139,38 @@ export class UnitTable<Unit> {
     return slot;
   }
 
+  /** Throws unless a unit may come in under an id: a whole id its `idOf` gives, neither already here. */
+  #checkNew(unit: Unit, id: number): void {
+    if (!(Number.isInteger(id) && id >= 0 && id < 2 ** 32)) {
+      throw new RangeError(`A unit's entity id is a whole number from 0 below 2^32; got ${id}.`);
+    }
+
+    const idOf = this.#idOf;
+
+    if (idOf !== undefined && idOf(unit) !== id) {
+      throw new RangeError(`Unit ${id} is added under an id its idOf does not give (${idOf(unit)}).`);
+    }
+
+    if (this.find(unit) >= 0 || (idOf !== undefined && this.#byId.get(id) >= 0)) {
+      throw new RangeError(`Unit ${id} is already in the world.`);
+    }
+  }
+
   /** Removes a unit and returns its old slot, or -1 when it was not here. */
   remove(unit: Unit): number {
-    const slot = this.#slots.get(unit);
+    const slot = this.find(unit);
 
-    if (slot === undefined) {
+    if (slot < 0) {
       return -1;
     }
 
-    this.#slots.delete(unit);
+    if (this.#idOf === undefined) {
+      this.#slots.delete(unit);
+    } else {
+      this.#byId.delete(this.id[slot] ?? -1);
+    }
+
+    this.#count -= 1;
     this.units[slot] = undefined;
     this.#free.push(slot);
 
@@ -145,14 +179,22 @@ export class UnitTable<Unit> {
 
   /** A unit's slot, or -1 when it is not here. */
   find(unit: Unit): number {
-    return this.#slots.get(unit) ?? -1;
+    const idOf = this.#idOf;
+
+    if (idOf === undefined) {
+      return this.#slots.get(unit) ?? -1;
+    }
+
+    const slot = this.#byId.get(idOf(unit));
+
+    return slot >= 0 && this.units[slot] === unit ? slot : -1;
   }
 
   /** A unit's slot; throws when it is not here. */
   slotOf(unit: Unit): number {
-    const slot = this.#slots.get(unit);
+    const slot = this.find(unit);
 
-    if (slot === undefined) {
+    if (slot < 0) {
       throw new RangeError('The unit is not in the world.');
     }
 

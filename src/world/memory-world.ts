@@ -36,6 +36,12 @@ export interface MemoryWorldOptions<Unit = unknown> {
    * (stealth against detection, a phased or untargetable unit, a spawn intro). Every unit may when absent.
    */
   readonly canTarget?: TargetRule<Unit>;
+
+  /**
+   * A unit's entity id, the one it is added under (`unit.id`): with it the world finds a unit's slot by its id, in a
+   * table of typed arrays, instead of by the unit object in a map: every position read and placement is cheaper.
+   */
+  readonly idOf?: (unit: Unit) => number;
 }
 
 /**
@@ -82,7 +88,7 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly clamp: (p: Vec2, radius?: number) => Vec2;
   readonly moveBody: (segment: readonly [Vec2, Vec2], radius: number) => BodyMove;
   readonly pickPoint: (pick: PointPick) => Vec2 | undefined;
-  readonly #table = new UnitTable<Unit>();
+  readonly #table: UnitTable<Unit>;
   readonly #index: PointIndex;
   readonly #canTarget: TargetRule<Unit> | undefined;
 
@@ -97,6 +103,7 @@ class World<Unit> implements MemoryWorld<Unit> {
 
   constructor(options: MemoryWorldOptions<Unit>) {
     this.#statics = new StaticGeometry(options.statics ?? []);
+    this.#table = new UnitTable<Unit>(options.idOf);
 
     const placement = new Placement(options.bounds, this.#statics);
 
