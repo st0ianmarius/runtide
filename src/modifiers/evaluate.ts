@@ -168,7 +168,8 @@ export const evaluateCurve = (curve: CompiledCurve, x: number, ctx: ScaledContex
     }
 
     case 'haste': {
-      return 100 / (100 + x);
+      // Negative haste slows as positive haste speeds: -100 doubles the time, never divides by zero.
+      return x >= 0 ? 100 / (100 + x) : 1 - x / 100;
     }
 
     case 'avoidance': {

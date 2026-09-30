@@ -63,7 +63,7 @@ export interface HyperbolicCurve<S extends string = string> {
   readonly negative: 'zero' | 'amplify';
 }
 
-/** `100 / (100 + x)`: League of Legends ability haste, applied to a duration. */
+/** `100 / (100 + x)`: League of Legends ability haste, applied to a duration; below 0, `1 - x / 100` (a slow). */
 export interface HasteCurve {
   /** The discriminant. */
   readonly kind: 'haste';

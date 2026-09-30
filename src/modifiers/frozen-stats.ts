@@ -11,6 +11,11 @@ export class FrozenStats implements StatView {
   readonly #bases: Float64Array;
   readonly #taken: Uint8Array;
 
+  /** How many stats it can hold: ids below it. */
+  get size(): number {
+    return this.#taken.length;
+  }
+
   constructor(size: number) {
     this.#totals = new Float64Array(size);
     this.#bases = new Float64Array(size);
@@ -56,5 +61,9 @@ export class FrozenStats implements StatView {
  * Freezes some stats of a view (a caster's, as its damage over time lands), into `into` when given (an aura's own
  * record, reused on a refresh), else a new one sized for the stats named.
  */
-export const freezeStats = (view: StatView, stats: readonly StatId[], into?: FrozenStats): FrozenStats =>
-  (into ?? new FrozenStats(Math.max(-1, ...stats) + 1)).take(view, stats);
+export const freezeStats = (view: StatView, stats: readonly StatId[], into?: FrozenStats): FrozenStats => {
+  const size = Math.max(-1, ...stats) + 1;
+
+  // A record too small for these stats (one reused from another aura's) is replaced, not overrun.
+  return (into !== undefined && into.size >= size ? into : new FrozenStats(size)).take(view, stats);
+};

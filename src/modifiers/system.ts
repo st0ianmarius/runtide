@@ -160,6 +160,11 @@ const tablesOf = <Host, S extends string, C extends string, V extends string, Sr
 const foldFor = <Host>(sheet: Sheet<Host>, stat: StatId, read: FoldRead<Host> | undefined): number => {
   const revision = revisionOf(sheet, read);
 
+  if (!Number.isNaN(revision) && read?.host !== sheet.stampHost) {
+    sheet.stamps.fill(Number.NaN);
+    sheet.stampHost = read?.host;
+  }
+
   if (sheet.stamps[stat] === revision) {
     return sheet.totals[stat] ?? 0;
   }

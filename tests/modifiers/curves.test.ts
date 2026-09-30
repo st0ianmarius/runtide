@@ -62,6 +62,8 @@ describe('the curve library', () => {
   it('haste is 100 / (100 + x), avoidance 1 / (1 / cap + k / p), stacking 1 − (1 − rate)^x', () => {
     assert.equal(at(hasteCurve(), 100), 0.5);
     assert.equal(at(hasteCurve(), 50), 0.6666666666666666);
+    assert.equal(at(hasteCurve(), -100), 2);
+    assert.equal(at(hasteCurve(), -300), 4);
     assert.equal(at(avoidance({ per: 20, cap: 0.6563, k: 0.956 }), 400), 0.1586371562398329);
     assert.equal(at(avoidance({ per: 20, cap: 0.6563, k: 0.956 }), 0), 0);
     assert.equal(at(stacking(0.3), 2), 0.51);

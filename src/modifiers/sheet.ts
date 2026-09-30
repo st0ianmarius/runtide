@@ -221,6 +221,9 @@ export class Sheet<Host> implements StatSheet {
   /** The host revision each kept total was folded at; NaN for none. */
   readonly stamps: Float64Array;
 
+  /** The host the kept totals were folded for: revisions count per host, so another host's may match by chance. */
+  stampHost: Host | undefined = undefined;
+
   readonly view: SheetView<Host>;
 
   constructor(tables: FoldTables<Host>, resolve: Resolve<Host>) {

@@ -193,8 +193,7 @@ const addDerived = <Host>(sheet: Sheet<Host>, stat: number, value: number): numb
     if (derivation?.kind === 'derives') {
       result += derivation.per * Math.max(0, derivedGain(sheet, derivation));
     } else if (derivation !== undefined) {
-      // A curve may read the bearer beyond its stats (a level table), so a converted stat is never kept.
-      sheet.readsHost = true;
+      // A curve reads only its input and stats (through the view, whose folds flag any host read themselves).
       result += evaluateCurve(derivation.curve, foldStat(sheet, derivation.from), sheet.view);
     }
   }

@@ -2,7 +2,15 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { defineConditions } from '../../src/conditions/index.ts';
-import { createModifierSystem, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
+import {
+  createModifierSystem,
+  defineSources,
+  defineStats,
+  freezeStats,
+  FrozenStats,
+  mul,
+  plus
+} from '../../src/modifiers/index.ts';
 
 /** A host: its gate stacks, a revision it moves when they change, a flag a condition reads, and a count of reads. */
 interface Host {
@@ -69,6 +77,25 @@ describe('kept totals', () => {
     assert.equal(modifiers.resolve(sheet, stats.id.speed, read), 7);
     assert.equal(modifiers.resolve(sheet, stats.id.speed, { host, whatIf: { gate: 0, stacks: 1 } }), 3.5);
     assert.equal(modifiers.resolve(sheet, stats.id.speed, read), 7);
+  });
+
+  it('fold again for another host whose revision happens to match', () => {
+    const { modifiers, sheet, read } = kept();
+    const other: Host = { stacks: 1, revision: 0, isEnraged: false, asked: 0 };
+
+    assert.equal(modifiers.resolve(sheet, stats.id.speed, read), 6);
+    assert.equal(modifiers.resolve(sheet, stats.id.speed, { host: other }), 3);
+    assert.equal(modifiers.resolve(sheet, stats.id.speed, read), 6);
+  });
+
+  it('freeze into a new record when the reused one is too small', () => {
+    const view = { total: (stat: number) => stat * 10, base: () => 0 };
+    const small = new FrozenStats(1);
+    const frozen = freezeStats(view, [stats.id.damage], small);
+
+    assert.notEqual(frozen, small);
+    assert.equal(frozen.total(stats.id.damage), 10);
+    assert.equal(freezeStats(view, [stats.id.speed], small), small);
   });
 
   it('never keep a total whose fold asked a condition', () => {
