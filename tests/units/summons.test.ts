@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { Vec2 } from '../../src/math/index.ts';
 import { escapeReport } from '../../src/procs/index.ts';
 import { castSpell, NO_CAST } from '../../src/spells/index.ts';
 import { despawn, despawnSummons, summon, type UnitDef } from '../../src/units/index.ts';
@@ -158,8 +159,19 @@ describe('summoning', () => {
     world.add(caster, { id: caster.id, at: { x: 10, z: 10 }, radius: 0.5, side: 1 });
 
     const around = summon<UnitGame>('add', {
-      atOf: (ctx) =>
-        world.pickPoint({ centre: world.positionOf(ctx.self), min: 2, max: 3, attempts: 8, random: ctx.random() }),
+      atOf: (ctx) => {
+        const centre = world.positionOf(ctx.self);
+        const random = ctx.random();
+
+        const sample = (): Vec2 => {
+          const heading = random() * 2 * Math.PI;
+          const distance = 2 + random();
+
+          return { x: centre.x + Math.sin(heading) * distance, z: centre.z + Math.cos(heading) * distance };
+        };
+
+        return world.pickPoint({ attempts: 8, sample });
+      },
     });
 
     procs.apply(around, { self: caster });

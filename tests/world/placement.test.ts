@@ -62,44 +62,33 @@ describe('moveBody: a body swept against static geometry', () => {
   });
 });
 
-describe('pickPoint: sample and score', () => {
-  it('draws twice per attempt, keeps samples in the annulus and the arc, and returns the first that passes', () => {
-    let draws = 0;
-    const random = stream(7);
-
-    const counted = (): number => {
-      draws += 1;
-
-      return random();
-    };
+describe('pickPoint: the game’s samples, cleared, filtered and scored', () => {
+  it('asks the sampler once per attempt, skips a candidate not clear, filtered or missing, and keeps the first that passes', () => {
+    const candidates = [undefined, vec2(5.5, 0), vec2(3, 0), vec2(1, 0), vec2(0, 1)];
+    const asked: number[] = [];
 
     const picked = world.pickPoint({
-      centre: vec2(0, 0),
-      min: 2,
-      max: 4,
-      dir: 0,
-      half: 0.5,
-      attempts: 5,
-      random: counted,
+      attempts: candidates.length,
+      filter: (p) => p.x < 2,
+
+      sample: (attempt) => {
+        asked.push(attempt);
+
+        return candidates[attempt];
+      },
     });
 
-    assert.ok(picked !== undefined);
-    assert.equal(draws, 2);
-
-    const d = Math.hypot(picked.x, picked.z);
-
-    assert.ok(d >= 2 && d <= 4);
-    assert.ok(Math.abs(Math.atan2(picked.x, picked.z)) <= 0.5 + 1e-12);
+    assert.deepEqual(picked, vec2(1, 0));
+    assert.deepEqual(asked, [0, 1, 2, 3]);
   });
 
-  it('keeps the best score over every attempt, the first on ties', () => {
+  it('keeps the best score over every attempt, the first on ties, and needs its clearance', () => {
+    const random = stream(11);
     const seen: Vec2[] = [];
 
     const picked = world.pickPoint({
-      centre: vec2(0, 0),
-      max: 3,
       attempts: 6,
-      random: stream(11),
+      sample: () => vec2(random() * 6 - 3, random() * 6 - 3),
 
       score: (p) => {
         seen.push(p);
@@ -110,25 +99,7 @@ describe('pickPoint: sample and score', () => {
 
     assert.equal(seen.length, 6);
     assert.equal(picked?.x, Math.max(...seen.map((p) => p.x)));
-  });
-
-  it('walks a blocked sample back toward the centre, and gives up when no attempt is clear', () => {
-    const inWall = {
-      centre: vec2(0, 0),
-      min: 5.5,
-      max: 5.5,
-      dir: Math.PI / 2,
-      half: 0,
-      attempts: 3,
-      random: stream(3),
-    };
-
-    assert.equal(world.pickPoint(inWall), undefined);
-
-    const walked = world.pickPoint({ ...inWall, walkBack: { step: 1, steps: 2 } });
-
-    close(walked?.x ?? 0, 4.5);
-    assert.equal(world.pickPoint({ ...inWall, walkBack: { step: 1, steps: 2 }, filter: (p) => p.x < 4 }), undefined);
+    assert.equal(world.pickPoint({ attempts: 3, clearance: 1, sample: () => vec2(4.5, 0) }), undefined);
   });
 });
 

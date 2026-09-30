@@ -1,4 +1,3 @@
-import type { Random } from '../core/index.ts';
 import type { Box, Shape, Vec2 } from '../math/index.ts';
 
 /** Which units a query keeps, relative to the unit it asks for (`of`): its foes, its allies, or every unit. */
@@ -107,48 +106,24 @@ export interface BodyMove {
 }
 
 /**
- * How a point is picked: samples in an annulus (and optionally an arc) around a centre, each walked back
- * toward the centre while it is not clear, filtered and scored; the best of the attempts wins.
+ * How a point is picked: the game's sampler draws a candidate per attempt (its own annulus, arc, walk-back or
+ * pattern), which must be clear of static geometry by `clearance`, pass the filter, and score; the best wins.
  */
 export interface PointPick {
-  /** The centre sampled around. */
-  readonly centre: Vec2;
+  /** The candidate of one attempt, from 0; `undefined` skips it. */
+  readonly sample: (attempt: number) => Vec2 | undefined;
 
-  /** The inner radius of the annulus; 0 by default. */
-  readonly min?: number;
-
-  /** The outer radius of the annulus. */
-  readonly max: number;
-
-  /** The heading the arc faces; a full circle when absent. */
-  readonly dir?: number;
-
-  /** The arc's half-angle, in radians; a full circle when absent. */
-  readonly half?: number;
-
-  /** The clearance a sample needs from static geometry (`isPositionClear`); 0 by default. */
-  readonly clearance?: number;
-
-  /** A blocked sample walks back toward the centre by this much a step, up to `steps` times; none by default. */
-  readonly walkBack?: {
-    /** The distance per step. */
-    readonly step: number;
-
-    /** The most steps. */
-    readonly steps: number;
-  };
-
-  /** A condition a sample must meet. */
-  readonly filter?: (point: Vec2) => boolean;
-
-  /** A score, highest wins (the first highest on ties); without one, the first sample that passes wins. */
-  readonly score?: (point: Vec2) => number;
-
-  /** How many samples are drawn; each draws twice. */
+  /** How many attempts are made. */
   readonly attempts: number;
 
-  /** The source the samples draw from. */
-  readonly random: Random;
+  /** The clearance a candidate needs from static geometry (`isPositionClear`); 0 by default. */
+  readonly clearance?: number;
+
+  /** A condition a candidate must meet. */
+  readonly filter?: (point: Vec2) => boolean;
+
+  /** A score, highest wins (the first highest on ties); without one, the first candidate that passes wins. */
+  readonly score?: (point: Vec2) => number;
 }
 
 /**
@@ -215,7 +190,7 @@ export interface WorldQuery<Unit> {
   /** Moves a body of `radius` from `from` toward `to` until it touches static geometry or the bounds. */
   readonly moveBody: (segment: readonly [Vec2, Vec2], radius: number) => BodyMove;
 
-  /** Picks a point by sampling and scoring; `undefined` when no sample passed. */
+  /** Picks a point from the game's samples, clear, filtered and scored; `undefined` when none passed. */
   readonly pickPoint: (pick: PointPick) => Vec2 | undefined;
 
   /** The names of the game's own query extensions, for the escape report. */

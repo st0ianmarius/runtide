@@ -60,18 +60,22 @@ export class Placement {
   };
 
   /**
-   * Picks a point: each attempt draws an angle and a distance (area-uniform in the annulus), walks the
-   * sample back toward the centre while it is not clear, then filters and scores it; the highest score wins, the first
-   * on ties, and without a score the first sample that passes. `undefined` when none did.
+   * Picks a point: each attempt's candidate from the game's sampler, kept when it is clear by the clearance and passes
+   * the filter; the highest score wins, the first on ties, and without a score the first candidate that passes.
+   * `undefined` when none did.
    */
   readonly pickPoint = (pick: PointPick): Vec2 | undefined => {
     let best: Vec2 | undefined = undefined;
     let bestScore = Number.NEGATIVE_INFINITY;
 
     for (let attempt = 0; attempt < pick.attempts; attempt++) {
-      const sample = this.#clearSample(pick);
+      const sample = pick.sample(attempt);
 
-      if (sample === undefined || pick.filter?.(sample) === false) {
+      if (
+        sample === undefined ||
+        !this.isPositionClear(sample, pick.clearance ?? 0) ||
+        pick.filter?.(sample) === false
+      ) {
         continue;
       }
 
@@ -89,30 +93,6 @@ export class Placement {
 
     return best;
   };
-
-  /** One sample, walked back toward the centre until it is clear; `undefined` when it never is. */
-  #clearSample(pick: PointPick): Vec2 | undefined {
-    const min = pick.min ?? 0;
-    const turn = pick.random();
-    const reach = pick.random();
-    const half = pick.half ?? Math.PI;
-    const heading = (pick.dir ?? 0) + (turn * 2 - 1) * half;
-    const distance = Math.sqrt(min * min + reach * (pick.max * pick.max - min * min));
-    const sin = Math.sin(heading);
-    const cos = Math.cos(heading);
-    const steps = pick.walkBack?.steps ?? 0;
-
-    for (let step = 0; step <= steps; step++) {
-      const d = Math.max(0, distance - step * (pick.walkBack?.step ?? 0));
-      const sample = { x: pick.centre.x + sin * d, z: pick.centre.z + cos * d };
-
-      if (this.isPositionClear(sample, pick.clearance ?? 0)) {
-        return sample;
-      }
-    }
-
-    return undefined;
-  }
 
   /** The share at which a body's centre leaves the bounds inset by its radius (0 when it starts outside, 1 if never). */
   #boundsExit([from, to]: readonly [Vec2, Vec2], radius: number): number {
