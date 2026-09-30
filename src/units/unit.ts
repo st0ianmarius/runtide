@@ -82,8 +82,11 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   /** Whether a lifecycle move of it is running its hooks and events. */
   isMoving = false;
 
-  /** A move a hook asked for while one ran (a revive from a death's `onState`), made once that one is done. */
-  nextMove: readonly [Lifecycle, number | undefined, string | undefined] | undefined = undefined;
+  /**
+   * The moves hooks asked for while one ran (a revive from a death's `onState`, a corpse despawn from a listener), made
+   * in order once it is done, each checked again then.
+   */
+  readonly nextMoves: (readonly [Lifecycle, number | undefined, string | undefined])[] = [];
   health = 0;
 
   /** The maximum health the resource policy last saw. */

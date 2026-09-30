@@ -132,7 +132,11 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
     joinOwner(unit);
     raiseSpawned(engine, unit, spawn.at);
-    attachScript(engine, [unit, spawn.script]);
+
+    // A `spawned` listener that despawned it at once (a refused spawn point) leaves nothing to attach.
+    if (unitOf<G>(unit).lifecycle === 'alive') {
+      attachScript(engine, [unit, spawn.script]);
+    }
 
     return unit;
   };

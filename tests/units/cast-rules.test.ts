@@ -61,10 +61,24 @@ describe('states interrupting casts', () => {
     const tags = defineAuraTags(['stun']);
 
     const many = Object.fromEntries(
-      Array.from({ length: 32 }, (_unused, i) => [`s${i}`, { tags: ['stun' as const], interrupt: 'stun' as const }])
+      Array.from({ length: 32 }, (_unused, i) => [`s${i}`, { tags: ['stun' as const], interrupt: `r${i}` }])
     );
 
     assert.throws(() => defineUnitStates(tags, many), /At most 31 unit states may raise interrupts/);
+  });
+
+  it('raise a reason two states share while either holds', () => {
+    const tags = defineAuraTags(['freeze', 'sleep']);
+
+    const states = defineUnitStates(tags, {
+      frozen: { tags: ['freeze'], interrupt: 'freeze' },
+      asleep: { tags: ['sleep'], interrupt: 'freeze' }
+    });
+
+    const [only] = states.interrupting;
+
+    assert.equal(states.interrupting.length, 1);
+    assert.deepEqual([only?.tags.has(tags.id.freeze), only?.tags.has(tags.id.sleep)], [true, true]);
   });
 });
 

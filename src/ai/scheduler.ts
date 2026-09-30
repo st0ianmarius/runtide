@@ -37,7 +37,7 @@ export class Scheduler<G extends AiTypes> {
     return this.#brains.length - this.#free.length;
   }
 
-  /** How many brain records were ever made. */
+  /** How many brain slots were ever made. */
   get created(): number {
     return this.#brains.length;
   }
@@ -68,7 +68,7 @@ export class Scheduler<G extends AiTypes> {
   release(unit: G['bearer']): boolean {
     const brain = brainOf(unit.brain);
 
-    if (this.#isLive[brain.slot] !== true) {
+    if (!this.#isLiveBrain(brain)) {
       return false;
     }
 
@@ -82,9 +82,16 @@ export class Scheduler<G extends AiTypes> {
     brain.focus = -1;
     this.#owners[brain.slot] = undefined;
     this.#isLive[brain.slot] = false;
+    // The slot's next brain is a new record, so a late call through the freed unit's `brain` reaches nothing live.
+    this.#brains[brain.slot] = new Brain(brain.slot, this.#timers);
     this.#free.push(brain.slot);
 
     return true;
+  }
+
+  /** Whether a brain is the live one of its slot, not a freed unit's old record. */
+  #isLiveBrain(brain: Brain): boolean {
+    return this.#isLive[brain.slot] === true && this.#brains[brain.slot] === brain;
   }
 
   /** Starts a timer (again): due `seconds` from now, or when its brain is released if it is held. */
@@ -157,7 +164,7 @@ export class Scheduler<G extends AiTypes> {
   hold(unit: G['bearer'], change: { readonly bits: number; readonly isOn: boolean }): boolean {
     const brain = brainOf(unit.brain);
 
-    if (this.#isLive[brain.slot] !== true) {
+    if (!this.#isLiveBrain(brain)) {
       return false;
     }
 
@@ -178,7 +185,7 @@ export class Scheduler<G extends AiTypes> {
   setFocus(unit: G['bearer'], focus: number): void {
     const brain = brainOf(unit.brain);
 
-    if (this.#isLive[brain.slot] === true) {
+    if (this.#isLiveBrain(brain)) {
       brain.focus = focus;
     }
   }
@@ -240,7 +247,7 @@ export class Scheduler<G extends AiTypes> {
       throw new RangeError(`Timer ${timer} is not one of the system's ${this.#timers}.`);
     }
 
-    if (this.#isLive[brain.slot] !== true) {
+    if (!this.#isLiveBrain(brain)) {
       return undefined;
     }
 

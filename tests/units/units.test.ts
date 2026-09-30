@@ -185,6 +185,49 @@ describe('a move asked for during a move', () => {
   });
 });
 
+describe('moves asked for during a move, in order', () => {
+  it('runs every one in turn, each checked then: a revive, then a corpse despawn a listener asked for', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const { units, auras } = game;
+    const hero = units.spawn(game.id.hero, { side: 0 });
+
+    auras.apply(hero, auraId('lastStand'));
+    game.on('changed', (event) => {
+      if (event.to === 'dead' && event.unit !== undefined) {
+        units.despawn(event.unit);
+      }
+    });
+    assert.equal(units.kill(hero), true);
+    assert.equal(hero.lifecycle, 'despawned');
+  });
+
+  it('refuses a revive health that is not a finite number above 0', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const hero = game.units.spawn(game.id.hero, { side: 0 });
+
+    game.units.kill(hero);
+
+    for (const health of [0, -5, Number.NaN]) {
+      assert.throws(() => game.units.revive(hero, health), /finite health above 0/);
+    }
+  });
+
+  it('sets up nothing more for a unit its own spawned listener despawned', () => {
+    const game = makeUnitGame(TEMPLATES);
+
+    game.on('spawned', (event) => {
+      if (event.unit !== undefined) {
+        game.units.despawn(event.unit);
+      }
+    });
+
+    const grunt = game.units.spawn(game.id.grunt, { side: 1 });
+
+    assert.equal(grunt.lifecycle, 'despawned');
+    assert.equal(grunt.scriptSlot, -1);
+  });
+});
+
 describe('bearer states on the lifecycle', () => {
   it("lets a unit's auras hear its death however it dies, and its despawn, before those removed on it go", () => {
     const game = makeUnitGame(TEMPLATES);

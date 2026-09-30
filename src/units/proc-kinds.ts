@@ -114,7 +114,8 @@ const spawnSummon = <G extends UnitTypes>(
   const { spells } = parts.engine.options;
   const cast = spells.castFor(ctx);
 
-  if (cast !== NO_CAST && spells.retain(cast)) {
+  // A summon its own `spawned` listeners despawned holds nothing.
+  if (cast !== NO_CAST && unitOf<G>(unit).lifecycle === 'alive' && spells.retain(cast)) {
     unitOf<G>(unit).cast = cast;
   }
 };
@@ -161,7 +162,8 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
   targetOf: (proc) => proc.to ?? 'self',
 
   apply: (proc, ctx, owner) => {
-    if (owner === undefined) {
+    // A late list (an `after` from a caster gone since) summons nothing for an owner out of play.
+    if (owner === undefined || unitOf<G>(owner).lifecycle !== 'alive') {
       return PROC_SKIPPED;
     }
 

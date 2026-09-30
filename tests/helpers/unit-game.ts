@@ -318,6 +318,9 @@ export interface UnitTestGame<Name extends string, Extra extends string = never>
 
   /** What happened: every unit event, death and kill, as lines. */
   readonly log: string[];
+
+  /** Listens to a unit event, after the log's own listeners. */
+  readonly on: (kind: 'spawned' | 'changed' | 'despawned', listener: (event: UnitEvent<UnitGame>) => void) => void;
 }
 
 /**
@@ -501,7 +504,11 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     scripts,
     id: registry.id,
     spellId: spellRegistry.id,
-    log
+    log,
+
+    on: (kind, listener) => {
+      bus.on(bus.kind[kind], listener);
+    }
   };
 };
 

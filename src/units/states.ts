@@ -24,7 +24,7 @@ export interface UnitStateDef<T extends string = string, I extends string = stri
 
 /** A state that raises an interrupt: its aura tags and the interrupt. */
 export interface InterruptingState<I extends string = string> {
-  /** Its aura tags. */
+  /** The aura tags of every state raising it. */
   readonly tags: Bitset;
 
   /** The interrupt it raises. */
@@ -103,11 +103,21 @@ export const defineUnitStates = <T extends string, const Name extends string, co
     throw new Error('A unit state table lost a state while it was built.');
   }
 
-  const interrupting = names.flatMap((name): InterruptingState<I>[] => {
+  // One entry per reason, over every state raising it: a stun and a sleep that both freeze hold it until both end.
+  const byReason = new Map<I, Bitset>();
+
+  for (const name of names) {
     const reason = states[name].interrupt;
 
-    return reason === undefined ? [] : [{ tags: tags[name], reason }];
-  });
+    if (reason !== undefined) {
+      const bits = byReason.get(reason) ?? createBitset();
+
+      bits.union(tags[name]);
+      byReason.set(reason, bits);
+    }
+  }
+
+  const interrupting = [...byReason].map(([reason, bits]): InterruptingState<I> => ({ tags: bits, reason }));
 
   if (interrupting.length > MAX_INTERRUPTING) {
     throw new RangeError(`At most ${MAX_INTERRUPTING} unit states may raise interrupts; got ${interrupting.length}.`);

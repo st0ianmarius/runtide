@@ -119,8 +119,8 @@ const despawned = <G extends UnitTypes>(
  * `removedOn` it go: a death burst is an aura's `onState` of `dead`), leaves its owner's summons and takes its bound
  * summons along; a revive sets health (the maximum by default) and rejoins its owner's summons, if its owner lives. Raises `changed`, or `despawned` with its
  * reason for a despawn, which also forgets the unit's entity id and frees its brain. A move asked for from its hooks or
- * events (a revive from a death's `onState`) waits until this one is done, so its events follow this one's. False
- * when the move is not allowed.
+ * events (a revive from a death's `onState`) waits until this one is done, so its events follow this one's; such
+ * moves run in the order asked, each checked when its turn comes. False when the move is not allowed.
  */
 export const moveTo = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -130,14 +130,18 @@ export const moveTo = <G extends UnitTypes>(
   const unit = unitOf<G>(bearer);
   const from = unit.lifecycle;
 
-  if (!MOVES[from].includes(to)) {
-    return false;
+  if (to === 'alive') {
+    checkHealth(health);
   }
 
   if (unit.isMoving) {
-    unit.nextMove = [to, health, reason];
+    unit.nextMoves.push([to, health, reason]);
 
     return true;
+  }
+
+  if (!MOVES[from].includes(to)) {
+    return false;
   }
 
   unit.isMoving = true;
@@ -149,14 +153,23 @@ export const moveTo = <G extends UnitTypes>(
     unit.isMoving = false;
   }
 
-  const next = unit.nextMove;
+  // Each asked-for move is checked when its turn comes: a despawn queued after a revive still despawns.
+  while (unit.nextMoves.length > 0 && !unit.isMoving) {
+    const next = unit.nextMoves.shift();
 
-  if (next !== undefined) {
-    unit.nextMove = undefined;
-    moveTo(engine, bearer, next);
+    if (next !== undefined) {
+      moveTo(engine, bearer, next);
+    }
   }
 
   return true;
+};
+
+/** Throws unless a revive's health is absent or a finite number above 0. */
+const checkHealth = (health: number | undefined): void => {
+  if (health !== undefined && !(Number.isFinite(health) && health > 0)) {
+    throw new RangeError(`A unit revives with a finite health above 0; got ${health}.`);
+  }
 };
 
 /** Runs a move's work and events: what joining life, or leaving it, does. */

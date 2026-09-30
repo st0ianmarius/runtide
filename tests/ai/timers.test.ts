@@ -112,6 +112,21 @@ describe('named timers (EventMap)', () => {
     assert.deepEqual(fired, [`pick@${c.id}@1`]);
   });
 
+  it('keep a late call through a despawned unit off the brain its slot went to next', () => {
+    const { ai, units, id, a, fired, tick } = timed();
+
+    units.despawn(a);
+
+    const c = units.spawn(id.grunt, { side: 1 });
+
+    ai.start(c, TIMERS.id.pick, 0.125);
+    ai.start(a, TIMERS.id.raise, 0.125);
+    ai.setFocus(a, 7);
+    assert.equal(ai.hold(a, 'intro', true), false);
+    tick(2);
+    assert.deepEqual([fired, ai.focusOf(c)], [[`pick@${c.id}@1`], -1]);
+  });
+
   it('fire once for a timer started again for the same tick, and not early for a reused brain’s later start', () => {
     const { ai, units, id, a, fired, tick } = timed();
 
