@@ -227,6 +227,10 @@ export class DamageEngine<G extends DamageTypes> {
     const list = this.lists.take();
     const count = this.auras.collect(unit, walk.hook, list);
 
+    if (walk.order !== undefined && count > 1) {
+      orderBy(list, [walk.order, count]);
+    }
+
     try {
       for (let i = 0; i < count; i++) {
         const aura = list[i];
@@ -327,9 +331,30 @@ export interface HookWalk<G extends DamageTypes, S> {
   /** The unit whose auras are walked, or `undefined` to walk none. */
   readonly unit: (subject: S) => G['bearer'] | undefined;
 
+  /** Each aura's place in the walk, by aura id, lower first (registry order on ties); registry order when absent. */
+  readonly order?: ArrayLike<number>;
+
   /** The subject's other unit, which the hooks' context and procs name `other`; none when absent. */
   readonly other?: (subject: S) => G['bearer'] | undefined;
 
   /** The step for one aura; true stops the walk. */
   readonly step: (subject: S, aura: ActiveAura<G>, ctx: AuraContext<G>) => boolean;
 }
+
+/** Sorts the first `count` auras of a walk's list by their place, stably (insertion: the lists are short). */
+const orderBy = <G extends DamageTypes>(
+  list: (ActiveAura<G> | undefined)[],
+  [order, count]: readonly [ArrayLike<number>, number],
+): void => {
+  for (let i = 1; i < count; i++) {
+    const aura = list[i];
+    const place = order[aura?.id ?? 0] ?? 0;
+    let j = i - 1;
+
+    for (; j >= 0 && (order[list[j]?.id ?? 0] ?? 0) > place; j--) {
+      list[j + 1] = list[j];
+    }
+
+    list[j + 1] = aura;
+  }
+};

@@ -5,12 +5,18 @@ import type { AuraTypes } from './aura-types.ts';
  * What an `onIncomingDamage` hook does to a blow (WoW's absorb and damage-taken aura effects). The damage pipeline
  * applies the changes of each aura in registry order.
  */
-export interface BlowChange {
+export interface BlowChange<Proc = unknown> {
   /** Damage this aura takes out of the blow (an absorb spends its `value` by the same amount). */
   readonly absorb?: number;
 
   /** A factor the remaining damage is multiplied by. */
   readonly scale?: number;
+
+  /**
+   * Procs to run once the change is applied, credited to the aura: the share of a redirected blow dealt to its new
+   * target (a guardian taking a cut for its ward), a retaliation.
+   */
+  readonly procs?: readonly Proc[];
 }
 
 /** What an `onOutgoingDamage` hook does to a blow its bearer deals. */
@@ -61,8 +67,14 @@ export interface AuraDamageHooks<G extends AuraTypes> {
    */
   readonly onOutgoingDamage?: (ctx: AuraContext<G>, blow: G['blow']) => OutgoingChange | undefined;
 
-  /** The absorb stage: changes the blow, or `undefined` to leave it alone. */
-  readonly onIncomingDamage?: (ctx: AuraContext<G>, blow: G['blow']) => BlowChange | undefined;
+  /**
+   * The absorb stage: changes the blow, or `undefined` to leave it alone. The bearer's auras answer in their
+   * `incomingOrder`, then registry order: reductions before absorbs, and absorbs in the order the game gives them.
+   */
+  readonly onIncomingDamage?: (ctx: AuraContext<G>, blow: G['blow']) => BlowChange<G['proc']> | undefined;
+
+  /** Where its `onIncomingDamage` answers among its bearer's: lower first, 0 when absent. */
+  readonly incomingOrder?: number;
 
   /** The lethal stage: prevents the death, or `undefined` to let it happen. It runs for true damage too. */
   readonly onLethal?: (ctx: AuraContext<G>, blow: G['blow']) => LethalOutcome<G['proc']> | undefined;

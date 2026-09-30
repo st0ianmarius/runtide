@@ -149,6 +149,10 @@ const checkRules = <G extends AuraTypes>(name: string, def: AuraDef<G>): void =>
 const checkDef = <G extends AuraTypes>(name: string, def: AuraDef<G>): void => {
   checkRules(name, def);
 
+  if (!Number.isFinite(def.incomingOrder ?? 0)) {
+    throw new RangeError(`Aura ${name}: incomingOrder must be a finite number.`);
+  }
+
   if (!isSoundDuration(def.duration) || !Number.isFinite(def.value ?? 0)) {
     throw new RangeError(`Aura ${name}: duration must be seconds from 0, 'infinite' or a function; value finite.`);
   }

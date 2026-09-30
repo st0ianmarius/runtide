@@ -76,6 +76,11 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
   const target = (blow: BlowRecord<G>): G['bearer'] => blow.target;
   const attacker = (blow: BlowRecord<G>): G['bearer'] | undefined => blow.attacker;
   const applyChange = changeApplier(engine);
+  const { defs } = engine.auras.registry;
+
+  const incomingOrder = defs.some((def) => (def?.incomingOrder ?? 0) !== 0)
+    ? Float64Array.from(defs, (def) => def?.incomingOrder ?? 0)
+    : undefined;
 
   return {
     ignore: {
@@ -105,12 +110,14 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
       hook: 'onIncomingDamage',
       unit: target,
       other: attacker,
+      ...(incomingOrder === undefined ? {} : { order: incomingOrder }),
 
       step: (blow, aura, ctx) => {
         const change = hooks.onIncomingDamage[aura.id]?.(ctx, blow);
 
         if (change !== undefined) {
           applyChange(blow, aura, change);
+          engine.runProcs(change.procs, ctx);
         }
 
         return blow.amount <= 0;

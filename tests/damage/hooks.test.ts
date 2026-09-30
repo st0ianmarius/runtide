@@ -187,6 +187,39 @@ describe('the lethal stage (onLethal)', () => {
   });
 });
 
+describe('the order of the incoming hooks', () => {
+  it('runs reductions before absorbs by their incomingOrder, whatever their ids, and runs a change’s procs', () => {
+    const { damage, auras, id, unit } = makeDamageGame({
+      shield: aura({
+        duration: 10,
+        value: 20,
+        incomingOrder: 1,
+        onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) }),
+      }),
+      stoneskin: aura({ duration: 10, incomingOrder: -1, onIncomingDamage: () => ({ scale: 0.5 }) }),
+      link: aura({
+        duration: 10,
+        incomingOrder: 2,
+
+        onIncomingDamage: (_ctx, blow) => ({
+          scale: 0.5,
+          procs: [heal(blow.amount / 2, { to: 'other' })],
+        }),
+      }),
+    });
+
+    const [target, attacker] = [unit(1), unit(2)];
+
+    attacker.hp = 50;
+    auras.apply(target, id.shield);
+    auras.apply(target, id.stoneskin);
+    auras.apply(target, id.link);
+    assert.equal(damage.hit({ target, attacker, amount: 60 }).amount, 5);
+    assert.equal(attacker.hp, 55);
+    assert.throws(() => makeDamageGame({ bad: aura({ duration: 1, incomingOrder: Number.NaN }) }), /incomingOrder/);
+  });
+});
+
 describe('the attacker’s onDealt hooks', () => {
   it('run after health for a blow that was dealt, their procs credited to the aura', () => {
     const { damage, auras, id, unit } = makeDamageGame(AURAS);
