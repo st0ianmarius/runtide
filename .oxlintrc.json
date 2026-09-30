@@ -1,14 +1,11 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  // Every project style and safety rule that oxlint can hold: its native rules (the type-aware ones run on tsgolint, built on
-  // TypeScript 7's native compiler), plus the project rules in oxlint-plugin.js for what it has no native rule for.
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "import"],
   "jsPlugins": ["./oxlint-plugin.js"],
   "categories": { "correctness": "error" },
   "options": { "typeAware": true, "reportUnusedDisableDirectives": "error" },
   "ignorePatterns": ["dist/", "coverage/", "node_modules/"],
   "rules": {
-    // Style and size.
     "curly": ["error", "all"],
     "eqeqeq": ["error", "always"],
     "prefer-const": "error",
@@ -33,12 +30,8 @@
     "spellweave/export-order": "error",
     "spellweave/naming": "error",
     "spellweave/export-docs": "error",
-    // Developer strings, never shown to players: a registry's lookup of the name an id was registered under.
     "spellweave/presentation-fields": ["error", { "allow": ["Registry.name"] }],
 
-    // Modern syntax (ES2024, the newest year Node 22, the evergreen browsers and TypeScript 7 all support): the rules
-    // that point at a newer form of the same code. Hot paths keep indexed loops, so there is no rule against them, and
-    // `| 0` stays the int32 wrap that hashing needs, so `unicorn/prefer-math-trunc` (which would change it) is off.
     "prefer-object-has-own": "error",
     "prefer-spread": "error",
     "prefer-rest-params": "error",
@@ -89,7 +82,6 @@
     "unicorn/throw-new-error": "error",
     "typescript/prefer-optional-chain": "error",
 
-    // Determinism and isolation.
     "no-restricted-imports": [
       "error",
       { "patterns": [{ "regex": "^(@swarm/|swarm(/|$))", "message": "Never swarm or any of its packages." }] }
@@ -111,7 +103,6 @@
       }
     ],
 
-    // Type safety: typescript-eslint's strict and stylistic type-checked presets, as far as oxlint has them.
     "typescript/consistent-type-imports": ["error", { "fixStyle": "inline-type-imports" }],
     "typescript/explicit-module-boundary-types": "error",
     "typescript/switch-exhaustiveness-check": [
@@ -141,7 +132,6 @@
     "typescript/no-extra-non-null-assertion": "error",
     "typescript/no-for-in-array": "error",
     "typescript/no-implied-eval": "error",
-    // `this: void` marks a hook written as a method (for its bivariant parameters) as callable detached.
     "typescript/no-invalid-void-type": ["error", { "allowAsThisParameter": true }],
     "typescript/no-meaningless-void-operator": "error",
     "typescript/no-misused-promises": "error",
@@ -200,7 +190,6 @@
   },
   "overrides": [
     {
-      // src/ runs anywhere: no Node built-in, no import from tests or benchmarks, no Node or DOM globals.
       "files": ["src/**/*.ts"],
       "rules": {
         "import/no-nodejs-modules": "error",
@@ -236,7 +225,6 @@
       }
     },
     {
-      // Adapter modules and branded-id constructors: the only files that may cast.
       "files": ["src/**/*-adapter.ts", "src/**/ids.ts"],
       "rules": { "typescript/consistent-type-assertions": "off" }
     },
@@ -245,8 +233,6 @@
       "rules": { "max-lines-per-function": "off", "max-lines": "off" }
     },
     {
-      // Tooling in plain JavaScript: an oxlint plugin needs a default export, and without types every type-aware rule is
-      // noise, so they are all off here.
       "files": ["*.js"],
       "rules": {
         "import/no-default-export": "off",
