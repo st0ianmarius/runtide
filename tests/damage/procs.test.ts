@@ -78,10 +78,9 @@ describe('the damage proc', () => {
   it('explains itself as data', () => {
     const game = makeDamageGame({});
 
-    assert.deepEqual(explainProc(game.procs, fire(12, { knock: 2 })).values, {
+    assert.deepEqual(explainProc(game.procs, fire(12)).values, {
       amount: 12,
       damageKind: game.damage.kinds.id.fire,
-      knock: 2,
     });
   });
 });

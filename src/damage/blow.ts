@@ -38,13 +38,10 @@ export interface BlowSpec<G extends DamageTypes> {
   /** Its damage kind; the table's first kind when absent. */
   readonly kind?: DamageKindId | undefined;
 
-  /** The point it comes from, for impact and knock direction. */
+  /** The point it comes from, for impact and a game's knockback. */
   readonly from?: Vec2 | undefined;
 
-  /** The strength of the knockback it carries; 0 (none) when absent. */
-  readonly knock?: number | undefined;
-
-  /** The direction it travels (a projectile's heading, a sideways sweep), which its knockback takes when given. */
+  /** The direction it travels (a projectile's heading, a sideways sweep), for a game's knockback and its cues. */
   readonly direction?: Vec2 | undefined;
 
   /**
@@ -93,9 +90,6 @@ export interface Blow<G extends DamageTypes> extends ProcOutcome {
   /** The point it comes from, if given. */
   readonly from: Vec2 | undefined;
 
-  /** The strength of its knockback; 0 for none. */
-  readonly knock: number;
-
   /** The direction it travels, if given. */
   readonly direction: Vec2 | undefined;
 
@@ -116,9 +110,6 @@ export interface Blow<G extends DamageTypes> extends ProcOutcome {
 
   /** The damage a prevented death did not deal. */
   readonly prevented: number;
-
-  /** Whether an absorb hook cancelled its knockback. */
-  readonly isKnockCancelled: boolean;
 
   /** How it ended; `landed` while it runs, until a stage ends it. */
   readonly status: BlowStatus;
@@ -152,7 +143,6 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   base = 0;
   amount = 0;
   from: Vec2 | undefined = undefined;
-  knock = 0;
   direction: Vec2 | undefined = undefined;
   skips: readonly string[] = NO_SKIPS;
   outcome: string | undefined = undefined;
@@ -160,7 +150,6 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   mitigated = 0;
   absorbed = 0;
   prevented = 0;
-  isKnockCancelled = false;
   status: BlowStatus = 'landed';
   healthBefore = 0;
   healthAfter = 0;
@@ -187,7 +176,6 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
     this.base = spec.amount;
     this.amount = spec.amount;
     this.from = spec.from;
-    this.knock = spec.knock ?? 0;
     this.direction = spec.direction;
     this.skips = spec.skips ?? NO_SKIPS;
     this.ext = spec.ext;
@@ -202,7 +190,6 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
     this.mitigated = 0;
     this.absorbed = 0;
     this.prevented = 0;
-    this.isKnockCancelled = false;
     this.status = 'landed';
     this.healthBefore = 0;
     this.healthAfter = 0;

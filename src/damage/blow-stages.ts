@@ -32,8 +32,8 @@ export interface BlowWalks<G extends DamageTypes> {
 }
 
 /**
- * Applies one absorb hook's change: absorb (spending the value of the instance whose hook it was), then scale, then the knock veto. Made once per
- * system, so applying a change allocates nothing.
+ * Applies one absorb hook's change: absorb (spending the value of the instance whose hook it was), then scale. Made
+ * once per system, so applying a change allocates nothing.
  */
 const changeApplier =
   <G extends DamageTypes>(engine: DamageEngine<G>) =>
@@ -49,10 +49,6 @@ const changeApplier =
 
     if (change.scale !== undefined) {
       blow.amount *= Math.max(0, change.scale);
-    }
-
-    if (change.knock === 'none') {
-      blow.isKnockCancelled = true;
     }
   };
 

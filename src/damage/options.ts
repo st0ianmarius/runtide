@@ -14,7 +14,7 @@ import type { RollTable } from './rolls.ts';
 import type { StageDef } from './stage-order.ts';
 import type { DamageSystem } from './system.ts';
 
-/** A blow as a stage may change it: its amount, flags, knock and the game's fields. */
+/** A blow as a stage may change it: its amount, flags and the game's fields. */
 export interface BlowState<G extends DamageTypes> extends Blow<G> {
   /** The damage it carries now. */
   amount: number;
@@ -24,12 +24,6 @@ export interface BlowState<G extends DamageTypes> extends Blow<G> {
 
   /** The outcome row that decided or changed it. */
   outcome: string | undefined;
-
-  /** The knockback strength. */
-  knock: number;
-
-  /** Whether its knockback is cancelled. */
-  isKnockCancelled: boolean;
 
   /** The point it comes from. */
   from: Vec2 | undefined;
@@ -192,13 +186,6 @@ export interface DamageSystemOptions<G extends DamageTypes> {
    * of 1 or more, one `host.roll` below the chance otherwise.
    */
   readonly rollChance?: (chance: number, slot: RollSlot, blow: Blow<G>) => boolean;
-
-  /**
-   * A game's own knockback rule: the strength a finished blow knocks with (a default shove for a blow that carries
-   * none, none for a dodge), read by the `knock` after-stage for every blow that entered the pipeline and whose knock no hook cancelled.
-   * The blow's `knock`, or none when it was blocked, by default. The force it makes carries the blow and its direction.
-   */
-  readonly knock?: (blow: Blow<G>) => number;
 
   /** A game's own rule for when health means dead (`health <= 1e-8`); `health <= 0` by default. */
   readonly isDead?: (health: number) => boolean;

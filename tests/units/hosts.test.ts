@@ -7,9 +7,9 @@ import { auraId, makeUnitGame, STATS, type UnitGame } from '../helpers/unit-game
 const TEMPLATES = {
   hero: { stats: { maxHealth: 200 } },
   grunt: { tags: ['horde'] },
-  elite: { tags: ['elite'], traits: { knockResist: { factor: 0.5, cap: 1.5 } } },
-  boss: { tags: ['boss'], traits: { pullImmune: true, holdsGround: true } },
-  wall: { traits: { immovable: true, inert: true } },
+  elite: { tags: ['elite'] },
+  boss: { tags: ['boss'] },
+  wall: { traits: { inert: true } },
 } satisfies Record<string, UnitDef<UnitGame>>;
 
 describe('every unit folds', () => {
@@ -87,34 +87,6 @@ describe('the damage host', () => {
     game.damage.hit({ target: wall, attacker: hero, amount: 500 });
     assert.equal(wall.lifecycle, 'dead');
     assert.deepEqual(game.log.slice(2), ['changed 2 alive>dead']);
-  });
-});
-
-describe('forces and traits', () => {
-  it('leaves an immovable unit, pulls no pull-immune one, and scales and caps a resisting one', () => {
-    const game = makeUnitGame(TEMPLATES);
-
-    const [grunt, elite, boss, wall] = [game.id.grunt, game.id.elite, game.id.boss, game.id.wall].map((template) =>
-      game.units.spawn(template, { side: 1 }),
-    );
-
-    for (const unit of [grunt, elite, boss, wall]) {
-      if (unit !== undefined) {
-        game.damage.force({ target: unit, strength: 4, kind: 'pull' });
-        game.damage.force({ target: unit, strength: 2, kind: 'knock' });
-      }
-    }
-
-    assert.deepEqual(game.log.slice(4), ['force 1 4', 'force 1 2', 'force 2 1.5', 'force 2 1', 'force 3 2']);
-  });
-
-  it('holds a unit that holds its ground while it casts', () => {
-    const game = makeUnitGame(TEMPLATES);
-    const boss = game.units.spawn(game.id.boss, { side: 1 });
-
-    game.spells.cast(boss, game.spellId.channel);
-    game.damage.force({ target: boss, strength: 2, kind: 'knock' });
-    assert.deepEqual(game.log.slice(1), []);
   });
 });
 

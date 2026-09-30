@@ -33,10 +33,7 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
   /** The point it comes from. */
   readonly from?: Vec2;
 
-  /** Its knockback strength. */
-  readonly knock?: number;
-
-  /** The direction it travels, which its knockback takes (a projectile's heading). */
+  /** The direction it travels (a projectile's heading), which the blow carries. */
   readonly direction?: Vec2;
 
   /** The game's own fields on its blow (`blow.ext`: a crushing share, a hit window's key), which its stages read. */

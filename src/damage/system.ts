@@ -191,8 +191,6 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
     this.forceStages = engine.forceOrder.names;
     this.gameStages = gameStagesOf(engine);
     this.hit = createDamagePipeline(engine, {
-      force,
-
       death: (spec) => {
         runDeath(engine, spec);
       },

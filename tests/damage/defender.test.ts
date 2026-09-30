@@ -26,7 +26,7 @@ describe('the block stage', () => {
     set(target, 'blockChance', 0.5);
     rolls.push(0.4, 0.6);
 
-    const blocked = damage.hit({ target, amount: 10, knock: 2 });
+    const blocked = damage.hit({ target, amount: 10 });
 
     assert.deepEqual([blocked.status, blocked.amount, target.hp], ['blocked', 0, 100]);
     assert.equal(damage.hit({ target, amount: 10 }).status, 'landed');

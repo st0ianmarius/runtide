@@ -1,9 +1,8 @@
 import type { AuraApplication, AuraDecision } from '../auras/index.ts';
-import type { ForceStage, StageDef } from '../damage/index.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { SpellId } from '../spells/index.ts';
 import { type SpawnUnit, UnitEngine, unitOf, type UnitSystemOptions } from './engine.ts';
-import { type AuraRule, compileRules, damageHostOf, decideAura, forceStageOf, syncHealth } from './hosts.ts';
+import { type AuraRule, compileRules, damageHostOf, decideAura, syncHealth } from './hosts.ts';
 import { syncStates } from './interrupts.ts';
 import { moveTo, raiseSpawned } from './lifecycle.ts';
 import { createUnitProcKinds } from './proc-kinds.ts';
@@ -94,9 +93,6 @@ export interface UnitSystem<G extends UnitTypes> {
   /** The damage host the system provides: spread it into the damage system's host. */
   readonly damageHost: ReturnType<typeof damageHostOf<G>>;
 
-  /** The force stage the system provides: add it to the damage system's `forceStages`. */
-  readonly forceStage: StageDef<ForceStage<G>>;
-
   /**
    * The application policy of a list of rules, compiled once: the aura host's `onIncomingAura`. Wire it
    * lazily, since the aura system is made first.
@@ -173,7 +169,6 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     autoAttackOf: (unit) => engine.autoAttacks[unitOf<G>(unit).template],
     syncHealth: (unit) => syncHealth(engine, unit),
     damageHost: damageHostOf(engine),
-    forceStage: forceStageOf(engine),
 
     auraPolicy: (rules) => {
       const compiled = compileRules(engine, rules);

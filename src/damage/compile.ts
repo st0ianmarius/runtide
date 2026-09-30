@@ -22,7 +22,6 @@ export const DAMAGE_STAGES = Object.freeze([
   'health',
   'dealt',
   'outcome',
-  'knock',
   'death',
 ] as const);
 

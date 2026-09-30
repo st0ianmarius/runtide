@@ -11,9 +11,6 @@ export interface BlowChange {
 
   /** A factor the remaining damage is multiplied by. */
   readonly scale?: number;
-
-  /** `'none'` cancels the blow's knockback. */
-  readonly knock?: 'none';
 }
 
 /** What an `onOutgoingDamage` hook does to a blow its bearer deals. */

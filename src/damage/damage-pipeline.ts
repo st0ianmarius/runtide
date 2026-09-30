@@ -1,5 +1,4 @@
 import type { EventKind } from '../core/index.ts';
-import type { Vec2 } from '../math/index.ts';
 import {
   type BlowWalks,
   type BuiltInStage,
@@ -10,39 +9,16 @@ import {
   rollStage,
 } from './blow-stages.ts';
 import type { Blow, BlowRecord, BlowSpec } from './blow.ts';
-import type { BlowStop, DamageTypes, ForceKind } from './damage-types.ts';
+import type { BlowStop, DamageTypes } from './damage-types.ts';
 import type { DeathSpec } from './death.ts';
 import type { DamageEngine } from './engine.ts';
 import type { DamageEvent } from './events.ts';
-import type { Force, ForceSpec } from './force.ts';
 
-/** What the damage pipeline's after-stages hand on to: the force and death pipelines. */
+/** What the damage pipeline's after-stages hand on to: the death pipeline. */
 export interface Onward<G extends DamageTypes> {
-  /** The force pipeline, for a blow's knockback. */
-  readonly force: (spec: ForceSpec<G>) => Force<G>;
-
   /** The death pipeline, for a blow that killed. */
   readonly death: (spec: DeathSpec<G>) => void;
 }
-
-/** A knockback spec, reused for every blow that knocks, since the force pipeline copies it at once. */
-class KnockSpec<G extends DamageTypes> implements ForceSpec<G> {
-  target: G['bearer'];
-  strength = 0;
-  readonly kind: ForceKind<G> = 'knock';
-  attacker: G['bearer'] | undefined = undefined;
-  source: number | undefined = undefined;
-  from: Vec2 | undefined = undefined;
-  direction: Vec2 | undefined = undefined;
-  blow: Blow<G> | undefined = undefined;
-
-  constructor(target: G['bearer']) {
-    this.target = target;
-  }
-}
-
-/** The default knockback of a finished blow: its own strength, none when it was blocked. */
-const defaultKnock = <G extends DamageTypes>(blow: Blow<G>): number => (blow.status === 'blocked' ? 0 : blow.knock);
 
 /** A death spec, reused for every blow that kills, since the death pipeline copies it at once. */
 class KillSpec<G extends DamageTypes> implements DeathSpec<G> {
@@ -76,12 +52,10 @@ const raiseBlow = <G extends DamageTypes>(
   payload.blow = undefined;
 };
 
-/** The after-stages: the attacker's `onDealt` hooks, the events, the knockback and the death pipeline. */
+/** The after-stages: the attacker's `onDealt` hooks, the events and the death pipeline. */
 const afterStages = <G extends DamageTypes>(engine: DamageEngine<G>, walks: BlowWalks<G>, onward: Onward<G>) => {
-  let knock: KnockSpec<G> | undefined;
   let kill: KillSpec<G> | undefined;
   const { events } = engine.options;
-  const knockOf = engine.options.knock ?? defaultKnock;
   const isDealt = (blow: BlowRecord<G>): boolean => blow.status === 'landed' || blow.status === 'absorbed';
 
   return {
@@ -103,25 +77,6 @@ const afterStages = <G extends DamageTypes>(engine: DamageEngine<G>, walks: Blow
       } else {
         raiseBlow(engine, blow.attacker === undefined ? undefined : events?.dealt, blow);
         raiseBlow(engine, events?.taken, blow);
-      }
-
-      return undefined;
-    },
-
-    knock: (blow: BlowRecord<G>) => {
-      const strength = blow.isKnockCancelled ? 0 : knockOf(blow);
-
-      if (strength > 0) {
-        knock ??= new KnockSpec<G>(blow.target);
-        knock.target = blow.target;
-        knock.strength = strength;
-        knock.attacker = blow.attacker;
-        knock.source = blow.source;
-        knock.from = blow.from;
-        knock.direction = blow.direction;
-        knock.blow = blow;
-        onward.force(knock);
-        knock.blow = undefined;
       }
 
       return undefined;
@@ -183,10 +138,6 @@ const builtInStages = <G extends DamageTypes>(
 
     outcome: (_engine, blow) => {
       after.outcome(blow);
-    },
-
-    knock: (_engine, blow) => {
-      after.knock(blow);
     },
 
     death: (_engine, blow) => {

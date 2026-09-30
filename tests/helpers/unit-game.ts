@@ -395,7 +395,6 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
         log.push(`force ${force.target.id} ${force.amount}`);
       },
     },
-    forceStages: { traits: units.forceStage },
     events: { bus, death: bus.kind.death, kill: bus.kind.kill },
   });
 

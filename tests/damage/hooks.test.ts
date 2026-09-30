@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { heal, setHealth } from '../../src/damage/index.ts';
 import { aura, KINDS, makeDamageGame } from '../helpers/damage-game.ts';
 
-/** The test auras: an immunity to all but fire, two absorbs, a damage-taken scale, a knock veto, a death escape, a leech. */
+/** The test auras: an immunity to all but fire, two absorbs, a damage-taken scale, a death escape, a leech. */
 const AURAS = {
   invulnerable: aura({ duration: 'infinite', onIgnore: (_ctx, blow) => blow.kind !== KINDS.id.fire }),
 
@@ -21,7 +21,6 @@ const AURAS = {
     onIncomingDamage: (ctx, blow) => ({ absorb: Math.min(ctx.aura.value, blow.amount) }),
   }),
   halve: aura({ duration: 10, onIncomingDamage: () => ({ scale: 0.5 }) }),
-  steady: aura({ duration: 10, onIncomingDamage: () => ({ knock: 'none' }) }),
   escape: aura({ duration: 10, onLethal: () => ({ prevent: true, procs: [setHealth({ share: 0.3 })] }) }),
   leech: aura({ duration: 10, onDealt: (_ctx, blow) => [heal(blow.dealt / 2)] }),
   pledge: aura({
@@ -75,15 +74,6 @@ describe('the ignore stage (onIgnore)', () => {
 
     assert.equal(damage.hit({ target, amount: 30, kind: damage.kinds.id.fire }).status, 'landed');
     assert.equal(target.hp, 70);
-  });
-
-  it('still lets an ignored blow’s knockback through the force pipeline', () => {
-    const { damage, auras, id, unit, log } = makeDamageGame(AURAS);
-    const target = unit(1);
-
-    auras.apply(target, id.invulnerable);
-    damage.hit({ target, amount: 30, knock: 3 });
-    assert.deepEqual(log, ['force knock 3@1']);
   });
 });
 
@@ -144,17 +134,15 @@ describe('absorbs (onIncomingDamage)', () => {
     assert.equal(target.hp, 95);
   });
 
-  it('scale what is left, and may cancel the blow’s knockback', () => {
-    const { damage, auras, id, unit, log } = makeDamageGame(AURAS);
+  it('scale what is left', () => {
+    const { damage, auras, id, unit } = makeDamageGame(AURAS);
     const target = unit(1);
 
     auras.apply(target, id.halve);
-    auras.apply(target, id.steady);
 
-    const blow = damage.hit({ target, amount: 30, knock: 2 });
+    const blow = damage.hit({ target, amount: 30 });
 
-    assert.deepEqual([blow.amount, blow.isKnockCancelled, target.hp], [15, true, 85]);
-    assert.deepEqual(log, []);
+    assert.deepEqual([blow.amount, target.hp], [15, 85]);
   });
 
   it('are skipped by true damage, which keeps every point', () => {

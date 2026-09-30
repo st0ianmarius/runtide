@@ -292,7 +292,6 @@ const DAMAGE = createDamageSystem<HordeGame>({
   kinds: defineDamageKinds({ physical: {} }),
   stats: STATS,
   host: { ...UNITS.damageHost, run: (procs, ctx) => late.procs?.runAura(procs, ctx) },
-  forceStages: { traits: UNITS.forceStage },
 });
 
 late.damage = DAMAGE;

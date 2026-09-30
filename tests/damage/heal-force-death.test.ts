@@ -157,37 +157,25 @@ describe('the force pipeline', () => {
     assert.deepEqual(log, ['force knock 1.5@1']);
   });
 
-  it('carries a blow’s knockback, from the blow’s origin, unless the blow was blocked', () => {
-    const origins: string[] = [];
-
-    const { damage, unit } = makeDamageGame(
-      {},
-      {
-        forceStages: {
-          probe: {
-            before: 'apply',
-
-            run: (force) => {
-              origins.push(`${force.from?.x},${force.from?.z} ${force.source}`);
-
-              return undefined;
-            },
-          },
-        },
-      },
-    );
-
-    damage.hit({ target: unit(1), attacker: unit(2), amount: 5, knock: 1, from: { x: 3, z: 4 } });
-    assert.deepEqual(origins, ['3,4 2']);
-  });
-
-  it('knocks along the blow’s direction, handing the force its blow, as strong as the game’s rule says', () => {
+  it('knocks from a game after-stage along the blow’s direction, the force carrying its blow', () => {
     const seen: string[] = [];
 
     const { damage, unit } = makeDamageGame(
       {},
       {
-        knock: (blow) => (blow.status === 'landed' ? blow.knock || 0.5 : 0),
+        stages: {
+          shove: {
+            after: 'outcome',
+
+            run: (blow, system) => {
+              if (blow.status === 'landed') {
+                system.force({ target: blow.target, strength: 0.5, direction: blow.direction, blow });
+              }
+
+              return undefined;
+            },
+          },
+        },
 
         forceStages: {
           probe: {
@@ -204,8 +192,7 @@ describe('the force pipeline', () => {
     );
 
     damage.hit({ target: unit(1), amount: 5, direction: { x: 1, z: 0 } });
-    damage.hit({ target: unit(1), amount: 6, knock: 2, direction: { x: 0, z: -1 } });
-    assert.deepEqual(seen, ['0.5 1,0 5', '2 0,-1 6']);
+    assert.deepEqual(seen, ['0.5 1,0 5']);
   });
 });
 

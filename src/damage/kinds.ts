@@ -10,7 +10,7 @@ import type { RollEffect } from './rolls.ts';
 export interface DamageKindDef {
   /**
    * The stages a blow of this kind skips, by name: built-in stages (`roll`, `mitigation`, `absorb`, …) or the game's
-   * own. The after-stages (`dealt`, `outcome`, `knock`, `death`) and `health` cannot be skipped. Checked when the
+   * own. The after-stages (`dealt`, `outcome`, `death`) and `health` cannot be skipped. Checked when the
    * damage system is built.
    */
   readonly bypass?: readonly string[];

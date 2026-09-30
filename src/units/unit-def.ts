@@ -4,30 +4,13 @@ import type { UnitTagTable } from './tags.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
 /**
- * A unit's traits: what the framework's own pipelines read about it instead of its id or class (the force
- * pipeline, the death pipeline). What only a game's rules read (a heavy body, an objective) is a class tag.
+ * A unit's traits: what the framework's own pipelines read about it instead of its id or class (the death
+ * pipeline). What only a game's rules read (a heavy body, an objective, how far a force moves it) is a class tag or
+ * the game's own data, read by its own stages.
  */
 export interface UnitTraits {
-  /** Never moved by a force. */
-  readonly immovable?: boolean;
-
   /** No rewards and no kill event when it dies: a wall, a totem. */
   readonly inert?: boolean;
-
-  /** Never pulled (a boss); knockbacks and pushes still move it. */
-  readonly pullImmune?: boolean;
-
-  /** Not moved by a force while it casts (a caster holding its ground). */
-  readonly holdsGround?: boolean;
-
-  /** How much of a force's strength moves it, and the most that ever does (an elite: × 0.5, capped at 1.5). */
-  readonly knockResist?: {
-    /** The share of a force's strength it takes, from 0. */
-    readonly factor: number;
-
-    /** The largest strength it takes; no cap when absent. */
-    readonly cap?: number;
-  };
 }
 
 /**
@@ -65,17 +48,8 @@ export const defineUnit =
   (def: UnitDef<G>): UnitDef<G> =>
     def;
 
-/** Trait bit: immovable. */
-export const IMMOVABLE = 1;
-
 /** Trait bit: inert. */
-export const INERT = 2;
-
-/** Trait bit: never pulled. */
-export const PULL_IMMUNE = 4;
-
-/** Trait bit: holds its ground while casting. */
-export const HOLDS_GROUND = 8;
+export const INERT = 1;
 
 /** The game's unit templates, compiled: ids by key order, base stat vectors, trait bits and tag bitsets. */
 export interface UnitRegistry<G extends UnitTypes = UnitTypes, Name extends string = string> extends Registry<
@@ -96,12 +70,6 @@ export interface UnitRegistry<G extends UnitTypes = UnitTypes, Name extends stri
   /** Each template's trait bits. */
   readonly traits: Uint8Array;
 
-  /** Each template's force factor (1 for none). */
-  readonly knockFactor: Float64Array;
-
-  /** Each template's force cap (`Infinity` for none). */
-  readonly knockCap: Float64Array;
-
   /** Each template's class tags, as a bitset over tag ids. */
   readonly tagSets: readonly Bitset[];
 }
@@ -116,12 +84,7 @@ export interface UnitRegistryOptions<G extends UnitTypes> {
 }
 
 /** Each flag trait and its bit. */
-const TRAIT_BITS: readonly (readonly [Exclude<keyof UnitTraits, 'knockResist'>, number])[] = [
-  ['immovable', IMMOVABLE],
-  ['inert', INERT],
-  ['pullImmune', PULL_IMMUNE],
-  ['holdsGround', HOLDS_GROUND],
-];
+const TRAIT_BITS: readonly (readonly [keyof UnitTraits, number])[] = [['inert', INERT]];
 
 /** The trait bits of a template. */
 const traitBits = (traits: UnitTraits | undefined): number =>
@@ -142,7 +105,7 @@ const statProblem = <G extends UnitTypes>(def: UnitDef<G>, options: UnitRegistry
   return undefined;
 };
 
-/** Throws unless a template's stats, tags and force resistance are sound. */
+/** Throws unless a template's stats and tags are sound. */
 const checkDef = <G extends UnitTypes>(name: string, def: UnitDef<G>, options: UnitRegistryOptions<G>): void => {
   const refuse = (problem: string): never => {
     throw new RangeError(`Unit ${name}: ${problem}`);
@@ -159,12 +122,6 @@ const checkDef = <G extends UnitTypes>(name: string, def: UnitDef<G>, options: U
 
   if (unknown !== undefined) {
     refuse(`there is no unit tag named ${unknown}.`);
-  }
-
-  const resist = def.traits?.knockResist;
-
-  if (resist !== undefined && (!(resist.factor >= 0) || !(resist.cap === undefined || resist.cap >= 0))) {
-    refuse('its knock resist takes a factor and a cap from 0.');
   }
 };
 
@@ -230,8 +187,6 @@ export const defineUnits = <G extends UnitTypes, const Name extends string>(
     tags,
     bases: Object.freeze(slots.map((def) => baseOf(def, options.stats))),
     traits: Uint8Array.from(slots, (def) => traitBits(def?.traits)),
-    knockFactor: Float64Array.from(slots, (def) => def?.traits?.knockResist?.factor ?? 1),
-    knockCap: Float64Array.from(slots, (def) => def?.traits?.knockResist?.cap ?? Number.POSITIVE_INFINITY),
     tagSets: Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => tagIds[tag] ?? 0)))),
   });
 };

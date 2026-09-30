@@ -63,7 +63,6 @@ class ProcBlowSpec<G extends DamageTypes> implements BlowSpec<G> {
   spell: G['spell'] | undefined = undefined;
   kind: DamageKindId | undefined = undefined;
   from: Vec2 | undefined = undefined;
-  knock: number | undefined = undefined;
   direction: Vec2 | undefined = undefined;
   ext: G['blowExt'] | undefined = undefined;
   skips: readonly string[] | undefined = undefined;
@@ -140,7 +139,6 @@ const damageKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: P
       spec.spell = proc.spell;
       spec.kind = names.kind(proc.damageKind);
       spec.from = proc.from;
-      spec.knock = proc.knock;
       spec.direction = proc.direction;
       spec.ext = proc.ext;
       spec.skips = proc.skips;
@@ -161,7 +159,6 @@ const damageKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: P
       values: numbersOf({
         amount: typeof proc.amount === 'number' ? proc.amount : undefined,
         damageKind: names.kind(proc.damageKind),
-        knock: proc.knock,
       }),
 
       ...(proc.andThen === undefined ? {} : { procs: proc.andThen }),

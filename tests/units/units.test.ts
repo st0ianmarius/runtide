@@ -1,20 +1,20 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { defineUnits, IMMOVABLE, INERT, type UnitDef } from '../../src/units/index.ts';
+import { defineUnits, INERT, type UnitDef } from '../../src/units/index.ts';
 import { AURA_TAGS, auraId, HEARD, makeUnitGame, STATS, UNIT_TAGS, type UnitGame } from '../helpers/unit-game.ts';
 
 /** The test templates: a hero with no auto-attack, a grunt, an elite, a boss, a wall and a totem. */
 const TEMPLATES = {
   hero: { stats: { maxHealth: 200 } },
   grunt: { stats: { speed: 4 }, tags: ['horde'], autoAttack: 'swing', data: { souls: 1 } },
-  elite: { tags: ['elite'], traits: { knockResist: { factor: 0.5, cap: 1.5 } } },
-  boss: { tags: ['boss'], traits: { pullImmune: true, holdsGround: true } },
-  wall: { tags: ['objective'], traits: { immovable: true, inert: true } },
+  elite: { tags: ['elite'] },
+  boss: { tags: ['boss'] },
+  wall: { tags: ['objective'], traits: { inert: true } },
 } satisfies Record<string, UnitDef<UnitGame>>;
 
 describe('unit templates', () => {
-  it('lay out base stats, trait bits, force resistance and class tags at load', () => {
+  it('lay out base stats, trait bits and class tags at load', () => {
     const units = defineUnits<UnitGame, keyof typeof TEMPLATES>(TEMPLATES, { stats: STATS, tags: UNIT_TAGS });
     const { id } = units;
 
@@ -22,14 +22,12 @@ describe('unit templates', () => {
     assert.equal(units.bases[id.grunt]?.[STATS.id.maxHealth], 100);
     assert.equal(units.bases[id.grunt]?.[STATS.id.speed], 4);
     assert.equal(units.traits[id.elite], 0);
-    assert.equal(units.traits[id.wall], IMMOVABLE | INERT);
+    assert.equal(units.traits[id.wall], INERT);
     assert.deepEqual(units.get(id.grunt).data, { souls: 1 });
-    assert.deepEqual([units.knockFactor[id.elite], units.knockCap[id.elite]], [0.5, 1.5]);
-    assert.equal(units.knockCap[id.grunt], Infinity);
     assert.equal(units.tagSets[id.boss]?.has(UNIT_TAGS.id.boss), true);
   });
 
-  it('refuse unknown stats and tags, unsound numbers and force resistance', () => {
+  it('refuse unknown stats and tags, and unsound numbers', () => {
     const bad = (def: UnitDef<UnitGame>) => () =>
       defineUnits<UnitGame, 'bad'>({ bad: def }, { stats: STATS, tags: UNIT_TAGS });
 
@@ -41,7 +39,6 @@ describe('unit templates', () => {
     Reflect.set(forged, 'stats', undefined);
     Reflect.set(forged, 'tags', ['dragon']);
     assert.throws(bad(forged), /there is no unit tag named dragon/);
-    assert.throws(bad({ traits: { knockResist: { factor: -1 } } }), /knock resist takes a factor and a cap from 0/);
   });
 });
 

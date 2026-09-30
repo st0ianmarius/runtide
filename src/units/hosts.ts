@@ -1,9 +1,9 @@
 import type { AuraApplication, AuraDecision, AuraId } from '../auras/index.ts';
 import { type Bitset, createBitset } from '../core/index.ts';
-import type { DamageHost, ForceStage, StageDef } from '../damage/index.ts';
+import type { DamageHost } from '../damage/index.ts';
 import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import { moveTo } from './lifecycle.ts';
-import { HOLDS_GROUND, IMMOVABLE, INERT, PULL_IMMUNE } from './unit-def.ts';
+import { INERT } from './unit-def.ts';
 import type { UnitTypes } from './unit-types.ts';
 
 /**
@@ -63,36 +63,6 @@ export const damageHostOf = <G extends UnitTypes>(
 
   remove: (unit) => {
     moveTo(engine, unit, ['dead', undefined]);
-  },
-});
-
-/**
- * The force stage a unit system provides, run before the force moves its target: an immovable unit is not
- * moved, nor a pull-immune one pulled, nor one that holds its ground while it casts; any other takes its template's
- * share of the strength, capped. Add it to the damage system's `forceStages`.
- */
-export const forceStageOf = <G extends UnitTypes>(engine: UnitEngine<G>): StageDef<ForceStage<G>> => ({
-  before: 'apply',
-
-  run: (force) => {
-    const unit = unitOf<G>(force.target);
-    const { registry } = engine;
-    const traits = registry.traits[unit.template] ?? 0;
-
-    if (
-      (traits & IMMOVABLE) !== 0 ||
-      (force.kind === 'pull' && (traits & PULL_IMMUNE) !== 0) ||
-      ((traits & HOLDS_GROUND) !== 0 && engine.options.spells.isCasting(force.target))
-    ) {
-      return 'ignored';
-    }
-
-    force.amount = Math.min(
-      force.amount * (registry.knockFactor[unit.template] ?? 1),
-      registry.knockCap[unit.template] ?? Infinity,
-    );
-
-    return force.amount > 0 ? undefined : 'ignored';
   },
 });
 

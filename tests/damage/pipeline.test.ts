@@ -19,7 +19,6 @@ describe('the damage pipeline order', () => {
       'health',
       'dealt',
       'outcome',
-      'knock',
       'death',
     ]);
     assert.deepEqual(damage.stages, DAMAGE_STAGES);
@@ -72,7 +71,6 @@ describe('the damage pipeline order', () => {
         'health:30:landed',
         'dealt:30:landed',
         'outcome:30:landed',
-        'knock:30:landed',
         'death:30:landed',
       ],
     );
