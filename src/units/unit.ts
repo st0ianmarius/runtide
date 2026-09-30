@@ -98,6 +98,12 @@ export class Unit<G extends UnitTypes> implements UnitShape {
    */
   readonly summons: G['bearer'][] = [];
 
+  /**
+   * Every unit it owns that is not despawned, dead ones too, in the order they spawned: what its despawn takes along
+   * (bound ones) or lets go of, and what it takes back into `summons` when it revives.
+   */
+  readonly owned: G['bearer'][] = [];
+
   /** The cast it was summoned by, held alive while it lives; `NO_CAST` for none. */
   cast: CastHandle = NO_CAST;
 

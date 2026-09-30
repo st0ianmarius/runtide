@@ -2,7 +2,7 @@ import type { EventKind } from '../core/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import type { UnitEvent } from './events.ts';
-import { despawnBound, leaveOwner, orphanSummons, rejoinOwner } from './summons.ts';
+import { adoptSummons, despawnBound, leaveOwner, orphanSummons, rejoinOwner } from './summons.ts';
 import type { Lifecycle, UnitTypes } from './unit-types.ts';
 
 /**
@@ -85,7 +85,7 @@ const leaveFor = <G extends UnitTypes>(
     auras.enterState(bearer, to);
   }
 
-  leaveOwner(engine, bearer);
+  leaveOwner(engine, bearer, to === 'despawned');
   despawnBound(engine, bearer);
 };
 
@@ -183,6 +183,7 @@ const enter = <G extends UnitTypes>(
   if (to === 'alive') {
     unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
     rejoinOwner(bearer);
+    adoptSummons(bearer);
   } else {
     leaveFor(engine, bearer, [from, to]);
   }

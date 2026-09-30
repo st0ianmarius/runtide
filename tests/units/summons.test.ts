@@ -152,6 +152,52 @@ describe('summoning', () => {
     assert.deepEqual(units.summonsOf(caster), [second, first]);
   });
 
+  it('takes a dead bound summon along with its owner’s despawn, and lets go of a dead unbound one', () => {
+    const { procs, units, caster } = summoning();
+
+    procs.apply(summon<UnitGame>('add'), { self: caster });
+    procs.apply(summon<UnitGame>('pet', { isBound: false }), { self: caster });
+
+    const [add, pet] = units.summonsOf(caster);
+
+    for (const unit of [add, pet]) {
+      if (unit !== undefined) {
+        units.kill(unit);
+      }
+    }
+
+    units.despawn(caster);
+    assert.deepEqual([add?.lifecycle, pet?.lifecycle, pet?.owner], ['despawned', 'dead', undefined]);
+    assert.equal(pet === undefined ? -1 : units.creditOf(pet), caster.id);
+  });
+
+  it('takes back its living units as summons when the owner revives', () => {
+    const { procs, units, caster } = summoning();
+
+    procs.apply(summon<UnitGame>('pet', { isBound: false, count: 2 }), { self: caster });
+
+    const [first, second] = units.summonsOf(caster);
+
+    if (first !== undefined && second !== undefined) {
+      units.kill(first);
+      units.kill(caster);
+      units.revive(first);
+      assert.deepEqual(units.summonsOf(caster), [second]);
+      units.revive(caster);
+      assert.deepEqual(units.summonsOf(caster), [first, second]);
+    }
+  });
+
+  it('orphans at once a unit spawned for an owner despawned already', () => {
+    const { units, caster, id } = summoning();
+
+    units.despawn(caster);
+
+    const late = units.spawn(id.pet, { side: 1, owner: caster });
+
+    assert.deepEqual([late.owner, units.creditOf(late)], [undefined, caster.id]);
+  });
+
   it('keeps an owner to its limit of a template: replacing its oldest, or refused', () => {
     const { procs, units, caster, log } = summoning();
 

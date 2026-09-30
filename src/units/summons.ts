@@ -3,12 +3,31 @@ import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import { moveTo } from './lifecycle.ts';
 import type { UnitTypes } from './unit-types.ts';
 
-/** A spawned unit with an owner joins its owner's summons, last. */
+/**
+ * A spawned unit with an owner joins what its owner owns, and its summons while the owner lives; an owner despawned
+ * already lets go of it at once, as its despawn would have.
+ */
 export const joinOwner = (bearer: UnitTypes['bearer']): void => {
-  const { owner } = unitOf<UnitTypes>(bearer);
+  const unit = unitOf<UnitTypes>(bearer);
+  const { owner } = unit;
 
-  if (owner !== undefined) {
-    unitOf<UnitTypes>(owner).summons.push(bearer);
+  if (owner === undefined) {
+    return;
+  }
+
+  const record = unitOf<UnitTypes>(owner);
+
+  if (record.lifecycle === 'despawned') {
+    unit.credit = creditOf(bearer);
+    unit.owner = undefined;
+
+    return;
+  }
+
+  record.owned.push(bearer);
+
+  if (record.lifecycle === 'alive') {
+    record.summons.push(bearer);
   }
 };
 
@@ -18,6 +37,19 @@ export const rejoinOwner = (bearer: UnitTypes['bearer']): void => {
 
   if (owner !== undefined && unitOf<UnitTypes>(owner).lifecycle === 'alive') {
     unitOf<UnitTypes>(owner).summons.push(bearer);
+  }
+};
+
+/** A revived owner takes back the living units it owns as its summons, in the order they spawned. */
+export const adoptSummons = (bearer: UnitTypes['bearer']): void => {
+  const { summons, owned } = unitOf<UnitTypes>(bearer);
+
+  summons.length = 0;
+
+  for (const unit of owned) {
+    if (unitOf<UnitTypes>(unit).lifecycle === 'alive') {
+      summons.push(unit);
+    }
   }
 };
 
@@ -36,33 +68,47 @@ export const creditOf = (bearer: UnitTypes['bearer']): number => {
 };
 
 /**
- * A unit despawned for good: the summons it still has (the unbound ones) let go of it, so none keeps a unit the game
+ * A unit despawned for good: the units it still owns (the unbound ones, dead or alive) let go of it, so none keeps a unit the game
  * may reuse, and keep crediting its id.
  */
 export const orphanSummons = (bearer: UnitTypes['bearer']): void => {
-  const { summons } = unitOf<UnitTypes>(bearer);
+  const { summons, owned } = unitOf<UnitTypes>(bearer);
 
-  for (const summon of summons) {
+  for (const summon of owned) {
     const unit = unitOf<UnitTypes>(summon);
 
     unit.credit = creditOf(summon);
     unit.owner = undefined;
   }
 
+  owned.length = 0;
   summons.length = 0;
 };
 
-/**
- * A unit dies or despawns: it leaves its owner's summons (keeping the others in order), and lets go of the cast it was
- * summoned by.
- */
-export const leaveOwner = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer']): void => {
-  const unit = unitOf<G>(bearer);
-  const summons = unit.owner === undefined ? undefined : unitOf<G>(unit.owner).summons;
-  const index = summons?.indexOf(bearer) ?? -1;
+/** Takes a unit out of a list, keeping the others in order. */
+const drop = <Unit>(list: Unit[], unit: Unit): void => {
+  const index = list.indexOf(unit);
 
-  if (summons !== undefined && index >= 0) {
-    summons.splice(index, 1);
+  if (index >= 0) {
+    list.splice(index, 1);
+  }
+};
+
+/**
+ * A unit dies or despawns: it leaves its owner's summons (keeping the others in order), and what its owner owns when it
+ * despawns; and it lets go of the cast it was summoned by.
+ */
+export const leaveOwner = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer'], isGone: boolean): void => {
+  const unit = unitOf<G>(bearer);
+
+  if (unit.owner !== undefined) {
+    const owner = unitOf<G>(unit.owner);
+
+    drop(owner.summons, bearer);
+
+    if (isGone) {
+      drop(owner.owned, bearer);
+    }
   }
 
   if (unit.cast !== NO_CAST) {
@@ -71,15 +117,18 @@ export const leaveOwner = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
   }
 };
 
-/** A unit dies or despawns: its bound summons despawn with it (reason `owner`), in the order they spawned. */
+/**
+ * A unit dies or despawns: its bound summons despawn with it (reason `owner`), in the order they spawned, dead ones
+ * too, so no corpse outlives its owner to be revived bound to nothing.
+ */
 export const despawnBound = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer']): void => {
-  const { summons } = unitOf<G>(bearer);
+  const { owned } = unitOf<G>(bearer);
 
-  if (summons.length === 0) {
+  if (owned.length === 0) {
     return;
   }
 
-  for (const summon of summons.slice()) {
+  for (const summon of owned.slice()) {
     if (unitOf<G>(summon).isBound) {
       moveTo(engine, summon, ['despawned', undefined, 'owner']);
     }
