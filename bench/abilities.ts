@@ -158,7 +158,7 @@ const SPELLS = defineSpells<BenchGame, 'roll' | 'nova' | 'surge'>({
     activation: {
       kind: 'button',
       cooldown: 1,
-      applies: [{ aura: auraId('sprint') }],
+      applies: [auraId('sprint')],
 
       travel: ({ bearer, dt }) => {
         if (AURA_SYSTEM.hasTag(bearer, AURA_TAGS.id.sprinting)) {

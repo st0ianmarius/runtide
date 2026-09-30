@@ -12,7 +12,6 @@ export {
   type AiActivation,
   type AutoActivation,
   type ButtonActivation,
-  type ButtonApply,
   type ButtonCost,
   type ButtonSeconds,
   type CastSeconds,

@@ -20,7 +20,7 @@ const setUp = () =>
         requires: ['stance'],
         blockedBy: ['rooted'],
         resets: ['cooldown.dodge'],
-        applies: [{ aura: auraNamed('sprint'), scaledBy: 'duration' }, { aura: auraNamed('stance') }],
+        applies: [auraNamed('sprint'), auraNamed('stance')],
       },
       release,
     }),
@@ -68,10 +68,7 @@ describe('button explanations', () => {
     assert.deepEqual(preview.blockedBy, [auras.tags.id.rooted]);
     assert.deepEqual(preview.resets, [auras.tags.id['cooldown.dodge']]);
 
-    assert.deepEqual(preview.applies, [
-      { aura: auraNamed('sprint'), scaledBy: STATS.id.duration },
-      { aura: auraNamed('stance'), scaledBy: undefined },
-    ]);
+    assert.deepEqual(preview.applies, [auraNamed('sprint'), auraNamed('stance')]);
 
     assert.ok(typeof preview.cooldown === 'object');
     assert.equal(preview.cooldown.base, 6);

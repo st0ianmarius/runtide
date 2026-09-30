@@ -27,7 +27,7 @@ const setUp = () => {
   const game = makeAbilityGame({
     roll: button('roll', {
       cooldown: 2,
-      applies: [{ aura: auraNamed('sprint') }],
+      applies: [auraNamed('sprint')],
       cost: { aura: auraNamed('charge') },
 
       activate: () => {

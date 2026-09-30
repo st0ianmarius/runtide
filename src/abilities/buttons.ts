@@ -1,23 +1,13 @@
 import type { AuraId, AuraSystem, AuraTagId } from '../auras/index.ts';
-import { type CompiledScaled, compileScaled, type StatId, type StatTable } from '../modifiers/index.ts';
+import { type CompiledScaled, compileScaled, type StatTable } from '../modifiers/index.ts';
 import {
   type ButtonActivation,
-  type ButtonApply,
   type ButtonSeconds,
   isButton,
   type SpellId,
   type SpellRegistry,
 } from '../spells/index.ts';
 import type { AbilityTypes } from './ability-types.ts';
-
-/** One aura a button lands, resolved: the aura and the stat that scales its length (`undefined` for none). */
-interface CompiledApply {
-  /** The aura. */
-  readonly aura: AuraId;
-
-  /** The stat whose total multiplies its length, if any. */
-  readonly stat: StatId | undefined;
-}
 
 /**
  * A button spell's activation, resolved against the aura and stat tables when the ability system is built: tags as
@@ -49,7 +39,7 @@ export interface CompiledButton<G extends AbilityTypes> {
   readonly resets: readonly AuraTagId[];
 
   /** The auras it lands, in order. */
-  readonly applies: readonly CompiledApply[];
+  readonly applies: readonly AuraId[];
 }
 
 /** What compiling one spell's button reads: the tables, and the spell for messages. */
@@ -98,23 +88,6 @@ export const liveAura = (
   return id;
 };
 
-/** A stat's id from its name, or a clear error naming the spell. */
-const statOf = <G extends AbilityTypes>(state: Compiling<G>, name: G['stat']): StatId => {
-  const stat = state.stats?.index.idOf(name);
-
-  if (stat === undefined) {
-    throw new RangeError(`${state.what}: there is no stat named ${name}.`);
-  }
-
-  return stat;
-};
-
-/** One aura a button lands, resolved. */
-const applyOf = <G extends AbilityTypes>(state: Compiling<G>, apply: ButtonApply<G>): CompiledApply => ({
-  aura: checkAura(state, apply.aura),
-  stat: apply.scaledBy === undefined ? undefined : statOf(state, apply.scaledBy),
-});
-
 /** A button's cooldown, compiled: a number or function as it is, a scaled value against the stat table. */
 const cooldownOf = <G extends AbilityTypes>(
   state: Compiling<G>,
@@ -151,7 +124,7 @@ const compileButton = <G extends AbilityTypes>(
     requires: tagsOf(state, def.requires),
     blockedBy: tagsOf(state, def.blockedBy),
     resets: tagsOf(state, def.resets),
-    applies: (def.applies ?? []).map((apply) => applyOf(state, apply)),
+    applies: (def.applies ?? []).map((aura) => checkAura(state, aura)),
   });
 };
 

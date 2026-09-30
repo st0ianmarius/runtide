@@ -34,16 +34,11 @@ describe('button activation data', () => {
     );
   });
 
-  it('refuses unknown tags, dead auras, unknown stats and per-rank lists that miss the ranks, at load', () => {
+  it('refuses unknown tags, dead auras and per-rank lists that miss the ranks, at load', () => {
     assert.throws(() => makeAbilityGame({ bad: forged('requires', ['frozen']) }), /spell bad: there is no aura tag/);
     assert.throws(
       () => makeAbilityGame({ bad: button({ cost: { aura: toId<'auras'>(auraNamed('charge') + 99) } }) }),
       /not a live/,
-    );
-
-    assert.throws(
-      () => makeAbilityGame({ bad: forged('applies', [{ aura: auraNamed('sprint'), scaledBy: 'luck' }]) }),
-      /there is no stat named luck/,
     );
 
     assert.throws(

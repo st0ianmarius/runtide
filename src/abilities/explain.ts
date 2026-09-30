@@ -1,19 +1,10 @@
 import type { AuraId, AuraTagId } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
-import { explainScaled, type ScaledExplanation, type StatId } from '../modifiers/index.ts';
+import { explainScaled, type ScaledExplanation } from '../modifiers/index.ts';
 import type { SpellId } from '../spells/index.ts';
 import type { AbilityTypes } from './ability-types.ts';
 import type { CompiledButton } from './buttons.ts';
 import type { AbilityEngine } from './engine.ts';
-
-/** One aura a button lands, as data: the aura and the stat that scales its length. */
-export interface ButtonApplyExplanation {
-  /** The aura. */
-  readonly aura: AuraId;
-
-  /** The stat whose total multiplies its length; `undefined` for its own length. */
-  readonly scaledBy: StatId | undefined;
-}
 
 /**
  * A button's rules as data, for the client's tooltip: its cooldown explained at a rank, when it
@@ -56,7 +47,7 @@ export interface ButtonExplanation {
   readonly resets: readonly AuraTagId[];
 
   /** The auras it lands, in order. */
-  readonly applies: readonly ButtonApplyExplanation[];
+  readonly applies: readonly AuraId[];
 }
 
 /** A button's cooldown as data: its number, its scaled value explained, or `undefined` for none or a function. */
@@ -102,6 +93,6 @@ export const explainButton = <G extends AbilityTypes>(
     requires: button.requires,
     blockedBy: button.blockedBy,
     resets: button.resets,
-    applies: button.applies.map(({ aura, stat }) => ({ aura, scaledBy: stat })),
+    applies: button.applies,
   };
 };

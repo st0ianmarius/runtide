@@ -38,10 +38,10 @@ const logRelease =
 const button = (name: string, data: Omit<ButtonActivation<AbilityGame>, 'kind'> = {}, spellRanks = 1) =>
   spell({ ranks: spellRanks, activation: { kind: 'button', ...data }, release: logRelease(name) });
 
-/** The dodge: a sprint scaled by Duration, a heading from the input, and travel while sprinting. */
+/** The dodge: a sprint, a heading from the input, and travel while sprinting. */
 const roll = button('roll', {
   cooldown: 2,
-  applies: [{ aura: 'sprint', scaledBy: 'duration' }],
+  applies: ['sprint'],
 
   activate: ({ bearer, input, dt, stats }) => {
     seen.lines.push(`activate roll dt ${dt} duration ${stats?.total(STATS.id.duration)}`);
@@ -70,9 +70,9 @@ const makeGame = (world?: StaticWorld) =>
       ),
       blast: button('blast', { cooldown: 3, cost: { aura: auraNamed('charge'), stacks: 2 } }),
       timed: button('timed', { cooldown: (hero, rank) => hero.id + rank }),
-      surge: button('surge', { cooldown: 30, applies: [{ aura: auraNamed('stance') }], resets: ['cooldown.dodge'] }),
+      surge: button('surge', { cooldown: 30, applies: [auraNamed('stance')], resets: ['cooldown.dodge'] }),
       guard: button('guard', { requires: ['stance'] }),
-      anchor: button('anchor', { applies: [{ aura: auraNamed('root') }] }),
+      anchor: button('anchor', { applies: [auraNamed('root')] }),
       flee: button('flee', { blockedBy: ['rooted'] }),
 
       sentry: spell({
@@ -167,10 +167,10 @@ describe('a press', () => {
     abilities.travel(hero, 0.25);
     assert.deepEqual(seen.lines, [
       'activate roll dt 0.25 duration 1.5',
-      'roll at 1,0 input 0,1 rank 1 cooling 2 sprint 3 charge 0',
+      'roll at 1,0 input 0,1 rank 1 cooling 2 sprint 2 charge 0',
     ]);
     assert.deepEqual(hero.at, { x: 1, z: 1 });
-    assert.equal(auras.remaining(hero, auraNamed('sprint')), 3);
+    assert.equal(auras.remaining(hero, auraNamed('sprint')), 2);
   });
 
   it('hands the motion hooks the game’s static world', () => {

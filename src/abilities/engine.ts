@@ -41,7 +41,7 @@ export interface AbilityParts<G extends AbilityTypes> {
   readonly world?: StaticWorld | undefined;
 
   /**
-   * The caster's stats for one spell, which a scaled cooldown, a scaled `applies` and the motion hooks' `ctx.stats`
+   * The caster's stats for one spell, which a scaled cooldown and the motion hooks' `ctx.stats`
    * read; the bases when absent.
    */
   readonly statsOf?: ((caster: G['bearer'], spell: SpellId) => StatView | undefined) | undefined;

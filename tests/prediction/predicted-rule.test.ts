@@ -132,7 +132,7 @@ describe('what a press reads (abilities.mirrorReads)', () => {
         activation: {
           kind: 'button',
           cost: { aura: auraNamed('charge') },
-          applies: [{ aura: auraNamed('sprint') }],
+          applies: [auraNamed('sprint')],
           requires: ['stance'],
           resets: ['cooldown.dodge'],
         },

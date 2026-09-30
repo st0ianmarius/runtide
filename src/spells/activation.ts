@@ -78,18 +78,6 @@ export interface ButtonCost<G extends SpellTypes = SpellTypes> {
 }
 
 /**
- * An aura a button lands on its caster as it fires, for the aura's own length, multiplied by a stat of the caster's
- * when it names one (a Duration stat).
- */
-export interface ButtonApply<G extends SpellTypes = SpellTypes> {
-  /** The aura: its name in data, its id in code. */
-  readonly aura: G['auraName'] | AuraId;
-
-  /** The stat whose total multiplies the aura's length; its own length when absent. */
-  readonly scaledBy?: G['stat'];
-}
-
-/**
  * A `button` activation: a unit's key pulls it, through its loadout (`abilities.tryActivate`).
  * An ability **is** a spell with this activation: its cooldown is an aura on the slot it sits in, its cost is stacks of
  * an aura, `requires` and `blockedBy` are aura tags, and as it fires it pays, moves (`activate`), starts its cooldown,
@@ -124,8 +112,11 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
   /** Aura tags whose auras it removes from the caster as it fires, after `applies` (another slot's cooldown). */
   readonly resets?: readonly G['tag'][];
 
-  /** Auras it lands on the caster as it fires, in order (a sprint, a stance). */
-  readonly applies?: readonly ButtonApply<G>[];
+  /**
+   * Auras it lands on the caster as it fires, in order, each for its own length (a sprint, a stance); an aura whose
+   * length a stat scales reads it in its own `duration`.
+   */
+  readonly applies?: readonly (G['auraName'] | AuraId)[];
 
   /**
    * The motion half as it fires, before its cooldown, auras and cast: a dodge's direction, from the press's input.

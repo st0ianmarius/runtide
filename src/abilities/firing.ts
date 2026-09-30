@@ -118,7 +118,7 @@ const startCooldown = <G extends AbilityTypes>(
 
 /**
  * What a button lands on its caster as it fires, after its cost, motion and cooldown: its `applies` in order (each
- * for its aura's own length, times its stat when it names one), then its `resets`.
+ * for its aura's own length), then its `resets`.
  */
 const land = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], spell: SpellId): void => {
   const button = engine.buttons[spell];
@@ -130,13 +130,10 @@ const land = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
   const { auras } = engine;
 
   for (let i = 0; i < button.applies.length; i++) {
-    const apply = button.applies[i];
+    const aura = button.applies[i];
 
-    if (apply !== undefined) {
-      const { aura, stat } = apply;
-      const scale = stat === undefined ? 1 : engine.viewOf(bearer, spell).total(stat);
-
-      auras.apply(bearer, stat === undefined ? aura : { aura, duration: auras.lengthOf(aura, bearer) * scale });
+    if (aura !== undefined) {
+      auras.apply(bearer, aura);
     }
   }
 
