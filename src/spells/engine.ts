@@ -15,9 +15,9 @@ import { type CastHandle, NO_CAST, toCastHandle } from './ids.ts';
 import type { MirrorContext, StaticWorld } from './mirror.ts';
 import { missing } from './missing.ts';
 import { ProcList } from './proc-out.ts';
-import type { ProcReturn, SpellHit } from './spell-def.ts';
+import type { AnySpellDef, ProcReturn, SpellHit } from './spell-def.ts';
 import type { SpellHost } from './spell-host.ts';
-import type { SpellTypes } from './spell-types.ts';
+import type { SpellId, SpellTypes } from './spell-types.ts';
 import type { StatsBoxes } from './stats-box.ts';
 
 /** The clock spells count on: the host's fixed-step clock (a core `SimClock` is one). */
@@ -226,6 +226,14 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
       this.current = outer;
     }
   };
+
+  /**
+   * A live spell's definition without the registry's id check: for the per-step paths, whose ids were checked as the
+   * cast started or the clock was armed. Falls back to the checked lookup (which throws) for a retired one.
+   */
+  defOf(spell: SpellId): AnySpellDef<G> {
+    return this.registry.defs[spell] ?? this.registry.get(spell);
+  }
 
   readonly randomFor = (stream: G['stream'] | undefined, key: readonly number[]): Random =>
     stream === undefined

@@ -38,7 +38,7 @@ const nextOf = <G extends SpellTypes>(
 
 /** An `auto` spell's activation, typed. */
 const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): AutoActivation<G> => {
-  const { activation } = engine.registry.get(spell);
+  const { activation } = engine.defOf(spell);
 
   if (!isAuto(activation)) {
     throw new TypeError(`Spell ${engine.registry.name(spell)} is not an auto spell.`);

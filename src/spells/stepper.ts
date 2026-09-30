@@ -27,7 +27,7 @@ const countStage = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>)
  */
 const stepWindup = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
   const isOut = countStage(engine, cast);
-  const { timeline } = engine.registry.get(cast.spell);
+  const { timeline } = engine.defOf(cast.spell);
   const track = engine.plans[cast.spell]?.track;
 
   if (!cast.isLocked && track !== undefined) {
@@ -58,7 +58,7 @@ const stepWindup = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>)
 
 /** Runs one channel beat: its cue, then its procs. */
 const beat = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
-  const def = engine.registry.get(cast.spell);
+  const def = engine.defOf(cast.spell);
   const tick = def.timeline?.channel?.tick;
 
   engine.fire(cast, def.cues?.tick?.(cast, cast.target));
@@ -93,7 +93,7 @@ const beatsDue = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, e
  * a channel that ran out ends its payload as released.
  */
 const stepChannel = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
-  if (engine.registry.get(cast.spell).timeline?.channel?.breakIf?.(cast, cast.target) === true) {
+  if (engine.defOf(cast.spell).timeline?.channel?.breakIf?.(cast, cast.target) === true) {
     afterPayload(engine, cast, 'broken');
 
     return;
@@ -119,7 +119,7 @@ const stepCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): 
     return;
   }
 
-  refreshLive(engine, cast, engine.registry.get(cast.spell));
+  refreshLive(engine, cast, engine.defOf(cast.spell));
 
   switch (cast.stage) {
     case 'windup': {
@@ -290,7 +290,7 @@ const answer = <G extends SpellTypes>(
 ): number => {
   const cast = running(engine, handle);
 
-  const answers = cast === undefined ? undefined : engine.registry.get(cast.spell).timeline?.interrupts;
+  const answers = cast === undefined ? undefined : engine.defOf(cast.spell).timeline?.interrupts;
 
   const reply = answers?.[change.reason];
 
