@@ -39,6 +39,49 @@ const ticks = (
 };
 
 describe('area auras on enter and exit', () => {
+  it('take the aura off every unit it went on when an enter hook ends the field mid-walk', () => {
+    const late: { end?: () => void } = {};
+
+    const game = makeSpellGame(
+      {},
+      {
+        auras: {
+          chilled: aura({
+            duration: 'infinite',
+
+            onApplied: (ctx) => {
+              if (ctx.bearer.id === 101) {
+                late.end?.();
+              }
+
+              return undefined;
+            }
+          }),
+          soothed: aura({ duration: 5 })
+        },
+        areaTriggers: { field: field({ aura: 'chilled' }) }
+      }
+    );
+
+    const foes = [game.unit(100), game.unit(101), game.unit(102)];
+    const handle = game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+
+    late.end = () => {
+      game.areaTriggers.despawn(handle);
+    };
+
+    for (const [i, foe] of foes.entries()) {
+      game.place(foe, vec2(i * 0.5, 0));
+    }
+
+    ticks(game, 1, []);
+    assert.equal(game.areaTriggers.isLive(handle), false);
+    assert.deepEqual(
+      foes.map((foe) => game.auras.has(foe, game.auraId.chilled)),
+      [false, false, false]
+    );
+  });
+
   it('puts its aura on a foe that enters, takes it off as it leaves, and off every unit inside as it ends', () => {
     const game = fieldGame({ aura: 'chilled' });
     const [foe, ally, other] = [game.unit(100), game.unit(2), game.unit(101)];

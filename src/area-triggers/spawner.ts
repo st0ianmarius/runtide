@@ -142,7 +142,7 @@ const admitLimit = <G extends AreaTriggerTypes>(
   return true;
 };
 
-/** Makes it live: its id, lifetime, place in the orders, `init`, owner aura, cue and event. */
+/** Makes it live: its id, lifetime, place in the orders, owner aura, `init`, cue and event. */
 const enter = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
@@ -164,10 +164,24 @@ const enter = <G extends AreaTriggerTypes>(
   openLedgers(engine, area);
   linkKind(engine, area);
   engine.count(area.owner, [area.kind, 1]);
-  placeShape(engine, area);
-  registry.hooks.init[area.kind]?.(area, area.input);
-  joinPulses(engine, area);
   engine.holdOwnerAura(area, true);
+  placeShape(engine, area);
+
+  const init = registry.hooks.init[area.kind];
+
+  if (init !== undefined) {
+    init(area, area.input);
+
+    // Its `init` ended it (a withdrawal that caught itself): it ended before it was ever announced.
+    if (area.isEnding) {
+      return;
+    }
+
+    // `init` may have moved or turned it.
+    placeShape(engine, area);
+  }
+
+  joinPulses(engine, area);
   engine.fire(area, def.cues?.spawn?.(area));
   engine.raise('spawned', area);
 };
@@ -192,6 +206,9 @@ export const spawnArea = <G extends AreaTriggerTypes>(
   bindCredit(engine, area, spec);
   fill(engine, area, [spec, parent]);
 
+  // Read before the limit, whose replaced trigger's `onEnd` may spawn again with the same reused spec.
+  const { now } = spec;
+
   if (!admitLimit(engine, area, def)) {
     engine.spells.unretain(area.castHandle);
     engine.free(area);
@@ -200,7 +217,6 @@ export const spawnArea = <G extends AreaTriggerTypes>(
   }
 
   const { handle } = area;
-  const { now } = spec;
 
   engine.hold();
 

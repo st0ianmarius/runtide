@@ -83,21 +83,22 @@ const runPhase = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
 };
 
 /**
- * One frame over `dt`: it ages, an owner-anchored one moves onto its owner, it notes where it
- * was and places its shape, then runs its parts in its kind's order: `move` (placing its shape again), `contact`,
+ * One frame over `dt`: it ages, notes where it was, an owner-anchored one moves onto its owner, and it
+ * places its shape, then runs its parts in its kind's order: `move` (placing its shape again), `contact`,
  * `frame`, `pulses` and `auras`. A hook that asked it to end ends it once that part is done.
  */
 export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): void => {
   const { registry } = engine;
 
   area.age += dt;
+  // Noted before an owner-anchored one follows its owner, so its contact sweeps the owner's move (a charge's hitbox).
+  area.previous.x = area.position.x;
+  area.previous.z = area.position.z;
 
   if (((registry.columns.flags[area.kind] ?? 0) & ANCHOR_OWNER) !== 0) {
     area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner, engine.point));
   }
 
-  area.previous.x = area.position.x;
-  area.previous.z = area.position.z;
   placeShape(engine, area);
 
   const order = registry.get(area.kind).order ?? DEFAULT_ORDER;

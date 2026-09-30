@@ -31,6 +31,9 @@ export class AuraInside<G extends AreaTriggerTypes> {
   nextUnits: (G['bearer'] | undefined)[] = [];
   nextIds: number[] = [];
 
+  /** Whether a frame's walk is comparing it now: an end during the walk leaves the dropping to the walk. */
+  isComparing = false;
+
   constructor(area: AreaTrigger<G>, index: number) {
     this.area = area;
     this.index = index;
@@ -166,45 +169,100 @@ const leave = <G extends AreaTriggerTypes>(
 
 /**
  * Walks this frame's catch (in id order) against the units inside as of the last frame (in id order too): a unit
- * only in the catch enters, one only inside leaves, and this frame's units are written to the spare lists.
+ * only in the catch enters, one only inside leaves, and this frame's units are written to the spare lists. An
+ * enter or leave hook that ends the area trigger stops the walk, and every unit it still holds leaves.
  */
 const compare = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   inside: AuraInside<G>,
   targets: readonly G['bearer'][]
 ): void => {
-  const { units, ids, nextUnits, nextIds } = inside;
+  const { units, nextUnits, area } = inside;
   let i = 0;
+  let written = 0;
 
-  for (let j = 0; j < targets.length; j++) {
-    const unit = targets[j];
+  inside.isComparing = true;
 
-    if (unit === undefined) {
-      continue;
+  try {
+    for (let j = 0; j < targets.length && !area.isEnding; j++) {
+      const unit = targets[j];
+
+      const next = unit === undefined ? i : visit(engine, inside, [i, j, unit]);
+
+      if (next < 0) {
+        break;
+      }
+
+      i = next;
+      written = j + 1;
     }
 
-    const id = engine.world.idOf(unit);
-
-    while (i < inside.count && (ids[i] ?? 0) < id) {
+    for (; i < inside.count && !area.isEnding; i++) {
       leave(engine, inside, units[i]);
-      i += 1;
     }
-
-    if (i < inside.count && ids[i] === id) {
-      i += 1;
-    } else {
-      enter(engine, inside, unit);
-    }
-
-    nextUnits[j] = unit;
-    nextIds[j] = id;
+  } finally {
+    inside.isComparing = false;
   }
 
-  for (; i < inside.count; i++) {
-    leave(engine, inside, units[i]);
+  if (area.isEnding) {
+    for (; i < inside.count; i++) {
+      leave(engine, inside, units[i]);
+    }
+
+    for (let k = 0; k < written; k++) {
+      leave(engine, inside, nextUnits[k]);
+    }
+
+    inside.swap(0);
+
+    return;
   }
 
-  inside.swap(targets.length);
+  inside.swap(written);
+};
+
+/**
+ * Visits catch entry `j`: the units inside before it leave, it enters unless it was inside, and it is written to the
+ * spare lists. The next index into the units inside, or -1 when a hook ended the area trigger.
+ */
+const visit = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  inside: AuraInside<G>,
+  [from, j, unit]: readonly [number, number, G['bearer']]
+): number => {
+  const id = engine.world.idOf(unit);
+  let i = walkTo(engine, inside, [from, id]);
+
+  if (inside.area.isEnding) {
+    return -1;
+  }
+
+  if (i < inside.count && inside.ids[i] === id) {
+    i += 1;
+  } else {
+    enter(engine, inside, unit);
+  }
+
+  inside.nextUnits[j] = unit;
+  inside.nextIds[j] = id;
+
+  return i;
+};
+
+/** Leaves every unit inside from `i` whose id is below `id`, stopping if the area trigger ends; the new `i`. */
+const walkTo = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  inside: AuraInside<G>,
+  [from, id]: readonly [number, number]
+): number => {
+  let i = from;
+
+  while (i < inside.count && (inside.ids[i] ?? 0) < id && !inside.area.isEnding) {
+    leave(engine, inside, inside.units[i]);
+    i += 1;
+  }
+
+  return i;
 };
 
 /** Runs one area aura for a frame: the units caught now enter, the ones gone leave. */
@@ -237,6 +295,11 @@ export const dropAreaAuras = <G extends AreaTriggerTypes>(engine: AreaEngine<G>,
 
   for (let index = 0; index < count; index++) {
     const inside = area.insideOf(index);
+
+    // A walk comparing it drops its units itself once it sees the end.
+    if (inside.isComparing) {
+      continue;
+    }
 
     for (let i = 0; i < inside.count; i++) {
       leave(engine, inside, inside.units[i]);

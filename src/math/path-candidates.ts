@@ -99,7 +99,7 @@ export class PathCandidates {
     }
   }
 
-  /** A lane's candidates: its four sides, pushed out by the margin. */
+  /** A lane's candidates: its four sides, pushed out by the margin, and its corners rounded by it. */
   #lane(shape: Extract<Shape, { kind: 'lane' }>, margin: number): void {
     const sin = Math.sin(shape.dir);
     const cos = Math.cos(shape.dir);
@@ -111,6 +111,15 @@ export class PathCandidates {
     this.#line(sin, cos, along + shape.length + margin);
     this.#line(cos, -sin, across - half);
     this.#line(cos, -sin, across + half);
+
+    // A body reaching past a corner rounds it.
+    if (margin > 0) {
+      for (const a of [-shape.back, shape.length]) {
+        for (const c of [-shape.width / 2, shape.width / 2]) {
+          this.#circle(shape.at.x + a * sin + c * cos, shape.at.z + a * cos - c * sin, margin);
+        }
+      }
+    }
   }
 
   /** A polygon's candidates: every edge with its offsets by the reach, and a circle of the reach at every corner. */

@@ -183,6 +183,26 @@ describe('contacts and landings', () => {
     );
   });
 
+  it('sweeps an owner-anchored contact along its owner’s move (a charge’s hitbox)', () => {
+    const game = makeSpellGame(
+      {},
+      { areaTriggers: { charge: missile({ anchor: 'owner', move: () => undefined, lifetime: 1 }) } }
+    );
+
+    const hero = game.unit(1);
+
+    game.place(hero, vec2(0, 0));
+    game.place(game.unit(100), vec2(5, 0));
+    game.world.tick();
+    game.areaTriggers.spawn(game.areaId.charge, { owner: hero, at: vec2(0, 0) });
+    game.place(hero, vec2(10, 0));
+    ticks(game, 1);
+    assert.deepEqual(
+      game.log.filter((line) => line.startsWith('contact')),
+      ['contact 0.25: 100']
+    );
+  });
+
   it('reaches only what its filter lets through (a homing missile locked on its target)', () => {
     const game = makeSpellGame(
       {},

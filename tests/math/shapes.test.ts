@@ -66,6 +66,8 @@ describe('covers: base shapes', () => {
     assert.equal(covers(path, vec2(1.5, 5)), false);
     assert.equal(covers(path, vec2(1.5, 5), 0.5), true);
     assert.equal(covers(path, vec2(0, 12)), false);
+    assert.equal(covers(path, vec2(3, 13), 2.5), false);
+    assert.equal(covers(path, vec2(2.5, 12.5), 2.5), true);
   });
 
   it('covers a polygon inside, and a polygon grown by its band just outside', () => {

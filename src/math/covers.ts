@@ -44,10 +44,18 @@ const coversLane = (shape: Lane, p: Vec2, margin: number): boolean => {
   const cos = Math.cos(shape.dir);
   const along = dx * sin + dz * cos;
   const across = dx * cos - dz * sin;
+  const half = shape.width / 2;
 
-  return (
-    along >= -shape.back - margin && along <= shape.length + margin && Math.abs(across) <= shape.width / 2 + margin
-  );
+  // A negative margin (a complement's) shrinks the rectangle, which stays one.
+  if (margin <= 0) {
+    return along >= -shape.back - margin && along <= shape.length + margin && Math.abs(across) <= half + margin;
+  }
+
+  // The gap from the body's centre to the rectangle: a disc overlaps it at rounded corners, not square ones.
+  const outAlong = along < -shape.back ? -shape.back - along : Math.max(0, along - shape.length);
+  const outAcross = Math.max(0, Math.abs(across) - half);
+
+  return outAlong * outAlong + outAcross * outAcross <= margin * margin;
 };
 
 /** Whether a body reaching `margin` past `p` overlaps a polygon grown by its band: signed edge distance below the reach. */
