@@ -111,7 +111,7 @@ export const revive = <G extends UnitTypes = UnitTypes>(
   options: ChanceOption & Omit<ReviveProc<G>, 'kind' | 'chance'> = {},
 ): ReviveProc<G> => ({ ...options, kind: 'revive' });
 
-/** A `summon` proc: `summon('skeleton', { count: 3, around: { min: 2, max: 4, clearance: 0.5 } })`. */
+/** A `summon` proc: `summon('skeleton', { count: 3, atOf: (ctx) => ringAround(ctx.self) })`. */
 export const summon = <G extends UnitTypes = UnitTypes>(
   unit: G['unitName'] | UnitId,
   options: ChanceOption & Omit<SummonProc<G>, 'kind' | 'unit' | 'chance'> = {},

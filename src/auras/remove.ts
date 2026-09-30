@@ -278,7 +278,7 @@ export const spendStacks = <G extends AuraTypes>(
   return true;
 };
 
-/** Every stack of an aura held, whatever its `activeWhile` says. */
+/** Every stack of an aura held, summed over its instances. */
 const heldStacks = <G extends AuraTypes>(set: AuraSet<G>, id: AuraId): number => {
   let stacks = 0;
 

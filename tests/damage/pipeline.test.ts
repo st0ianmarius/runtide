@@ -37,12 +37,24 @@ describe('the damage pipeline order', () => {
           grace: { before: 'ignore', run: () => undefined },
           wound: { after: 'shelter', run: () => undefined },
           shove: { after: 'health', run: () => undefined },
+          scar: { after: 'wound', run: () => undefined },
+          dusk: { after: 'ignore', run: () => undefined },
         },
       },
     );
 
-    assert.deepEqual(damage.stages.slice(0, 7), ['window', 'grace', 'ignore', 'shelter', 'wound', 'horde', 'outgoing']);
-    assert.deepEqual(damage.stages.slice(11, 14), ['health', 'shove', 'dealt']);
+    assert.deepEqual(damage.stages.slice(0, 9), [
+      'window',
+      'grace',
+      'ignore',
+      'shelter',
+      'wound',
+      'scar',
+      'horde',
+      'dusk',
+      'outgoing',
+    ]);
+    assert.deepEqual(damage.stages.slice(13, 16), ['health', 'shove', 'dealt']);
     assert.deepEqual(damage.gameStages, [
       'damage.window',
       'damage.shelter',
@@ -50,6 +62,8 @@ describe('the damage pipeline order', () => {
       'damage.grace',
       'damage.wound',
       'damage.shove',
+      'damage.scar',
+      'damage.dusk',
     ]);
   });
 

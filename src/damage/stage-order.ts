@@ -1,6 +1,7 @@
 /**
  * Where a game stage goes: right before or right after a named stage, built-in or the game's own
- * declared earlier. Several stages at one position keep their declaration order.
+ * declared earlier. Several stages at one position keep their declaration order: a stage after X goes after the
+ * stages placed after X before it, and after the ones placed after those.
  */
 export interface StagePosition {
   /** The stage it runs right before. */
@@ -36,18 +37,39 @@ const refuse = (what: string, name: string, problem: string): never => {
   throw new RangeError(`${what} stage ${name}: ${problem}`);
 };
 
-/** The index a stage goes to, from its anchor. */
-const slotFor = (order: { names: string[]; afterCounts: Map<string, number> }, at: StagePosition): number => {
+/** A stage order being built: the names in order, and the stage each game stage placed `after` hangs from. */
+interface Building {
+  readonly names: string[];
+  readonly hangsFrom: Map<string, string>;
+}
+
+/** Whether a stage was placed after `anchor`, or after a stage that was, and so on. */
+const hangsFrom = (order: Building, [name, anchor]: readonly [string | undefined, string]): boolean => {
+  for (let at = name; at !== undefined; at = order.hangsFrom.get(at)) {
+    if (order.hangsFrom.get(at) === anchor) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+/** The index a stage goes to, from its anchor: before it, or after it and everything already hanging from it. */
+const slotFor = (order: Building, [name, at]: readonly [string, StagePosition]): number => {
   if (at.before !== undefined) {
     return order.names.indexOf(at.before);
   }
 
   const anchor = at.after ?? '';
-  const count = order.afterCounts.get(anchor) ?? 0;
+  let slot = order.names.indexOf(anchor) + 1;
 
-  order.afterCounts.set(anchor, count + 1);
+  while (slot < order.names.length && hangsFrom(order, [order.names[slot], anchor])) {
+    slot += 1;
+  }
 
-  return order.names.indexOf(anchor) + 1 + count;
+  order.hangsFrom.set(name, anchor);
+
+  return slot;
 };
 
 /** Checks one game stage's definition against the order built so far. */
@@ -91,14 +113,14 @@ export const compileStageOrder = <Run>(spec: {
   /** The game's stages, by name, in declaration order. */
   readonly game: Readonly<Record<string, StageDef<Run>>> | undefined;
 }): StageOrder<Run> => {
-  const order = { names: [...spec.builtIn], afterCounts: new Map<string, number>() };
+  const order: Building = { names: [...spec.builtIn], hangsFrom: new Map() };
   const runs: (Run | undefined)[] = spec.builtIn.map(() => undefined);
   const game = Object.entries(spec.game ?? {});
 
   for (const [name, def] of game) {
     checkStage(order.names, { what: spec.what, name, def });
 
-    const at = slotFor(order, def);
+    const at = slotFor(order, [name, def]);
 
     order.names.splice(at, 0, name);
     runs.splice(at, 0, def.run);
