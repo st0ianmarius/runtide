@@ -379,6 +379,24 @@ for (const [name, task, blows] of [
 
 await bench.run();
 
+// The whole-game horde runs last and is loaded only now: a whole game's systems made at load would change the type
+// feedback every row above runs under, so its module waits until they are done.
+const { HORDE_TASKS, hordeCounter, hordeStats } = await import('./horde.ts');
+const last = new Bench({ time: 400, warmup: true });
+
+for (const [name, task, ticks] of HORDE_TASKS) {
+  const calls = Math.max(1, BATCH / ticks);
+
+  BATCHES.set(name, calls);
+  last.add(name, () => {
+    for (let i = 0; i < calls; i++) {
+      task();
+    }
+  });
+}
+
+await last.run();
+
 sink +=
   counter.granted +
   damageCounter.taken +
@@ -390,12 +408,14 @@ sink +=
   areaCounter.granted +
   abilityCounter.granted +
   logCounter.seen +
-  unitCounter.seen;
+  unitCounter.seen +
+  hordeCounter.seen;
 
 const horde = spellHordeStats();
 const areas = areaStats();
+const whole = hordeStats();
 
-const rows = bench.tasks.map((task) => {
+const rows = [...bench.tasks, ...last.tasks].map((task) => {
   const { result } = task;
   const batch = BATCHES.get(task.name) ?? BATCH;
   const nanoseconds = result.state === 'completed' ? (result.latency.mean * 1e6) / batch : Number.NaN;
@@ -406,5 +426,6 @@ const rows = bench.tasks.map((task) => {
 process.stdout.write(
   `${[`${'benchmark'.padEnd(48)}    per op`, ...rows].join('\n')}\n(sink ${sink > 0 ? 'ok' : 'empty'}; ` +
     `one cue tick is ${CUE_TICK_BYTES} bytes; ${horde.inFlight} of 2,000 casters have a spell in flight, ` +
-    `${horde.created} cast records made; ${areas.live} area triggers live, ${areas.created} records made)\n`,
+    `${horde.created} cast records made; ${areas.live} area triggers live, ${areas.created} records made; ` +
+    `${whole.inReach} of the whole game's mobs in reach, ${whole.swings} swings landed)\n`,
 );

@@ -186,3 +186,19 @@ At the review after F21, a pool handle stays a small integer: 20 bits of slot (1
 | ai: a weighted pick of 4 spells (checked)              | 585.9 ns | 440.2 ns |
 
 At the review after F21, the smaller hot-path items: indexed loops where an iterator over a frozen list allocated (a scaled value's caster stats at every cast start, a proc group, the weighted draw an AI pick makes, the polygon tests a catch runs per unit, a stat watch); `stepsUntil` remembers walks of 64 steps or more by rule, step and length (a 60 s aura applied at 30 Hz walked 1,800 steps each time); a `hottest` shared beat marks each unit's hottest catch in one pass instead of comparing every catch with every other (1.2 ms a beat with 40 patches in a crowd, per the review); and an AI interrupt edge reads its hold bit from a map. None of the suite's rows runs these paths hot, and a full run against the pool commit reads within its noise.
+
+At the review after F21's hooks for swarm, `bench/horde.ts` adds one row for a whole unit game, which no row had measured together: 2,000 grunts and 4 heroes on the unit system, in a game with 120 auras and 41 spells defined (what swarm carries). Each tick steps the clock, every unit's auras (each grunt holds a haste and a mark; the lead hero a slow its grunts' swings refresh), walks every grunt toward the heroes at its folded speed, steps each grunt's auto swing (a `ready` hook reading the distance the walk measured, `afterCast: 'reset'`) and casts, fires the brains' picks (a 0.5 s windup from a pool of four, every 1–3 s), lands the delayed lists, and has the heroes kill 10 grunts, which are despawned and replaced at the edge. The runner loads it only after every other row has run, since a whole game made at load changed the type feedback of rows it never touches (the blow pipeline read 15% slower in a full run with it loaded first, while alone it matched R2). Writing it found a leak: a despawned unit kept its auras, so a game replacing its units filled the aura pool; a despawn now releases them (`auras.release`).
+
+The hooks themselves cost nothing on the rows they touch. Same Apple Silicon Mac, one full run at the R2 commit against two with the hooks, and, since a full run moves rows R3 never touched (the 5-part keyed roll 13.8 → 22 ns, the modifier fold and scaled evaluation by 8–10%, the cue ticks by 7%), the damage, unit spawn and delayed-list rows run alone at both commits:
+
+| benchmark                                                | R2       | now (two runs)     | alone, R2 → now  |
+| -------------------------------------------------------- | -------- | ------------------ | ---------------- |
+| horde: 2,000 mobs + 4 heroes, the whole unit game (tick) |          | 303.7 µs, 308.2 µs |                  |
+| blow, full pipeline, 3 hooking auras                     | 307.0 ns | 293.3 ns, 301.1 ns | 272.8 → 277.0 ns |
+| burst of 100 blows on 100 hooked targets                 | 30.6 µs  | 30.0 µs, 30.6 µs   | 27.6 → 28.1 µs   |
+| spells: auto step, 2,000 casters, 1 of 20 armed (tick)   | 20.8 µs  | 20.7 µs, 20.1 µs   |                  |
+| spells: 2,000 mobs, swing out of reach, waiting on ready | 49.3 µs  | 43.0 µs, 43.6 µs   |                  |
+| spells: after(0), scheduled + landed (per list)          | 262.1 ns | 250.3 ns, 255.2 ns | 165.5 → 151.9 ns |
+| units: spawn + despawn a grunt (template stats)          | 399.2 ns | 408.3 ns, 415.7 ns | 375.1 → 385.4 ns |
+
+A spawn and despawn costs about 10 ns more: the despawn now tells the unit's auras its state (`onState`) and releases them. A blow walks the attacker's `onOutgoingDamage` auras only in a game that has one. The whole-game tick is about 1% of a 30 Hz frame; run alone, outside tinybench, it measures 240–263 µs.
