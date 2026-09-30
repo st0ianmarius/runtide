@@ -12,7 +12,6 @@ export {
   type AutoActivation,
   type ButtonActivation,
   type ButtonCost,
-  type ButtonSeconds,
   type CastSeconds,
   CORE_ACTIVATIONS,
   type CoreActivation,
@@ -86,7 +85,8 @@ export type { Reach, ReachRefusal } from './reach.ts';
 export type { CastOptions, CastRefusal, CastReport, GateAnswer } from './cast-request.ts';
 export type { SpellHost } from './spell-host.ts';
 export type { ActivationKindId, ActivationShape, SpellCaster, SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
-export { createSpellSystem, type SpellSystem } from './system.ts';
+export type { SpellSystem } from './spell-system.ts';
+export { createSpellSystem } from './system.ts';
 export type { SpellSystemBase, SpellSystemOptions } from './system-options.ts';
 
 export { defineSpellTags, type SpellTagDef, type SpellTagTable } from './tags.ts';

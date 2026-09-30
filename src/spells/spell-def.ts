@@ -220,15 +220,19 @@ export interface SpellCues<G extends SpellTypes, Source extends StatsSource<G>, 
 }
 
 /**
- * A spell's own cooldown: an aura on the caster that refuses its casts (as `cooldown`) while held, landed as a cast
- * starts, for `seconds` or the aura's own duration. `spells.check` and a picker see it, as they see the gates.
+ * One of a spell's cooldowns: an aura on the caster that refuses its casts (as `cooldown`) while held, landed as a cast
+ * starts (or releases), for `seconds` or the aura's own duration. Spells that name one aura share it (a category: every
+ * potion, a global cooldown). `spells.check`, a picker and a button see it, as they see the gates.
  */
 export interface SpellCooldown<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> {
   /** The aura: its name in data, its id in code. */
   readonly aura: G['auraName'] | AuraId;
 
-  /** Its seconds, read as the cast starts; the aura's own duration when absent. */
+  /** Its seconds, read from the cast as it lands (a stat scales them); the aura's own duration when absent. */
   readonly seconds?: CastSeconds<G, Source>;
+
+  /** When it lands: as the cast starts (`start`, the default), or as it releases, once its windup is done. */
+  readonly startsOn?: 'start' | 'release';
 }
 
 /**
@@ -274,8 +278,8 @@ export interface SpellDef<
   /** Its reach rules, asked after `target`: a range, a clear line. */
   readonly reach?: Reach<G, Source, Target>;
 
-  /** Its own cooldown, asked right after the gates; none when absent. */
-  readonly cooldown?: SpellCooldown<G, Source>;
+  /** Its cooldowns (its own, a category's, a global one), asked right after the gates; none when absent. */
+  readonly cooldown?: SpellCooldown<G, Source> | readonly SpellCooldown<G, Source>[];
 
   /** Makes a cast's own state, once per cast (`ctx.state`); `undefined` when absent. */
   state?(this: void): State;

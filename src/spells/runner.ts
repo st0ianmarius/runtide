@@ -1,6 +1,6 @@
 import { NO_SOURCE } from '../auras/index.ts';
 import { isRunOut } from '../core/index.ts';
-import type { ActivationKindDef, CastSeconds } from './activation.ts';
+import type { ActivationKindDef } from './activation.ts';
 import { fireCastCue } from './cast-cue.ts';
 import type { CastOptions, CastRefusal, CastRequest, GateAnswer, Report } from './cast-request.ts';
 import type { Cast } from './cast.ts';
@@ -8,8 +8,9 @@ import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
 import { NO_CAST } from './ids.ts';
 import { checkReach } from './reach.ts';
-import type { AnySpellDef, CastOutcome, CastStage } from './spell-def.ts';
+import type { AnySpellDef, CastOutcome } from './spell-def.ts';
 import type { ActivationShape, SpellId, SpellTypes } from './spell-types.ts';
+import { beatSeconds, enterStage } from './stage-seconds.ts';
 import { autoIntervalOf, refreshLive, takeStats } from './take-stats.ts';
 
 /**
@@ -35,6 +36,7 @@ const initCast = <G extends SpellTypes>(
   cast.origin.source = cast.source;
   cast.startTick = engine.clock.tick;
   cast.cueKey = options.key ?? 0;
+  cast.isCommitted = options.committed === true;
   cast.target = undefined;
   cast.state = undefined;
   cast.outcome = undefined;
@@ -94,7 +96,7 @@ const admit = <G extends SpellTypes>(
     return gated;
   }
 
-  if (engine.isCooling(cast)) {
+  if (!cast.isCommitted && engine.cooldowns.isCooling(cast.caster, cast.spell)) {
     return 'cooldown';
   }
 
@@ -122,24 +124,6 @@ const admit = <G extends SpellTypes>(
   const reach = engine.plans[cast.spell]?.reach;
 
   return reach === undefined ? undefined : checkReach(engine, cast, reach);
-};
-
-/** Enters a stage: its seconds read now (a function reads the cast), its clock reset. Throws for bad seconds. */
-const enterStage = <G extends SpellTypes>(
-  cast: Cast<G>,
-  stage: Exclude<CastStage, 'ended'>,
-  seconds: CastSeconds<G> | undefined,
-): void => {
-  const value = typeof seconds === 'function' ? seconds(cast) : (seconds ?? 0);
-
-  if (!(value >= 0) || !Number.isFinite(value)) {
-    throw new RangeError(`A cast's ${stage} must last a finite number of seconds from 0; got ${value}.`);
-  }
-
-  cast.stage = stage;
-  cast.stageSeconds = value;
-  cast.remaining = value;
-  cast.elapsed = 0;
 };
 
 /** Runs `begin`: its procs for the caster; how many went off. */
@@ -239,6 +223,11 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
 
   refreshLive(engine, cast, def);
   cast.isLocked = true;
+
+  if (!cast.isCommitted) {
+    engine.cooldowns.start(cast, 'release');
+  }
+
   engine.fire(cast, def.cues?.release?.(cast, cast.target));
   cast.hasReleased = true;
   cast.went = runRelease(engine, cast);
@@ -262,7 +251,8 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
   }
 
   enterStage(cast, 'channel', plan.channel);
-  cast.beat = plan.every;
+  cast.every = beatSeconds(cast, plan.every);
+  cast.beat = cast.every;
 
   if (isRunOut(cast.remaining)) {
     afterPayload(engine, cast, 'released');
@@ -270,17 +260,33 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
 };
 
 /**
- * Begins an admitted cast: it joins its caster's casts, makes its own state, starts its cooldown, enters its windup,
- * fires its start cue, runs `begin` and raises `start`; a windup already run out releases at once.
+ * Enters an admitted cast: it joins its caster's casts, makes its own state, starts its cooldowns (unless a press
+ * committed them), enters its windup, paused by any interrupt its caster holds that it answers by pausing.
+ */
+const enterCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
+  const record = recordOf(cast.caster);
+
+  record.add(cast.cast);
+  cast.state = engine.registry.hooks.state[cast.spell]?.();
+
+  if (!cast.isCommitted) {
+    engine.cooldowns.start(cast, 'start');
+  }
+
+  enterStage(cast, 'windup', engine.plans[cast.spell]?.windup);
+  cast.pauses = record.interrupts & (engine.pauseMasks[cast.spell] ?? 0);
+  cast.isLocked = engine.plans[cast.spell]?.track === undefined;
+};
+
+/**
+ * Begins an admitted cast: enters it, fires its cast and start cues, runs `begin` and raises `start`; a windup already
+ * run out releases at once, unless the cast starts paused.
  */
 const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def: AnySpellDef<G>): void => {
-  recordOf(cast.caster).add(cast.cast);
-  cast.state = engine.registry.hooks.state[cast.spell]?.();
-  engine.startCooldown(cast, def);
-  enterStage(cast, 'windup', engine.plans[cast.spell]?.windup);
-  cast.isLocked = engine.plans[cast.spell]?.track === undefined;
+  enterCast(engine, cast);
+
   if (def.cues?.cast !== undefined) {
-    fireCastCue(engine, cast.caster, [cast.spell, cast.input, cast.cueKey]);
+    fireCastCue(engine, cast.caster, [cast.spell, cast.input, cast.cueKey, cast.rank]);
   }
 
   engine.fire(cast, def.cues?.start?.(cast, cast.target));
@@ -292,7 +298,7 @@ const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, 
 
   engine.raise('start', cast);
 
-  if (cast.stage === 'windup' && isRunOut(cast.remaining)) {
+  if (cast.stage === 'windup' && cast.pauses === 0 && isRunOut(cast.remaining)) {
     releaseCast(engine, cast);
   }
 };
@@ -359,6 +365,32 @@ export const checkCast = <G extends SpellTypes>(
 
   try {
     return admit(engine, cast, def);
+  } finally {
+    cast.stage = 'ended';
+    engine.unhold(cast);
+  }
+};
+
+/**
+ * Starts every cooldown of a spell on a caster now, read from a cast of it that goes no further than its stats (a press
+ * that commits at once, on the server and a prediction mirror alike). Its casts then go with `committed`.
+ */
+export const startCooldowns = <G extends SpellTypes>(engine: SpellEngine<G>, request: CastRequest<G>): void => {
+  const def = engine.registry.get(request.spell);
+
+  if (!engine.cooldowns.readsCast(request.spell)) {
+    engine.cooldowns.startConstant(request.caster, request.spell);
+
+    return;
+  }
+
+  const cast = engine.acquire(request.caster);
+
+  initCast(engine, cast, request);
+
+  try {
+    takeStats(engine, cast, def);
+    engine.cooldowns.start(cast, 'all');
   } finally {
     cast.stage = 'ended';
     engine.unhold(cast);

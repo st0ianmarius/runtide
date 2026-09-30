@@ -4,7 +4,75 @@ import { describe, it } from 'node:test';
 import { timeLeft } from '../../src/procs/index.ts';
 import { rescaleClocks } from '../../src/spells/index.ts';
 import { type AbilityGame, auraNamed, makeAbilityGame } from '../helpers/ability-game.ts';
-import { type Game, makeSpellGame, mark, spell, SPELL_TAGS } from '../helpers/spell-game.ts';
+import { aura, type Game, makeSpellGame, mark, spell, SPELL_TAGS } from '../helpers/spell-game.ts';
+
+describe('a spell’s cooldowns', () => {
+  /** A game with a spell on its own cooldown and a global one, and another on the global one landing at release. */
+  const cooldownGame = () =>
+    makeSpellGame(
+      {
+        bolt: spell({
+          activation: { kind: 'trigger' },
+          stats: { cooldown: 2 },
+          cooldown: [
+            { aura: 'boltCooldown', seconds: (ctx) => ctx.stats.cooldown },
+            { aura: 'global', seconds: 0.5 },
+          ],
+          release: () => [mark('bolt')],
+        }),
+        slam: spell({
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 0.5 } },
+          cooldown: { aura: 'global', seconds: 1, startsOn: 'release' },
+          release: () => [mark('slam')],
+        }),
+      },
+      { auras: { boltCooldown: aura({ duration: 9 }), global: aura({ duration: 9 }) } },
+    );
+
+  it('land in order as the cast starts, share an aura across spells, and one lands at the release instead', () => {
+    const game = cooldownGame();
+    const hero = game.unit(1);
+
+    game.spells.cast(hero, game.id.bolt);
+    assert.deepEqual(
+      [game.spells.cooldownLeft(hero, game.id.bolt), game.spells.check(hero, game.id.slam)],
+      [2, 'cooldown'],
+    );
+    assert.deepEqual(game.spells.cooldownsOf(game.id.bolt), [game.auraId.boltCooldown, game.auraId.global]);
+
+    const other = game.unit(2);
+
+    game.spells.cast(other, game.id.slam);
+    assert.equal(game.spells.isCooling(other, game.id.bolt), false);
+    for (let i = 0; i < 2; i++) {
+      game.step();
+      game.spells.step(other);
+    }
+
+    assert.equal(game.spells.isCooling(other, game.id.bolt), true);
+    assert.equal(game.spells.cooldownLeft(other, game.id.slam), 1);
+  });
+
+  it('start all at once for a press that commits them, and a committed cast neither asks nor lands them', () => {
+    const game = cooldownGame();
+    const hero = game.unit(1);
+
+    game.spells.startCooldowns(hero, game.id.slam);
+    assert.equal(game.spells.cooldownLeft(hero, game.id.slam), 1);
+    assert.equal(game.spells.cast(hero, game.id.slam, { committed: true }).status, 'running');
+    for (let i = 0; i < 2; i++) {
+      game.step();
+      game.spells.step(hero);
+    }
+
+    assert.equal(game.spells.cooldownLeft(hero, game.id.slam), 1, 'not landed again at the release');
+    assert.deepEqual(
+      game.log.filter((line) => line === 'slam@1'),
+      ['slam@1'],
+    );
+  });
+});
 
 describe('time left on cooldown auras', () => {
   it('scales and caps what is left of every aura with a tag, keeping its duration', () => {

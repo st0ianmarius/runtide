@@ -184,6 +184,82 @@ describe('stage order', () => {
     );
   });
 
+  it('reads a channel’s beat from the cast as it starts (hasted ticks)', () => {
+    const game = timeline({
+      storm: spell({
+        activation: { kind: 'trigger' },
+        stats: { beat: 0.5 },
+        timeline: { channel: { seconds: 1, every: (ctx) => ctx.stats.beat / 2, tick: () => [mark('beat')] } },
+        release: () => undefined,
+      }),
+    });
+
+    game.spells.cast(game.a, game.id.storm);
+    game.advance(4);
+    assert.equal(game.log.filter((line) => line === 'beat@1').length, 4);
+  });
+
+  it('moves a stage’s end by a delay: pushback later, a negative one sooner, never below none left', () => {
+    const game = timeline({
+      heal: spell({
+        activation: { kind: 'trigger' },
+        timeline: { windup: { seconds: 1 } },
+        release: () => [mark('heal')],
+      }),
+    });
+
+    const { handle } = game.spells.cast(game.a, game.id.heal);
+
+    game.advance(2);
+    assert.equal(game.spells.delay(handle, 0.5), true);
+    assert.equal(game.spells.get(handle)?.stageSeconds, 1.5);
+    game.advance(3);
+    assert.equal(game.log.includes('heal@1'), false);
+    game.advance(1);
+    assert.equal(game.log.includes('heal@1'), true);
+
+    const again = game.spells.cast(game.a, game.id.heal).handle;
+
+    assert.equal(game.spells.delay(again, -5), true);
+    game.advance(1);
+    assert.equal(game.log.filter((line) => line === 'heal@1').length, 2);
+    assert.equal(game.spells.delay(again, 1), false);
+    assert.throws(() => game.spells.delay(handle, Number.NaN), /finite number of seconds/);
+  });
+
+  it('starts a cast paused under an interrupt its caster holds that it answers by pausing', () => {
+    const game = timeline({
+      chant: spell({
+        activation: { kind: 'trigger' },
+        timeline: { windup: { seconds: 0.25 }, interrupts: { stun: 'pause' } },
+        release: () => [mark('chant')],
+      }),
+      instant: spell({
+        activation: { kind: 'trigger' },
+        timeline: { interrupts: { stun: 'pause' } },
+        release: () => [mark('instant')],
+      }),
+    });
+
+    game.spells.interrupt(game.a, 'stun');
+
+    const { handle } = game.spells.cast(game.a, game.id.chant);
+
+    game.spells.cast(game.a, game.id.instant);
+    game.advance(3);
+    assert.equal(game.spells.get(handle)?.stage, 'windup');
+    assert.deepEqual(
+      game.log.filter((line) => !line.includes(' ') && !line.startsWith('t')),
+      [],
+    );
+    game.spells.endInterrupt(game.a, 'stun');
+    game.advance(1);
+    assert.deepEqual(
+      game.log.filter((line) => !line.includes(' ') && !line.startsWith('t')),
+      ['chant@1', 'instant@1'],
+    );
+  });
+
   it('breaks a channel whose breakIf holds, and reads the recovery with the outcome known', () => {
     let isOut = false;
 

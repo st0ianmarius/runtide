@@ -166,13 +166,13 @@ const aura = defineAura<AbilityGame>;
 const TAGS = defineAuraTags(['cooldown.dodge', 'cooldown.skill', 'cooldown.ultimate', 'stance', 'rooted']);
 
 /**
- * The test auras: a cooldown per slot, a charge (stacks that add up), a two-second predicted sprint, an endless stance
+ * The test auras: a cooldown a slot's spells share, per slot, a charge (stacks that add up), a two-second predicted sprint, an endless stance
  * and an endless root.
  */
 const AURAS = defineAuras<AbilityGame, string>({
-  dodgeCooldown: aura({ duration: 1, tags: ['cooldown.dodge'] }),
-  skillCooldown: aura({ duration: 1, tags: ['cooldown.skill'] }),
-  ultimateCooldown: aura({ duration: 1, tags: ['cooldown.ultimate'] }),
+  dodgeCooldown: aura({ duration: 1, tags: ['cooldown.dodge'], predicted: true }),
+  skillCooldown: aura({ duration: 1, tags: ['cooldown.skill'], predicted: true }),
+  ultimateCooldown: aura({ duration: 1, tags: ['cooldown.ultimate'], predicted: true }),
   charge: aura({ duration: 'infinite', stacking: 'stack', maxStacks: 9 }),
   sprint: aura({ duration: 2, predicted: true }),
   stance: aura({ duration: 'infinite', tags: ['stance'] }),
@@ -193,12 +193,8 @@ export const auraNamed = (name: string): AuraId => {
   return id;
 };
 
-/** The test slots, in press order: a dodge, a skill and an ultimate, each with its cooldown aura. */
-const SLOTS = defineSlots({
-  dodge: { cooldown: auraNamed('dodgeCooldown') },
-  skill: { cooldown: auraNamed('skillCooldown') },
-  ultimate: { cooldown: auraNamed('ultimateCooldown') },
-});
+/** The test slots, in press order: a dodge, a skill and an ultimate. */
+const SLOTS = defineSlots(['dodge', 'skill', 'ultimate']);
 
 /** The test clock's step: a quarter second, so a second is four steps. */
 const STEP = 0.25;

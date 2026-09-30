@@ -1,30 +1,19 @@
 import type { AuraId, AuraTagId } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
-import { explainScaled, type ScaledExplanation } from '../modifiers/index.ts';
 import type { SpellId } from '../spells/index.ts';
 import type { AbilityTypes } from './ability-types.ts';
-import type { CompiledButton } from './buttons.ts';
 import type { AbilityEngine } from './engine.ts';
 
 /**
- * A button's rules as data, for the client's tooltip: its cooldown explained at a rank, when it
- * starts, its cost, its tags and the auras it lands. Ids, not names or text.
+ * A button's rules as data, for the client's tooltip: when it commits, its cost, its tags and the auras it lands. Ids,
+ * not names or text; its cooldowns are its spell's (`explainSpell`).
  */
 export interface ButtonExplanation {
   /** The discriminant. */
   readonly kind: 'button';
 
-  /**
-   * Its cooldown: its seconds, or its scaled value explained at the rank (with the caster's readings and total when a
-   * caster was given, ratios only when not); `undefined` for none or a function of the caster.
-   */
-  readonly cooldown: number | ScaledExplanation | undefined;
-
-  /** Whether its cooldown is a function of the caster, which only a caster can read (`cooldownOf`). */
-  readonly isComputed: boolean;
-
-  /** When its cooldown starts. */
-  readonly startsOn: 'activation' | 'cast';
+  /** When a press commits: at the press, or once its cast is admitted. */
+  readonly commitsOn: 'press' | 'cast';
 
   /** Its cost; `undefined` for none. */
   readonly cost:
@@ -50,33 +39,10 @@ export interface ButtonExplanation {
   readonly applies: readonly AuraId[];
 }
 
-/** A button's cooldown as data: its number, its scaled value explained, or `undefined` for none or a function. */
-const explainCooldown = <G extends AbilityTypes>(
-  engine: AbilityEngine<G>,
-  [button, spell, rank]: readonly [CompiledButton<G>, SpellId, number],
-  caster: G['bearer'] | undefined,
-): ButtonExplanation['cooldown'] => {
-  const { cooldown } = button;
-
-  if (cooldown === undefined || typeof cooldown === 'number') {
-    return cooldown;
-  }
-
-  if (typeof cooldown === 'function') {
-    return undefined;
-  }
-
-  return explainScaled(cooldown, rank, caster === undefined ? undefined : { caster: engine.viewOf(caster, spell) });
-};
-
-/**
- * Explains a button spell at a rank: with no caster, a preview that needs no world; with one, its cooldown
- * reads the caster's stats for the spell. `undefined` for a spell that is not a button.
- */
+/** Explains a button spell; `undefined` for a spell that is not a button. */
 export const explainButton = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
-  [spell, rank]: readonly [SpellId, number],
-  caster: G['bearer'] | undefined,
+  spell: SpellId,
 ): ButtonExplanation | undefined => {
   const button = engine.buttons[spell];
 
@@ -86,9 +52,7 @@ export const explainButton = <G extends AbilityTypes>(
 
   return {
     kind: 'button',
-    cooldown: explainCooldown(engine, [button, spell, rank], caster),
-    isComputed: typeof button.cooldown === 'function',
-    startsOn: button.isCastCooldown ? 'cast' : 'activation',
+    commitsOn: button.commitsOnCast ? 'cast' : 'press',
     cost: button.costAura < 0 ? undefined : { aura: toId<'auras'>(button.costAura), stacks: button.costStacks },
     requires: button.requires,
     blockedBy: button.blockedBy,

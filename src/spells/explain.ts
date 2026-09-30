@@ -8,7 +8,9 @@ import {
 } from '../modifiers/index.ts';
 import type { ActivationKindDef } from './activation.ts';
 import { StatsCall } from './cast.ts';
+import { cooldownList } from './cooldowns.ts';
 import type { SpellRegistry } from './define-spells.ts';
+import type { AnySpellDef } from './spell-def.ts';
 import type { ActivationKindId, ActivationShape, SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 import { baseView } from './stats-box.ts';
 
@@ -76,7 +78,7 @@ export interface SpellExplanation {
 
   /**
    * Each stage's seconds: a constant, `'cast'` for seconds read per cast (a function), `undefined` for a stage it
-   * does not have; and the channel's beat (0 for every step).
+   * does not have; and the channel's beat (0 for every step, `'cast'` for seconds read per cast).
    */
   readonly timeline: {
     /** The windup. */
@@ -86,10 +88,37 @@ export interface SpellExplanation {
     readonly channel: number | 'cast' | undefined;
 
     /** The channel's beat. */
-    readonly every: number;
+    readonly every: number | 'cast';
 
     /** The recovery. */
     readonly recover: number | 'cast' | undefined;
+  };
+
+  /** Its cooldowns, in the order it names them: each aura as the spell names it, its seconds, and when it lands. */
+  readonly cooldowns: readonly {
+    /** The aura, as the spell names it (its name in data, its id in code). */
+    readonly aura: string | number;
+
+    /** Its seconds: a constant, `'cast'` for seconds read per cast, `'aura'` for the aura's own duration. */
+    readonly seconds: number | 'cast' | 'aura';
+
+    /** When it lands. */
+    readonly startsOn: 'start' | 'release';
+  }[];
+
+  /** Its reach rules: each distance a constant, `'cast'` for one read per cast, `undefined` for none. */
+  readonly reach: {
+    /** The farthest range. */
+    readonly range: number | 'cast' | undefined;
+
+    /** The least range. */
+    readonly minRange: number | 'cast' | undefined;
+
+    /** Whether it needs a clear line. */
+    readonly sight: boolean;
+
+    /** Whether the game's own rule over the target is asked. */
+    readonly hasRule: boolean;
   };
 }
 
@@ -206,14 +235,35 @@ const timelineOf = <G extends SpellTypes>(registry: SpellRegistry<G>, spell: Spe
   return {
     windup: stageOf(windup, windup !== 0 || timeline?.windup !== undefined),
     channel: stageOf(columns.channel[spell], timeline?.channel !== undefined),
-    every: columns.every[spell] ?? 0,
+    every: stageOf(columns.every[spell] ?? 0, true) ?? 0,
     recover: stageOf(recover, recover !== 0 || timeline?.recover !== undefined),
   };
 };
 
+/** A number of seconds or a distance as explained: its constant, `'cast'` for a function, `undefined` for none. */
+const secondsOf = (value: number | ((...args: never[]) => number) | undefined): number | 'cast' | undefined =>
+  typeof value === 'function' ? 'cast' : value;
+
+/** A spell's cooldowns as data. */
+const cooldownsOf = <G extends SpellTypes>(def: AnySpellDef<G>): SpellExplanation['cooldowns'] =>
+  cooldownList(def).map((one) => ({
+    aura: one.aura,
+    seconds: secondsOf(one.seconds) ?? 'aura',
+    startsOn: one.startsOn ?? 'start',
+  }));
+
+/** A spell's reach rules as data. */
+const reachOf = <G extends SpellTypes>(def: AnySpellDef<G>): SpellExplanation['reach'] => ({
+  range: secondsOf(def.reach?.range),
+  minRange: secondsOf(def.reach?.minRange),
+  sight: def.reach?.sight === true,
+  hasRule: def.reach?.allows !== undefined,
+});
+
 /**
  * A spell explained as data, at a rank (1 by default) and with the given stats (the stat table's
- * bases by default): its tags, activation kind and numbers, stats, outgoing shares and timeline. The client phrases
+ * bases by default): its tags, activation kind and numbers, stats, outgoing shares, timeline, cooldowns and reach. The
+ * client phrases
  * it in its own words; the numbers are the simulation's.
  */
 export const explainSpell = <G extends SpellTypes>(
@@ -233,5 +283,7 @@ export const explainSpell = <G extends SpellTypes>(
     stats: statsOf(registry, spell, options),
     scaling: scalingOf(registry, spell),
     timeline: timelineOf(registry, spell),
+    cooldowns: cooldownsOf(def),
+    reach: reachOf(def),
   };
 };

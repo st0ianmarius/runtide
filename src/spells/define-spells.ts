@@ -143,7 +143,7 @@ const buildColumns = <G extends SpellTypes>(
     flags: columnOf(new Uint8Array(size), slots, flagsOf),
     windup: Float64Array.from(plans, (plan) => constantOf(plan?.windup)),
     channel: Float64Array.from(plans, (plan) => constantOf(plan?.channel)),
-    every: Float64Array.from(plans, (plan) => plan?.every ?? 0),
+    every: Float64Array.from(plans, (plan) => constantOf(plan?.every)),
     recover: Float64Array.from(plans, (plan) => constantOf(plan?.recover)),
   };
 };

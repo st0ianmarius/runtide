@@ -49,8 +49,11 @@ export interface Channel<G extends SpellTypes, Source extends StatsSource<G>, Ta
   /** Its seconds, read when it starts. */
   readonly seconds: CastSeconds<G, Source>;
 
-  /** The seconds between beats; without it `tick` runs every step. The last beat falls on the channel's last step. */
-  readonly every?: number;
+  /**
+   * The seconds between beats, read as the channel starts (a function reads the cast: hasted ticks); without it `tick`
+   * runs every step. The last beat falls on the channel's last step.
+   */
+  readonly every?: CastSeconds<G, Source>;
 
   /** A beat: its procs run for the caster. */
   tick?(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target, out: ProcOut<G>): ProcReturn<G>;

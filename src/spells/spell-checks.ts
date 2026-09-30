@@ -73,6 +73,12 @@ const checkShape = <G extends SpellTypes>(name: string, def: AnySpellDef<G>, par
   }
 };
 
+/** Whether a channel's beat is sound: none, a function, or finite seconds above 0. */
+const isSoundBeat = (every: unknown): boolean =>
+  every === undefined ||
+  typeof every === 'function' ||
+  (typeof every === 'number' && Number.isFinite(every) && every > 0);
+
 /** Checks the timeline: stage seconds from 0 (or functions), a beat above 0, interrupts that pause or cancel. */
 const checkTimeline = <G extends SpellTypes>(name: string, def: AnySpellDef<G>): void => {
   const { timeline } = def;
@@ -87,10 +93,8 @@ const checkTimeline = <G extends SpellTypes>(name: string, def: AnySpellDef<G>):
     fail(name, 'a stage lasts a finite number of seconds from 0, or a function.');
   }
 
-  const every = timeline.channel?.every;
-
-  if (every !== undefined && !(Number.isFinite(every) && every > 0)) {
-    fail(name, 'a channel beat must be a finite number of seconds above 0.');
+  if (!isSoundBeat(timeline.channel?.every)) {
+    fail(name, 'a channel beat must be a finite number of seconds above 0, or a function.');
   }
 
   const answers: readonly (string | undefined)[] = Object.values(timeline.interrupts ?? {});

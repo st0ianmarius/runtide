@@ -21,8 +21,8 @@ export interface CastPlan<G extends SpellTypes> {
   /** The channel's seconds, or `undefined` for none. */
   readonly channel: CastSeconds<G> | undefined;
 
-  /** The seconds between channel beats; 0 beats every step. */
-  readonly every: number;
+  /** The seconds between channel beats, or `undefined` to beat every step. */
+  readonly every: CastSeconds<G> | undefined;
 
   /** The recovery's seconds, or `undefined` for none. */
   readonly recover: CastSeconds<G> | undefined;
@@ -39,7 +39,7 @@ export const planOf = <G extends SpellTypes>(def: AnySpellDef<G>, name: string):
     windup: timeline?.windup?.seconds,
     track: timeline?.windup?.track,
     channel: timeline?.channel?.seconds,
-    every: timeline?.channel?.every ?? 0,
+    every: timeline?.channel?.every,
     recover: timeline?.recover?.seconds,
     reach: reachOf(def, name),
   });

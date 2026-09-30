@@ -1,14 +1,8 @@
-import type { AuraId } from '../auras/index.ts';
 import { createRegistry, type Registry } from '../core/index.ts';
+import { recordOf } from '../core/records.ts';
 
-/** A slot's definition: the aura its cooldown is (`cooldown.<slot>`); a slot with none never cools down. */
-export interface SlotDef {
-  /**
-   * The aura an ability in this slot starts as its cooldown (its name, or its id), resolved when the ability system is
-   * made; the slot is ready while its bearer does not hold it.
-   */
-  readonly cooldown?: string | AuraId;
-}
+/** A slot's definition: nothing of its own yet; a slot is its name and its place in the press order. */
+export type SlotDef = Readonly<Record<string, never>>;
 
 /** The most slots a game may declare: a press is a mask with one bit per slot. */
 export const MAX_SLOTS = 31;
@@ -17,12 +11,17 @@ export const MAX_SLOTS = 31;
 export type SlotTable<Name extends string = string> = Registry<'slots', Extract<Name, string>, SlotDef, never>;
 
 /**
- * Declares the game's slots in the order one press fires them, each with the aura its
- * cooldown is: `defineSlots({ dodge: { cooldown: 'dodgeCooldown' }, skill: { … }, ultimate: { … } })`. A
- * cooldown is per slot, not per ability, so an ability equipped on a cooling slot inherits its cooldown.
+ * Declares the game's slots in the order one press fires them: `defineSlots(['dodge', 'skill', 'ultimate'])`. A slot
+ * holds a button spell and nothing else: its cooldowns are the spell's own (shared through a common aura when the game
+ * wants a slot-wide one).
  */
-export const defineSlots = <const Name extends string>(slots: Readonly<Record<Name, SlotDef>>): SlotTable<Name> => {
-  const table = createRegistry(slots, { kind: 'slots' });
+export const defineSlots = <const Name extends string>(names: readonly Name[]): SlotTable<Name> => {
+  const none: SlotDef = Object.freeze({});
+
+  const table = createRegistry(
+    recordOf(names, () => none),
+    { kind: 'slots' },
+  );
 
   if (table.size > MAX_SLOTS) {
     throw new RangeError(`A game declares at most ${MAX_SLOTS} slots; got ${table.size}.`);

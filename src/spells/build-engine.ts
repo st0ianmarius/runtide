@@ -1,6 +1,6 @@
-import type { AuraId, AuraSystem } from '../auras/index.ts';
 import { type ActivationRegistry, CORE_ACTIVATIONS } from './activation.ts';
 import { type CastPlan, planOf } from './cast-plan.ts';
+import { compileCooldowns, Cooldowns } from './cooldowns.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import { SpellEngine } from './engine.ts';
 import { OPEN_WORLD } from './mirror.ts';
@@ -46,7 +46,7 @@ const checkCues = <G extends SpellTypes>(options: SpellSystemOptions<G>): void =
 const reachLack = <G extends SpellTypes>(options: SpellSystemOptions<G>, reach: ReachPlan<G>): string | undefined => {
   const isPlaced = options.host.positionOf !== undefined;
 
-  if ((reach.range !== undefined || reach.sight) && !isPlaced) {
+  if ((reach.range !== undefined || reach.minRange !== undefined || reach.sight) && !isPlaced) {
     return 'has a range or needs sight, so the system needs host.positionOf';
   }
 
@@ -87,32 +87,18 @@ const interruptBitsOf = <G extends SpellTypes>(
   return new Map([...names].map((name, index) => [name, 2 ** (index + 1)]));
 };
 
-/** Resolves a spell's cooldown aura against the aura registry at load; `undefined` for none. */
-const cooldownOf = <G extends SpellTypes>(
-  auras: AuraSystem<G>,
+/** A spell's pause mask: the bits of the interrupts its timeline answers by pausing. */
+const pauseMaskOf = <G extends SpellTypes>(
   def: AnySpellDef<G> | undefined,
-  name: string,
-): AuraId | undefined => {
-  const cooldown = def?.cooldown;
+  bits: ReadonlyMap<string, number>,
+): number => {
+  let mask = 0;
 
-  if (cooldown === undefined) {
-    return undefined;
+  for (const [reason, answer] of Object.entries(def?.timeline?.interrupts ?? {})) {
+    mask |= answer === 'pause' ? (bits.get(reason) ?? 0) : 0;
   }
 
-  const { seconds } = cooldown;
-
-  if (typeof seconds === 'number' && !(seconds >= 0 && Number.isFinite(seconds))) {
-    throw new RangeError(`Spell ${name}: its cooldown lasts a finite number of seconds from 0.`);
-  }
-
-  const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
-  const id = typeof cooldown.aura === 'string' ? ids[cooldown.aura] : cooldown.aura;
-
-  if (id === undefined || id < 0 || id >= auras.registry.size || auras.registry.isRetired(id)) {
-    throw new RangeError(`Spell ${name}: its cooldown aura ${cooldown.aura} is not a live aura.`);
-  }
-
-  return id;
+  return mask;
 };
 
 /** Builds the engine over the options, every table resolved. */
@@ -124,10 +110,15 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
   checkCues(options);
   checkReach(options, plans);
 
+  const interruptBits = interruptBitsOf(registry, options.interrupts ?? []);
+
   return new SpellEngine<G>({
     registry,
     auras: options.auras,
-    cooldowns: registry.defs.map((def, id) => cooldownOf(options.auras, def, registry.names[id] ?? '')),
+    cooldowns: new Cooldowns(
+      options.auras,
+      registry.defs.map((def, id) => compileCooldowns(options.auras, def, registry.names[id] ?? '')),
+    ),
     procs: options.procs,
     clock: options.clock,
     host: options.host,
@@ -139,7 +130,8 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     plans,
     boxes: new StatsBoxes(registry.compiled),
     baseView: baseView(registry.stats),
-    interruptBits: interruptBitsOf(registry, options.interrupts ?? []),
+    interruptBits,
+    pauseMasks: Int32Array.from(registry.defs, (def) => pauseMaskOf(def, interruptBits)),
     slots: options.slots?.size ?? 1,
     createExt: extFactory(options),
     resetExt: options.resetExt,

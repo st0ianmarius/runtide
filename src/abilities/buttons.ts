@@ -1,27 +1,20 @@
 import type { AuraId, AuraSystem, AuraTagId } from '../auras/index.ts';
-import { type CompiledScaled, compileScaled, type StatTable } from '../modifiers/index.ts';
-import {
-  type ButtonActivation,
-  type ButtonSeconds,
-  isButton,
-  type SpellId,
-  type SpellRegistry,
-} from '../spells/index.ts';
+import { type ButtonActivation, isButton, type SpellId, type SpellSystem } from '../spells/index.ts';
 import type { AbilityTypes } from './ability-types.ts';
 
 /**
- * A button spell's activation, resolved against the aura and stat tables when the ability system is built: tags as
- * ids, its cooldown compiled, so firing reads no names.
+ * A button spell's activation, resolved against the aura table when the ability system is built: tags and auras as
+ * ids, so firing reads no names.
  */
 export interface CompiledButton<G extends AbilityTypes> {
   /** The activation data, for its motion hooks. */
   readonly def: ButtonActivation<G>;
 
-  /** Its cooldown: seconds, a compiled scaled value, a function of the caster, or none. */
-  readonly cooldown: number | CompiledScaled | ButtonSeconds<G> | undefined;
+  /** Whether a press commits only once its cast is admitted (`commitsOn: 'cast'`). */
+  readonly commitsOnCast: boolean;
 
-  /** Whether the cooldown starts only once the cast was not refused (`startsOn: 'cast'`). */
-  readonly isCastCooldown: boolean;
+  /** Its spell's cooldown auras, which refuse a press while one is held. */
+  readonly cooldowns: readonly AuraId[];
 
   /** The aura its cost spends, or −1 for none. */
   readonly costAura: number;
@@ -42,10 +35,10 @@ export interface CompiledButton<G extends AbilityTypes> {
   readonly applies: readonly AuraId[];
 }
 
-/** What compiling one spell's button reads: the tables, and the spell for messages. */
+/** What compiling one spell's button reads: the aura table, the spell's cooldown auras, and the spell for messages. */
 interface Compiling<G extends AbilityTypes> {
   readonly auras: AuraSystem<G>;
-  readonly stats: StatTable<G['stat']> | undefined;
+  readonly cooldowns: readonly AuraId[];
   readonly what: string;
 }
 
@@ -70,7 +63,7 @@ const checkAura = <G extends AbilityTypes>(state: Compiling<G>, aura: string | A
   liveAura(state.auras.registry, aura, state.what);
 
 /** An aura reference (its name, or its id) as a live aura's id, or a clear error naming what refers to it. */
-export const liveAura = (
+const liveAura = (
   registry: {
     readonly id: Readonly<Record<string, AuraId | undefined>>;
     readonly size: number;
@@ -88,37 +81,14 @@ export const liveAura = (
   return id;
 };
 
-/** A button's cooldown, compiled: a number or function as it is, a scaled value against the stat table. */
-const cooldownOf = <G extends AbilityTypes>(
-  state: Compiling<G>,
-  def: ButtonActivation<G>,
-  ranks: number,
-): CompiledButton<G>['cooldown'] => {
-  const { cooldown } = def;
-
-  if (cooldown === undefined || typeof cooldown === 'number' || typeof cooldown === 'function') {
-    return cooldown;
-  }
-
-  if (state.stats === undefined) {
-    throw new RangeError(`${state.what}: a scaled cooldown needs the spell registry's stat table.`);
-  }
-
-  return compileScaled(state.stats, cooldown, { ranks, what: `${state.what}, cooldown`, allowsTarget: false });
-};
-
 /** Compiles one button spell's activation. */
-const compileButton = <G extends AbilityTypes>(
-  state: Compiling<G>,
-  def: ButtonActivation<G>,
-  ranks: number,
-): CompiledButton<G> => {
+const compileButton = <G extends AbilityTypes>(state: Compiling<G>, def: ButtonActivation<G>): CompiledButton<G> => {
   const { cost } = def;
 
   return Object.freeze({
     def,
-    cooldown: cooldownOf(state, def, ranks),
-    isCastCooldown: def.startsOn === 'cast',
+    commitsOnCast: def.commitsOn === 'cast',
+    cooldowns: state.cooldowns,
     costAura: cost === undefined ? -1 : checkAura(state, cost.aura),
     costStacks: cost?.stacks ?? 1,
     requires: tagsOf(state, def.requires),
@@ -130,20 +100,21 @@ const compileButton = <G extends AbilityTypes>(
 
 /**
  * Compiles every button spell of a registry, by spell id (`undefined` for any other spell or a
- * retired one), checked at load: every tag, aura and stat it names must exist, and a scaled cooldown's per-rank lists
- * must match the spell's ranks.
+ * retired one), checked at load: every tag and aura it names must exist.
  */
 export const compileButtons = <G extends AbilityTypes>(
-  registry: SpellRegistry<G>,
+  spells: SpellSystem<G>,
   auras: AuraSystem<G>,
 ): readonly (CompiledButton<G> | undefined)[] =>
-  registry.ids.map((id: SpellId) => {
+  spells.registry.ids.map((id: SpellId) => {
+    const { registry } = spells;
+
     if (registry.isRetired(id)) {
       return undefined;
     }
 
     const { activation } = registry.get(id);
-    const state = { auras, stats: registry.stats, what: `spell ${registry.name(id)}` };
+    const state = { auras, cooldowns: spells.cooldownsOf(id), what: `spell ${registry.name(id)}` };
 
-    return isButton<G>(activation) ? compileButton(state, activation, registry.columns.ranks[id] ?? 1) : undefined;
+    return isButton<G>(activation) ? compileButton(state, activation) : undefined;
   });

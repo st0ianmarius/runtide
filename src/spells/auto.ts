@@ -5,15 +5,21 @@ import { recordOf } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
 import type { SpellCaster, SpellId, SpellTypes } from './spell-types.ts';
 
+/** The reach rules' refusals: where the target stands, which the next step may change. */
+const REACH_REFUSALS: ReadonlySet<unknown> = new Set(['range', 'close', 'sight', 'reach']);
+
+/** Whether a refusal is one of the reach rules'. */
+const isReachRefusal = (refusal: unknown): boolean => REACH_REFUSALS.has(refusal);
+
 /**
- * The default `next` of an `auto` clock: 0 (the next step) after a refusal for no target or out of reach (a
- * swing's reach polled every step, unless its `ready` hook holds it); the interval after anything else. A game's own
+ * The default `next` of an `auto` clock: 0 (the next step) after a refusal for no target or by a reach rule
+ * (a swing's reach polled every step, unless its `ready` hook holds it); the interval after anything else. A game's own
  * `next` (a swing that never went out retried, `report.went === 0`) falls back to it for the cases it leaves alone.
  */
 export const autoNext = (report: CastReport, interval: number): number => {
   const { refusal } = report;
 
-  return refusal === 'target' || refusal === 'range' || refusal === 'sight' ? 0 : interval;
+  return refusal === 'target' || isReachRefusal(refusal) ? 0 : interval;
 };
 
 /** The seconds until an `auto` clock tries again after a cast: its activation's `next`, else `autoNext`, checked. */

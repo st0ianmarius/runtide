@@ -8,13 +8,14 @@ import type { SpellId, SpellTypes } from './spell-types.ts';
 const contextFor = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  [spell, input]: readonly [SpellId, G['input'] | undefined],
+  [spell, input, rank]: readonly [SpellId, G['input'] | undefined, number],
 ): MirrorContext<G> => {
   const context = (engine.mirror ??= new MirrorContext<G>(engine.world, caster));
 
   context.bearer = caster;
   context.input = input;
   context.stats = engine.host.statsOf?.(caster, spell);
+  context.rank = rank;
   context.dt = engine.clock.dt;
 
   return context;
@@ -28,10 +29,10 @@ const contextFor = <G extends SpellTypes>(
 export const fireCastCue = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  [spell, input, key]: readonly [SpellId, G['input'] | undefined, number],
+  [spell, input, key, rank]: readonly [SpellId, G['input'] | undefined, number, number],
 ): boolean => {
   const hook = engine.registry.defs[spell]?.cues?.cast;
-  const context = hook === undefined ? undefined : contextFor(engine, caster, [spell, input]);
+  const context = hook === undefined ? undefined : contextFor(engine, caster, [spell, input, rank]);
   const spec = context === undefined ? undefined : hook?.(context);
 
   if (context !== undefined) {

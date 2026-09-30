@@ -42,7 +42,14 @@ const SPELLS = () =>
         release: () => undefined,
       }),
       slam: spell({
-        activation: { kind: 'button', cooldown: 3 },
+        activation: { kind: 'button', commitsOn: 'cast' },
+        cooldown: [
+          { aura: 'slamCooldown', seconds: 3 },
+          { aura: 'global', seconds: (ctx) => 1 + ctx.rank, startsOn: 'release' },
+          { aura: 'rage' },
+        ],
+        reach: { range: 8, minRange: (ctx) => ctx.rank, sight: true, allows: () => true },
+        target: () => ({ x: 0, z: 0 }),
         timeline: { windup: { seconds: 1.2, track: lockBefore(0.3) }, recover: { seconds: 0.5 } },
         release: () => undefined,
       }),
@@ -107,14 +114,22 @@ describe('explainSpell', () => {
     assert.equal(radius?.key, 'radius');
   });
 
-  it("explains an activation's numbers, and a stats function's numbers only", () => {
+  it("explains an activation's numbers, a stats function's numbers only, the cooldowns and the reach", () => {
     const registry = SPELLS();
     const swing = explainSpell(registry, registry.id.swing, { rank: 3 });
     const slam = explainSpell(registry, registry.id.slam);
 
     assert.deepEqual(swing.activation.values, { interval: 1.5 });
     assert.deepEqual(swing.stats, [{ key: 'reach', value: 5 }]);
-    assert.deepEqual(slam.activation.values, { cooldown: 3 });
+    assert.deepEqual(slam.activation.values, {});
     assert.deepEqual(slam.timeline, { windup: 1.2, channel: undefined, every: 0, recover: 0.5 });
+    assert.deepEqual(slam.cooldowns, [
+      { aura: 'slamCooldown', seconds: 3, startsOn: 'start' },
+      { aura: 'global', seconds: 'cast', startsOn: 'release' },
+      { aura: 'rage', seconds: 'aura', startsOn: 'start' },
+    ]);
+    assert.deepEqual(slam.reach, { range: 8, minRange: 'cast', sight: true, hasRule: true });
+    assert.deepEqual(swing.cooldowns, []);
+    assert.deepEqual(swing.reach, { range: undefined, minRange: undefined, sight: false, hasRule: false });
   });
 });

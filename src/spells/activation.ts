@@ -1,6 +1,5 @@
 import type { AuraId } from '../auras/index.ts';
 import { createRegistry, type Registry } from '../core/index.ts';
-import type { Scaled } from '../modifiers/index.ts';
 import type { CastReport, GateAnswer } from './cast-request.ts';
 import type { MirrorCtx } from './mirror.ts';
 import type { GateContext, SpellContext, StatsSource } from './spell-def.ts';
@@ -51,15 +50,6 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
   }['bivarianceHack'];
 }
 
-/**
- * A button's cooldown in seconds, read from the caster as it fires: for a rule no scaled value
- * covers.
- */
-export type ButtonSeconds<G extends SpellTypes> = {
-  /** Reads the seconds; declared as a method so a function over a narrower caster still fits. */
-  bivarianceHack(caster: G['bearer'], rank: number): number;
-}['bivarianceHack'];
-
 /** What a button costs as it fires: stacks of an aura on its caster (a charge, a rage bar); 1 stack when absent. */
 export interface ButtonCost<G extends SpellTypes = SpellTypes> {
   /** The aura spent: its name in data, its id in code. */
@@ -71,26 +61,23 @@ export interface ButtonCost<G extends SpellTypes = SpellTypes> {
 
 /**
  * A `button` activation: a unit's key pulls it, through its loadout (`abilities.tryActivate`).
- * An ability **is** a spell with this activation: its cooldown is an aura on the slot it sits in, its cost is stacks of
- * an aura, `requires` and `blockedBy` are aura tags, and as it fires it pays, moves (`activate`), starts its cooldown,
- * lands `applies`, clears `resets`, then casts. The motion half (`activate`) reads and writes only the
- * bearer, so a prediction mirror runs it too.
+ * An ability **is** a spell with this activation: its cooldowns are the spell's own, its cost is stacks of an aura,
+ * `requires` and `blockedBy` are aura tags, and as it fires it pays, moves (`activate`), starts its cooldowns, lands
+ * `applies`, clears `resets`, then casts. When all that is committed is `commitsOn`: at the press (an action game's
+ * dodge, predicted whole on the client), or only once the server admits its cast (an MMO's spell out of range costs
+ * nothing). The motion half (`activate`) reads and writes only the bearer, so a prediction mirror runs it too.
  */
 export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
   /** The discriminant. */
   readonly kind: 'button';
 
   /**
-   * The seconds the slot cools down for: a number, a scaled value of the caster's stats at the ability's rank
-   * (`scaled(12, haste(0.5))`), or a function of the caster. None when absent.
+   * When a press commits its cost, motion, cooldowns and auras: `press` (the default: as it fires, whatever its cast
+   * then meets), or `cast` (only once the cast order admits the cast: range, sight, `canCast`, the gates). A prediction
+   * mirror commits a `cast` button only when its `checkCast` said yes, the one part of the cast order it can judge;
+   * without one it leaves the press to the server.
    */
-  readonly cooldown?: Scaled<G['stat']> | ButtonSeconds<G>;
-
-  /**
-   * When the cooldown starts: `activation` (as it fires, the default) or `cast`, only once its cast was not refused (a
-   * placement `checkCast` checks). A prediction mirror starts a `cast` cooldown only for a button with `checkCast`.
-   */
-  readonly startsOn?: 'activation' | 'cast';
+  readonly commitsOn?: 'press' | 'cast';
 
   /** What it costs as it fires; nothing when absent. */
   readonly cost?: ButtonCost<G>;
@@ -98,10 +85,10 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
   /** Aura tags every one of which the caster must hold. */
   readonly requires?: readonly G['tag'][];
 
-  /** Aura tags none of which the caster may hold (its slot's cooldown is always implied). */
+  /** Aura tags none of which the caster may hold (its own cooldowns are always implied). */
   readonly blockedBy?: readonly G['tag'][];
 
-  /** Aura tags whose auras it removes from the caster as it fires, after `applies` (another slot's cooldown). */
+  /** Aura tags whose auras it removes from the caster as it fires, after `applies` (another ability's cooldown). */
   readonly resets?: readonly G['tag'][];
 
   /**
@@ -111,16 +98,15 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
   readonly applies?: readonly (G['auraName'] | AuraId)[];
 
   /**
-   * The motion half as it fires, before its cooldown, auras and cast: a dodge's direction, from the press's input.
+   * The motion half as it fires, before its cooldowns, auras and cast: a dodge's direction, from the press's input.
    * Mirror-safe: it reads only its `MirrorCtx`.
    */
   activate?(this: void, ctx: MirrorCtx<G>): void;
 
   /**
-   * Whether its cast may go ahead, asked as it casts, after `activate`, its cost, `applies` and `resets`: a sentry's
-   * placement against the static world, from the press's input. Mirror-safe: it reads only its `MirrorCtx`, so the
-   * server and a prediction mirror answer alike. False refuses the cast with no cast cue and no `cast` cooldown; true
-   * lets a mirror predict the cast cue and start a `cast` cooldown. The spell's own gates still run on the server.
+   * Whether it may fire at all, asked before anything is committed: a sentry's placement against the static world,
+   * from the press's input. Mirror-safe: it reads only its `MirrorCtx`, so the server and a prediction mirror answer
+   * alike. False refuses the press (`check`) with nothing paid, moved or started.
    */
   checkCast?(this: void, ctx: MirrorCtx<G>): boolean;
 }
@@ -171,9 +157,6 @@ export interface ActivationKindDef<A extends ActivationShape = ActivationShape, 
   explain?(this: void, activation: A): Readonly<Record<string, number>>;
 }
 
-/** Whether a number is a finite count of seconds from 0. */
-const isSeconds = (value: number | undefined): boolean => value === undefined || (Number.isFinite(value) && value >= 0);
-
 /** Whether an activation is the framework's `auto` kind. */
 export const isAuto = <G extends SpellTypes>(activation: Activation<G>): activation is AutoActivation<G> =>
   activation.kind === 'auto' && Object.hasOwn(activation, 'interval');
@@ -204,17 +187,13 @@ export const isButton = <G extends SpellTypes>(activation: Activation<G>): activ
 const isCost = (cost: ButtonCost | undefined): boolean =>
   cost?.stacks === undefined || (Number.isInteger(cost.stacks) && cost.stacks >= 1);
 
-/** The `button` kind: its cooldown seconds from 0 (a number's; a scaled value is checked by the ability system). */
+/** The `button` kind: when it commits, its hooks, and its cost. */
 const BUTTON: ActivationKindDef<ButtonActivation, never> = {
   check: (activation) => {
-    const { cooldown, startsOn } = activation;
+    const { commitsOn } = activation;
 
-    if (typeof cooldown === 'number' && !isSeconds(cooldown)) {
-      return 'a button cooldown takes seconds from 0.';
-    }
-
-    if (startsOn !== undefined && startsOn !== 'activation' && startsOn !== 'cast') {
-      return "a button cooldown starts on 'activation' or 'cast'.";
+    if (commitsOn !== undefined && commitsOn !== 'press' && commitsOn !== 'cast') {
+      return "a button commits on 'press' or 'cast'.";
     }
 
     if (activation.checkCast !== undefined && typeof activation.checkCast !== 'function') {

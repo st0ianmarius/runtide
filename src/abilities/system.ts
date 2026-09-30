@@ -1,10 +1,10 @@
 import type { AuraId, AuraTagId } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
 import type { SpellId } from '../spells/index.ts';
-import type { AbilityTypes, ButtonRefusal, SlotId } from './ability-types.ts';
+import type { AbilityTypes, ButtonRefusal, PressRefusal, SlotId } from './ability-types.ts';
 import { AbilityEngine, type AbilityParts } from './engine.ts';
 import { type ButtonExplanation, explainButton } from './explain.ts';
-import { cooldownSeconds, press, refusalAt, slotHolding, spellAt } from './firing.ts';
+import { press, refusalAt, slotHolding, spellAt } from './firing.ts';
 import { loadoutOf, LoadoutRecord, type LoadoutState } from './loadout.ts';
 import type { SlotTable } from './slots.ts';
 
@@ -18,6 +18,13 @@ export interface Press<G extends AbilityTypes> {
    * spell's cast cue carries; 0 when absent.
    */
   readonly key?: number | undefined;
+
+  /**
+   * Where each pressed slot's refusal is written, by slot: why it did not fire (its rules, its `checkCast`, the cast
+   * order for a button that commits on its cast), or why its committed cast was refused all the same; `undefined` for a
+   * slot that fired cleanly or was not pressed. None is written when absent.
+   */
+  readonly refusals?: (PressRefusal<G> | undefined)[] | undefined;
 }
 
 /** A button spell equipped at a rank. */
@@ -31,7 +38,7 @@ export interface Equipped {
 
 /** What a press reads on its bearer: the auras and tags a prediction mirror must rebuild. */
 export interface MirrorReads {
-  /** The slots' cooldown auras and every button's cost aura, in id order. */
+  /** Every button spell's cooldown auras and every button's cost aura, in id order. */
   readonly auras: readonly AuraId[];
 
   /** Every tag a button's `requires`, `blockedBy` or `resets` names, in id order. */
@@ -44,16 +51,17 @@ export type AbilitySystemOptions<G extends AbilityTypes> = AbilityParts<G>;
 /**
  * An ability system: buttons over a spell system. A unit's loadout puts a `button` spell in each slot;
  * a press fires the pressed slots whose ability may fire, each paying its cost, running its motion half, starting its
- * slot's cooldown aura, landing its auras, then casting its spell.
+ * spell's cooldowns, landing its auras, then casting its spell: all at the press, or once its cast is admitted.
  */
 export interface AbilitySystem<G extends AbilityTypes> {
   /** The game's slots. */
   readonly slots: SlotTable<G['slot']>;
 
   /**
-   * The auras and tags a press reads on its bearer (its slots' cooldowns, its costs, the tags of `requires`, `blockedBy`
-   * and `resets`): what a prediction mirror must rebuild, so each such aura is `predicted` (`checkPredicted`). The auras
-   * a press lands are not reads: one that matters is read through a tag or through the game's motion reads.
+   * The auras and tags a press reads on its bearer (its spells' cooldowns, its costs, the tags of `requires`,
+   * `blockedBy` and `resets`): what a prediction mirror must rebuild, so each such aura is `predicted`
+   * (`checkPredicted`). The auras a press lands are not reads: one that matters is read through a tag or through the
+   * game's motion reads.
    */
   readonly mirrorReads: MirrorReads;
 
@@ -62,8 +70,7 @@ export interface AbilitySystem<G extends AbilityTypes> {
 
   /**
    * Puts a button spell in a slot (at rank 1, or at the rank given with it), or empties the slot (`undefined`).
-   * Throws for a spell that is not a live button spell, a rank outside the spell's, or a spell with a cooldown on a
-   * slot without one.
+   * Throws for a spell that is not a live button spell, or a rank outside the spell's.
    */
   readonly equip: (bearer: G['bearer'], slot: SlotId, ability: SpellId | Equipped | undefined) => void;
 
@@ -77,37 +84,30 @@ export interface AbilitySystem<G extends AbilityTypes> {
   readonly bit: (slot: SlotId) => number;
 
   /**
-   * Whether the ability in a slot may fire now: `undefined` when it may, else why not: the slot holds none (`empty`),
-   * its cooldown aura is on the bearer (`cooldown`), a `requires` tag is missing (`requires`), a `blockedBy` tag is
-   * held (`blocked`), or the cost is not affordable (`cost`). Reads only the bearer.
+   * Whether the ability in a slot may fire now, by its own rules: `undefined` when it may, else why not: the slot holds
+   * none (`empty`), one of its spell's cooldowns is on the bearer (`cooldown`), a `requires` tag is missing
+   * (`requires`), a `blockedBy` tag is held (`blocked`), or the cost is not affordable (`cost`). Reads only the bearer.
    */
   readonly check: (bearer: G['bearer'], slot: SlotId) => ButtonRefusal | undefined;
 
-  /** The seconds left on a slot's cooldown; 0 when it is ready or has no cooldown. */
+  /** The seconds until the ability in a slot may fire again: the most left on its spell's cooldowns; 0 when ready. */
   readonly cooldownLeft: (bearer: G['bearer'], slot: SlotId) => number;
 
   /**
-   * A press: every pressed slot (a mask of `bit`s) is decided against the bearer before any fires, then each
-   * accepted one fires in slot order: pays its cost, runs `activate` (with a `MirrorCtx` of the press's input and the
-   * clock's step), starts its slot's cooldown (on `activation`),
-   * lands `applies` then `resets`, asks `checkCast`, and casts its spell with the press's input and key (a no-windup spell
-   * releases here, before the game moves the bearer), starting a `cast` cooldown once the cast was not refused. Returns the mask of the slots that
-   * fired. The game calls it inside its motion step, on the server and on a prediction mirror alike.
+   * A press: every pressed slot (a mask of `bit`s) is decided against the bearer before any fires, then each accepted
+   * one fires in slot order: asks `checkCast` (and, for a button that commits on its cast, the cast order), then
+   * commits (pays its cost, runs `activate` with a `MirrorCtx` of the press, starts its spell's cooldowns, lands
+   * `applies` then `resets`) and casts its spell with the press's input, rank and key (a no-windup spell releases here,
+   * before the game moves the bearer). Returns the mask of the slots that committed, and writes the refusals into the
+   * press's `refusals`. The game calls it inside its motion step, on the server and on a prediction mirror alike.
    */
   readonly tryActivate: (bearer: G['bearer'], pressed: number, press?: Press<G>) => number;
 
   /**
-   * A button spell's cooldown in seconds at a rank (1 when absent), as it would start now: for a caster, read from its
-   * stats; for none (`undefined`), a preview that needs no world, reading the stat table's bases, NaN for
-   * a cooldown that is a function of the caster. 0 for none, or for a spell that is not a button.
+   * A button spell's rules as data, for the client's tooltip (its cooldowns are its spell's, in `explainSpell`).
+   * `undefined` for a spell that is not a button.
    */
-  readonly cooldownOf: (caster: G['bearer'] | undefined, spell: SpellId, rank?: number) => number;
-
-  /**
-   * A button spell's rules as data at a rank (1 when absent), for the client's tooltip: with a caster, its
-   * cooldown's readings and total; with none, ratios only. `undefined` for a spell that is not a button.
-   */
-  readonly explain: (spell: SpellId, rank?: number, caster?: G['bearer']) => ButtonExplanation | undefined;
+  readonly explain: (spell: SpellId) => ButtonExplanation | undefined;
 }
 
 /** Throws unless a slot id is one of the table's. */
@@ -145,21 +145,21 @@ const equipIn = <G extends AbilityTypes>(
     throw new RangeError(`${registry.name(spell)} has no rank ${rank}.`);
   }
 
-  if (button.cooldown !== undefined && (engine.cooldowns[slot] ?? -1) < 0) {
-    throw new RangeError(`${registry.name(spell)} has a cooldown, and slot ${engine.slots.name(slot)} has none.`);
-  }
-
   record.spells[slot] = spell;
   record.ranks[slot] = rank;
 };
 
 /** The auras and tags an engine's presses read, sorted and without repeats. */
 const mirrorReadsOf = <G extends AbilityTypes>(engine: AbilityEngine<G>): MirrorReads => {
-  const auras = new Set<number>([...engine.cooldowns].filter((aura) => aura >= 0));
+  const auras = new Set<number>();
   const tags = new Set<AuraTagId>();
 
-  for (const button of engine.buttons) {
+  for (const [spell, button] of engine.buttons.entries()) {
     if (button !== undefined) {
+      for (const aura of engine.spells.cooldownsOf(toId<'spells'>(spell))) {
+        auras.add(aura);
+      }
+
       if (button.costAura >= 0) {
         auras.add(button.costAura);
       }
@@ -182,7 +182,7 @@ const mirrorReadsOf = <G extends AbilityTypes>(engine: AbilityEngine<G>): Mirror
  */
 export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySystemOptions<G>): AbilitySystem<G> => {
   const engine = new AbilityEngine<G>(options);
-  const { slots, auras } = engine;
+  const { slots } = engine;
 
   return {
     slots,
@@ -218,19 +218,18 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
     cooldownLeft: (bearer, slot) => {
       checkSlot(slots, slot);
 
-      const aura = engine.cooldowns[slot] ?? -1;
+      const spell = spellAt(loadoutOf(bearer), slot);
 
-      return aura < 0 ? 0 : auras.remaining(bearer, toId<'auras'>(aura));
+      return spell === undefined ? 0 : engine.spells.cooldownLeft(bearer, spell);
     },
 
     tryActivate: (bearer, pressed, data) => {
       engine.input = data?.input;
       engine.key = data?.key ?? 0;
 
-      return press(engine, bearer, pressed);
+      return press(engine, bearer, [pressed, data?.refusals]);
     },
 
-    cooldownOf: (caster, spell, rank = 1) => cooldownSeconds(engine, caster, [spell, rank]),
-    explain: (spell, rank = 1, caster) => explainButton(engine, [spell, rank], caster),
+    explain: (spell) => explainButton(engine, spell),
   };
 };

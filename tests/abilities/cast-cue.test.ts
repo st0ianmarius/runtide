@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { PressRefusal } from '../../src/abilities/index.ts';
 import { createCueEchoes, type CueEvent } from '../../src/cues/index.ts';
 import type { SpellContext, StaticWorld } from '../../src/spells/index.ts';
 import { type AbilityGame, auraNamed, CUES, makeAbilityGame, spell, STATS } from '../helpers/ability-game.ts';
@@ -20,7 +21,8 @@ const logRelease =
 /** The test spells: a button with a predicted cast cue, one whose cast cue is not predicted, and one with none. */
 const spells = {
   blink: spell({
-    activation: { kind: 'button', cooldown: 2, startsOn: 'cast' },
+    activation: { kind: 'button' },
+    cooldown: { aura: 'dodgeCooldown', seconds: 2 },
     timeline: { windup: { seconds: 0.5 } },
 
     cues: {
@@ -49,10 +51,10 @@ const spells = {
   sentry: spell({
     activation: {
       kind: 'button',
-      cooldown: 2,
-      startsOn: 'cast',
+      commitsOn: 'cast',
       checkCast: ({ input, world }) => input !== undefined && world.isPositionClear(input, 0.5),
     },
+    cooldown: { aura: 'skillCooldown', seconds: 2 },
     cues: { cast: () => ({ cue: CUES.id.swish }) },
     release: logRelease('sentry'),
   }),
@@ -152,8 +154,48 @@ describe('presses on a prediction mirror', () => {
     assert.deepEqual(firedOf(game.cues.events), ['swish@4 key 5']);
     assert.equal(game.spells.isCasting(hero), false);
     assert.deepEqual(lines, ['cast cue @4 input undefined,undefined haste 0 dt 0.25 clear true']);
-    assert.equal(abilities.cooldownLeft(hero, dodge), 0);
-    assert.equal(game.auras.has(hero, auraNamed('dodgeCooldown')), false);
+    assert.equal(abilities.cooldownLeft(hero, dodge), 2);
+    assert.equal(game.auras.has(hero, auraNamed('dodgeCooldown')), true);
+  });
+
+  it('leave a button that commits on its cast, with no checkCast, to the server: nothing committed or cued', () => {
+    const tether = spell({
+      activation: { kind: 'button', commitsOn: 'cast', cost: { aura: auraNamed('charge') } },
+      cooldown: { aura: 'skillCooldown', seconds: 3 },
+      cues: { cast: () => ({ cue: CUES.id.swish }) },
+      release: logRelease('tether'),
+    });
+
+    const game = makeAbilityGame({ tether }, { mirror: true });
+    const hero = game.hero(4);
+    const { abilities } = game;
+    const refusals: (PressRefusal<AbilityGame> | undefined)[] = [];
+
+    game.auras.apply(hero, { aura: auraNamed('charge'), stacks: 1 });
+    abilities.equip(hero, abilities.slots.id.skill, game.id.tether);
+    assert.equal(abilities.tryActivate(hero, abilities.bit(abilities.slots.id.skill), { refusals }), 0);
+    assert.deepEqual(
+      [refusals[abilities.slots.id.skill], game.cues.events.length, game.auras.stacks(hero, auraNamed('charge'))],
+      ['server', 0, 1],
+    );
+  });
+
+  it('hand the motion half the rank the slot holds the spell at', () => {
+    const ranked: number[] = [];
+
+    const surge = spell({
+      ranks: 3,
+      activation: { kind: 'button', activate: ({ rank }) => void ranked.push(rank) },
+      release: logRelease('surge'),
+    });
+
+    const game = makeAbilityGame({ surge }, { mirror: true });
+    const hero = game.hero(4);
+    const { abilities } = game;
+
+    abilities.equip(hero, abilities.slots.id.skill, { spell: game.id.surge, rank: 3 });
+    abilities.tryActivate(hero, abilities.bit(abilities.slots.id.skill));
+    assert.deepEqual(ranked, [3]);
   });
 
   it('carry the press’s key into the server’s casts too', () => {

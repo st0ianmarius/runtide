@@ -1,25 +1,36 @@
 import type { Vec2 } from '../math/index.ts';
 import type { CastSeconds } from './activation.ts';
+import type { GateAnswer } from './cast-request.ts';
 import type { Cast } from './cast.ts';
 import type { SpellEngine } from './engine.ts';
-import type { AnySpellDef, StatsSource } from './spell-def.ts';
+import type { AnySpellDef, SpellContext, StatsSource } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
 
 /**
- * A cast's reach rules, asked right after its target is picked: how far the target may be (`range`),
- * and whether a clear line to it is needed (`sight`). A refusal names the rule (`range`, `sight`), which an `auto`
- * clock answers as it answers no target (its `auto` clock's `next`). Room at a placed point is the game's own gate. The target's point is `pointOf`'s, else the host's (`pointOf`), else the target itself when it
- * is a point.
+ * A cast's reach rules, asked right after its target is picked, in order: how far the target may be (`range`) and how
+ * near (`minRange`), whether a clear line to it is needed (`sight`), and the game's own rule over the picked target
+ * (`allows`: a facing arc, an execute threshold, room at a placed point). A refusal names the rule (`range`, `close`,
+ * `sight`, `reach` or the game's reason), which an `auto` clock answers as it answers no target (its `auto` clock's
+ * `next`). The target's point is `pointOf`'s, else the host's (`pointOf`), else the target itself when it is a point.
  */
 export interface Reach<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>, Target = unknown> {
   /** The farthest the target's point may be from the caster's, centre to centre: a number, or read from the cast. */
   readonly range?: CastSeconds<G, Source>;
+
+  /** The nearest the target's point may be (a charge's run-up): a number, or read from the cast; none when absent. */
+  readonly minRange?: CastSeconds<G, Source>;
 
   /** Whether the static world must hold a clear line from the caster to the target's point (`lineClear`). */
   readonly sight?: boolean;
 
   /** The target's point, when neither the host nor the target itself gives one. */
   pointOf?(this: void, target: Target): Vec2;
+
+  /**
+   * The game's own rule over the picked target, asked last: false refuses as `reach`, one of the game's reasons for
+   * that reason (a target not in front, one above the execute threshold).
+   */
+  allows?(this: void, ctx: SpellContext<G, Source, Target>, target: Target): GateAnswer<G>;
 }
 
 /** A spell's reach resolved at load. */
@@ -27,21 +38,27 @@ export interface ReachPlan<G extends SpellTypes> {
   /** The range, or `undefined` for none. */
   readonly range: CastSeconds<G> | undefined;
 
+  /** The least range, or `undefined` for none. */
+  readonly minRange: CastSeconds<G> | undefined;
+
   /** Whether a clear line is needed. */
   readonly sight: boolean;
 
   /** The spell's own point of a target, or `undefined`. */
   readonly pointOf: ((target: unknown) => Vec2) | undefined;
+
+  /** The game's rule over the picked target, or `undefined`. */
+  readonly allows: ((ctx: SpellContext<G>, target: unknown) => GateAnswer<G>) | undefined;
 }
 
-/** Why a cast's reach refused it. */
-export type ReachRefusal = 'range' | 'sight';
+/** Why a reach rule refused a cast: out of `range`, too `close`, out of `sight`, or the game's `allows` (`reach`). */
+export type ReachRefusal = 'range' | 'close' | 'sight' | 'reach';
 
 /** Throws for a range that is not sound. */
 const checkRule = <G extends SpellTypes>(rule: ReachPlan<G>, name: string): void => {
-  const { range } = rule;
+  const { range, minRange } = rule;
 
-  if (typeof range === 'number' && !(range >= 0)) {
+  if ((typeof range === 'number' && !(range >= 0)) || (typeof minRange === 'number' && !(minRange >= 0))) {
     throw new RangeError(`Spell ${name}: its range takes a distance from 0.`);
   }
 };
@@ -49,8 +66,10 @@ const checkRule = <G extends SpellTypes>(rule: ReachPlan<G>, name: string): void
 /** A spell's own reach. */
 const ruleOf = <G extends SpellTypes>(own: Reach<G>): ReachPlan<G> => ({
   range: own.range,
+  minRange: own.minRange,
   sight: own.sight ?? false,
   pointOf: own.pointOf,
+  allows: own.allows,
 });
 
 /**
@@ -70,7 +89,9 @@ export const reachOf = <G extends SpellTypes>(def: AnySpellDef<G>, name: string)
 
   checkRule(rule, name);
 
-  return rule.range === undefined && !rule.sight ? undefined : Object.freeze(rule);
+  const isEmpty = rule.range === undefined && rule.minRange === undefined && !rule.sight && rule.allows === undefined;
+
+  return isEmpty ? undefined : Object.freeze(rule);
 };
 
 /** Whether a value is a point. */
@@ -98,36 +119,65 @@ const targetPoint = <G extends SpellTypes>(engine: SpellEngine<G>, plan: ReachPl
   );
 };
 
-/** Whether a range holds: the distance from `from` to `to` is at most the range read from the cast. */
-const isInRange = <G extends SpellTypes>(
-  range: CastSeconds<G>,
-  cast: Cast<G>,
-  [from, to]: readonly [Vec2, Vec2],
-): boolean => {
-  const reach = typeof range === 'function' ? range(cast) : range;
+/** The squared distance from `from` to `to`. */
+const distanceSq = ([from, to]: readonly [Vec2, Vec2]): number => {
   const dx = to.x - from.x;
   const dz = to.z - from.z;
 
-  return dx * dx + dz * dz <= reach * reach;
+  return dx * dx + dz * dz;
 };
+
+/** A distance read from the cast: a constant, or its function of the cast. */
+const distanceOf = <G extends SpellTypes>(distance: CastSeconds<G>, cast: Cast<G>): number =>
+  typeof distance === 'function' ? distance(cast) : distance;
 
 /** The point the caster's position is read into, read at once. */
 const FROM = { x: 0, z: 0 };
 
-/** A cast's reach rules against its picked target, in order: range, sight. The refusal, or `undefined`. */
-export const checkReach = <G extends SpellTypes>(
+/** The refusal of the distance rules (`range`, `minRange`) and `sight`, or `undefined`. */
+const placedRefusal = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
   plan: ReachPlan<G>,
 ): ReachRefusal | undefined => {
+  if (plan.range === undefined && plan.minRange === undefined && !plan.sight) {
+    return undefined;
+  }
+
   const to = targetPoint(engine, plan, cast);
   const from = (engine.host.positionOf ?? noPosition)(cast.caster, FROM);
+  const gap = distanceSq([from, to]);
 
-  if (plan.range !== undefined && !isInRange(plan.range, cast, [from, to])) {
+  if (plan.range !== undefined && gap > distanceOf(plan.range, cast) ** 2) {
     return 'range';
   }
 
+  if (plan.minRange !== undefined && gap < distanceOf(plan.minRange, cast) ** 2) {
+    return 'close';
+  }
+
   return plan.sight && !engine.world.lineClear(from, to) ? 'sight' : undefined;
+};
+
+/** A cast's reach rules against its picked target, in order: range, least range, sight, the game's. */
+export const checkReach = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  cast: Cast<G>,
+  plan: ReachPlan<G>,
+): ReachRefusal | G['refusal'] | undefined => {
+  const placed = placedRefusal(engine, cast, plan);
+
+  if (placed !== undefined || plan.allows === undefined) {
+    return placed;
+  }
+
+  const answer = plan.allows(cast, cast.target);
+
+  if (answer === true) {
+    return undefined;
+  }
+
+  return answer === false ? 'reach' : answer;
 };
 
 /** The host has no `positionOf`: the load check prevents it. */

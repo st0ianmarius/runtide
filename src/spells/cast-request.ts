@@ -4,8 +4,8 @@ import type { SpellId, SpellTypes } from './spell-types.ts';
 
 /**
  * Why a cast was refused: a gate's own reason (the game's), a plain false from the gates (the host's `canAct`, the
- * activation kind's) or from `canCast`, its own cooldown, no target, or a reach rule (the target out of `range` or out of
- * `sight`).
+ * activation kind's) or from `canCast`, one of its cooldowns, no target, or a reach rule (the target out of `range`,
+ * too `close`, out of `sight`, or refused by the reach's own `allows` as `reach`).
  */
 export type CastRefusal<G extends SpellTypes = SpellTypes> =
   | 'gate'
@@ -55,6 +55,12 @@ export interface CastOptions<G extends SpellTypes> {
    * server and the predicting client; 0 (none) when absent.
    */
   readonly key?: number | undefined;
+
+  /**
+   * Whether its cooldowns already started (`spells.startCooldowns`: a press that committed at once): the cast neither
+   * refuses on them nor lands them again. False when absent.
+   */
+  readonly committed?: boolean | undefined;
 }
 
 /** No options: every default. */

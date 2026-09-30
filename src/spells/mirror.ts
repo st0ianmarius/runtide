@@ -25,6 +25,9 @@ export interface MirrorCtx<G extends SpellTypes> {
   /** The bearer's synced stats, as the mirror folds them; `undefined` when it has none. */
   readonly stats: StatView | undefined;
 
+  /** The rank the spell is pressed or cast at, from 1. */
+  readonly rank: number;
+
   /** The static world. */
   readonly world: StaticWorld;
 
@@ -52,6 +55,7 @@ export class MirrorContext<G extends SpellTypes> implements MirrorCtx<G> {
   bearer: G['bearer'];
   input: G['input'] | undefined = undefined;
   stats: StatView | undefined = undefined;
+  rank = 1;
   readonly world: StaticWorld;
   dt = 0;
 

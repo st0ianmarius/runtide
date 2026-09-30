@@ -147,24 +147,26 @@ const auraId = (name: string) => {
   return id;
 };
 
-const SLOTS = defineSlots({
-  dodge: { cooldown: auraId('dodgeCooldown') },
-  skill: { cooldown: auraId('skillCooldown') },
-  ultimate: { cooldown: auraId('ultimateCooldown') },
-});
+const SLOTS = defineSlots(['dodge', 'skill', 'ultimate']);
 
 const SPELLS = defineSpells<BenchGame, 'roll' | 'nova' | 'surge'>({
   roll: {
-    activation: {
-      kind: 'button',
-      cooldown: 1,
-      applies: [auraId('sprint')],
-    },
+    activation: { kind: 'button', applies: [auraId('sprint')] },
+    cooldown: { aura: auraId('dodgeCooldown'), seconds: 1 },
     release: () => GRANT,
   },
 
-  nova: { activation: { kind: 'button', cooldown: 2, blockedBy: ['sprinting'] }, release: () => GRANT },
-  surge: { activation: { kind: 'button', cooldown: 4, resets: ['cooldown.dodge'] }, release: () => GRANT },
+  nova: {
+    activation: { kind: 'button', blockedBy: ['sprinting'] },
+    cooldown: { aura: auraId('skillCooldown'), seconds: 2 },
+    release: () => GRANT,
+  },
+
+  surge: {
+    activation: { kind: 'button', resets: ['cooldown.dodge'] },
+    cooldown: { aura: auraId('ultimateCooldown'), seconds: 4 },
+    release: () => GRANT,
+  },
 });
 
 const CLOCK = createClock({ dt: 1 / 30 });

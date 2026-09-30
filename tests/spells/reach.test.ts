@@ -51,6 +51,24 @@ describe('reach rules', () => {
     );
   });
 
+  it('refuse a target nearer than the least range, then ask the game’s own rule over the picked target', () => {
+    const game = makeSpellGame({
+      charge: spell({
+        activation: { kind: 'trigger' },
+        target: atInput,
+        reach: { range: 10, minRange: 3, pointOf: pointOfUnit, allows: (_ctx, target) => (target?.id ?? 0) !== 9 },
+        release: () => [mark('charge')],
+      }),
+    });
+
+    const [hero, close, mid, barred] = [game.unit(1), game.unit(2), game.unit(5), game.unit(9)];
+
+    assert.equal(game.spells.cast(hero, game.id.charge, { input: close }).refusal, 'close');
+    assert.equal(game.spells.cast(hero, game.id.charge, { input: barred }).refusal, 'reach');
+    assert.equal(game.spells.cast(hero, game.id.charge, { input: mid }).status, 'ended');
+    assert.equal(game.spells.check(hero, game.id.charge, { input: close }), 'close');
+  });
+
   it('refuse a target out of sight, through the system’s world', () => {
     const game = makeSpellGame(
       {

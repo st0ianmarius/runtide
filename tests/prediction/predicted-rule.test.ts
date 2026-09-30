@@ -124,7 +124,7 @@ describe('mirror-safe conditions on predicted auras', () => {
 });
 
 describe('what a press reads (abilities.mirrorReads)', () => {
-  it('lists the slots’ cooldowns, the buttons’ costs and their tags, but not the auras they land', () => {
+  it('lists the button spells’ cooldowns, the buttons’ costs and their tags, but not the auras they land', () => {
     const release = (): undefined => undefined;
 
     const game = makeAbilityGame({
@@ -136,14 +136,16 @@ describe('what a press reads (abilities.mirrorReads)', () => {
           requires: ['stance'],
           resets: ['cooldown.dodge'],
         },
+        cooldown: { aura: 'skillCooldown', seconds: 4 },
         release,
       }),
+      bolt: spell({ activation: { kind: 'trigger' }, cooldown: { aura: 'ultimateCooldown' }, release }),
     });
 
     const { tags } = game.auras;
 
     assert.deepEqual(game.abilities.mirrorReads, {
-      auras: ['dodgeCooldown', 'skillCooldown', 'ultimateCooldown', 'charge'].map(auraNamed),
+      auras: ['skillCooldown', 'charge'].map(auraNamed),
       tags: [tags.id['cooldown.dodge'], tags.id.stance],
     });
   });

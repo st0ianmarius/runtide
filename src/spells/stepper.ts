@@ -95,7 +95,7 @@ const stepChannel = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>
   }
 
   const isOut = countStage(engine, cast);
-  const every = engine.plans[cast.spell]?.every ?? 0;
+  const { every } = cast;
 
   if (every > 0) {
     beatsDue(engine, cast, every);
@@ -217,6 +217,33 @@ export const cancelCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle:
   }
 
   endCast(engine, cast, 'cancelled');
+
+  return true;
+};
+
+/**
+ * Moves a running cast's stage end by some seconds: later for pushback (its bar grows with it), sooner for a negative
+ * delay, never below 0 left (a stage at 0 ends on its caster's next step). False for a stale or ended cast.
+ */
+export const delayCast = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  handle: CastHandle,
+  seconds: number,
+): boolean => {
+  if (!Number.isFinite(seconds)) {
+    throw new RangeError(`A cast is delayed by a finite number of seconds; got ${seconds}.`);
+  }
+
+  const cast = running(engine, handle);
+
+  if (cast === undefined) {
+    return false;
+  }
+
+  const shift = Math.max(seconds, -cast.remaining);
+
+  cast.remaining += shift;
+  cast.stageSeconds += shift;
 
   return true;
 };
