@@ -510,7 +510,7 @@ const exportOrder = {
 };
 
 export default {
-  meta: { name: 'spellweave' },
+  meta: { name: 'runtide' },
   rules: {
     'todo-with-issue': todoWithIssue,
     'padded-statements': paddedStatements,

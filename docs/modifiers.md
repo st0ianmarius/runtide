@@ -5,7 +5,7 @@ registries, ordered sources, additions, multipliers, caps, conditions, scopes, s
 conversions, curves, scaled formulas, snapshots, explanations, and change watches. It works for heroes, creatures,
 summons, or any other bearer a game supplies; it requires no renderer, transport, world implementation, or global clock.
 
-This guide documents the implementation exported by [`spellweave/modifiers`](../src/modifiers/index.ts), including the
+This guide documents the implementation exported by [`runtide/modifiers`](../src/modifiers/index.ts), including the
 contracts an agent needs to preserve when integrating it into a game. The game owns the stat names, units of measure,
 numbers, conditions, source layout, scope ids, resource policies, presentation, and when reads happen.
 
@@ -51,8 +51,8 @@ For a first integration, follow this sequence:
 Only steps 1–5 are needed for a game with static equipment modifiers. Conditions, gates, conversions, and scaling are
 optional and can be added as content needs them.
 
-For consumer code, import public exports from `spellweave/modifiers`, `spellweave/conditions`, `spellweave/core`, and,
-when needed, `spellweave/auras`. The runnable examples in this repository import those same systems through their
+For consumer code, import public exports from `runtide/modifiers`, `runtide/conditions`, `runtide/core`, and,
+when needed, `runtide/auras`. The runnable examples in this repository import those same systems through their
 `src/*/index.ts` entry points so they work before a build. Replace those relative imports with package subpaths when
 copying an example into another repository. `node:assert/strict` is only used to verify these examples; a game's runtime
 does not need it.
@@ -246,7 +246,7 @@ helpers interchangeably.
 
 Each helper accepts the same optional fields:
 
-- `when`: a condition expression from `spellweave/conditions`.
+- `when`: a condition expression from `runtide/conditions`.
 - `scope`: a non-negative integer scope id reached by a read's bitset.
 - `stacking`: `power` by default, or `linear` for gated multipliers.
 
@@ -286,7 +286,7 @@ Reference: [`modifier.ts`](../src/modifiers/modifier.ts), [`compile-modifiers.ts
 
 ## 7. Host conditions and dynamic values
 
-Conditions and host values are registered in `spellweave/conditions`, then supplied to `createModifierSystem` as
+Conditions and host values are registered in `runtide/conditions`, then supplied to `createModifierSystem` as
 `conditions` and `values`. They are not exported from the modifiers subpath.
 
 The host type is entirely game-owned. It can be the actual unit, or an adapter containing a unit and world queries.
@@ -411,7 +411,7 @@ Reference: [`conditions/index.ts`](../src/conditions/index.ts), [`conditions/exp
 ### 8.1 Scopes select applicability
 
 A modifier has either no scope, reaching every read, or one numeric scope id. A read supplies a `Bitset` from
-`spellweave/core`. The modifier counts if the bitset has that id. The game decides whether ids mean a spell, damage
+`runtide/core`. The modifier counts if the bitset has that id. The game decides whether ids mean a spell, damage
 school, weapon family, tag, or another concept.
 
 Use one coordinated scope-id namespace. If spell ids and tag ids overlap accidentally, a modifier cannot distinguish
@@ -541,7 +541,7 @@ Reference: [`shared.ts`](../src/modifiers/shared.ts), [`live.ts`](../src/modifie
 
 ## 10. Connect the aura system
 
-The standard adapters are `auraStacks`, `auraGates`, and `auraRevision`, exported by `spellweave/auras`. They read a
+The standard adapters are `auraStacks`, `auraGates`, and `auraRevision`, exported by `runtide/auras`. They read a
 bearer's aura state directly. Build the modifier system first, then give it to the aura system with a default `fold`
 source. An individual aura can name another declared source through its own `fold` field.
 

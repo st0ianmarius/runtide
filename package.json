@@ -1,8 +1,8 @@
 {
-  "name": "spellweave",
+  "name": "runtide",
   "version": "0.0.0",
   "private": true,
-  "description": "A deterministic, engine-agnostic gameplay framework for MMO-like games: spells, auras, procs, triggers, modifiers and cues.",
+  "description": "A deterministic TypeScript gameplay framework for abilities, effects, combat, and behavior, independent of rendering and networking.",
   "license": "MIT",
   "repository": {
     "type": "git",

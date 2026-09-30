@@ -11,7 +11,7 @@ F22 documentation is being written one system at a time. The first completed gui
 | [Modifiers](modifiers.md) | Stats, sources, fold order, conditions, scopes, aura gates, scaling, curves, snapshots, explanations, caching, watches, and game integration | [Basics](examples/modifiers-basic.ts), [host and scoped reads](examples/modifiers-host.ts), [values and snapshots](examples/modifiers-values.ts), [auras](examples/modifiers-auras.ts) |
 
 Examples import public source entry points so they run before a package build. In a consumer game, use the corresponding
-`spellweave/*` package subpaths. Their Node assertions are verification code rather than game runtime dependencies.
+`runtide/*` package subpaths. Their Node assertions are verification code rather than game runtime dependencies.
 
 From the repository root, `npm run typecheck` checks examples with the rest of the project, `npm run lint` lints them,
 and `npm run docs:check` executes them. Example execution is included in `npm run check` and CI.
