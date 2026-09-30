@@ -1,7 +1,7 @@
 import type { AuraId } from '../auras/index.ts';
 import { createRegistry, type Registry } from '../core/index.ts';
 import type { Scaled } from '../modifiers/index.ts';
-import type { GateAnswer } from './cast-request.ts';
+import type { CastReport, GateAnswer } from './cast-request.ts';
 import type { MirrorCtx } from './mirror.ts';
 import type { ReachDefaults } from './reach.ts';
 import type { GateContext, SpellContext, StatsSource } from './spell-def.ts';
@@ -20,8 +20,8 @@ export type CastSeconds<G extends SpellTypes, Source extends StatsSource<G> = St
 
 /**
  * An `auto` activation (§II.3.2, §II.6 S2): the attack clock pulls it, on the casters that armed it (`spells.arm`).
- * The clock resets to the interval read at the cast (no carry-over), and answers each way a cast can fail with `spend`
- * (the whole interval) or `retry` (again after `retry` seconds).
+ * After each cast it pulls, the clock is set, with no carry-over, to what `next` answers from the cast's report: the
+ * interval read at the cast, or sooner.
  */
 export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extends StatsSource<G> = StatsSource<G>> {
   /** The discriminant. */
@@ -29,9 +29,6 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
 
   /** The seconds between casts, read at each cast (from its stats snapshot, usually). */
   readonly interval: CastSeconds<G, Source>;
-
-  /** The seconds before a retry; 0 (the next step) when absent. */
-  readonly retry?: number;
 
   /**
    * Whether the caster is ready to try, asked on each step while the clock has run out and before any cast is
@@ -43,14 +40,16 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
     bivarianceHack(caster: G['bearer']): boolean;
   }['bivarianceHack'];
 
-  /** What a refusal by the gates or `canCast` costs: `spend` (the default) or `retry`. */
-  readonly onRefused?: 'spend' | 'retry';
-
-  /** What a cast whose `target` found nothing, or found it out of reach, costs: `retry` (the default) or `spend`. */
-  readonly onNoTarget?: 'spend' | 'retry';
-
-  /** What an instant cast whose release set nothing off costs (a swing that never went out): `retry` by default. */
-  readonly onMiss?: 'spend' | 'retry';
+  /**
+   * The seconds until the clock tries again after a cast it pulled, from 0, read from the cast's report and the interval
+   * read at the cast (Whirlwind's refusal spends the interval, a swing out of reach tries again next step, a refusal
+   * retries after 0.2 s). `autoNext` by default: a refusal for no target or out of reach, and an instant release that
+   * set nothing off (a swing that never went out), try on the next step; anything else waits the interval.
+   */
+  readonly next?: {
+    /** Reads the report; declared as a method so a function over a narrower caster still fits. */
+    bivarianceHack(report: CastReport<G>, interval: number, caster: G['bearer']): number;
+  }['bivarianceHack'];
 
   /**
    * What the caster's other casts do to the clock (§II.6 S3: a creature's swing reset after its cast's recovery):
@@ -235,10 +234,10 @@ const isSeconds = (value: number | undefined): boolean => value === undefined ||
 export const isAuto = <G extends SpellTypes>(activation: Activation<G>): activation is AutoActivation<G> =>
   activation.kind === 'auto' && Object.hasOwn(activation, 'interval');
 
-/** The `auto` kind: its interval is a function or seconds above 0, its retry seconds from 0. */
+/** The `auto` kind: its interval is a function or seconds above 0, its hooks functions. */
 const AUTO: ActivationKindDef<AutoActivation, never> = {
   check: (activation) => {
-    const { interval, retry } = activation;
+    const { interval } = activation;
     const isSound = typeof interval === 'function' || (Number.isFinite(interval) && interval > 0);
 
     if (activation.afterCast !== undefined && activation.afterCast !== 'reset' && activation.afterCast !== 'keep') {
@@ -249,7 +248,11 @@ const AUTO: ActivationKindDef<AutoActivation, never> = {
       return "an auto clock's ready is a function of the caster.";
     }
 
-    return isSound && isSeconds(retry) ? undefined : 'an auto interval must be above 0 and its retry from 0 seconds.';
+    if (activation.next !== undefined && typeof activation.next !== 'function') {
+      return "an auto clock's next is a function of the cast's report.";
+    }
+
+    return isSound ? undefined : 'an auto interval must be above 0 seconds.';
   },
 };
 

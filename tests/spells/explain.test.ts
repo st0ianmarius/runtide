@@ -37,7 +37,7 @@ const SPELLS = () =>
         release: () => undefined,
       }),
       swing: spell({
-        activation: { kind: 'auto', interval: 1.5, retry: 0.25 },
+        activation: { kind: 'auto', interval: 1.5 },
         stats: (ctx) => ({ reach: 2 + ctx.rank, label: 'unused' }),
         release: () => undefined,
       }),
@@ -111,7 +111,7 @@ describe('explainSpell (§I.5.3, §II.6 M6)', () => {
     const swing = explainSpell(registry, registry.id.swing, { rank: 3 });
     const slam = explainSpell(registry, registry.id.slam);
 
-    assert.deepEqual(swing.activation.values, { interval: 1.5, retry: 0.25 });
+    assert.deepEqual(swing.activation.values, { interval: 1.5 });
     assert.deepEqual(swing.stats, [{ key: 'reach', value: 5 }]);
     assert.deepEqual(slam.activation.values, { windup: 1.2, lock: 0.3, recover: 0.5 });
     assert.deepEqual(slam.timeline, { windup: 1.2, channel: undefined, every: 0, recover: 0.5 });

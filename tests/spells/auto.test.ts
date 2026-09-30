@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { haste, scaled } from '../../src/modifiers/index.ts';
-import type { AnySpellDef, SpellHost } from '../../src/spells/index.ts';
+import { type AnySpellDef, autoNext, type SpellHost } from '../../src/spells/index.ts';
 import { type Game, makeSpellGame, mark, spell, STATS } from '../helpers/spell-game.ts';
 
 /**
@@ -95,11 +95,15 @@ describe('auto clocks (§II.3.2, §II.6 S2)', () => {
     assert.throws(() => game.spells.arm(game.unit(2), game.id.swing, -1), /finite seconds/);
   });
 
-  it('spends the whole interval on a refusal by the gates or canCast, or retries when told to', () => {
+  it("spends the whole interval on a refusal by the gates or canCast, or what the game's next says", () => {
     const game = autoGame({
       held: spell({ activation: { kind: 'auto', interval: 1 }, canCast: () => false, release: () => undefined }),
       eager: spell({
-        activation: { kind: 'auto', interval: 1, onRefused: 'retry', retry: 0.25 },
+        activation: {
+          kind: 'auto',
+          interval: 1,
+          next: (report, interval) => (report.refusal === 'canCast' ? 0.25 : autoNext(report, interval)),
+        },
         canCast: () => false,
         release: () => undefined,
       }),
@@ -110,7 +114,7 @@ describe('auto clocks (§II.3.2, §II.6 S2)', () => {
     assert.equal(game.spells.autoClock(game.a, game.id.eager), 0.25);
   });
 
-  it('retries on the next step when the cast finds no target, or spends when told to', () => {
+  it('retries on the next step when the cast finds no target, or spends when the game says so', () => {
     let aims = 0;
 
     const game = autoGame({
@@ -126,7 +130,7 @@ describe('auto clocks (§II.3.2, §II.6 S2)', () => {
         release: () => undefined,
       }),
       patient: spell({
-        activation: { kind: 'auto', interval: 1, onNoTarget: 'spend' },
+        activation: { kind: 'auto', interval: 1, next: (_report, interval) => interval },
         target: () => undefined,
         release: () => undefined,
       }),
@@ -177,10 +181,13 @@ describe('auto clocks (§II.3.2, §II.6 S2)', () => {
     assert.equal(asked, 4, 'a clock still counting asks nothing');
   });
 
-  it('retries an instant cast whose release set nothing off, or spends when told to', () => {
+  it('retries an instant cast whose release set nothing off, or spends when the game says so', () => {
     const game = autoGame({
       whiff: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [] }),
-      stubborn: spell({ activation: { kind: 'auto', interval: 1, onMiss: 'spend' }, release: () => [] }),
+      stubborn: spell({
+        activation: { kind: 'auto', interval: 1, next: (_report, interval) => interval },
+        release: () => [],
+      }),
       windup: spell({
         activation: { kind: 'auto', interval: 1 },
         timeline: { windup: { seconds: 0.5 } },
@@ -193,6 +200,20 @@ describe('auto clocks (§II.3.2, §II.6 S2)', () => {
     assert.deepEqual(game.ticksOf('end stubborn@1 released'), [1]);
     assert.deepEqual(game.ticksOf('start windup@1'), [1]);
     assert.equal(game.spells.autoClock(game.a, game.id.windup), 0.75);
+  });
+
+  it('refuses a next that is not seconds from 0, and a next that is not a function at load', () => {
+    const game = autoGame({
+      broken: spell({ activation: { kind: 'auto', interval: 1, next: () => -1 }, release: () => undefined }),
+    });
+
+    const activation = { kind: 'auto', interval: 1 } as const;
+
+    assert.throws(() => {
+      game.advance(1);
+    }, /Spell broken: an auto clock's next is finite seconds from 0/);
+    Reflect.set(activation, 'next', 0);
+    assert.throws(() => autoGame({ bad: spell({ activation, release: () => [] }) }), /next is a function/);
   });
 
   it('reads 0 for a spell that is not auto', () => {

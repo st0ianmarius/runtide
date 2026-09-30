@@ -113,8 +113,8 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /**
    * Steps a caster's armed `auto` clocks by one step (§II.6 S2), in registry order: one that ran out casts its spell and
-   * is set to the interval read at the cast, or its retry, as the outcome's cost says (`onRefused`, `onNoTarget`,
-   * `onMiss`). A caster with none armed costs nothing.
+   * is set to what its activation's `next` answers (the interval read at the cast, or sooner). A caster with none
+   * armed costs nothing.
    */
   readonly stepAuto: (caster: G['bearer']) => void;
 

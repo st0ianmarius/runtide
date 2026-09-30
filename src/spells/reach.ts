@@ -9,7 +9,7 @@ import type { SpellTypes } from './spell-types.ts';
  * A cast's reach rules (§I.7.1 F16), asked right after its target is picked: how far the target may be (`range`),
  * whether a clear line to it is needed (`sight`), and how much room its point needs (`clearance`: a placement, the
  * Sentry's). A refusal names the rule (`range`, `sight`, `placement`), which an `auto` clock answers as it answers no
- * target (`onNoTarget`). The target's point is `pointOf`'s, else the host's (`pointOf`), else the target itself when it
+ * target (its `auto` clock's `next`). The target's point is `pointOf`'s, else the host's (`pointOf`), else the target itself when it
  * is a point.
  */
 export interface Reach<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>, Target = unknown> {

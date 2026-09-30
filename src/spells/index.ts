@@ -39,7 +39,7 @@ export {
   type SpellRegistryOptions,
 } from './define-spells.ts';
 
-export type { ClockScale } from './auto.ts';
+export { autoNext, type ClockScale } from './auto.ts';
 export type { SpellClock } from './engine.ts';
 
 export { CAST_OUTCOMES, createSpellEvent, type SpellEvent, type SpellEvents, spellTriggerEvent } from './events.ts';

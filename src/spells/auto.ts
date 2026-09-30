@@ -6,31 +6,35 @@ import type { SpellEngine } from './engine.ts';
 import { NO_CAST } from './ids.ts';
 import type { SpellCaster, SpellId, SpellTypes } from './spell-types.ts';
 
-/** What an `auto` clock costs after a cast: the whole interval, or a retry after a few seconds. */
-type Cost = 'spend' | 'retry';
-
-/** Whether a refusal is a reach rule's (§I.7.1 F16). */
-const isReachRefusal = (refusal: CastReport['refusal']): boolean =>
-  refusal === 'range' || refusal === 'sight' || refusal === 'placement';
-
 /**
- * What a cast costs its clock (§II.6 S2): a refusal by the gates or `canCast` answers `onRefused` (spend by default),
- * a refusal for no target or out of reach `onNoTarget` (retry: a swing's reach polled every step, unless its `ready`
- * hook holds it), an instant cast whose release set nothing off `onMiss` (retry), and
- * any other cast spends.
+ * The default `next` of an `auto` clock (§II.6 S2): 0 (the next step) after a refusal for no target or out of reach (a
+ * swing's reach polled every step, unless its `ready` hook holds it) and after an instant cast whose release set
+ * nothing off (a swing that never went out); the interval after anything else, a refusal by the gates included. A
+ * game's own `next` falls back to it for the cases it leaves alone.
  */
-const costOf = <G extends SpellTypes>(activation: AutoActivation<G>, report: CastReport<G>): Cost => {
-  if (report.refusal === 'target' || isReachRefusal(report.refusal)) {
-    return activation.onNoTarget ?? 'retry';
+export const autoNext = (report: CastReport, interval: number): number => {
+  const { refusal } = report;
+
+  if (refusal === 'target' || refusal === 'range' || refusal === 'sight' || refusal === 'placement') {
+    return 0;
   }
 
-  if (report.refusal !== undefined) {
-    return activation.onRefused ?? 'spend';
+  return refusal === undefined && report.hasReleased && report.status === 'ended' && report.went === 0 ? 0 : interval;
+};
+
+/** The seconds until an `auto` clock tries again after a cast: its activation's `next`, else `autoNext`, checked. */
+const nextOf = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  caster: G['bearer'],
+  [spell, activation, report]: readonly [SpellId, AutoActivation<G>, Report<G>],
+): number => {
+  const next = activation.next?.(report, report.interval, caster) ?? autoNext(report, report.interval);
+
+  if (!(next >= 0) || !Number.isFinite(next)) {
+    throw new RangeError(`Spell ${engine.registry.name(spell)}: an auto clock's next is finite seconds from 0.`);
   }
 
-  return report.hasReleased && report.status === 'ended' && report.went === 0
-    ? (activation.onMiss ?? 'retry')
-    : 'spend';
+  return next;
 };
 
 /** An `auto` spell's activation, typed. */
@@ -47,9 +51,8 @@ const autoOf = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): A
 /**
  * Steps a caster's armed `auto` clocks by one step (§II.3.2, §II.6 S2), in registry order: each counts down, and one
  * that ran out casts its spell, unless it resets after casts (`afterCast: 'reset'`) and the caster is casting: it
- * waits for the cast to end, which resets it. After the cast the clock is set, with no carry-over, to the interval
- * read at the cast (spend) or to the activation's `retry` seconds (the next step when it has none), as the outcome's
- * cost says. A clock whose activation says the caster is not `ready` waits at zero, casting nothing. A caster with
+ * waits for the cast to end, which resets it. After the cast the clock is set, with no carry-over, to what its
+ * activation's `next` answers (`autoNext` by default: the interval read at the cast, or the next step). A clock whose activation says the caster is not `ready` waits at zero, casting nothing. A caster with
  * nothing armed costs one length check.
  */
 export const stepAutoClocks = <G extends SpellTypes>(
@@ -82,9 +85,8 @@ export const stepAutoClocks = <G extends SpellTypes>(
     }
 
     const report = cast(caster, spell);
-    const next = costOf(activation, report) === 'spend' ? report.interval : (activation.retry ?? 0);
 
-    record.settle(spell, report.interval, next);
+    record.settle(spell, report.interval, nextOf(engine, caster, [spell, activation, report]));
   }
 };
 
