@@ -70,7 +70,7 @@ export const raise = <Payload, G extends ProcTypes = ProcTypes>(
   options: ChanceOption = {},
 ): EventProc<G> => ({ ...options, kind: 'event', event, fill });
 
-/** A `cue` proc: `cue('flash', { on: 'eventUnit', params: { size: 2 } })`. */
+/** A `cue` proc: `cue('flash', { to: 'eventUnit', params: { size: 2 } })`. */
 export const cue = <G extends ProcTypes = ProcTypes>(
   id: G['cueName'] | CueId,
   options: Omit<CueProc<G>, 'kind' | 'cue'> = {},

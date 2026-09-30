@@ -68,11 +68,11 @@ export interface ClockRescale {
   /** What the clocks' time left is multiplied by. */
   readonly factor: number;
 
-  /** Whether only pending clocks rescale (else every clock). */
-  readonly isPendingOnly: boolean;
+  /** The spell tag whose clocks rescale (a spell tag id), or -1 for every clock. */
+  readonly tag: number;
 
-  /** The scope whose clocks rescale, or -1 for every clock. */
-  readonly scope: number;
+  /** `pending` (only the `auto` clocks still counting) or `all` (running casts' stages too). */
+  readonly clocks: 'pending' | 'all';
 }
 
 /**

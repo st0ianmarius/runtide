@@ -78,7 +78,7 @@ describe('rescaling clocks (§II.6 A13, §I.7.1 F15)', () => {
 
     game.spells.stepAuto(hero);
     assert.deepEqual([game.spells.autoClock(hero, game.id.swing), game.spells.autoClock(hero, game.id.bolt)], [2, 4]);
-    assert.equal(game.spells.rescaleClocks(hero, { factor: 0.5, scope: SPELL_TAGS.id.melee }), 1);
+    assert.equal(game.spells.rescaleClocks(hero, { factor: 0.5, tag: SPELL_TAGS.id.melee }), 1);
     assert.deepEqual([game.spells.autoClock(hero, game.id.swing), game.spells.autoClock(hero, game.id.bolt)], [1, 4]);
     assert.equal(game.spells.rescaleClocks(hero, { factor: 2 }), 2);
     assert.deepEqual([game.spells.autoClock(hero, game.id.swing), game.spells.autoClock(hero, game.id.bolt)], [2, 8]);
@@ -92,7 +92,7 @@ describe('rescaling clocks (§II.6 A13, §I.7.1 F15)', () => {
 
     game.spells.rescaleClocks(hero, { factor: 0.5 });
     assert.equal(game.spells.viewOf(handle)?.end, 4);
-    game.spells.rescaleClocks(hero, { factor: 0.5, isPendingOnly: false });
+    game.spells.rescaleClocks(hero, { factor: 0.5, clocks: 'all' });
     assert.equal(game.spells.viewOf(handle)?.end, 2);
   });
 
@@ -106,8 +106,8 @@ describe('rescaling clocks (§II.6 A13, §I.7.1 F15)', () => {
       aura: auraNamed('stance'),
       stat: STATS.id.power,
       factor: 0.75,
-      isPendingOnly: true,
-      scope: -1,
+      tag: -1,
+      clocks: 'pending',
     };
 
     game.spells.rescaleClocks(hero, fromAura);

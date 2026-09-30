@@ -106,9 +106,9 @@ export interface EventProc<G extends ProcTypes> extends ProcShape {
 
 /**
  * Fires a cue into the proc system's buffer (§II.3.9): presentation only, so it changes nothing and plays even on a
- * unit its list killed. A `self` cue sits on the procs' self and is that unit's; any other sits on `on` (the list's
+ * unit its list killed. A `self` cue sits on the procs' self and is that unit's; any other sits on `to` (the list's
  * target when absent; `party` fires one per member) or at `at`, and is credited to the list's source (a `world` cue is
- * nobody's). Checked at load (§II.6 P7): a live cue, its own params with values of their kinds, and no `on` or `at`
+ * nobody's). Checked at load (§II.6 P7): a live cue, its own params with values of their kinds, and no `to` or `at`
  * on a `self` cue, no `at` on an `entity` cue.
  */
 export interface CueProc<G extends ProcTypes> extends ProcShape {
@@ -119,7 +119,7 @@ export interface CueProc<G extends ProcTypes> extends ProcShape {
   readonly cue: G['cueName'] | CueId;
 
   /** The unit it sits on, or whose position is its point. */
-  readonly on?: ProcTarget<G>;
+  readonly to?: ProcTarget<G>;
 
   /** The point it sits at, in place of a unit's position. */
   readonly at?: Vec2;

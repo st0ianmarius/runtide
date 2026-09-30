@@ -53,7 +53,7 @@ export interface DespawnOwnedProc<G extends AreaTriggerTypes> extends ProcShape 
   readonly kind: 'despawnOwned';
 
   /** Whose; the list's self when absent. */
-  readonly of?: ProcTarget<G>;
+  readonly to?: ProcTarget<G>;
 
   /** Only area triggers with this tag (`telegraph`); every one the unit owns when absent. */
   readonly tag?: G['areaTag'];

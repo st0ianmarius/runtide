@@ -42,7 +42,7 @@ export const rescaleOn = <G extends AuraTypes>(
     aura: item.id,
     stat,
     factor: code <= 1 ? 1 / product : product,
-    isPendingOnly: rescale.clocks !== 'all',
-    scope: rescale.scope ?? -1,
+    tag: rescale.tag ?? -1,
+    clocks: rescale.clocks ?? 'pending',
   };
 };

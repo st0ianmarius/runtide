@@ -41,7 +41,7 @@ const button = (name: string, data: Omit<ButtonActivation<AbilityGame>, 'kind'> 
 /** The dodge: a sprint scaled by Duration, a heading from the input, and travel while sprinting. */
 const roll = button('roll', {
   cooldown: 2,
-  applies: [{ aura: auraNamed('sprint'), scaledBy: 'duration' }],
+  applies: [{ aura: 'sprint', scaledBy: 'duration' }],
 
   activate: ({ bearer, input, dt, stats }) => {
     seen.lines.push(`activate roll dt ${dt} duration ${stats?.total(STATS.id.duration)}`);

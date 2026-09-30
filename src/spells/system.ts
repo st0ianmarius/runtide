@@ -190,12 +190,12 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /**
    * Keeps a cast's record alive after it ends (§II.6 S6: its area triggers and summons live on), until as many
-   * `release` calls as holds; false for a stale handle.
+   * `unretain` calls as retains; false for a stale handle.
    */
-  readonly hold: (cast: CastHandle) => boolean;
+  readonly retain: (cast: CastHandle) => boolean;
 
-  /** Lets go of one hold; an ended cast nothing holds goes back to the pool. */
-  readonly release: (cast: CastHandle) => void;
+  /** Lets go of one retain; an ended cast nothing retains goes back to the pool. */
+  readonly unretain: (cast: CastHandle) => void;
 
   /**
    * Makes a live cast the current one while another system runs its procs as that cast's (an area trigger's hooks),
@@ -214,7 +214,7 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /**
    * Rescales a caster's clocks (§II.6 A13, §I.7.1 F15): its `auto` clocks still counting in scope (a spell tag, or
-   * every one), and with `isPendingOnly: false` its running casts' stage time left. An aura system's host passes its
+   * every one), and with `clocks: 'all'` its running casts' stage time left. An aura system's host passes its
    * rescales here: `rescaleClocks: (unit, rescale) => spells.rescaleClocks(unit, rescale)`. Returns how many rescaled.
    */
   readonly rescaleClocks: (caster: G['bearer'], rescale: ClockScale) => number;
@@ -350,9 +350,9 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     return this.#engine.current?.cast ?? NO_CAST;
   }
 
-  readonly hold = (cast: CastHandle): boolean => holdCast(this.#engine, cast);
+  readonly retain = (cast: CastHandle): boolean => holdCast(this.#engine, cast);
 
-  readonly release = (cast: CastHandle): void => {
+  readonly unretain = (cast: CastHandle): void => {
     unholdCast(this.#engine, cast);
   };
 

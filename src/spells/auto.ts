@@ -123,13 +123,13 @@ export interface ClockScale {
   readonly factor: number;
 
   /** The spell tag whose clocks rescale (a spell tag id); every clock when absent or −1. */
-  readonly scope?: number;
+  readonly tag?: number;
 
   /**
-   * Whether only the `auto` clocks still counting rescale (true when absent), or also the stage time left of the
+   * `pending` (the default): only the `auto` clocks still counting rescale; `all`: also the stage time left of the
    * caster's running casts (a windup, a channel, a recovery).
    */
-  readonly isPendingOnly?: boolean;
+  readonly clocks?: 'pending' | 'all';
 }
 
 /** Whether a spell is in a rescale's scope. */
@@ -182,7 +182,7 @@ const rescaleCasts = <G extends SpellTypes>(
 /**
  * Rescales a caster's clocks (§II.6 A13): every `auto` clock still counting whose spell is in scope, times the
  * factor (haste's edges: an attack clock sped up as a haste aura lands and slowed as it goes), and with
- * `isPendingOnly: false` the stage time left of its running casts in scope too. Returns how many it rescaled.
+ * `clocks: 'all'` the stage time left of its running casts in scope too. Returns how many it rescaled.
  */
 export const rescaleClocks = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -195,10 +195,10 @@ export const rescaleClocks = <G extends SpellTypes>(
     throw new RangeError(`A clock rescale takes a finite factor from 0; got ${factor}.`);
   }
 
-  const parts = [factor, rescale.scope ?? -1] as const;
+  const parts = [factor, rescale.tag ?? -1] as const;
   const auto = rescaleAuto(engine, caster, parts);
 
-  return rescale.isPendingOnly === false ? auto + rescaleCasts(engine, caster, parts) : auto;
+  return rescale.clocks === 'all' ? auto + rescaleCasts(engine, caster, parts) : auto;
 };
 
 /**

@@ -76,14 +76,26 @@ const tagsOf = <G extends AbilityTypes>(state: Compiling<G>, names: readonly G['
   (names ?? []).map((name) => tagOf(state, name));
 
 /** Throws unless an aura id names a live aura. */
-const checkAura = <G extends AbilityTypes>(state: Compiling<G>, aura: AuraId): AuraId => {
-  const { registry } = state.auras;
+const checkAura = <G extends AbilityTypes>(state: Compiling<G>, aura: string | AuraId): AuraId =>
+  liveAura(state.auras.registry, aura, state.what);
 
-  if (!Number.isInteger(aura) || aura < 0 || aura >= registry.size || registry.isRetired(aura)) {
-    throw new RangeError(`${state.what}: ${aura} is not a live aura.`);
+/** An aura reference (its name, or its id) as a live aura's id, or a clear error naming what refers to it. */
+export const liveAura = (
+  registry: {
+    readonly id: Readonly<Record<string, AuraId | undefined>>;
+    readonly size: number;
+    readonly isRetired: (id: AuraId) => boolean;
+  },
+  aura: string | AuraId,
+  what: string,
+): AuraId => {
+  const id = typeof aura === 'string' ? registry.id[aura] : aura;
+
+  if (id === undefined || !Number.isInteger(id) || id < 0 || id >= registry.size || registry.isRetired(id)) {
+    throw new RangeError(`${what}: ${aura} is not a live aura.`);
   }
 
-  return aura;
+  return id;
 };
 
 /** A stat's id from its name, or a clear error naming the spell. */

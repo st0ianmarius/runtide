@@ -123,7 +123,7 @@ describe('clock rescales on aura edges (§II.6 A13)', () => {
         stacking: 'stack',
         maxStacks: 2,
         modifiers: [mul('speed', 1.25), mul('damage', 3)],
-        rescale: { stat: 'speed', on: ['applied', 'refreshed', 'expired', 'removed'], scope: 4 },
+        rescale: { stat: 'speed', on: ['applied', 'refreshed', 'expired', 'removed'], tag: 4 },
       }),
     });
 
@@ -159,8 +159,8 @@ describe('clock rescales on aura edges (§II.6 A13)', () => {
       aura: registry.id.overdrive,
       stat: stats.id.speed,
       factor: 0.8,
-      isPendingOnly: true,
-      scope: 4,
+      tag: 4,
+      clocks: 'pending',
     });
   });
 });

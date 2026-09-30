@@ -35,7 +35,7 @@ const checkSeconds = (seconds: number): void => {
 
 /** The `setTimer` kind. */
 const setTimerKind = <G extends AiTypes>(parts: KindParts<G>): ProcKindDef<SetTimerProc<G>, G> => ({
-  targetOf: (proc) => proc.of ?? 'self',
+  targetOf: (proc) => proc.to ?? 'self',
 
   apply: (proc, _ctx, unit) => {
     if (unit === undefined) {
@@ -58,7 +58,7 @@ const setTimerKind = <G extends AiTypes>(parts: KindParts<G>): ProcKindDef<SetTi
 
 /** The `cancelTimer` kind. */
 const cancelTimerKind = <G extends AiTypes>(parts: KindParts<G>): ProcKindDef<CancelTimerProc<G>, G> => ({
-  targetOf: (proc) => proc.of ?? 'self',
+  targetOf: (proc) => proc.to ?? 'self',
 
   apply: (proc, _ctx, unit) =>
     unit !== undefined && parts.scheduler.cancel(unit, timerIdOf(parts.timers, proc.timer))
@@ -93,7 +93,7 @@ const focusIdOf = <G extends AiTypes>(proc: SetFocusProc<G>, ctx: ProcContext<G>
 
 /** The `setFocus` kind. */
 const setFocusKind = <G extends AiTypes>(): ProcKindDef<SetFocusProc<G>, G> => ({
-  targetOf: (proc) => proc.of ?? 'self',
+  targetOf: (proc) => proc.to ?? 'self',
 
   apply: (proc, ctx, unit) => {
     if (unit === undefined) {

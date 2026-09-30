@@ -15,7 +15,7 @@ export interface UseAbilityProc<G extends AbilityTypes> extends ProcShape {
   readonly spell: G['spellName'] | SpellId;
 
   /** Who fires it; the list's self when absent. */
-  readonly by?: ProcTarget<G>;
+  readonly to?: ProcTarget<G>;
 
   /** What its cast is handed; see `inputOf` for one read when it applies. */
   readonly input?: G['input'];
@@ -33,7 +33,7 @@ export interface AbilityProcKinds<G extends AbilityTypes> {
   readonly useAbility: ProcKindDef<UseAbilityProc<G>, G>;
 }
 
-/** A `useAbility` proc: `useAbility('dodge')`, `useAbility('nova', { by: 'eventUnit' })`. */
+/** A `useAbility` proc: `useAbility('dodge')`, `useAbility('nova', { to: 'eventUnit' })`. */
 export const useAbility = <G extends AbilityTypes = AbilityTypes>(
   spell: G['spellName'] | SpellId,
   options: ChanceOption & Omit<UseAbilityProc<G>, 'kind' | 'spell' | 'chance'> = {},

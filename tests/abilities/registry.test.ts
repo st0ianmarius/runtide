@@ -123,9 +123,22 @@ describe('loadouts (§I.6 Abilities)', () => {
     assert.throws(() => lone.abilities.canActivate({ ...hero, loadout: stray }, dodge), /abilities.createLoadout/);
   });
 
-  it('refuses a slot cooling on an aura that is not live', () => {
+  it('refuses a slot cooling on an aura that is not live, by id or by name', () => {
     const slots = defineSlots({ dodge: { cooldown: toId<'auras'>(auraNamed('root') + 1) }, skill: {}, ultimate: {} });
+    const named = defineSlots({ dodge: { cooldown: 'nope' }, skill: {}, ultimate: {} });
 
-    assert.throws(() => makeAbilityGame({}, { slots }), /Slot dodge: its cooldown 7 is not a live aura/);
+    assert.throws(() => makeAbilityGame({}, { slots }), /Slot dodge's cooldown: 7 is not a live aura/);
+    assert.throws(() => makeAbilityGame({}, { slots: named }), /Slot dodge's cooldown: nope is not a live aura/);
+  });
+
+  it('takes a slot cooldown by the aura’s name', () => {
+    const byId = defineSlots({ dodge: { cooldown: auraNamed('root') }, skill: {}, ultimate: {} });
+    const byName = defineSlots({ dodge: { cooldown: 'root' }, skill: {}, ultimate: {} });
+
+    assert.deepEqual(
+      makeAbilityGame({}, { slots: byName }).abilities.mirrorReads,
+      makeAbilityGame({}, { slots: byId }).abilities.mirrorReads,
+    );
+    assert.equal(makeAbilityGame({}, { slots: byName }).abilities.mirrorReads.auras.includes(auraNamed('root')), true);
   });
 });

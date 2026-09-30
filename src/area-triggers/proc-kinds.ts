@@ -118,7 +118,7 @@ const checkTag = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, tag: G['are
 
 /** The `despawnOwned` kind: a unit's area triggers (with a tag) ended, and its delayed lists withdrawn. */
 const despawnOwnedKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindDef<DespawnOwnedProc<G>, G> => ({
-  targetOf: (proc) => proc.of ?? 'self',
+  targetOf: (proc) => proc.to ?? 'self',
 
   apply: (proc, _ctx, unit) => {
     if (unit === undefined) {

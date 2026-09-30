@@ -9,7 +9,7 @@ import {
   type StaticWorld,
 } from '../spells/index.ts';
 import type { AbilityTypes } from './ability-types.ts';
-import { compileButtons, type CompiledButton } from './buttons.ts';
+import { compileButtons, type CompiledButton, liveAura } from './buttons.ts';
 import type { SlotTable } from './slots.ts';
 
 /** The options a button casts with, reused: the cast order reads them before any hook runs. */
@@ -123,21 +123,18 @@ export class AbilityEngine<G extends AbilityTypes> {
     this.auras = parts.auras;
     this.slots = parts.slots;
     this.buttons = compileButtons(parts.spells.registry, parts.auras);
-    this.cooldowns = Int32Array.from(parts.slots.ids, (slot) => parts.slots.get(slot).cooldown ?? -1);
+    this.cooldowns = Int32Array.from(parts.slots.ids, (slot) => {
+      const aura = parts.slots.get(slot).cooldown;
+
+      return aura === undefined
+        ? -1
+        : liveAura(parts.auras.registry, aura, `Slot ${parts.slots.name(slot)}'s cooldown`);
+    });
     this.baseView = new BaseView(parts.spells.registry.stats?.columns.base ?? []);
     this.#statsOf = parts.statsOf;
     this.dt = parts.clock.dt;
     this.isMirror = parts.mirror === true;
     this.#world = parts.world ?? OPEN_WORLD;
-
-    for (const slot of parts.slots.ids) {
-      const aura = parts.slots.get(slot).cooldown;
-      const { registry } = parts.auras;
-
-      if (aura !== undefined && (!(aura >= 0 && aura < registry.size) || registry.isRetired(aura))) {
-        throw new RangeError(`Slot ${parts.slots.name(slot)}: its cooldown ${aura} is not a live aura.`);
-      }
-    }
   }
 
   /**

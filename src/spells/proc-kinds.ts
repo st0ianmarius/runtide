@@ -96,7 +96,7 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
   const options = new ProcCastOptions<G>();
 
   return {
-    targetOf: (proc) => proc.by ?? 'self',
+    targetOf: (proc) => proc.to ?? 'self',
 
     apply: (proc, ctx, caster) => {
       if (caster === undefined) {
@@ -211,8 +211,8 @@ const rescaleKind = <G extends SpellTypes>(engine: SpellEngine<G>): ProcKindDef<
       return PROC_SKIPPED;
     }
 
-    const scope = tagIdOf(engine, proc.tag) ?? -1;
-    const rescaled = rescaleClocks(engine, unit, { factor: proc.factor, scope, isPendingOnly: proc.clocks !== 'all' });
+    const tag = tagIdOf(engine, proc.tag) ?? -1;
+    const rescaled = rescaleClocks(engine, unit, { factor: proc.factor, tag, clocks: proc.clocks ?? 'pending' });
 
     return rescaled === 0 ? PROC_SKIPPED : PROC_LANDED;
   },

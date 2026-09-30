@@ -53,7 +53,7 @@ export interface SummonProc<G extends UnitTypes> extends ProcShape {
   readonly countOf?: (ctx: ProcContext<G>) => number;
 
   /** The owner; the list's self when absent. */
-  readonly by?: ProcTarget<G>;
+  readonly to?: ProcTarget<G>;
 
   /** The point they stand at. */
   readonly at?: Vec2;
@@ -95,7 +95,7 @@ export interface DespawnSummonsProc<G extends UnitTypes> extends ProcShape {
   readonly kind: 'despawnSummons';
 
   /** Whose; the list's self when absent. */
-  readonly of?: ProcTarget<G>;
+  readonly to?: ProcTarget<G>;
 
   /** Only summons of this template; every one when absent. */
   readonly unit?: G['unitName'] | UnitId;

@@ -54,10 +54,10 @@ describe('the cue proc kind (§II.3.9)', () => {
     assert.deepEqual(
       run([
         cue<Game>('struck'),
-        cue<Game>('struck', { on: 'eventUnit' }),
-        cue<Game>('flare', { on: 'self' }),
+        cue<Game>('struck', { to: 'eventUnit' }),
+        cue<Game>('flare', { to: 'self' }),
         cue<Game>('flare', { at: { x: 5, z: 6 } }),
-        cue<Game>('gong', { on: 'eventUnit' }),
+        cue<Game>('gong', { to: 'eventUnit' }),
       ]),
       [
         ['struck', 50, 2, 2, -2],
@@ -72,7 +72,7 @@ describe('the cue proc kind (§II.3.9)', () => {
   it('fires one per party member, in party order', () => {
     const { run } = makeCueGame();
 
-    assert.deepEqual(run([cue<Game>('struck', { on: 'party' })]), [
+    assert.deepEqual(run([cue<Game>('struck', { to: 'party' })]), [
       ['struck', 50, 1, 1, -1],
       ['struck', 50, 2, 2, -2],
       ['struck', 50, 3, 3, -3],
@@ -99,7 +99,7 @@ describe('the cue proc kind (§II.3.9)', () => {
     assert.deepEqual(run([{ kind: 'strike', amount: 500 }, cue<Game>('struck')]), [['struck', 50, 2, 2, -2]]);
 
     out.clear();
-    assert.equal(procs.run([cue<Game>('struck', { on: 'eventUnit' })], { self: a }), 0);
+    assert.equal(procs.run([cue<Game>('struck', { to: 'eventUnit' })], { self: a }), 0);
     assert.equal(out.count, 0);
   });
 
@@ -111,7 +111,7 @@ describe('the cue proc kind (§II.3.9)', () => {
 
   it('allocates no event once its buffer has been filled to its size', () => {
     const { run, out } = makeCueGame();
-    const list = [cue<Game>('struck', { on: 'party' }), cue<Game>('gong')];
+    const list = [cue<Game>('struck', { to: 'party' }), cue<Game>('gong')];
 
     run(list);
 
@@ -127,7 +127,7 @@ describe('the cue proc kind (§II.3.9)', () => {
   it('explains itself as its cue id, acting on no unit the runner resolves', () => {
     const { procs } = makeCueGame();
 
-    assert.deepEqual(explainProc(procs, cue<Game>('flare', { on: 'eventUnit' })), {
+    assert.deepEqual(explainProc(procs, cue<Game>('flare', { to: 'eventUnit' })), {
       kind: 'proc',
       proc: 9,
       chance: 1,
@@ -143,8 +143,8 @@ describe('cue proc validation (§II.6 P7)', () => {
   it('prepares a cue proc to its id', () => {
     const { procs } = makeCueGame();
 
-    assert.deepEqual(procs.prepare([cue<Game>('flare', { on: 'eventUnit' })], 'a trigger'), [
-      { kind: 'cue', cue: CUES.id.flare, on: 'eventUnit' },
+    assert.deepEqual(procs.prepare([cue<Game>('flare', { to: 'eventUnit' })], 'a trigger'), [
+      { kind: 'cue', cue: CUES.id.flare, to: 'eventUnit' },
     ]);
   });
 
@@ -160,8 +160,8 @@ describe('cue proc validation (§II.6 P7)', () => {
     );
     assert.throws(prepare(cue<Game>('flare', { params: { aim: 1 } })), /param aim takes a vec2/);
     assert.throws(
-      prepare(cue<Game>('step', { on: 'eventUnit' })),
-      /cue step sits on the procs' self, so it takes no on/,
+      prepare(cue<Game>('step', { to: 'eventUnit' })),
+      /cue step sits on the procs' self, so it takes no to/,
     );
     assert.throws(prepare(cue<Game>('step', { at: { x: 0, z: 0 } })), /cue step sits on the procs' self/);
     assert.throws(prepare(cue<Game>('struck', { at: { x: 0, z: 0 } })), /cue struck sits on a unit, so it takes no at/);

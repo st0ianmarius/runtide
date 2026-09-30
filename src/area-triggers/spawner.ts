@@ -63,7 +63,7 @@ const secondsOf = (name: string, lifetime: Lifetime): number => {
 /** Fills a new area trigger's cast, held alive while it lives (§II.6 S6), and what it reads from it. */
 const bindCast = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, spec: SpawnSpec<G>) => {
   const cast = spec.cast ?? engine.spells.current;
-  const context = engine.spells.hold(cast) ? engine.spells.get(cast) : undefined;
+  const context = engine.spells.retain(cast) ? engine.spells.get(cast) : undefined;
 
   area.castHandle = context === undefined ? NO_CAST : cast;
   area.cast = context;
@@ -198,7 +198,7 @@ export const spawnArea = <G extends AreaTriggerTypes>(
   fill(engine, area, [spec, parent]);
 
   if (!admitLimit(engine, area, def)) {
-    engine.spells.release(area.castHandle);
+    engine.spells.unretain(area.castHandle);
     engine.free(area);
 
     return NO_AREA_TRIGGER;

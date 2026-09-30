@@ -67,7 +67,7 @@ const fireOn = <G extends ProcTypes>(frame: ProcFrame<G>, firing: CueFiring, uni
   fireCue(frame.cues ?? missing('cues'), firing, firing);
 };
 
-/** Fires a `cue` proc: on the self for a `self` cue, else on its `on` unit (each party member) or at its point. */
+/** Fires a `cue` proc: on the self for a `self` cue, else on its `to` unit (each party member) or at its point. */
 const applyCue = <G extends ProcTypes>(proc: CueProc<G>, frame: ProcFrame<G>): ProcOutcome => {
   const out = frame.cues ?? missing('cues');
   const cue = frame.resolve.cue(proc.cue);
@@ -78,7 +78,7 @@ const applyCue = <G extends ProcTypes>(proc: CueProc<G>, frame: ProcFrame<G>): P
   firing.params = proc.params;
   firing.at = proc.at;
 
-  const on = firing.anchor === 'self' ? 'self' : (proc.on ?? 'target');
+  const on = firing.anchor === 'self' ? 'self' : (proc.to ?? 'target');
 
   if (on === 'party') {
     const members = (frame.host.party ?? missing('host.party'))(frame.self);
@@ -109,8 +109,8 @@ const applyCue = <G extends ProcTypes>(proc: CueProc<G>, frame: ProcFrame<G>): P
 const checkPlacement = <G extends ProcTypes>(cues: CueRegistry, proc: CueProc<G>, cue: CueId): void => {
   const anchor = cues.anchorOf(cue);
 
-  if (anchor === 'self' && (proc.on !== undefined || proc.at !== undefined)) {
-    throw new RangeError(`cue ${cues.name(cue)} sits on the procs' self, so it takes no on or at.`);
+  if (anchor === 'self' && (proc.to !== undefined || proc.at !== undefined)) {
+    throw new RangeError(`cue ${cues.name(cue)} sits on the procs' self, so it takes no to or at.`);
   }
 
   if (anchor === 'entity' && proc.at !== undefined) {

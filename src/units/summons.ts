@@ -37,7 +37,7 @@ export const leaveOwner = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
   }
 
   if (unit.cast !== NO_CAST) {
-    engine.options.spells.release(unit.cast);
+    engine.options.spells.unretain(unit.cast);
     unit.cast = NO_CAST;
   }
 };

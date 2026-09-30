@@ -16,7 +16,7 @@ export interface SetTimerProc<G extends AiTypes> extends ProcShape {
   readonly seconds: number;
 
   /** Whose brain; the list's self when absent. */
-  readonly of?: ProcTarget<G>;
+  readonly to?: ProcTarget<G>;
 }
 
 /** Stops a timer on the brain of the unit it lands on; `skipped` when it was not running. */
@@ -28,7 +28,7 @@ export interface CancelTimerProc<G extends AiTypes> extends ProcShape {
   readonly timer: G['timerName'] | TimerId;
 
   /** Whose brain; the list's self when absent. */
-  readonly of?: ProcTarget<G>;
+  readonly to?: ProcTarget<G>;
 }
 
 /**
@@ -43,7 +43,7 @@ export interface SetFocusProc<G extends AiTypes> extends ProcShape {
   readonly focus?: 'target' | 'eventUnit' | 'none';
 
   /** Whose focus; the list's self when absent. */
-  readonly of?: ProcTarget<G>;
+  readonly to?: ProcTarget<G>;
 }
 
 /** The AI system's procs, as a union: a game adds them to its proc union (`gameProc`). */
@@ -65,13 +65,13 @@ export interface AiProcKinds<G extends AiTypes> {
 export const setTimer = <G extends AiTypes = AiTypes>(
   timer: G['timerName'] | TimerId,
   seconds: number,
-  options: ChanceOption & Pick<SetTimerProc<G>, 'of'> = {},
+  options: ChanceOption & Pick<SetTimerProc<G>, 'to'> = {},
 ): SetTimerProc<G> => ({ ...options, kind: 'setTimer', timer, seconds });
 
 /** A `cancelTimer` proc: `cancelTimer('charge')`. */
 export const cancelTimer = <G extends AiTypes = AiTypes>(
   timer: G['timerName'] | TimerId,
-  options: ChanceOption & Pick<CancelTimerProc<G>, 'of'> = {},
+  options: ChanceOption & Pick<CancelTimerProc<G>, 'to'> = {},
 ): CancelTimerProc<G> => ({ ...options, kind: 'cancelTimer', timer });
 
 /** A `setFocus` proc: `setFocus()` focuses the list's target; `setFocus({ focus: 'none' })` clears it. */

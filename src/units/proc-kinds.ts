@@ -123,7 +123,7 @@ const noWorld = (): never => {
 
 /** The `summon` kind. */
 const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<SummonProc<G>, G> => ({
-  targetOf: (proc) => proc.by ?? 'self',
+  targetOf: (proc) => proc.to ?? 'self',
 
   apply: (proc, ctx, owner) => {
     if (owner === undefined) {
@@ -148,7 +148,7 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
 
       const cast = spells.current;
 
-      if (cast !== NO_CAST && spells.hold(cast)) {
+      if (cast !== NO_CAST && spells.retain(cast)) {
         unitOf<G>(unit).cast = cast;
       }
     }
@@ -179,7 +179,7 @@ const despawnKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<
 
 /** The `despawnSummons` kind. */
 const despawnSummonsKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<DespawnSummonsProc<G>, G> => ({
-  targetOf: (proc) => proc.of ?? 'self',
+  targetOf: (proc) => proc.to ?? 'self',
 
   apply: (proc, _ctx, owner) => {
     if (owner === undefined) {

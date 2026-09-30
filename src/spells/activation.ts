@@ -69,9 +69,9 @@ export type ButtonSeconds<G extends SpellTypes> = {
 }['bivarianceHack'];
 
 /** What a button costs as it fires: stacks of an aura on its caster (a charge, a rage bar); 1 stack when absent. */
-export interface ButtonCost {
-  /** The aura spent. */
-  readonly aura: AuraId;
+export interface ButtonCost<G extends SpellTypes = SpellTypes> {
+  /** The aura spent: its name in data, its id in code. */
+  readonly aura: G['auraName'] | AuraId;
 
   /** The stacks spent, a whole number from 1; 1 when absent. */
   readonly stacks?: number;
@@ -82,8 +82,8 @@ export interface ButtonCost {
  * when it names one (a Duration stat, §II.6 S4).
  */
 export interface ButtonApply<G extends SpellTypes = SpellTypes> {
-  /** The aura. */
-  readonly aura: AuraId;
+  /** The aura: its name in data, its id in code. */
+  readonly aura: G['auraName'] | AuraId;
 
   /** The stat whose total multiplies the aura's length; its own length when absent. */
   readonly scaledBy?: G['stat'];
@@ -113,7 +113,7 @@ export interface ButtonActivation<G extends SpellTypes = SpellTypes> {
   readonly startsOn?: 'activation' | 'cast';
 
   /** What it costs as it fires; nothing when absent. */
-  readonly cost?: ButtonCost;
+  readonly cost?: ButtonCost<G>;
 
   /** Aura tags every one of which the caster must hold. */
   readonly requires?: readonly G['tag'][];

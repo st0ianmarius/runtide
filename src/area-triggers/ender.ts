@@ -83,6 +83,6 @@ export const endArea = <G extends AreaTriggerTypes>(
   engine.count(area.owner, [area.kind, -1]);
   engine.holdOwnerAura(area, false);
   engine.raise('ended', area, end.reason);
-  engine.spells.release(area.castHandle);
+  engine.spells.unretain(area.castHandle);
   engine.free(area);
 };

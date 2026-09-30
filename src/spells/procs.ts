@@ -16,7 +16,7 @@ export interface CastSpellProc<G extends SpellTypes> extends ProcShape {
   readonly spell: G['spellName'] | SpellId;
 
   /** Who casts it; the list's self when absent. */
-  readonly by?: ProcTarget<G>;
+  readonly to?: ProcTarget<G>;
 
   /** What the cast is handed; see `inputOf` for one read when it applies. */
   readonly input?: G['input'];
@@ -110,7 +110,7 @@ export const rescaleClocks = <G extends SpellTypes = SpellTypes>(
   options: ChanceOption & Omit<RescaleClocksProc<G>, 'kind' | 'factor' | 'chance'> = {},
 ): RescaleClocksProc<G> => ({ ...options, kind: 'rescaleClocks', factor });
 
-/** A `castSpell` proc: `castSpell('stab')`, `castSpell('nova', { by: 'eventUnit', rank: 2 })`. */
+/** A `castSpell` proc: `castSpell('stab')`, `castSpell('nova', { to: 'eventUnit', rank: 2 })`. */
 export const castSpell = <G extends SpellTypes = SpellTypes>(
   spell: G['spellName'] | SpellId,
   options: Omit<CastSpellProc<G>, 'kind' | 'spell'> = {},

@@ -78,7 +78,10 @@ export interface UnitSystem<G extends UnitTypes> {
   /** A unit's stats (§II.6 M9): its sheet folded with it as the host, or its own bases without a modifier system. */
   readonly statsOf: (unit: G['bearer']) => StatView;
 
-  /** The unit system's proc kinds (`revive`): `createProcRegistry({ ...CORE_PROCS, ...units.procKinds })`. */
+  /**
+   * The unit system's proc kinds (`revive`, `summon`, `despawn`, `despawnSummons`): `createProcRegistry({
+   * ...CORE_PROCS, ...units.procKinds })`.
+   */
   readonly procKinds: UnitProcKinds<G>;
 
   /**

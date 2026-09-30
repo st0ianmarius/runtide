@@ -130,8 +130,8 @@ export interface AuraRescale<G extends AuraTypes> {
   /** Whether only clocks still pending (the default) or every clock rescales. */
   readonly clocks?: 'pending' | 'all';
 
-  /** The scope (a spell or tag id) whose clocks rescale; every clock when absent. */
-  readonly scope?: number;
+  /** The spell tag (its id) whose clocks rescale; every clock when absent. */
+  readonly tag?: number;
 }
 
 /**

@@ -16,7 +16,7 @@ const setUp = () =>
         kind: 'button',
         cooldown: scaled(ranks(8, 6), haste(1)),
         startsOn: 'cast',
-        cost: { aura: auraNamed('charge'), stacks: 2 },
+        cost: { aura: 'charge', stacks: 2 },
         requires: ['stance'],
         blockedBy: ['rooted'],
         resets: ['cooldown.dodge'],

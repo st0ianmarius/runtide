@@ -28,7 +28,7 @@ const buttonIdOf = <G extends AbilityTypes>(
 
 /** The `useAbility` kind: the trigger path for the unit it lands on. */
 const useAbilityKind = <G extends AbilityTypes>(engine: AbilityEngine<G>): ProcKindDef<UseAbilityProc<G>, G> => ({
-  targetOf: (proc) => proc.by ?? 'self',
+  targetOf: (proc) => proc.to ?? 'self',
 
   apply: (proc, ctx, bearer) => {
     if (bearer === undefined) {
