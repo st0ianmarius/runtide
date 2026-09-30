@@ -2,10 +2,21 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { damage, heal, pull, push, setHealth } from '../../src/damage/index.ts';
-import { add, compileScaled, scaled, snapshotScaled } from '../../src/modifiers/index.ts';
-import { applyAura, escapeReport, explainProc, type Proc, run } from '../../src/procs/index.ts';
+import {
+  add,
+  compileScaled,
+  freezeStats,
+  type FrozenStats,
+  scaled,
+  snapshotScaled,
+  type StatView
+} from '../../src/modifiers/index.ts';
+import { applyAura, escapeReport, explainProc, type Proc, type ProcContext, run } from '../../src/procs/index.ts';
 import { aura, BLOCK, type Game, makeDamageGame, STATS } from '../helpers/damage-game.ts';
 import { invalid } from '../helpers/trigger-game.ts';
+
+/** A view of no stats. */
+const STATS_NONE: StatView = { total: () => 0, base: () => 0 };
 
 /** A fire blow, which the test armor does not touch. */
 const fire = (amount: number, options: Omit<Parameters<typeof damage<Game>>[1], 'damageKind'> = {}): Proc<Game> =>
@@ -34,6 +45,42 @@ describe('the damage proc', () => {
     game.auras.apply(victim, { aura: game.id.burn, source: caster.id });
     game.auras.tick(victim, 'world');
     assert.equal(victim.hp, 90);
+  });
+
+  it('reads the attacker stats a beat hands back: a damage over time frozen as it landed', () => {
+    const frozen = new Map<unknown, FrozenStats>();
+
+    const game = makeDamageGame(
+      {
+        burn: aura({
+          duration: 'infinite',
+
+          onLand: (ctx) => {
+            const caster = game.units.get(ctx.aura.source);
+
+            if (caster !== undefined) {
+              frozen.set(ctx.aura, freezeStats(game.damage.host.statsOf?.(caster, undefined) ?? STATS_NONE, [power]));
+            }
+          },
+
+          periodic: {
+            every: 0.125,
+            onBeat: () => [fire(5, { attackerStats: (ctx: ProcContext<Game>) => frozen.get(ctx.aura) })]
+          }
+        })
+      },
+      { outgoing: ['power'] }
+    );
+
+    const power = game.stat('power');
+    const [victim, caster] = [game.unit(1), game.unit(2)];
+
+    game.set(caster, 'power', 2);
+    game.auras.apply(victim, { aura: game.id.burn, source: caster.id });
+    game.set(caster, 'power', 4);
+    game.auras.tick(victim, 'world');
+    assert.equal(victim.hp, 90);
+    assert.throws(() => frozen.values().next().value?.total(game.stat('critChance')), /was not frozen/);
   });
 
   it('deals a blow as the world’s with attacker none', () => {

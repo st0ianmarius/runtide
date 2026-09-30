@@ -1,6 +1,6 @@
 import type { Vec2 } from '../math/index.ts';
-import type { ScaledSnapshot, StatId } from '../modifiers/index.ts';
-import type { Proc, ProcKindDef, ProcShape, ProcTarget } from '../procs/index.ts';
+import type { ScaledSnapshot, StatId, StatView } from '../modifiers/index.ts';
+import type { Proc, ProcContext, ProcKindDef, ProcShape, ProcTarget } from '../procs/index.ts';
 import type { BlowStatus, DamageKindId, DamageTypes, ForceKind } from './damage-types.ts';
 
 /** The damage part of a damage or heal proc: a number, or a scaled value's snapshot finished against each target. */
@@ -44,6 +44,13 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
 
   /** The stages its blow skips beside its kind's (`['mitigation']`: ignores armor), by name. */
   readonly bypass?: readonly string[];
+
+  /**
+   * The attacker's stats its blow reads in place of the live ones: a damage over time's snapshot, which its aura took
+   * as it landed (`freezeStats` into `ctx.aura.ext` in `onLand`) and a beat hands back here. The live ones when absent
+   * or when it answers `undefined`.
+   */
+  readonly attackerStats?: (ctx: ProcContext<G>) => StatView | undefined;
 
   /**
    * Procs that follow it in the same list when the blow ends with a status of `on` (the frost nova's slow

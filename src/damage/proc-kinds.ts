@@ -1,6 +1,6 @@
 import type { AuraId } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
-import { finishScaled, type StatId } from '../modifiers/index.ts';
+import { finishScaled, type StatId, type StatView } from '../modifiers/index.ts';
 import { PROC_SKIPPED, type ProcContext, procOutcome, type ProcOutcome, type ProcResolver } from '../procs/index.ts';
 import type { Blow, BlowSpec } from './blow.ts';
 import type { BlowStatus, DamageKindId, DamageTypes } from './damage-types.ts';
@@ -69,6 +69,7 @@ class ProcBlowSpec<G extends DamageTypes> implements BlowSpec<G> {
   ext: G['blowExt'] | undefined = undefined;
   skips: readonly string[] | undefined = undefined;
   bypass: readonly string[] | undefined = undefined;
+  attackerStats: StatView | undefined = undefined;
 
   constructor(target: G['bearer']) {
     this.target = target;
@@ -148,6 +149,7 @@ const damageKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: P
       spec.ext = proc.ext;
       spec.skips = proc.skips;
       spec.bypass = proc.bypass;
+      spec.attackerStats = proc.attackerStats?.(ctx);
 
       return pipelines.hit(spec);
     },

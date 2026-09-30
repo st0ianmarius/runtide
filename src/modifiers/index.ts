@@ -92,6 +92,7 @@ export {
 } from './scaled.ts';
 
 export type { FoldRead, StatSheet } from './sheet.ts';
+export { freezeStats, FrozenStats } from './frozen-stats.ts';
 export { finishScaled, type ScaledSnapshot, snapshotScaled } from './snapshot.ts';
 
 export { defineSources, type SourceDef, type SourceId, sourceMask, type SourceTable } from './sources.ts';
