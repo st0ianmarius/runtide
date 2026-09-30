@@ -93,6 +93,17 @@ describe('bus order and payloads', () => {
     assert.deepEqual(heard, ['a', 'b', 'b']);
   });
 
+  it('calls observers before handlers and subscribers, at any depth', () => {
+    const bus = gameBus();
+    const heard: string[] = [];
+
+    bus.on(bus.kind.kill, () => heard.push('subscriber'));
+    bus.handle(bus.kind.kill, () => heard.push('handler'));
+    bus.observe(bus.kind.kill, () => heard.push('observer'));
+    bus.raise(bus.kind.kill, bus.payload(bus.kind.kill));
+    assert.deepEqual(heard, ['observer', 'handler', 'subscriber']);
+  });
+
   it('keeps a listener added twice until both of its removers ran', () => {
     const bus = gameBus();
     const heard: number[] = [];

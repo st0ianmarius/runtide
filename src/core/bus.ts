@@ -19,8 +19,9 @@ export type EventKinds<Factories> = {
 
 /**
  * A typed event bus. Every kind has a small integer id and one reused payload per nesting level, so
- * raising an event allocates nothing. Two tiers hear an event: capped handlers first (the triggers), which stop
- * running past the depth cap, then subscribers in subscription order, which hear every event at any depth.
+ * raising an event allocates nothing. Three tiers hear an event: observers first (a recorder such as a combat log, which
+ * notes the event before anything it sets off), then capped handlers (the triggers), which stop running past the depth
+ * cap, then subscribers in subscription order, which hear every event at any depth.
  */
 export interface Bus<Factories> {
   /** The id of every event kind, by name, in the key order of the factories. */
@@ -46,10 +47,20 @@ export interface Bus<Factories> {
 
   /** Adds a subscriber, which hears past the depth cap too; returns the function that removes it. */
   readonly on: <Payload>(kind: EventKind<Payload>, subscriber: Listener<Payload>) => () => void;
+
+  /**
+   * Adds an observer, which hears an event before its handlers and subscribers, at any depth: a recorder noting events
+   * in the order they happened, before the ones their answers raise. It reads the payload and changes nothing. Returns
+   * the function that removes it.
+   */
+  readonly observe: <Payload>(kind: EventKind<Payload>, observer: Listener<Payload>) => () => void;
 }
 
 /** One kind's listeners: replaced, never mutated, on add and remove, so removing one mid-raise is safe. */
 interface Channel {
+  /** The observers, in the order they were added. */
+  observers: readonly unknown[];
+
   /** The capped handlers, in the order they were added. */
   handlers: readonly unknown[];
 
@@ -65,12 +76,12 @@ interface Channel {
   /** How deep this kind is being raised right now: the index of the next free payload. */
   level: number;
 
-  /** How many handlers and subscribers the kind has. */
+  /** How many observers, handlers and subscribers the kind has. */
   count: number;
 }
 
 /** Adds a listener to one tier of a channel and returns the function that removes it (once). */
-const addTo = (channel: Channel, tier: 'handlers' | 'subscribers', listener: unknown): (() => void) => {
+const addTo = (channel: Channel, tier: 'observers' | 'handlers' | 'subscribers', listener: unknown): (() => void) => {
   channel[tier] = [...channel[tier], listener];
   channel.count += 1;
 
@@ -128,6 +139,7 @@ class EventBus<Factories extends Readonly<Record<string, () => object>>> impleme
     this.#maxDepth = maxDepth;
 
     this.#channels = Object.values(factories).map((make) => ({
+      observers: [],
       handlers: [],
       subscribers: [],
       make,
@@ -154,11 +166,15 @@ class EventBus<Factories extends Readonly<Record<string, () => object>>> impleme
 
   readonly raise = <Payload>(kind: EventKind<Payload>, payload: Payload): void => {
     const channel = this.#channelOf(kind);
-    const { handlers, subscribers } = channel;
+    const { observers, handlers, subscribers } = channel;
 
     channel.level += 1;
 
     try {
+      if (observers.length > 0) {
+        callAll(kind, observers, payload);
+      }
+
       if (handlers.length > 0 && this.#depth < this.#maxDepth) {
         this.#depth += 1;
 
@@ -180,6 +196,9 @@ class EventBus<Factories extends Readonly<Record<string, () => object>>> impleme
 
   readonly on = <Payload>(kind: EventKind<Payload>, subscriber: Listener<Payload>): (() => void) =>
     addTo(this.#channelOf(kind), 'subscribers', subscriber);
+
+  readonly observe = <Payload>(kind: EventKind<Payload>, observer: Listener<Payload>): (() => void) =>
+    addTo(this.#channelOf(kind), 'observers', observer);
 
   /** The channel of a kind; throws for a number that is not one of the bus's kinds. */
   #channelOf(kind: number): Channel {

@@ -99,6 +99,23 @@ describe('the combat log', () => {
     ]);
   });
 
+  it('records a blow before what its triggers set off: a thorns reflect follows the hit', () => {
+    const game = logGame();
+    const log = logOf(game);
+    const [hero, foe] = [game.unit(1), game.unit(100)];
+
+    game.bus.handle(game.bus.kind.taken, (event) => {
+      const blow = event.blow;
+
+      if (blow?.target === foe && blow.attacker !== undefined) {
+        game.damage.hit({ target: blow.attacker, attacker: foe, source: 100, amount: 3 });
+      }
+    });
+
+    game.damage.hit({ target: foe, attacker: hero, source: 1, amount: 10 });
+    assert.deepEqual(linesOf(log), ['0 damage 1>100 10', '0 damage 100>1 3']);
+  });
+
   it('carries the blow’s numbers, its overkill and flags, and a heal’s', () => {
     const game = logGame();
     const log = logOf(game);

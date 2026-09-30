@@ -19,8 +19,8 @@ export type CombatLogListener = (entry: CombatEntry) => void;
 
 /** The bus the log listens on: any bus with `on` (a core `Bus` is one). */
 export interface CombatLogBus {
-  /** Subscribes to a kind; returns the unsubscribe. */
-  readonly on: <Payload>(kind: EventKind<Payload>, listener: (payload: Payload) => void) => () => void;
+  /** Observes a kind, ahead of its handlers (`Bus.observe`): events are recorded in the order they happened. */
+  readonly observe: <Payload>(kind: EventKind<Payload>, listener: (payload: Payload) => void) => () => void;
 }
 
 /** How many entries a log holds when its options say nothing. */
@@ -115,7 +115,7 @@ const listen = <Unit, Spell>(
 
   const on = <Payload>(kind: EventKind<Payload> | undefined, listener: (payload: Payload) => void): void => {
     if (kind !== undefined) {
-      offs.push(bus.on(kind, listener));
+      offs.push(bus.observe(kind, listener));
     }
   };
 
