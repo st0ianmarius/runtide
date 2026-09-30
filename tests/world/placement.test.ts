@@ -42,19 +42,44 @@ describe('static geometry: clearance and lines of sight', () => {
 });
 
 describe('moveBody: a body swept against static geometry', () => {
-  it('stops where it first touches a wall', () => {
+  it('stops where it first touches a wall, with the wall’s normal toward it', () => {
     const move = world.moveBody([vec2(0, 0), vec2(10, 0)], 1);
 
     assert.equal(move.hit, true);
     close(move.share, 0.4);
     close(move.position.x, 4);
+    assert.deepEqual(move.normal, { x: -1, z: 0 });
+
+    const pillar = world.moveBody([vec2(-5, 5), vec2(-5, -5)], 1);
+
+    close(pillar.normal?.x ?? Number.NaN, 0);
+    close(pillar.normal?.z ?? Number.NaN, 1);
   });
 
-  it('stops at the bounds, inset by its radius', () => {
+  it('stops at the bounds, inset by its radius, with the bound’s normal', () => {
     const move = world.moveBody([vec2(0, 12), vec2(0, 32)], 1);
 
     assert.equal(move.hit, true);
     close(move.position.z, 19);
+    assert.deepEqual(move.normal, { x: 0, z: -1 });
+  });
+
+  it('lets a body that starts in a wall leave it, and stops one that heads further in', () => {
+    const out = world.moveBody([vec2(4.5, 0), vec2(0, 0)], 1);
+    const deeper = world.moveBody([vec2(4.5, 0), vec2(8, 0)], 1);
+
+    assert.deepEqual([out.hit, out.share], [false, 1]);
+    assert.deepEqual([deeper.hit, deeper.share], [true, 0]);
+  });
+
+  it('reads new static geometry once it is put in', () => {
+    const doors = createMemoryWorld<object>({ bounds: BOUNDS, statics: STATICS });
+
+    assert.equal(doors.lineClear(vec2(0, 0), vec2(10, 0)), false);
+    doors.setStatics([circle(1, vec2(-5, 0))]);
+    assert.equal(doors.lineClear(vec2(0, 0), vec2(10, 0)), true);
+    doors.setStatics([]);
+    assert.equal(doors.isPositionClear(vec2(-5, 0), 0), true);
   });
 
   it('goes the whole way when nothing is in the way', () => {

@@ -9,6 +9,7 @@ import type { StaticGeometry } from './statics.ts';
 export class Placement {
   readonly bounds: Box;
   readonly #statics: StaticGeometry;
+  readonly #normal = { x: 0, z: 0 };
 
   constructor(bounds: Box, statics: StaticGeometry) {
     this.bounds = bounds;
@@ -44,20 +45,50 @@ export class Placement {
 
   /**
    * Moves a body of `radius` along a segment until it touches static geometry or would leave the bounds (inset by its
-   * radius), and says where it stopped.
+   * radius), and says where it stopped and the normal of what it touched (for a slide along a wall, a ricochet). A
+   * body that starts overlapping a shape and moves away from it goes free.
    */
   readonly moveBody = (segment: readonly [Vec2, Vec2], radius: number): BodyMove => {
     const [from, to] = segment;
     const contact = this.#statics.contact(segment, radius);
     const exit = this.#boundsExit(segment, radius);
     const share = Math.min(contact ?? 1, exit);
+    const position = { x: from.x + (to.x - from.x) * share, z: from.z + (to.z - from.z) * share };
 
-    return {
-      position: { x: from.x + (to.x - from.x) * share, z: from.z + (to.z - from.z) * share },
-      hit: contact !== undefined || exit < 1,
-      share,
-    };
+    if (contact === undefined && exit >= 1) {
+      return { position, hit: false, share };
+    }
+
+    const normal =
+      contact !== undefined && contact <= exit ? this.#statics.normalOf(position, this.#normal) : undefined;
+
+    return { position, hit: true, share, normal: { ...(normal ?? this.#boundsNormal(position, radius)) } };
   };
+
+  /** The inward normal of the bound a body at `p` presses against: the nearest one. */
+  #boundsNormal(p: Vec2, radius: number): Vec2 {
+    const { bounds } = this;
+    const out = this.#normal;
+    const left = p.x - radius - bounds.minX;
+    const right = bounds.maxX - radius - p.x;
+    const back = p.z - radius - bounds.minZ;
+    const least = Math.min(left, right, back, bounds.maxZ - radius - p.z);
+
+    out.x = 0;
+    out.z = 0;
+
+    if (least === left) {
+      out.x = 1;
+    } else if (least === right) {
+      out.x = -1;
+    } else if (least === back) {
+      out.z = 1;
+    } else {
+      out.z = -1;
+    }
+
+    return out;
+  }
 
   /**
    * Picks a point: each attempt's candidate from the game's sampler, kept when it is clear by the clearance and passes
@@ -97,23 +128,23 @@ export class Placement {
   /** The share at which a body's centre leaves the bounds inset by its radius (0 when it starts outside, 1 if never). */
   #boundsExit([from, to]: readonly [Vec2, Vec2], radius: number): number {
     const { bounds } = this;
-    let share = 1;
 
-    for (const [p, q, low, high] of [
-      [from.x, to.x, bounds.minX + radius, bounds.maxX - radius],
-      [from.z, to.z, bounds.minZ + radius, bounds.maxZ - radius],
-    ] as const) {
-      if (p < low || p > high) {
-        return 0;
-      }
-
-      if (q < low) {
-        share = Math.min(share, (low - p) / (q - p));
-      } else if (q > high) {
-        share = Math.min(share, (high - p) / (q - p));
-      }
-    }
-
-    return share;
+    return Math.min(
+      axisExit([from.x, to.x], [bounds.minX + radius, bounds.maxX - radius]),
+      axisExit([from.z, to.z], [bounds.minZ + radius, bounds.maxZ - radius]),
+    );
   }
 }
+
+/** The share at which a move along one axis leaves `[low, high]`: 0 when it starts outside, 1 if never. */
+const axisExit = ([p, q]: readonly [number, number], [low, high]: readonly [number, number]): number => {
+  if (p < low || p > high) {
+    return 0;
+  }
+
+  if (q < low) {
+    return (low - p) / (q - p);
+  }
+
+  return q > high ? (high - p) / (q - p) : 1;
+};

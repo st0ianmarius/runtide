@@ -97,6 +97,9 @@ export interface BodyMove {
 
   /** The share of the move it made, from 0 to 1. */
   readonly share: number;
+
+  /** The unit normal of what it touched, pointing back toward the body; absent when it touched nothing. */
+  readonly normal?: Vec2;
 }
 
 /**

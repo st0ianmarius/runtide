@@ -63,6 +63,12 @@ export interface MemoryWorld<Unit> extends WorldQuery<Unit> {
   /** Puts a unit on another side now (a charm, a flag for combat), which every query reads from here on. */
   readonly setSide: (unit: Unit, side: number) => void;
 
+  /**
+   * Puts in new static geometry in place of the old (a door opened, a prison's walls raised), which every line of
+   * sight, placement and body move reads from here on. A prediction mirror's static world must follow it.
+   */
+  readonly setStatics: (shapes: readonly StaticShape[]) => void;
+
   /** Starts a tick: every unit's previous position becomes its current one. */
   readonly tick: () => void;
 }
@@ -83,9 +89,12 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly #parts: SearchParts<Unit>;
   readonly #dt: number;
   readonly #reaction: ReactionRule;
+  readonly #statics: StaticGeometry;
 
   constructor(options: MemoryWorldOptions<Unit>) {
-    const placement = new Placement(options.bounds, new StaticGeometry(options.statics ?? []));
+    this.#statics = new StaticGeometry(options.statics ?? []);
+
+    const placement = new Placement(options.bounds, this.#statics);
 
     this.bounds = options.bounds;
     this.#dt = options.dt ?? 1;
@@ -179,6 +188,10 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly radiusOf = (unit: Unit): number => this.#table.radius[this.#table.slotOf(unit)] ?? 0;
   readonly sideOf = (unit: Unit): number => this.#table.side[this.#table.slotOf(unit)] ?? 0;
   readonly reactionOf = (a: Unit, b: Unit): Reaction => this.#reaction(this.sideOf(a), this.sideOf(b));
+
+  readonly setStatics = (shapes: readonly StaticShape[]): void => {
+    this.#statics.set(shapes);
+  };
 
   readonly setSide = (unit: Unit, side: number): void => {
     this.#table.side[this.#table.slotOf(unit)] = side;
