@@ -127,6 +127,13 @@ export interface Blow<G extends DamageTypes> extends ProcOutcome {
   /** Whether the crit stage made it critical. */
   readonly isCrit: boolean;
 
+  /**
+   * How many pipelines it runs inside: 0 for a blow dealt directly (a spell's hit, a beat), 1 or more for one a hook,
+   * a trigger or a death of another set off. A game's "cannot proc from procs" and a thorns that must not bounce read it
+   * (the `direct` trigger filter).
+   */
+  readonly depth: number;
+
   /** What the mitigation rows took off it (negative when a row amplified it). */
   readonly mitigated: number;
 
@@ -175,6 +182,7 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   attackerStats: StatView | undefined = undefined;
   outcome: string | undefined = undefined;
   isCrit = false;
+  depth = 0;
   mitigated = 0;
   absorbed = 0;
   prevented = 0;
@@ -195,7 +203,11 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   }
 
   /** Fills the record from a spec, every field reset. */
-  reset(spec: BlowSpec<G>, parts: { readonly source: number; readonly kind: DamageKindId }): void {
+  reset(
+    spec: BlowSpec<G>,
+    parts: { readonly source: number; readonly kind: DamageKindId; readonly depth: number }
+  ): void {
+    this.depth = parts.depth;
     this.target = spec.target;
     this.attacker = spec.attacker;
     this.source = parts.source;

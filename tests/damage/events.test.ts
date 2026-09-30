@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { BLOW_STATUSES, damageTriggerEvent, deathTriggerEvent, healTriggerEvent } from '../../src/damage/index.ts';
+import {
+  BLOW_STATUSES,
+  damage,
+  damageTriggerEvent,
+  deathTriggerEvent,
+  healTriggerEvent
+} from '../../src/damage/index.ts';
 import { applyAura } from '../../src/procs/index.ts';
 import { createTriggerSystem } from '../../src/triggers/index.ts';
 import { aura, CRIT, type DamageOverrides, type Game, KINDS, makeDamageGame } from '../helpers/damage-game.ts';
@@ -17,6 +23,12 @@ const AURAS = {
   seared: aura({ duration: 3 }),
   poisoned: aura({ duration: 3 }),
   pricked: aura({ duration: 3 }),
+  spiked: aura({
+    duration: 'infinite',
+    triggers: [
+      { on: 'taken', when: [{ filter: 'direct' }], do: [damage<Game>(5, { to: 'other', damageKind: 'fire' })] }
+    ]
+  }),
   thorny: aura({
     duration: 'infinite',
     triggers: [{ on: 'taken', do: [applyAura<Game>('pricked', { to: 'other' })] }]
@@ -109,6 +121,18 @@ describe('the damage events', () => {
 
   it('name the blow statuses in code order', () => {
     assert.deepEqual(BLOW_STATUSES, ['skipped', 'ignored', 'blocked', 'absorbed', 'landed', 'avoided']);
+  });
+});
+
+describe('the direct filter', () => {
+  it('answers only a blow nothing set off, so two thorns never bounce a blow between them', () => {
+    const game = makeTriggerGame();
+    const [a, b] = [game.unit(1), game.unit(2)];
+
+    game.auras.apply(a, game.id.spiked);
+    game.auras.apply(b, game.id.spiked);
+    game.damage.hit({ target: a, attacker: b, amount: 10, kind: KINDS.id.fire });
+    assert.deepEqual([a.hp, b.hp], [90, 95]);
   });
 });
 

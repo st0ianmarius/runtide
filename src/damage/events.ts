@@ -142,7 +142,8 @@ const spellFilter = <Payload>(spellOf: (event: Payload) => unknown, spells: Spel
  * A damage event kind as a trigger event: about the blow's `attacker` (for `dealt`) or its `target` (for `taken`), with
  * the filters `crit` (a critical blow), `status` (by name: `blocked`, `absorbed`, `landed`, `avoided`), `damageKind`
  * (by name), `outcome` (an outcome row by name: `dodge`, `block`, `crit`; needs the roll table), `spell` (the spell it
- * came from, by id, or by name given the spells), `minAmount` (at least the argument reached health). A trigger names
+ * came from, by id, or by name given the spells), `minAmount` (at least the argument reached health), `direct` (a blow no
+ * other blow, heal, force or death set off: no procs from procs, no thorns bouncing). A trigger names
  * them in `when`. The blow's other unit is its procs' `other`: the victim for `dealt` (an on-hit poison), the attacker
  * for `taken` (thorns).
  */
@@ -173,6 +174,7 @@ export const damageTriggerEvent = <G extends DamageTypes & TriggerTypes>(
 
     filters: Object.freeze({
       crit: { test: (event: DamageEvent<G>) => event.blow?.isCrit === true },
+      direct: { test: (event: DamageEvent<G>) => event.blow?.depth === 0 },
       status: {
         test: (event: DamageEvent<G>, code: number) => event.blow?.status === BLOW_STATUSES[code],
         resolve: statusCode

@@ -245,7 +245,8 @@ export const createDamagePipeline = <G extends DamageTypes>(engine: DamageEngine
 
     blow.reset(spec, {
       source: engine.sourceOf(spec.source, spec.attacker),
-      kind: spec.kind ?? engine.defaultKind
+      kind: spec.kind ?? engine.defaultKind,
+      depth: engine.depth
     });
 
     if (!(spec.amount > 0) || engine.isDeadNow(spec.target) || !engine.enter()) {
