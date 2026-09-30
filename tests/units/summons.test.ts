@@ -115,6 +115,46 @@ describe('summoning', () => {
     assert.deepEqual(units.summonsOf(caster), [second]);
   });
 
+  it('rejoins its owner’s list as it is revived, while its owner lives', () => {
+    const { procs, units, caster } = summoning();
+
+    procs.apply(summon<UnitGame>('add', { count: 2 }), { self: caster });
+
+    const [first, second] = units.summonsOf(caster);
+
+    if (first !== undefined) {
+      units.kill(first);
+      units.revive(first);
+    }
+
+    assert.deepEqual(units.summonsOf(caster), [second, first]);
+  });
+
+  it('keeps an owner to its limit of a template: replacing its oldest, or refused', () => {
+    const { procs, units, caster, log } = summoning();
+
+    procs.apply(summon<UnitGame>('add', { count: 2, limit: { perOwner: 2 } }), { self: caster });
+
+    const [oldest, kept] = units.summonsOf(caster);
+    const replaced = procs.apply(summon<UnitGame>('add', { limit: { perOwner: 2 } }), { self: caster });
+
+    assert.deepEqual([replaced.amount, oldest?.lifecycle, units.summonsOf(caster).length], [1, 'despawned', 2]);
+    assert.equal(units.summonsOf(caster)[0], kept);
+    assert.ok(log.includes('reason replaced'));
+
+    const refused = procs.apply(summon<UnitGame>('add', { count: 3, limit: { perOwner: 2, replace: 'refuse' } }), {
+      self: caster,
+    });
+
+    assert.deepEqual([refused.status, units.summonsOf(caster).length], ['skipped', 2]);
+    procs.apply(summon<UnitGame>('pet', { limit: { perOwner: 1, replace: 'refuse' } }), { self: caster });
+    assert.equal(units.summonsOf(caster).length, 3);
+    assert.throws(
+      () => procs.prepare([summon<UnitGame>('pet', { limit: { perOwner: 0 } })], 'Test'),
+      /limit is a whole/,
+    );
+  });
+
   it('despawns a unit with a reason, and an owner’s summons of a template', () => {
     const { procs, units, caster, log } = summoning();
 

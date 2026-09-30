@@ -114,6 +114,43 @@ const spawnSummon = <G extends UnitTypes>(
   }
 };
 
+/**
+ * Whether one more summon of a template fits its owner's limit: under it, yes; at it, the owner's oldest of the template
+ * despawns as `replaced` (`oldest`), or the summon is refused (`refuse`).
+ */
+const admitSummon = <G extends UnitTypes>(
+  parts: UnitKindParts<G>,
+  [proc, owner]: readonly [SummonProc<G>, G['bearer']],
+  template: UnitId,
+): boolean => {
+  const { limit } = proc;
+
+  if (limit === undefined) {
+    return true;
+  }
+
+  const { summons } = unitOf<G>(owner);
+  let count = 0;
+  let oldest: G['bearer'] | undefined = undefined;
+
+  for (const summon of summons) {
+    if (unitOf<G>(summon).template === template) {
+      oldest ??= summon;
+      count += 1;
+    }
+  }
+
+  if (count < limit.perOwner) {
+    return true;
+  }
+
+  if (limit.replace === 'refuse' || oldest === undefined) {
+    return false;
+  }
+
+  return parts.despawn(oldest, 'replaced');
+};
+
 /** The `summon` kind. */
 const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<SummonProc<G>, G> => ({
   targetOf: (proc) => proc.to ?? 'self',
@@ -128,16 +165,25 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
     const count = Math.max(0, Math.floor(proc.countOf?.(ctx) ?? proc.count ?? 1));
     const stats = summonStats(engine, [proc, owner]);
 
-    for (let i = 0; i < count; i++) {
+    let summoned = 0;
+
+    for (let i = 0; i < count && admitSummon(parts, [proc, owner], template); i++) {
       spawnSummon(parts, [proc, ctx, owner], [template, stats]);
+      summoned += 1;
     }
 
-    return counted(count);
+    return counted(summoned);
   },
 
   prepare: (proc) => {
     if (proc.count !== undefined && !(Number.isInteger(proc.count) && proc.count >= 0)) {
       throw new RangeError(`a summon proc's count is a whole number from 0; got ${proc.count}.`);
+    }
+
+    const limit = proc.limit?.perOwner;
+
+    if (limit !== undefined && !(Number.isInteger(limit) && limit >= 1)) {
+      throw new RangeError(`a summon proc's limit is a whole number from 1; got ${limit}.`);
     }
 
     return { ...proc, unit: templateOf(parts.engine, proc.unit) };

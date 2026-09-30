@@ -56,6 +56,18 @@ export interface SummonProc<G extends UnitTypes> extends ProcShape {
 
   /** Their side (a turned add fighting for the heroes, a boss's hazard that hurts everyone); the owner's when absent. */
   readonly side?: number;
+
+  /**
+   * How many of the template the owner may keep at once: a summon past it ends the owner's oldest of the template (it
+   * despawns, reason `replaced`: a sentry replacing the last), or is refused (`refuse`: a cap of six adds).
+   */
+  readonly limit?: {
+    /** The most at once, from 1. */
+    readonly perOwner: number;
+
+    /** What a summon past the limit does; `oldest` when absent. */
+    readonly replace?: 'oldest' | 'refuse';
+  };
 }
 
 /** Despawns the unit it lands on: removed without dying; `skipped` when already gone. */

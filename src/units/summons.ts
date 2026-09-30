@@ -12,6 +12,15 @@ export const joinOwner = (bearer: UnitTypes['bearer']): void => {
   }
 };
 
+/** A revived unit joins its owner's summons again, last, if its owner is still alive. */
+export const rejoinOwner = (bearer: UnitTypes['bearer']): void => {
+  const { owner } = unitOf<UnitTypes>(bearer);
+
+  if (owner !== undefined && unitOf<UnitTypes>(owner).lifecycle === 'alive') {
+    unitOf<UnitTypes>(owner).summons.push(bearer);
+  }
+};
+
 /** The entity id a unit's deeds are credited to: its owner's, up the chain, or its own. */
 export const creditOf = (bearer: UnitTypes['bearer']): number => {
   let root = unitOf<UnitTypes>(bearer);
