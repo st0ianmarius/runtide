@@ -1,6 +1,6 @@
 // Hot path: removals walk the bearer's list, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
-import type { AuraItem } from './active-aura.ts';
+import type { ActiveAura, AuraItem } from './active-aura.ts';
 import type { AuraCause } from './aura-def.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
 import { CHANGES } from './compile.ts';
@@ -313,13 +313,14 @@ const spendOne = <G extends AuraTypes>(
 };
 
 /**
- * Spends an amount from an aura's value, instance by instance in order (an absorb eating a blow); an instance spent
- * to 0 is removed unless its aura keeps it when depleted. Returns the amount spent.
+ * Spends an amount from an aura's value, instance by instance in order (an absorb eating a blow), or from one instance
+ * alone when `only` names it (the instance whose hook absorbed); an instance spent to 0 is removed unless its aura
+ * keeps it when depleted. Returns the amount spent.
  */
 export const spendValue = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
-  spend: { readonly id: AuraId; readonly amount: number },
+  spend: { readonly id: AuraId; readonly amount: number; readonly only?: ActiveAura | undefined },
 ): number => {
   const set = setOf<G>(bearer);
   const from = engine.events.open('spendValue');
@@ -329,7 +330,7 @@ export const spendValue = <G extends AuraTypes>(
   for (let i = 0; i < set.items.length && left > 0; i++) {
     const item = set.items[i];
 
-    if (item?.id !== spend.id || !(item.value > 0)) {
+    if (item?.id !== spend.id || !(item.value > 0) || (spend.only !== undefined && item !== spend.only)) {
       continue;
     }
 

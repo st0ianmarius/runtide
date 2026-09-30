@@ -117,8 +117,11 @@ export interface AuraSystem<G extends AuraTypes> {
   /** Spends stacks, instance by instance; refuses (spending nothing) when fewer are held. */
   readonly spendStacks: (bearer: G['bearer'], aura: AuraId, count: number) => boolean;
 
-  /** Spends from an aura's value, instance by instance; returns the amount spent. */
-  readonly spendValue: (bearer: G['bearer'], aura: AuraId, amount: number) => number;
+  /**
+   * Spends from an aura's value: from every instance of it in order (an aura id), or from one instance alone (an active
+   * aura, as an absorb hook's own); returns the amount spent.
+   */
+  readonly spendValue: (bearer: G['bearer'], aura: AuraId | ActiveAura, amount: number) => number;
 
   /**
    * The bearer enters a state (a death, a despawn, the game's going down): every aura on it hears it (`onState`), then

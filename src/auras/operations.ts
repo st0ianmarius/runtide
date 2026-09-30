@@ -67,7 +67,12 @@ export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operat
   removeByTag: (bearer: G['bearer'], tag: AuraTagId) => removeByTag(engine, bearer, tag),
   refresh: (bearer: G['bearer'], id: AuraId, seconds?: number) => refreshAura(engine, bearer, { id, seconds }),
   spendStacks: (bearer: G['bearer'], id: AuraId, count: number) => spendStacks(engine, bearer, { id, count }),
-  spendValue: (bearer: G['bearer'], id: AuraId, amount: number) => spendValue(engine, bearer, { id, amount }),
+
+  spendValue: (bearer: G['bearer'], aura: AuraId | ActiveAura, amount: number) =>
+    typeof aura === 'number'
+      ? spendValue(engine, bearer, { id: aura, amount })
+      : spendValue(engine, bearer, { id: aura.id, amount, only: aura }),
+
   enterState: (bearer: G['bearer'], state: G['state']) => enterState(engine, bearer, state),
   hasState: (state: string): state is G['state'] => engine.tables.stateNames.includes(state),
   sourceGone: (bearer: G['bearer'], source: number) => sourceGone(engine, bearer, source),

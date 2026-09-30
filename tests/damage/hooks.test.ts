@@ -24,6 +24,14 @@ const AURAS = {
   steady: aura({ duration: 10, onIncomingDamage: () => ({ knock: 'none' }) }),
   escape: aura({ duration: 10, onLethal: () => ({ prevent: true, procs: [setHealth({ share: 0.3 })] }) }),
   leech: aura({ duration: 10, onDealt: (_ctx, blow) => [heal(blow.dealt / 2)] }),
+  pledge: aura({
+    duration: 10,
+    value: 20,
+    perSource: true,
+
+    onIncomingDamage: (ctx, blow) =>
+      ctx.aura.source === 2 ? { absorb: Math.min(ctx.aura.value, blow.amount) } : undefined,
+  }),
   executioner: aura({
     duration: 10,
     onOutgoingDamage: (_ctx, blow) => (blow.target.hp < 50 ? { scale: 2 } : undefined),
@@ -90,6 +98,22 @@ describe('absorbs (onIncomingDamage)', () => {
 
     assert.deepEqual([blow.status, blow.absorbed, blow.amount, target.hp], ['landed', 30, 20, 80]);
     assert.equal(auras.find(target, id.barrier)?.value, 0);
+  });
+
+  it('spend the value of the instance whose hook absorbed, not the first instance of the aura', () => {
+    const { damage, auras, id, unit } = makeDamageGame(AURAS);
+    const target = unit(1);
+
+    auras.apply(target, { aura: id.pledge, source: 1, value: 10 });
+    auras.apply(target, { aura: id.pledge, source: 2 });
+    damage.hit({ target, amount: 5 });
+    assert.deepEqual(
+      auras.list(target).map((each) => [each.source, each.value]),
+      [
+        [1, 10],
+        [2, 15],
+      ],
+    );
   });
 
   it('end a blow they ate whole `absorbed`, with nothing taken from health', () => {

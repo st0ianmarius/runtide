@@ -32,7 +32,7 @@ export interface BlowWalks<G extends DamageTypes> {
 }
 
 /**
- * Applies one absorb hook's change: absorb (spending the aura's value), then scale, then the knock veto. Made once per
+ * Applies one absorb hook's change: absorb (spending the value of the instance whose hook it was), then scale, then the knock veto. Made once per
  * system, so applying a change allocates nothing.
  */
 const changeApplier =
@@ -44,7 +44,7 @@ const changeApplier =
     if (absorbed > 0) {
       blow.amount -= absorbed;
       blow.absorbed += absorbed;
-      engine.auras.spendValue(blow.target, aura.id, absorbed);
+      engine.auras.spendValue(blow.target, aura, absorbed);
     }
 
     if (change.scale !== undefined) {
