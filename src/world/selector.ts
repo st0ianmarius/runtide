@@ -5,6 +5,12 @@ import type { QueryOptions } from './query.ts';
 import { contactShare, type Selection, type SortKey } from './selection.ts';
 import type { UnitTable } from './unit-table.ts';
 
+/** A game's rule for which sides are foes: `a` is the side a query is relative to, `b` a candidate's. */
+export type FoeRule = (a: number, b: number) => boolean;
+
+/** The default foe rule: different sides are foes. */
+export const differentSides: FoeRule = (a, b) => a !== b;
+
 /**
  * Selects units for a memory world's queries (§II.6 W10): narrows by the point index, keeps the units that pass the
  * side, the exclusions, the filter and the exact test, orders them by their keys (lower id on ties), spaces them by
@@ -20,6 +26,7 @@ export class Selector<Unit> {
 
   readonly #table: UnitTable<Unit>;
   readonly #index: PointIndex;
+  readonly #isFoe: FoeRule | undefined;
   readonly #box: MutableBox = emptyBox();
   readonly #candidates: number[] = [];
   readonly #kept: number[] = [];
@@ -35,9 +42,10 @@ export class Selector<Unit> {
   #fromX = 0;
   #fromZ = 0;
 
-  constructor(table: UnitTable<Unit>, index: PointIndex) {
+  constructor(table: UnitTable<Unit>, index: PointIndex, isFoe: FoeRule) {
     this.#table = table;
     this.#index = index;
+    this.#isFoe = isFoe === differentSides ? undefined : isFoe;
   }
 
   /** The slots the last `run` selected, in order, valid up to its count. */
@@ -187,7 +195,14 @@ export class Selector<Unit> {
   #isOnSide(options: QueryOptions<Unit>, slot: number): boolean {
     const ofSide = this.#ofSide;
 
-    return Number.isNaN(ofSide) || (options.side === 'foes') !== ((this.#table.side[slot] ?? 0) === ofSide);
+    if (Number.isNaN(ofSide)) {
+      return true;
+    }
+
+    const side = this.#table.side[slot] ?? 0;
+    const isFoe = this.#isFoe === undefined ? side !== ofSide : this.#isFoe(ofSide, side);
+
+    return (options.side === 'foes') === isFoe;
   }
 
   /** Whether a slot passes the selection's exact test: its shape, its range, or its sweep (noting the contact). */

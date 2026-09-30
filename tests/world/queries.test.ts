@@ -76,6 +76,26 @@ describe('inside: the units a shape covers', () => {
     assert.throws(() => world.inside(circle(5), { side: 'foes' }, out), RangeError);
   });
 
+  it("sorts foes by the game's rule when it has one: side 2 is everyone's foe, and its own", () => {
+    const world = createMemoryWorld<Mob>({ bounds: BOUNDS, isFoe: (a, b) => a !== b || a === 2 });
+    const [hero, mob, hazard, other] = [{ name: 'h' }, { name: 'm' }, { name: 'z' }, { name: 'o' }];
+
+    world.add(hero, { id: 1, at: vec2(0, 0), side: 0 });
+    world.add(mob, { id: 2, at: vec2(1, 0), side: 1 });
+    world.add(hazard, { id: 3, at: vec2(0, 1), side: 2 });
+    world.add(other, { id: 4, at: vec2(1, 1), side: 2 });
+
+    const out: (Mob | undefined)[] = [];
+
+    assert.deepEqual(names(out, world.inside(circle(5), { side: 'foes', of: hero }, out)), ['m', 'z', 'o']);
+    assert.deepEqual(names(out, world.inside(circle(5), { side: 'foes', of: hazard }, out)), ['h', 'm', 'z', 'o']);
+    assert.deepEqual(names(out, world.inside(circle(5), { side: 'allies', of: hazard }, out)), []);
+    assert.deepEqual(
+      [world.isFoe(hero, mob), world.isFoe(hero, hero), world.isFoe(other, hazard)],
+      [true, false, true],
+    );
+  });
+
   it('leaves out an exclude set and what fails the filter', () => {
     const { world, mob } = worldOf([
       [1, 0, 0],

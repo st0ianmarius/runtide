@@ -27,5 +27,6 @@ export type {
   WorldQuery,
 } from './query.ts';
 
+export type { FoeRule } from './selector.ts';
 export type { StaticShape } from './statics.ts';
 export type { UnitSpec } from './unit-table.ts';

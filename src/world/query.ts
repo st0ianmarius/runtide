@@ -184,8 +184,15 @@ export interface WorldQuery<Unit> {
   /** A unit's body radius. */
   readonly radiusOf: (unit: Unit) => number;
 
-  /** A unit's side: units of one side are allies, of different sides foes. */
+  /** A unit's side, which `isFoe` compares. */
   readonly sideOf: (unit: Unit) => number;
+
+  /**
+   * Whether two units are foes, by their sides: what a `foes` query keeps and an `allies` query leaves out. Different
+   * sides are foes in the reference world, unless the game gives it its own rule (a neutral side hurt by all, a free
+   * for all).
+   */
+  readonly isFoe: (a: Unit, b: Unit) => boolean;
 
   /** A unit's entity id, which orders ties. */
   readonly idOf: (unit: Unit) => number;

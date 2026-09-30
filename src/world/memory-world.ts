@@ -14,7 +14,7 @@ import type {
 } from './query.ts';
 import { chain, densest, leadPoint, type SearchParts, sweep } from './searches.ts';
 import { Selection } from './selection.ts';
-import { Selector } from './selector.ts';
+import { differentSides, type FoeRule, Selector } from './selector.ts';
 import { StaticGeometry, type StaticShape } from './statics.ts';
 import { type UnitSpec, UnitTable } from './unit-table.ts';
 
@@ -34,6 +34,9 @@ export interface MemoryWorldOptions {
 
   /** The static geometry (walls, pillars), indexed once in an R-tree. */
   readonly statics?: readonly StaticShape[];
+
+  /** The game's rule for which sides are foes, by side (a neutral side, a free for all); different sides by default. */
+  readonly isFoe?: FoeRule;
 }
 
 /**
@@ -77,6 +80,7 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly #selection = new Selection<Unit>();
   readonly #parts: SearchParts<Unit>;
   readonly #dt: number;
+  readonly #isFoe: FoeRule;
 
   constructor(options: MemoryWorldOptions) {
     const placement = new Placement(options.bounds, new StaticGeometry(options.statics ?? []));
@@ -87,7 +91,8 @@ class World<Unit> implements MemoryWorld<Unit> {
       options.index === 'kd'
         ? new KdIndex(this.#table)
         : new GridIndex(this.#table, { bounds: options.bounds, cell: options.cell ?? 4 });
-    this.#selector = new Selector(this.#table, this.#index);
+    this.#isFoe = options.isFoe ?? differentSides;
+    this.#selector = new Selector(this.#table, this.#index, this.#isFoe);
     this.#parts = { table: this.#table, selector: this.#selector, selection: this.#selection, slots: [] };
     this.isPositionClear = placement.isPositionClear;
     this.lineClear = placement.lineClear;
@@ -162,6 +167,7 @@ class World<Unit> implements MemoryWorld<Unit> {
 
   readonly radiusOf = (unit: Unit): number => this.#table.radius[this.#table.slotOf(unit)] ?? 0;
   readonly sideOf = (unit: Unit): number => this.#table.side[this.#table.slotOf(unit)] ?? 0;
+  readonly isFoe = (a: Unit, b: Unit): boolean => this.#isFoe(this.sideOf(a), this.sideOf(b));
   readonly idOf = (unit: Unit): number => this.#table.id[this.#table.slotOf(unit)] ?? 0;
 
   readonly inside = (shape: Shape, options: QueryOptions<Unit>, out: (Unit | undefined)[]): number =>
