@@ -20,7 +20,6 @@ const KINDS = () =>
         shape: lane({ length: 2, width: 4, dir: 0 }),
         lifetime: 'spent',
         tickIn: SLOTS.id.late,
-        expiry: 'clip',
         state: () => ({ passes: 0 }),
         move: () => undefined,
         frame: () => undefined,
@@ -50,14 +49,13 @@ describe('the area trigger registry', () => {
     assert.equal(registry.kind, 'areaTriggers');
   });
 
-  it('builds the typed columns: slot, flags, lifetime and its kind, expiry and limit', () => {
+  it('builds the typed columns: slot, flags, lifetime and its kind, and limit', () => {
     const { columns } = KINDS();
 
     assert.deepEqual([...columns.slot], [0, 1, 0, 0]);
     assert.deepEqual([...columns.flags], [0, 0, 0, 3]);
     assert.deepEqual([...columns.lifetime], [4, Number.POSITIVE_INFINITY, 0, Number.NaN]);
     assert.deepEqual([...columns.lifetimeKind], [0, 2, 0, 3]);
-    assert.deepEqual([...columns.expiry], [0, 2, 0, 0]);
     assert.deepEqual([...columns.limit], [3, 0, 0, Number.NaN]);
   });
 
@@ -116,7 +114,6 @@ describe('the load-time checks', () => {
 
   it('refuse an unknown shape kind, mode or tag', () => {
     refuse(forged(base, 'shape', { kind: 'blob' }), /unknown shape kind blob/);
-    refuse(forged(base, 'expiry', 'later'), /its expiry/);
     refuse(forged(base, 'anchor', 'target'), /its anchor/);
     refuse(forged(base, 'tickIn', -1), /tick slot -1/);
     refuse(forged(base, 'tags', ['wall']), /unknown area trigger tag wall/);

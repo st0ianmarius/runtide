@@ -8,10 +8,6 @@ import { frame } from './frame.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import type { OwnerAreas } from './order.ts';
 
-/** The expiry modes' codes, as the `expiry` column holds them. */
-const EXPIRY_BEFORE = 1;
-const EXPIRY_CLIP = 2;
-
 /**
  * Checks what binds it before its frame: its `suspendWhile` suspends it (its clock and hooks too); a failed `when`
  * ends it as `bound`. Returns whether it runs this frame. (Its owner leaving is told, not asked: `ownerGone`.)
@@ -39,9 +35,9 @@ const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
 };
 
 /**
- * Steps one area trigger by `dt`: its bound is checked (a suspended one waits, its clock too), then its
- * lifetime counts down around its frame as its expiry mode says: `after` runs the last frame
- * whole, `before` expires without it, `clip` runs it with `dt` cut to the time left. It expires once it ran out.
+ * Steps one area trigger by `dt`: its bound is checked (a suspended one waits, its clock too), then its frame runs
+ * and its lifetime counts down, the last frame running whole: it expires once it ran out. A hook that wants the last
+ * frame cut short reads `c.remaining`.
  */
 export const stepArea = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): void => {
   area.steppedTick = engine.clock.tick;
@@ -52,16 +48,8 @@ export const stepArea = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area
 
   const next = countDown(area.remaining, dt);
   const isOut = isRunOut(next);
-  const mode = engine.registry.columns.expiry[area.kind] ?? 0;
 
-  if (isOut && mode === EXPIRY_BEFORE) {
-    area.remaining = 0;
-    endArea(engine, area, { reason: 'expired' });
-
-    return;
-  }
-
-  frame(engine, area, isOut && mode === EXPIRY_CLIP ? area.remaining : dt);
+  frame(engine, area, dt);
 
   if (area.isEnding) {
     return;

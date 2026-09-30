@@ -49,12 +49,8 @@ const checkShapeAndLifetime = <G extends AreaTriggerTypes>(name: string, def: An
   }
 };
 
-/** Checks the modes: expiry, anchor, insertion and tick slot. */
+/** Checks the modes: anchor, insertion and tick slot. */
 const checkModes = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTriggerDef<G>): void => {
-  if (!isOneOf(def.expiry, ['after', 'before', 'clip'])) {
-    fail(name, "its expiry is 'after', 'before' or 'clip'.");
-  }
-
   if (!isOneOf(def.anchor, ['world', 'owner'])) {
     fail(name, "its anchor is 'world' or 'owner'.");
   }

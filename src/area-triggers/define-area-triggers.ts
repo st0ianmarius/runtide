@@ -23,9 +23,6 @@ export const ANCHOR_OWNER = 2;
 /** The lifetime kinds, in the order of their codes in the `lifetimeKind` column. */
 const LIFETIME_KINDS = ['seconds', 'owner', 'spent', 'function'] as const;
 
-/** The expiry modes, in the order of their codes in the `expiry` column. */
-const EXPIRY_MODES = ['after', 'before', 'clip'] as const;
-
 /** The hooks every area trigger registry builds dispatch tables for. */
 const AREA_TRIGGER_HOOKS = ['state', 'init', 'move', 'frame', 'onContact', 'onLand', 'onExpire', 'onEnd'] as const;
 
@@ -37,7 +34,7 @@ export type AreaTriggerHookName = (typeof AREA_TRIGGER_HOOKS)[number];
  * (infinite for `owner` and `spent`, NaN for a function) and its kind's code, the expiry mode's code, and the limit per
  * owner (0 for none, NaN for a function).
  */
-export type AreaTriggerColumn = 'slot' | 'flags' | 'lifetime' | 'lifetimeKind' | 'expiry' | 'limit';
+export type AreaTriggerColumn = 'slot' | 'flags' | 'lifetime' | 'lifetimeKind' | 'limit';
 
 /** The dispatch table of every area trigger hook, indexed by kind id, typed per hook. */
 export type AreaTriggerHookTables<G extends AreaTriggerTypes> = {
@@ -165,14 +162,12 @@ const buildColumns = <G extends AreaTriggerTypes>(
   slots: readonly (AnyAreaTriggerDef<G> | undefined)[],
 ): Record<AreaTriggerColumn, Column> => {
   const size = slots.length;
-  const modes: readonly string[] = EXPIRY_MODES;
 
   return {
     slot: columnOf(new Uint16Array(size), slots, (def) => def.tickIn ?? 0),
     flags: columnOf(new Uint8Array(size), slots, flagsOf),
     lifetime: columnOf(new Float64Array(size), slots, secondsOf),
     lifetimeKind: columnOf(new Uint8Array(size), slots, lifetimeKindOf),
-    expiry: columnOf(new Uint8Array(size), slots, (def) => modes.indexOf(def.expiry ?? 'after')),
     limit: columnOf(new Float64Array(size), slots, limitOf),
   };
 };

@@ -224,12 +224,6 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   /** How long it lives: seconds, `owner`, `spent`, or a function of it read once at the spawn. */
   readonly lifetime: Lifetime | AreaFn<G, State, Lifetime>;
 
-  /**
-   * When its lifetime is checked against its frame: `after` it (the default: the last frame runs whole),
-   * `before` it (no frame on the expiry tick), or `clip` (the last frame runs with `dt` cut to the time left).
-   */
-  readonly expiry?: 'after' | 'before' | 'clip';
-
   /** Where it sits: where it spawned, moved only by its hooks (`world`, the default), or on its owner (`owner`). */
   readonly anchor?: 'world' | 'owner';
 

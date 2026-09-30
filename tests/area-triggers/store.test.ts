@@ -180,9 +180,9 @@ describe('spawning', () => {
 });
 
 describe('lifetime and expiry', () => {
-  /** The frames a one-second area trigger runs over 0.9 s of lifetime, under an expiry mode. */
-  const framesOf = (expiry: 'after' | 'before' | 'clip'): string[] => {
-    const game = makeSpellGame({}, { areaTriggers: { pool: logged({ lifetime: 0.9, expiry }) } });
+  /** The frames an area trigger of 0.9 s of lifetime runs. */
+  const framesOf = (): string[] => {
+    const game = makeSpellGame({}, { areaTriggers: { pool: logged({ lifetime: 0.9 }) } });
 
     game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
 
@@ -194,24 +194,14 @@ describe('lifetime and expiry', () => {
     return game.log.filter((line) => line !== 'spawned pool@1');
   };
 
-  it('runs the last frame whole after the lifetime ran out (after)', () => {
-    assert.deepEqual(framesOf('after'), [
+  it('runs the last frame whole as the lifetime runs out', () => {
+    assert.deepEqual(framesOf(), [
       'frame 0.25/0.25',
       'frame 0.25/0.5',
       'frame 0.25/0.75',
       'frame 0.25/1',
       'ended pool@1 expired',
     ]);
-  });
-
-  it('expires without the last frame (before), or runs it cut to the time left (clip)', () => {
-    assert.deepEqual(framesOf('before'), [
-      'frame 0.25/0.25',
-      'frame 0.25/0.5',
-      'frame 0.25/0.75',
-      'ended pool@1 expired',
-    ]);
-    assert.match(framesOf('clip')[3] ?? '', /^frame 0\.15\d*\/0\.9\d*$/);
   });
 
   it('reads a lifetime function once, and lives forever when spent or owned until something ends it', () => {
