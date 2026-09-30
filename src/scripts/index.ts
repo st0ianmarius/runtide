@@ -8,7 +8,7 @@
  * and summons.
  */
 
-export type { CompiledScript, ScriptRegistry } from './define-scripts.ts';
+export type { CompiledScript, ScriptRegistry, ScriptRegistryOptions } from './define-scripts.ts';
 export { defineScripts } from './define-scripts.ts';
 
 export {

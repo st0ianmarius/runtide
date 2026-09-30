@@ -221,4 +221,13 @@ describe('scripts (§I.7.1 F19)', () => {
       /Script bad, behaviour 0: its tick is not a function/,
     );
   });
+
+  it('deep-freeze their behaviours at load, unless told not to', () => {
+    const march = behaviour({ on: { changed: () => undefined } });
+    const loose = behaviour({ on: { changed: () => undefined } });
+
+    defineScripts<UnitGame, 'march'>({ march: [march] });
+    defineScripts<UnitGame, 'loose'>({ loose: [loose] }, { freeze: false });
+    assert.deepEqual([Object.isFrozen(march), Object.isFrozen(march.on), Object.isFrozen(loose)], [true, true, false]);
+  });
 });
