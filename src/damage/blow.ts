@@ -1,4 +1,4 @@
-import { NO_SOURCE } from '../auras/index.ts';
+import { type AuraId, NO_SOURCE } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { ProcOutcome } from '../procs/index.ts';
@@ -35,6 +35,9 @@ export interface BlowSpec<G extends DamageTypes> {
 
   /** The spell it comes from, whose outgoing-multiplier shares the host looks up. */
   readonly spell?: G['spell'] | undefined;
+
+  /** The aura it comes from (a damage over time's beat, a thorns aura's hook), for the log and the game's stages. */
+  readonly aura?: AuraId | undefined;
 
   /** Its damage kind; the table's first kind when absent. */
   readonly kind?: DamageKindId | undefined;
@@ -87,6 +90,9 @@ export interface Blow<G extends DamageTypes> extends ProcOutcome {
 
   /** The spell it comes from, if any. */
   readonly spell: G['spell'] | undefined;
+
+  /** The aura it comes from, if any. */
+  readonly aura: AuraId | undefined;
 
   /** Its damage kind. */
   readonly kind: DamageKindId;
@@ -158,6 +164,7 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   attacker: G['bearer'] | undefined = undefined;
   source = NO_SOURCE;
   spell: G['spell'] | undefined = undefined;
+  aura: AuraId | undefined = undefined;
   kind: DamageKindId;
   base = 0;
   amount = 0;
@@ -193,6 +200,7 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
     this.attacker = spec.attacker;
     this.source = parts.source;
     this.spell = spec.spell;
+    this.aura = spec.aura;
     this.kind = parts.kind;
     this.base = spec.amount;
     this.amount = spec.amount;

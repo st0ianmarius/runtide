@@ -112,6 +112,24 @@ describe('the combat log', () => {
     assert.equal(entry.reason, 4);
   });
 
+  it('names the aura a blow or a heal came from, or −1 for none', () => {
+    const game = logGame();
+    const log = logOf(game);
+    const [hero, foe] = [game.unit(1), game.unit(100)];
+    const entry = log.createEntry();
+    const mark = game.auraId.mark;
+
+    game.damage.hit({ target: foe, attacker: hero, amount: 5, aura: mark });
+    game.damage.heal({ target: foe, amount: 5, aura: mark });
+    game.damage.hit({ target: foe, amount: 5 });
+    log.read(0, entry);
+    assert.equal(entry.aura, mark);
+    log.read(1, entry);
+    assert.equal(entry.aura, mark);
+    log.read(2, entry);
+    assert.equal(entry.aura, -1);
+  });
+
   it('keeps the latest entries in its ring, and says which it no longer holds', () => {
     const game = logGame();
     const log = logOf(game, 2);

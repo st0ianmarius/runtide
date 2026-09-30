@@ -1,5 +1,6 @@
 import type { ConditionExpr } from '../conditions/index.ts';
 import type { Proc, ProcTypes } from '../procs/index.ts';
+import type { TriggerContext } from './dispatch.ts';
 
 /**
  * The types one game's triggers are written against: the proc types plus the names of the game's trigger events and
@@ -51,8 +52,12 @@ export interface TriggerDef<G extends TriggerTypes> {
   /** What must hold, in order, every one of them: game conditions on the owner and filters on the event. */
   readonly when?: readonly TriggerCondition<G>[];
 
-  /** The odds it fires, in (0, 1]; rolled on the triggers' own stream only when below 1, after the conditions. */
-  readonly chance?: number;
+  /**
+   * The odds it fires, in (0, 1], or read as it would fire from its context (a chance a stat or its aura's stacks
+   * scale, a rate per minute from the time since it last fired), clamped to [0, 1]; rolled on the triggers' own stream
+   * only when below 1, after the conditions.
+   */
+  readonly chance?: number | ((ctx: TriggerContext<G>) => number);
 
   /**
    * Its internal cooldown in seconds: after firing it is silent this long. Kept as a derived aura on the owner

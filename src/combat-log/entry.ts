@@ -58,7 +58,7 @@ export interface CombatEntry {
   /** The spell behind it (the host's `spellIdOf` of a blow's, heal's or death's spell; a cast's spell); −1 for none. */
   readonly spell: number;
 
-  /** The aura of an aura entry; −1 for any other. */
+  /** The aura of an aura entry, or the aura a blow or heal came from (a damage over time's beat); −1 for none. */
   readonly aura: number;
 
   /** The kind of an area trigger entry; −1 for any other. */

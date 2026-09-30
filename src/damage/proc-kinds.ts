@@ -1,3 +1,4 @@
+import type { AuraId } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import { finishScaled, type StatId } from '../modifiers/index.ts';
 import { PROC_SKIPPED, type ProcContext, procOutcome, type ProcOutcome, type ProcResolver } from '../procs/index.ts';
@@ -61,6 +62,7 @@ class ProcBlowSpec<G extends DamageTypes> implements BlowSpec<G> {
   attacker: G['bearer'] | undefined = undefined;
   source: number | undefined = undefined;
   spell: G['spell'] | undefined = undefined;
+  aura: AuraId | undefined = undefined;
   kind: DamageKindId | undefined = undefined;
   from: Vec2 | undefined = undefined;
   direction: Vec2 | undefined = undefined;
@@ -80,6 +82,7 @@ class ProcHealSpec<G extends DamageTypes> implements HealSpec<G> {
   healer: G['bearer'] | undefined = undefined;
   source: number | undefined = undefined;
   spell: G['spell'] | undefined = undefined;
+  aura: AuraId | undefined = undefined;
 
   constructor(target: G['bearer']) {
     this.target = target;
@@ -138,6 +141,7 @@ const damageKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: P
       spec.attacker = proc.attacker === 'none' ? undefined : creditedUnit(engine, ctx);
       spec.source = ctx.source;
       spec.spell = proc.spell;
+      spec.aura = ctx.aura?.id;
       spec.kind = names.kind(proc.damageKind);
       spec.from = proc.from;
       spec.direction = proc.direction;
@@ -190,6 +194,7 @@ const healKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: Pro
       spec.healer = creditedUnit(engine, ctx);
       spec.source = ctx.source;
       spec.spell = proc.spell;
+      spec.aura = ctx.aura?.id;
 
       return pipelines.heal(spec);
     },

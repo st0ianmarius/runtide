@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
 import { applyAura, raise, removeAura } from '../../src/procs/index.ts';
+import { explainTriggers } from '../../src/triggers/index.ts';
 import { aura, defined, type Game, type HitEvent, KINDS, makeGame, mark, scripted } from '../helpers/trigger-game.ts';
 
 /** A bearer's aura views, in a fresh array. */
@@ -185,6 +186,34 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
     game.hit(u, { isCrit: true });
     assert.deepEqual(game.log, ['sure@1', 'sure@1', 'half@1', 'sure@1']);
     assert.equal(random.count(), 2);
+  });
+
+  it('reads a chance given as a rule from its context as it would fire, clamped, and explains it as live', () => {
+    const random = scripted([0.3, 0.3, 0.3]);
+
+    const game = makeGame(
+      {
+        focus: aura({
+          duration: 9,
+          stacking: 'stack',
+          maxStacks: 9,
+          triggers: [{ on: 'hit', chance: (ctx) => ctx.aura.stacks * 0.2, do: [mark('focus')] }],
+        }),
+      },
+      { triggers: { random } },
+    );
+
+    const u = game.unit(1);
+
+    game.auras.apply(u, game.id.focus);
+    game.hit(u);
+    game.auras.apply(u, { aura: game.id.focus, stacks: 1 });
+    game.hit(u);
+    game.auras.apply(u, { aura: game.id.focus, stacks: 5 });
+    game.hit(u);
+    assert.deepEqual(game.log, ['focus@1', 'focus@1']);
+    assert.equal(random.count(), 2);
+    assert.equal(explainTriggers(game.triggers, game.id.focus)[0]?.chance, 'live');
   });
 
   it('checks its cooldown before rolling, so a failed roll never starts it and a running one rolls nothing', () => {

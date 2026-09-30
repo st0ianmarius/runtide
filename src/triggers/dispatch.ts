@@ -161,6 +161,17 @@ const passes = <G extends TriggerTypes, Host>(
   return true;
 };
 
+/** Whether a trigger's chance lets it fire: its odds, or its rule read now and clamped, rolled only below 1. */
+const isLucky = <G extends TriggerTypes, Host>(
+  parts: DispatchParts<G, Host>,
+  trigger: CompiledTrigger<G, Host>,
+  frame: DispatchFrame<G, Host>,
+): boolean => {
+  const chance = typeof trigger.chance === 'number' ? trigger.chance : Math.min(1, Math.max(0, trigger.chance(frame)));
+
+  return chance >= 1 || (parts.rollChance?.(chance, frame) ?? roll(parts.random) < chance);
+};
+
 /**
  * Fires one gathered trigger whose aura is still on its owner: its conditions, then whether its cooldown is running,
  * then its chance (rolled only below 1), then its cooldown starts, then its procs run for the owner.
@@ -177,7 +188,7 @@ const fire = <G extends TriggerTypes, Host>(
     return;
   }
 
-  if (trigger.chance < 1 && !(parts.rollChance?.(trigger.chance, frame) ?? roll(parts.random) < trigger.chance)) {
+  if (!isLucky(parts, trigger, frame)) {
     return;
   }
 

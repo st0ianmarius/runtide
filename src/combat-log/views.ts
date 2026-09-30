@@ -17,6 +17,9 @@ export interface BlowView<Unit, Spell> {
   /** The spell behind it. */
   readonly spell: Spell | undefined;
 
+  /** The aura it came from, if any. */
+  readonly aura?: number | undefined;
+
   /** Its damage kind. */
   readonly kind: number;
 
@@ -64,6 +67,9 @@ export interface HealView<Unit, Spell> {
 
   /** The spell behind it. */
   readonly spell: Spell | undefined;
+
+  /** The aura it came from, if any. */
+  readonly aura?: number | undefined;
 
   /** What it was asked for. */
   readonly base: number;

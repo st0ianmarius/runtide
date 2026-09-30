@@ -1,4 +1,4 @@
-import { NO_SOURCE } from '../auras/index.ts';
+import { type AuraId, NO_SOURCE } from '../auras/index.ts';
 import type { ProcOutcome } from '../procs/index.ts';
 import type { DamageTypes, HealStatus } from './damage-types.ts';
 
@@ -18,6 +18,9 @@ export interface HealSpec<G extends DamageTypes> {
 
   /** The spell it comes from, if any. */
   readonly spell?: G['spell'] | undefined;
+
+  /** The aura it comes from (a regeneration's beat), for the log and the game's stages. */
+  readonly aura?: AuraId | undefined;
 }
 
 /**
@@ -36,6 +39,9 @@ export interface Heal<G extends DamageTypes> extends ProcOutcome {
 
   /** The spell it comes from, if any. */
   readonly spell: G['spell'] | undefined;
+
+  /** The aura it comes from, if any. */
+  readonly aura: AuraId | undefined;
 
   /** The amount it was asked for. */
   readonly base: number;
@@ -65,6 +71,7 @@ export class HealRecord<G extends DamageTypes> implements Heal<G> {
   healer: G['bearer'] | undefined = undefined;
   source = NO_SOURCE;
   spell: G['spell'] | undefined = undefined;
+  aura: AuraId | undefined = undefined;
   base = 0;
   amount = 0;
   overheal = 0;
@@ -84,6 +91,7 @@ export class HealRecord<G extends DamageTypes> implements Heal<G> {
     this.healer = spec.healer;
     this.source = source;
     this.spell = spec.spell;
+    this.aura = spec.aura;
     this.base = spec.amount;
     this.amount = spec.amount;
     this.overheal = 0;

@@ -54,8 +54,8 @@ export interface TriggerExplanation {
   /** Whose events it hears. */
   readonly hears: 'self' | 'party';
 
-  /** Its odds: 1 for always. */
-  readonly chance: number;
+  /** Its odds; `'live'` for odds read as it fires. */
+  readonly chance: number | 'live';
 
   /** Its internal cooldown in seconds; 0 for none. */
   readonly icd: number;
@@ -92,7 +92,7 @@ export const explainCompiled = <G extends TriggerTypes, Host>(
   index: trigger.index,
   event: trigger.event,
   hears: trigger.isParty ? 'party' : 'self',
-  chance: trigger.chance,
+  chance: typeof trigger.chance === 'number' ? trigger.chance : 'live',
   icd: trigger.icd,
   cooldown: trigger.cooldown,
   when: trigger.checks.map(explainCheck),

@@ -11,6 +11,7 @@ import { toId } from '../core/ids.ts';
 import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
 import type { Proc, ProcSystem } from '../procs/index.ts';
 import { cooldownName, triggerName } from './cooldowns.ts';
+import type { TriggerContext } from './dispatch.ts';
 import type { TriggerEvent, TriggerFilterSpec } from './events.ts';
 import type { TriggerId } from './trigger-id.ts';
 import { isTriggerDef, type TriggerCondition, type TriggerDef, type TriggerTypes } from './trigger-types.ts';
@@ -62,8 +63,8 @@ export interface CompiledTrigger<G extends TriggerTypes, Host> {
   /** Whether it hears its owner's party. */
   readonly isParty: boolean;
 
-  /** Its odds; 1 for always. */
-  readonly chance: number;
+  /** Its odds, or its rule for them; 1 for always. */
+  readonly chance: number | ((ctx: TriggerContext<G>) => number);
 
   /** Its internal cooldown in seconds; 0 for none. */
   readonly icd: number;
@@ -165,15 +166,24 @@ const compileCheck = <G extends TriggerTypes, Host>(
   return { filter: -1, spec: undefined, condition, test, arg };
 };
 
+/** Throws unless a chance is odds in (0, 1], or a function; nothing for none. */
+const checkChance = (chance: unknown): void => {
+  if (typeof chance === 'number' && !(chance > 0 && chance <= 1)) {
+    refuse(`chance ${chance} is outside (0, 1].`);
+  }
+
+  if (chance !== undefined && typeof chance !== 'number' && typeof chance !== 'function') {
+    refuse('chance is a number or a function.');
+  }
+};
+
 /** Checks a trigger's numbers and shape. */
 const checkNumbers = <G extends TriggerTypes>(def: TriggerDef<G>): void => {
   if (def.hears !== undefined && def.hears !== 'self' && def.hears !== 'party') {
     refuse(`hears must be self or party; got ${String(def.hears)}.`);
   }
 
-  if (def.chance !== undefined && !(def.chance > 0 && def.chance <= 1)) {
-    refuse(`chance ${def.chance} is outside (0, 1].`);
-  }
+  checkChance(def.chance);
 
   if (def.icd !== undefined && !(def.icd > 0 && Number.isFinite(def.icd))) {
     refuse(`icd ${def.icd} is not a positive, finite number of seconds.`);
