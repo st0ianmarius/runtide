@@ -7,7 +7,6 @@ import {
   createModifierSystem,
   defineSources,
   defineStats,
-  type GainParts,
   type Modifier,
   mul,
   plus,
@@ -273,34 +272,5 @@ describe('derived stats', () => {
     const { system, sheetWith, id } = game();
 
     assert.equal(system.resolve(sheetWith([['gear', [mul('reach', 0.5)]]]), id.area), 1);
-  });
-
-  it("take the game's own gain measure over the followed stat's fold parts", () => {
-    const seen: GainParts[] = [];
-
-    /** A measure that reads an add-only stat's gain as the plain sum of its additions. */
-    const plainSum = (parts: GainParts): number => {
-      seen.push(parts);
-
-      return parts.isAddOnly ? parts.adds : parts.total - parts.base;
-    };
-
-    const stats = defineStats({
-      reach: { base: 1, kind: 'multiplier', max: 3 },
-      area: { base: 1, kind: 'multiplier', derives: { from: 'reach', per: 0.125, gain: plainSum } },
-    });
-
-    const sources = defineSources(['talents', 'auras']);
-    const system = createModifierSystem({ stats, sources });
-    const sheet = system.createSheet();
-
-    system.setSource(sheet, sources.id.talents, [system.compile([plus('reach', 0.01), plus('reach', 0.11)])]);
-    assert.equal(system.resolve(sheet, stats.id.area), 1.015, 'the plain sum 0.12, not 0.1200000000000001');
-    assert.deepEqual(seen.at(-1), { base: 1, total: 1.12, adds: 0.12, isAddOnly: true, min: -Infinity, max: 3 });
-    assert.equal(system.explainStat(sheet, stats.id.area).derived[0]?.input, 0.12);
-
-    system.setSource(sheet, sources.id.auras, [system.compile([mul('reach', 1.5)])]);
-    assert.equal(system.resolve(sheet, stats.id.area), 1.085);
-    assert.equal(seen.at(-1)?.isAddOnly, false, 'a live multiplier');
   });
 });

@@ -67,7 +67,7 @@ export interface DerivedContribution {
   /** The stat it follows. */
   readonly from: StatId;
 
-  /** What it read: the followed stat's gain as measured (`derives`) or its total (`converts`). */
+  /** What it read: the followed stat's gain (`derives`) or its total (`converts`). */
   readonly input: number;
 
   /** What it added. */

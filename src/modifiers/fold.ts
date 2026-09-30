@@ -12,8 +12,7 @@ import type { Derivation } from './stats.ts';
  * …caps))`, additions summed left to right in source order, multipliers applied one at a time in source order, caps in
  * turn, the clamp last. Every function here reads the sheet's current read (`sheet.view.read`), which the system sets
  * around each top-level read, and allocates nothing: the loops are indexed, since an iterator over a frozen list was
- * measured to allocate on this path. A game's own gain measure is the one exception: it is handed a fresh
- * parts object on each call. The shared (aura) lists are walked by the gates the host holds, so a read costs what the
+ * measured to allocate on this path. The shared (aura) lists are walked by the gates the host holds, so a read costs what the
  * bearer holds and never grows with the number of gated lists the game defines.
  */
 
@@ -28,9 +27,6 @@ const MUL = 1;
 
 /** A walk over a stat's caps. */
 const MIN = 2;
-
-/** A walk that only asks whether any entry counts: its value turns 1 on the first that does. */
-const ANY_LIVE = 8;
 
 /** The list of a stat's entries a walk reads, by its low bits (a named read, not a keyed one: this is hot). */
 const listOf = <Host>(lists: CompiledStat<Host> | undefined, how: number): readonly Entry<Host>[] => {
@@ -83,10 +79,6 @@ const step = <Host>(sheet: Sheet<Host>, entry: Entry<Host>, value: number): numb
 
   if (stacks <= 0) {
     return value;
-  }
-
-  if ((how & ANY_LIVE) !== 0) {
-    return 1;
   }
 
   const landed = landedAt(sheet, entry, stacks);
@@ -181,50 +173,9 @@ const walkList = <Host>(sheet: Sheet<Host>, list: readonly Entry<Host>[], value:
   return result;
 };
 
-/** Walks one list of a stat as `sheet.how` says, from `value`. */
-const walk = <Host>(sheet: Sheet<Host>, stat: number, value: number): number =>
-  walkList(sheet, listOf(sheet.compiled[stat], sheet.how), value);
-
-/** How far a stat's folded total sits above its base for the current read: `total − base`. */
-const gain = <Host>(sheet: Sheet<Host>, stat: number): number => foldStat(sheet, stat) - (sheet.tables.base[stat] ?? 0);
-
-/**
- * The gain a `derives` term applies its share to: `total − base` of the followed stat, or the game's own measure of it
- * over that stat's fold parts (`derives.gain`).
- */
-export const derivedGain = <Host>(sheet: Sheet<Host>, derivation: Extract<Derivation, { kind: 'derives' }>): number => {
-  const stat = derivation.from;
-
-  if (derivation.gain === undefined) {
-    return gain(sheet, stat);
-  }
-
-  const how = sheet.how;
-
-  sheet.how = ADD;
-
-  const adds = walk(sheet, stat, 0);
-
-  sheet.how = MUL | ANY_LIVE;
-
-  const anyMul = walk(sheet, stat, 0);
-
-  sheet.how = MIN | ANY_LIVE;
-
-  const anyMin = walk(sheet, stat, 0);
-
-  sheet.how = how;
-
-  return derivation.gain({
-    base: sheet.tables.base[stat] ?? 0,
-    total: foldStat(sheet, stat),
-    adds,
-    isAddOnly: (sheet.tables.derivations[stat]?.length ?? 0) === 0 && anyMul === 0 && anyMin === 0,
-
-    min: sheet.tables.min[stat] ?? -Infinity,
-    max: sheet.tables.max[stat] ?? Infinity,
-  });
-};
+/** The gain a `derives` term applies its share to: how far the followed stat's total sits above its base. */
+export const derivedGain = <Host>(sheet: Sheet<Host>, derivation: Extract<Derivation, { kind: 'derives' }>): number =>
+  foldStat(sheet, derivation.from) - (sheet.tables.base[derivation.from] ?? 0);
 
 /**
  * A stat's derived terms added onto `value`, in order: `per × max(0, gain(from))` for `derives`, then each rating's
