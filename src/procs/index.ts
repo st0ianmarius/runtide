@@ -24,9 +24,8 @@ export {
 export { CORE_PROCS, type CoreProcKind, type CoreProcName } from './core-procs.ts';
 
 export {
-  type EscapeAbilities,
-  type EscapeAreaTriggers,
   type EscapeDamage,
+  type EscapeKinds,
   type EscapeReport,
   escapeReport,
   type EscapeRun,

@@ -58,11 +58,11 @@ export interface EscapeSpells {
 }
 
 /**
- * What the escape report reads from an area trigger system (an `AreaTriggerSystem` is one): its proc kinds, which are
- * the framework's own and not hatches.
+ * What the escape report reads from any other system with proc kinds (area triggers, abilities, units, AI): its proc
+ * kinds, which are the framework's own and not hatches.
  */
-export interface EscapeAreaTriggers {
-  /** The area trigger system's proc kinds, by name. */
+export interface EscapeKinds {
+  /** The system's proc kinds, by name. */
   readonly procKinds: object;
 }
 
@@ -80,17 +80,8 @@ const isOwn = (kinds: object | undefined, name: string, def: object): boolean =>
   Object.entries(kinds ?? {}).some(([own, kind]) => own === name && kind === def);
 
 /**
- * What the escape report reads from an ability system (an `AbilitySystem` is one): its proc kinds, which are the
- * framework's own and not hatches.
- */
-export interface EscapeAbilities {
-  /** The ability system's proc kinds, by name. */
-  readonly procKinds: object;
-}
-
-/**
  * Whether a kind's definition is the framework's own kind of that name: a core kind, or one of the proc kinds of a
- * damage, spell, area trigger or ability system (`systems`, each system's kinds by name).
+ * system (`systems`, each system's kinds by name).
  */
 const isCore = (name: string, def: object | undefined, systems: readonly (object | undefined)[]): boolean =>
   def !== undefined && (CORE[name] === def || systems.some((kinds) => isOwn(kinds, name, def)));
@@ -107,10 +98,16 @@ export const escapeReport = <G extends ProcTypes>(registries: {
   readonly spells?: EscapeSpells;
 
   /** The game's area trigger system, if it has one. */
-  readonly areaTriggers?: EscapeAreaTriggers;
+  readonly areaTriggers?: EscapeKinds;
 
   /** The game's ability system, if it has one. */
-  readonly abilities?: EscapeAbilities;
+  readonly abilities?: EscapeKinds;
+
+  /** The game's unit system, if it has one. */
+  readonly units?: EscapeKinds;
+
+  /** The game's AI system, if it has one. */
+  readonly ai?: EscapeKinds;
 
   /** The game's world, if it asks one. */
   readonly world?: EscapeWorld;
@@ -118,12 +115,8 @@ export const escapeReport = <G extends ProcTypes>(registries: {
   const { kinds, runs } = registries.procs;
   const { damage, spells } = registries;
 
-  const systems = [
-    damage?.procKinds,
-    spells?.procKinds,
-    registries.areaTriggers?.procKinds,
-    registries.abilities?.procKinds,
-  ];
+  const { areaTriggers, abilities, units, ai } = registries;
+  const systems = [damage, spells, areaTriggers, abilities, units, ai].map((system) => system?.procKinds);
 
   return {
     procKinds: kinds.names.filter((name, index) => !isCore(name, kinds.defs[index], systems)),

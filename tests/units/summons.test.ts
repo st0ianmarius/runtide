@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { escapeReport } from '../../src/procs/index.ts';
 import { castSpell, NO_CAST } from '../../src/spells/index.ts';
 import { despawn, despawnSummons, summon, type UnitDef } from '../../src/units/index.ts';
 import { createMemoryWorld } from '../../src/world/index.ts';
@@ -173,5 +174,22 @@ describe('summoning (§II.6 P3, C8, §I.7.1 F18)', () => {
       /needs the unit system’s world/,
     );
     assert.throws(() => summoning().procs.prepare([summon<UnitGame>('add', { count: 1.5 })], 'Test'), /whole number/);
+  });
+});
+
+describe('the escape report over a unit game (§I.5.6)', () => {
+  it('counts the unit and AI proc kinds as the framework’s own, not as hatches', () => {
+    const { procs, spells, damage, units, ai } = summoning();
+
+    assert.deepEqual(escapeReport({ procs, spells, damage }).procKinds, [
+      'revive',
+      'summon',
+      'despawn',
+      'despawnSummons',
+      'setTimer',
+      'cancelTimer',
+      'setFocus',
+    ]);
+    assert.deepEqual(escapeReport({ procs, spells, damage, units, ai }).procKinds, []);
   });
 });
