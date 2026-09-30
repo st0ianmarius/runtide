@@ -16,8 +16,6 @@ export {
 
 export { createUnitEvent, type UnitEvent, type UnitEvents } from './events.ts';
 
-export type { AuraRule } from './hosts.ts';
-
 export {
   despawn,
   type DespawnProc,

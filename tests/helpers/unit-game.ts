@@ -40,7 +40,6 @@ import {
   type SpellSystem,
 } from '../../src/spells/index.ts';
 import {
-  type AuraRule,
   createUnitEvent,
   createUnitSystem,
   defineUnits,
@@ -256,8 +255,12 @@ export interface UnitGameOptions<Extra extends string = never> {
   /** The health policy. */
   readonly policy?: HealthPolicy<UnitGame>;
 
-  /** The aura application rules. */
-  readonly rules?: readonly AuraRule<UnitGame>[];
+  /** The aura host's application policy, handed the unit system. */
+  readonly onIncomingAura?: (
+    units: UnitSystem<UnitGame>,
+    unit: Unit<UnitGame>,
+    application: AuraApplication<UnitGame>,
+  ) => AuraDecision<UnitGame> | undefined;
 
   /** Whether units fold their stats through the modifier system; true when absent. */
   readonly folds?: boolean;
@@ -322,7 +325,6 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
 
   const late: {
     units?: UnitSystem<UnitGame>;
-    policy?: (u: Unit<UnitGame>, a: AuraApplication<UnitGame>) => AuraDecision<UnitGame> | undefined;
   } = {};
 
   const bus = createBus({
@@ -341,7 +343,9 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     modifiers,
     fold: 'auras',
     host: {
-      onIncomingAura: (unit, application) => late.policy?.(unit, application),
+      onIncomingAura: (unit, application) =>
+        late.units === undefined ? undefined : options.onIncomingAura?.(late.units, unit, application),
+
       onTagsChanged: (unit) => late.units?.syncStates(unit),
     },
   });
@@ -427,7 +431,6 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
   });
 
   holdScripts.system = scripts;
-  late.policy = units.auraPolicy(options.rules ?? []);
 
   const line = (what: string) => (event: UnitEvent<UnitGame>) => {
     log.push(`${what} ${event.unit?.id ?? '?'} ${event.from}>${event.to}`);

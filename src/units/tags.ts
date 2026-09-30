@@ -9,7 +9,7 @@ export type UnitTagTable<Name extends string = string> = Registry<'unitTags', Ex
 
 /**
  * Declares the game's unit class tags: `defineUnitTags(['horde', 'elite', 'boss', 'objective'])`, which
- * templates carry and application rules and conditions read. Append-only, like any registry.
+ * templates carry and conditions and the game's hooks read. Append-only, like any registry.
  */
 export const defineUnitTags = <const Name extends string>(names: readonly Name[]): UnitTagTable<Name> =>
   createRegistry(

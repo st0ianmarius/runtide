@@ -90,20 +90,22 @@ describe('the damage host', () => {
   });
 });
 
-describe('aura application rules', () => {
-  it('refuses, substitutes, scales and caps by class, and arms an immunity window', () => {
+describe('an aura application policy', () => {
+  it('is the game’s own onIncomingAura: it refuses, substitutes and caps by unit class', () => {
     const game = makeUnitGame(TEMPLATES, {
-      rules: [
-        { aura: auraId('stun'), tags: ['boss'], refuse: true },
-        { aura: auraId('freeze'), tags: ['boss'], instead: auraId('slow') },
-        {
-          aura: auraId('freeze'),
-          tags: ['elite'],
-          scale: 0.5,
-          cap: 0.75,
-          immunity: { aura: auraId('freezeImmune'), share: 2 },
-        },
-      ],
+      onIncomingAura: (units, unit, application) => {
+        if (application.aura === auraId('stun') && units.hasTag(unit, 'boss')) {
+          return { refuse: true };
+        }
+
+        if (application.aura === auraId('freeze') && units.hasTag(unit, 'boss')) {
+          return { apply: { ...application, aura: auraId('slow') } };
+        }
+
+        return application.aura === auraId('freeze') && units.hasTag(unit, 'elite')
+          ? { apply: { ...application, duration: 0.75 }, after: [{ aura: auraId('freezeImmune'), duration: 1.5 }] }
+          : undefined;
+      },
     });
 
     const { auras, units } = game;
@@ -123,10 +125,5 @@ describe('aura application rules', () => {
     assert.equal(auras.apply(elite, auraId('freeze')).applied, false);
     auras.apply(grunt, auraId('freeze'));
     assert.equal(auras.remaining(grunt, auraId('freeze')), 2);
-
-    const tags = ['boss' as const];
-
-    Reflect.set(tags, 0, 'dragon');
-    assert.throws(() => units.auraPolicy([{ aura: auraId('stun'), tags }]), /no unit tag named dragon/);
   });
 });
