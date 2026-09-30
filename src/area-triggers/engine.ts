@@ -261,7 +261,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.ownerNext = undefined;
     area.ownerPrev = undefined;
     area.lastChild = undefined;
-    area.locked = undefined;
     area.placer.clear();
     this.pool.release(toHandle<AreaTrigger<G>>(area.handle));
   }

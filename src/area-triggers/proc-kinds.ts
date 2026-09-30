@@ -25,7 +25,6 @@ class ProcSpawnSpec<G extends AreaTriggerTypes> implements SpawnSpec<G> {
   source: number | undefined = undefined;
   cast: CastHandle | undefined = undefined;
   now: number | undefined = undefined;
-  shareState = false;
 
   constructor(owner: G['bearer']) {
     this.owner = owner;
@@ -87,7 +86,6 @@ const spawnKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindD
       request.input = proc.inputOf === undefined ? proc.input : proc.inputOf(ctx);
       request.source = ctx.source;
       request.now = proc.now;
-      request.shareState = proc.shareState === true;
 
       const handle = spawnArea(engine, kindIdOf(engine, proc.areaTrigger, false), request);
 

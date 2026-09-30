@@ -224,21 +224,12 @@ export const recordIn = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledg
   return share;
 };
 
-/** The ledgers an area trigger opens as it spawns: its own, its cast's, or its parent's for its family. */
-export const openLedgers = <G extends AreaTriggerTypes>(
-  engine: AreaEngine<G>,
-  area: AreaTrigger<G>,
-  parent: AreaTrigger<G> | undefined,
-): void => {
+/** The ledgers an area trigger opens as it spawns: its own, or its cast's. */
+export const openLedgers = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const specs = engine.registry.get(area.kind).ledgers ?? {};
 
   for (const [name, spec] of Object.entries(specs)) {
-    const inherited = spec.scope === 'family' ? parent?.ledgers.get(name) : undefined;
-
-    if (inherited !== undefined) {
-      inherited.refs += 1;
-      area.ledgers.set(name, inherited);
-    } else if (spec.scope === 'cast' && area.cast !== undefined) {
+    if (spec.scope === 'cast' && area.cast !== undefined) {
       area.ledgers.set(name, engine.ledgers.ofCast(area.castHandle, [name, spec]));
     } else {
       area.ledgers.set(name, engine.ledgers.open(spec));

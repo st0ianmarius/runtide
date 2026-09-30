@@ -87,22 +87,15 @@ class CatchOptions<G extends AreaTriggerTypes> implements QueryOptions<G['bearer
   readonly relative = true;
   hit: Hit<G> | undefined = undefined;
 
-  /** Whether the catch only reaches the area trigger's locked unit. */
-  isLocked = false;
-
   constructor(of: G['bearer']) {
     this.of = of;
   }
 
-  /** The unit filter: the spec's condition, and the locked unit for a locked contact. */
+  /** The unit filter: the spec's condition. */
   readonly filter = (unit: G['bearer']): boolean => {
     const area = this.hit?.area;
 
-    if (area === undefined || (this.isLocked && area.locked !== unit)) {
-      return false;
-    }
-
-    return this.hit?.spec?.unitFilter?.(area, unit) ?? true;
+    return area !== undefined && (this.hit?.spec?.unitFilter?.(area, unit) ?? true);
   };
 }
 
@@ -147,13 +140,12 @@ export class Catcher<G extends AreaTriggerTypes> {
   }
 
   /** The reused options of the current level, set for a hit's catch. */
-  optionsFor(hit: Hit<G>, owner: G['bearer'], isLocked: boolean): CatchOptions<G> {
+  optionsFor(hit: Hit<G>, owner: G['bearer']): CatchOptions<G> {
     const options = (this.#options[this.#depth] ??= new CatchOptions<G>(owner));
 
     options.side = hit.spec?.side ?? 'foes';
     options.of = owner;
     options.hit = hit;
-    options.isLocked = isLocked;
 
     return options;
   }
@@ -186,7 +178,7 @@ export const catchIn = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit: 
     return 0;
   }
 
-  const count = engine.world.inside(shape, engine.catcher.optionsFor(hit, area.owner, false), hit.units);
+  const count = engine.world.inside(shape, engine.catcher.optionsFor(hit, area.owner), hit.units);
 
   engine.catcher.release();
   hit.fill(count);
@@ -202,7 +194,7 @@ export const catchAlong = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hi
     return 0;
   }
 
-  const options = engine.catcher.optionsFor(hit, area.owner, area.locked !== undefined);
+  const options = engine.catcher.optionsFor(hit, area.owner);
 
   options.radius = radius;
 

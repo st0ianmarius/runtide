@@ -38,9 +38,6 @@ export interface SpawnProc<G extends AreaTriggerTypes> extends ProcShape {
 
   /** The seconds of this frame it flies at once (a fork with its parent's leftover time); next tick when absent. */
   readonly now?: number;
-
-  /** Whether it shares its parent's state by reference. */
-  readonly shareState?: boolean;
 }
 
 /**

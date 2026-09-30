@@ -181,22 +181,27 @@ describe('pierce and claims', () => {
     assert.ok(game.log.includes('ended missile@1 spent'));
   });
 
-  it('keeps a claimed unit for its claimant within a family, until the claimant ends', () => {
+  it('keeps a claimed unit for its claimant within a cast, until the claimant ends', () => {
     const game = makeSpellGame(
-      {},
+      { throw: spell({ activation: { kind: 'trigger' }, release: () => [spawn<Game>('glaive')] }) },
       {
         areaTriggers: {
           glaive: pool(
-            { policy: 'claim', scope: 'family' },
+            { policy: 'claim', scope: 'cast' },
             { frame: (c) => (c.age === 0.25 ? [spawn<Game>('glaive')] : undefined) },
           ),
         },
       },
     );
 
-    game.place(game.unit(100), vec2(0, 0));
+    const owner = game.unit(1);
+    const cast: AreaTriggerHandle[] = [];
 
-    const parent = game.areaTriggers.spawn(game.areaId.glaive, { owner: game.unit(1), at: vec2(0, 0) });
+    game.place(game.unit(100), vec2(0, 0));
+    game.spells.cast(owner, game.id.throw);
+    game.areaTriggers.query({ owner }, cast);
+
+    const parent = cast[0] ?? NO_AREA_TRIGGER;
 
     ticks(game, 2);
     game.areaTriggers.despawn(parent);
@@ -206,17 +211,17 @@ describe('pierce and claims', () => {
 });
 
 describe('a ledger read by hooks', () => {
-  it('records, reserves and reports as its policy says, shared by a family', () => {
+  it('records, reserves and reports as its policy says, shared by a cast', () => {
     const seen: string[] = [];
 
     const game = makeSpellGame(
-      {},
+      { zap: spell({ activation: { kind: 'trigger' }, release: () => [spawn<Game>('spark')] }) },
       {
         areaTriggers: {
           spark: {
             shape: circle(1),
             lifetime: 5,
-            ledgers: { links: { policy: 'once', scope: 'family' }, own: { policy: 'claim' } },
+            ledgers: { links: { policy: 'once', scope: 'cast' }, own: { policy: 'claim' } },
 
             init: (c) => {
               const links = c.ledger('links');
@@ -236,7 +241,12 @@ describe('a ledger read by hooks', () => {
     );
 
     const owner = game.unit(1);
-    const handle = game.areaTriggers.spawn(game.areaId.spark, { owner, at: vec2(0, 0) });
+    const cast: AreaTriggerHandle[] = [];
+
+    game.spells.cast(owner, game.id.zap);
+    game.areaTriggers.query({ owner }, cast);
+
+    const handle = cast[0] ?? NO_AREA_TRIGGER;
     const own = game.areaTriggers.get(handle)?.ledger('own');
 
     assert.equal(own?.reserve(owner), true);

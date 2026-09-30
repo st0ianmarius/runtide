@@ -107,14 +107,14 @@ describe('spawning', () => {
     assert.equal(game.areaTriggers.step(), 2);
   });
 
-  it('keeps its own state per instance, or its parent’s by reference when it shares it', () => {
+  it('keeps its own state per instance, a child’s apart from its parent’s', () => {
     const states: unknown[] = [];
 
     const game = makeSpellGame(
       {},
       {
         areaTriggers: {
-          parent: logged({ state: () => ({ passes: 0 }), frame: () => [spawn<Game>('child', { shareState: true })] }),
+          parent: logged({ state: () => ({ passes: 0 }), frame: () => [spawn<Game>('child')] }),
           child: logged({ state: () => ({ own: true }), init: (c) => void states.push(c.state) }),
         },
       },
@@ -125,7 +125,8 @@ describe('spawning', () => {
 
     game.step();
     game.areaTriggers.step();
-    assert.equal(states[0], game.areaTriggers.get(parent)?.state);
+    assert.notEqual(states[0], game.areaTriggers.get(parent)?.state);
+    assert.deepEqual(states[0], { own: true });
   });
 });
 

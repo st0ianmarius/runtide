@@ -277,30 +277,23 @@ describe('contacts and landings', () => {
     );
   });
 
-  it('reaches only its locked unit while locked, and what its filter lets through', () => {
+  it('reaches only what its filter lets through (a homing missile locked on its target)', () => {
     const game = makeSpellGame(
       {},
       {
         areaTriggers: {
-          homing: missile(),
           picky: missile({ contact: { radius: 0.5, unitFilter: (_c, unit) => unit.id !== 100 } }),
         },
       },
     );
 
-    const [a, b] = [game.unit(100), game.unit(101)];
-
-    game.place(a, vec2(1, 0));
-    game.place(b, vec2(1.5, 0));
-
-    const homing = game.areaTriggers.spawn(game.areaId.homing, { owner: game.unit(1), at: vec2(0, 0) });
-
-    game.areaTriggers.get(homing)?.lock(b);
+    game.place(game.unit(100), vec2(1, 0));
+    game.place(game.unit(101), vec2(1.5, 0));
     game.areaTriggers.spawn(game.areaId.picky, { owner: game.unit(1), at: vec2(0, 0) });
     ticks(game, 1);
     assert.deepEqual(
       game.log.filter((line) => line.startsWith('contact')),
-      ['contact 0.25: 101', 'contact 0.25: 101'],
+      ['contact 0.25: 101'],
     );
   });
 

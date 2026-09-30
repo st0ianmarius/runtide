@@ -151,12 +151,6 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** Ends it once the running hook returns: as `self` by default, `spent`, or one of the game's reasons. */
   readonly despawn: (reason?: 'self' | 'spent' | G['endReason']) => void;
 
-  /** The one unit its contacts may reach, when it is locked on one (a homing missile); none when absent. */
-  readonly locked: G['bearer'] | undefined;
-
-  /** Locks its contacts onto one unit, or frees them with `undefined`. */
-  readonly lock: (unit: G['bearer'] | undefined) => void;
-
   /**
    * One of its kind's hit ledgers, by name, for a hook that records its own hits (a chain's links, a
    * frame's sweep): a reused view, read at once; throws for a name its kind does not declare.

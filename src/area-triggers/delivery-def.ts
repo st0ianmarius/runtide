@@ -45,8 +45,8 @@ export interface AreaLedgerSpec {
   /** Which hits it lets through. */
   readonly policy: 'once' | 'repeat' | 'rehit' | 'claim';
 
-  /** Who shares it: each area trigger its own (`self`, the default), every area trigger of its cast, or its family. */
-  readonly scope?: 'self' | 'cast' | 'family';
+  /** Who shares it: each area trigger its own (`self`, the default), or every area trigger of its cast. */
+  readonly scope?: 'self' | 'cast';
 
   /** The share a repeat hit takes under `repeat`, from 0 to 1; 1 by default. */
   readonly share?: number;
@@ -145,7 +145,7 @@ export interface AreaCaster<G extends AreaTriggerTypes, State = unknown> {
   /** The seconds to its first cast; `seconds` by default. */
   readonly first?: number;
 
-  /** What each cast is handed (its position, its locked unit); nothing when absent. */
+  /** What each cast is handed (its position, a target); nothing when absent. */
   input?(this: void, c: AreaTriggerContext<G, State>): G['input'] | undefined;
 }
 

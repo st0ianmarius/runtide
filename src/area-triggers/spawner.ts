@@ -42,9 +42,6 @@ export interface SpawnSpec<G extends AreaTriggerTypes> {
    * its first frame is the next tick's.
    */
   readonly now?: number | undefined;
-
-  /** Whether it shares its parent's state by reference (siblings sharing their passes); its own by default. */
-  readonly shareState?: boolean | undefined;
 }
 
 /** The lifetime's seconds, read once: infinite for `owner` and `spent`. */
@@ -108,7 +105,7 @@ const fill = <G extends AreaTriggerTypes>(
   area.parent = parent?.handle ?? NO_AREA_TRIGGER;
   area.slot = registry.columns.slot[area.kind] ?? 0;
   area.listKind = area.kind;
-  area.state = spec.shareState === true && parent !== undefined ? parent.state : registry.hooks.state[area.kind]?.();
+  area.state = registry.hooks.state[area.kind]?.();
 };
 
 /**
@@ -164,7 +161,7 @@ const enter = <G extends AreaTriggerTypes>(
     area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner));
   }
 
-  openLedgers(engine, area, parent);
+  openLedgers(engine, area);
   linkTick(engine, area, (flags & AFTER_PARENT) === 0 ? undefined : parent);
   linkKind(engine, area);
   engine.count(area.owner, [area.kind, 1]);

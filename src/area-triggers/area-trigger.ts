@@ -91,7 +91,6 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   parent: AreaTriggerHandle = NO_AREA_TRIGGER;
   state: unknown = undefined;
   readonly ext: G['areaExt'];
-  locked: G['bearer'] | undefined = undefined;
 
   /** The seconds to each own-clock pulse's next beat, by pulse index. */
   readonly beats: number[] = [];
@@ -215,10 +214,6 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
     }
 
     this.pending ??= reason;
-  };
-
-  readonly lock = (unit: G['bearer'] | undefined): void => {
-    this.locked = unit;
   };
 
   readonly ledger = (name: string): AreaLedger<G['bearer']> => this.#services.ledgerFor(this, name);
