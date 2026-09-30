@@ -18,6 +18,9 @@ export interface BlowWalks<G extends DamageTypes> {
   /** `onIgnore` on the target: true passes the blow by. */
   readonly ignore: HookWalk<G, BlowRecord<G>>;
 
+  /** `onOutgoingDamage` on the attacker. */
+  readonly outgoing: HookWalk<G, BlowRecord<G>>;
+
   /** `onIncomingDamage` on the target, until nothing is left. */
   readonly absorb: HookWalk<G, BlowRecord<G>>;
 
@@ -84,6 +87,21 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
       step: (blow, aura, ctx) => hooks.onIgnore[aura.id]?.(ctx, blow) === true,
     },
 
+    outgoing: {
+      hook: 'onOutgoingDamage',
+      unit: (blow) => blow.attacker,
+
+      step: (blow, aura, ctx) => {
+        const scale = hooks.onOutgoingDamage[aura.id]?.(ctx, blow)?.scale;
+
+        if (scale !== undefined) {
+          blow.amount *= Math.max(0, scale);
+        }
+
+        return false;
+      },
+    },
+
     absorb: {
       hook: 'onIncomingDamage',
       unit: target,
@@ -115,7 +133,7 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
 };
 
 /** The attacker's outgoing multipliers, in order, each at its spell's share (§II.3.13). */
-export const outgoingStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
+const outgoingStats = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
   const stats = engine.stats.outgoing;
 
   if (blow.attacker === undefined || stats.length === 0) {
@@ -133,6 +151,23 @@ export const outgoingStage = <G extends DamageTypes>(engine: DamageEngine<G>, bl
   }
 
   return undefined;
+};
+
+/**
+ * The outgoing stage (§II.3.13, §II.6 D2): the attacker's outgoing multipliers, then its auras' `onOutgoingDamage`
+ * hooks in list order. A game whose auras have no such hook walks none.
+ */
+export const outgoingStage = <G extends DamageTypes>(engine: DamageEngine<G>, walks: BlowWalks<G>): BuiltInStage<G> => {
+  if (engine.auras.registry.has.onOutgoingDamage.isEmpty()) {
+    return outgoingStats;
+  }
+
+  return (_engine, blow) => {
+    outgoingStats(engine, blow);
+    engine.eachHook(walks.outgoing, blow);
+
+    return undefined;
+  };
 };
 
 /** The effect code of an avoid row. */

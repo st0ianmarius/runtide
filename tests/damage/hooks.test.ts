@@ -24,7 +24,26 @@ const AURAS = {
   steady: aura({ duration: 10, onIncomingDamage: () => ({ knock: 'none' }) }),
   escape: aura({ duration: 10, onLethal: () => ({ prevent: true, procs: [setHealth({ share: 0.3 })] }) }),
   leech: aura({ duration: 10, onDealt: (_ctx, blow) => [heal(blow.dealt / 2)] }),
+  executioner: aura({
+    duration: 10,
+    onOutgoingDamage: (_ctx, blow) => (blow.target.hp < 50 ? { scale: 2 } : undefined),
+  }),
 } as const;
+
+describe('the outgoing hook (onOutgoingDamage)', () => {
+  it("changes the blows its bearer deals, reading the target, before the target's own stages", () => {
+    const { damage, auras, id, unit } = makeDamageGame(AURAS);
+    const [target, attacker] = [unit(1), unit(2)];
+
+    auras.apply(attacker, id.executioner);
+    auras.apply(target, id.halve);
+    damage.hit({ target, attacker, amount: 20 });
+    assert.equal(target.hp, 90);
+    target.hp = 40;
+    assert.equal(damage.hit({ target, attacker, amount: 20 }).amount, 20);
+    assert.equal(damage.hit({ target, amount: 20 }).amount, 10);
+  });
+});
 
 describe('the ignore stage (onIgnore)', () => {
   it('lets a blow pass its target by: health, events and every later blow stage untouched', () => {

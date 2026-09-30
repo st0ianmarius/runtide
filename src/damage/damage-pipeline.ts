@@ -153,7 +153,7 @@ const builtInStages = <G extends DamageTypes>(
 
   return {
     ignore: (_engine, blow) => (engine.eachHook(walks.ignore, blow) ? 'ignored' : undefined),
-    outgoing: outgoingStage,
+    outgoing: outgoingStage(engine, walks),
     roll: rollStage,
     mitigation: mitigationStage,
 

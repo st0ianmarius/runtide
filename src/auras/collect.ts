@@ -9,7 +9,7 @@ import { setOf } from './state.ts';
 /** The damage and force hooks, which a pipeline collects auras for. */
 export type AuraPipelineHook = Extract<
   AuraHookName,
-  'onIgnore' | 'onIncomingDamage' | 'onLethal' | 'onDealt' | 'onIncomingForce'
+  'onIgnore' | 'onOutgoingDamage' | 'onIncomingDamage' | 'onLethal' | 'onDealt' | 'onIncomingForce'
 >;
 
 /** Writes the auras that have a pipeline hook into `out` by index, clears what an earlier call left, and counts. */

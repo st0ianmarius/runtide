@@ -57,6 +57,7 @@ export const AURA_HOOKS = [
   'onIgnore',
   'onIncomingDamage',
   'onLethal',
+  'onOutgoingDamage',
   'onDealt',
   'onIncomingForce',
 ] as const;
@@ -199,6 +200,7 @@ const buildHooks = <G extends AuraTypes>(slots: readonly (AuraDef<G> | undefined
   onIgnore: tableOf(slots, 'onIgnore'),
   onIncomingDamage: tableOf(slots, 'onIncomingDamage'),
   onLethal: tableOf(slots, 'onLethal'),
+  onOutgoingDamage: tableOf(slots, 'onOutgoingDamage'),
   onDealt: tableOf(slots, 'onDealt'),
   onIncomingForce: tableOf(slots, 'onIncomingForce'),
 });

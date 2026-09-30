@@ -16,6 +16,12 @@ export interface BlowChange {
   readonly knock?: 'none';
 }
 
+/** What an `onOutgoingDamage` hook does to a blow its bearer deals. */
+export interface OutgoingChange {
+  /** A factor the blow's damage is multiplied by (more against a stunned target, less on a glancing swing). */
+  readonly scale?: number;
+}
+
 /** What an `onIncomingForce` hook does to a knockback, push or pull. */
 export interface ForceChange {
   /** A factor the force's strength is multiplied by. */
@@ -42,6 +48,12 @@ export interface LethalOutcome<Proc> {
 export interface AuraDamageHooks<G extends AuraTypes> {
   /** The ignore stage: true lets the blow pass the bearer by (invulnerability, shelter, an immunity). */
   readonly onIgnore?: (ctx: AuraContext<G>, blow: G['blow']) => boolean;
+
+  /**
+   * The attacker side of the outgoing stage, after the bearer's outgoing multipliers: changes a blow it deals (a bonus
+   * against a marked target, which no stat can say), or `undefined` to leave it alone.
+   */
+  readonly onOutgoingDamage?: (ctx: AuraContext<G>, blow: G['blow']) => OutgoingChange | undefined;
 
   /** The absorb stage: changes the blow, or `undefined` to leave it alone. */
   readonly onIncomingDamage?: (ctx: AuraContext<G>, blow: G['blow']) => BlowChange | undefined;
