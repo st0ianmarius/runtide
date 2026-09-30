@@ -236,3 +236,17 @@ Measured outside tinybench on the Apple Silicon Mac (1,200 warm-up ticks, then t
 | position reads and views fill the caller's objects           | 86 µs      |                      |
 
 A 150-unit catch goes from 8.4 to 6.5 µs. What the co-op tick still spends most on is the world's unit-to-slot lookups (a `Map` keyed by unit, about a tenth) and stat folds on every read (a mob's speed, folded through its auras each step, about a sixth): a per-sheet cache keyed by the bearer's aura revision is the next step if a game needs it.
+
+## The fifth review: kept totals, id slots and stamped clocks
+
+Measured the same way, each change against the commit before it in a worktree, runs interleaved (the machine was loaded that day, so the absolute numbers sit a few percent above the fourth review's; read the differences):
+
+| change                                                             | co-op tick | 2,000-mob horde tick |
+| ------------------------------------------------------------------ | ---------- | -------------------- |
+| before                                                             | 87 µs      | 192 µs               |
+| a sheet keeps a stat's plain total until its bearer's auras change | 78 µs      | unchanged            |
+| the world finds a unit's slot by its entity id (`idOf`)            | 77 µs      |                      |
+| `auto` clocks stamped on the caster's steps, not counted down      |            | 188 µs               |
+| spells read a live definition unchecked on per-step paths          |            | 186 µs               |
+
+The abilities tick did not move (92–94 µs outside tinybench): an aura not held is answered without a walk and a press allocates nothing, but the tick is bound by reading a thousand heroes' records, not by the checks. What a horde mob with nothing due still costs is its aura clock's count, written every tick per bearer, which stays: a clock counts only for the bearers the game steps.
