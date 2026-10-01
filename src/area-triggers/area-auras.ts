@@ -34,9 +34,12 @@ export class AuraInside<G extends AreaTriggerTypes> {
   /** Whether a frame's walk is comparing it now: an end during the walk leaves the dropping to the walk. */
   isComparing = false;
 
-  /** The walk's place in the units inside, and in the catch (fields, so a walk step allocates nothing). */
+  /**
+   * The walk's place in the units inside, and how many of this frame's units it wrote (fields, so a walk step allocates
+   * nothing).
+   */
   cursor = 0;
-  at = 0;
+  written = 0;
 
   /** The seconds until its next catch, for an aura that checks every so often; 0 or less when due. */
   wait = 0;
@@ -192,27 +195,27 @@ const compare = <G extends AreaTriggerTypes>(
   targets: readonly G['bearer'][]
 ): void => {
   const { units, nextUnits, area } = inside;
-  let written = 0;
 
   inside.cursor = 0;
+  inside.written = 0;
   inside.isComparing = true;
 
   try {
     for (let j = 0; j < targets.length && !area.isEnding; j++) {
       const unit = targets[j];
 
-      inside.at = j;
-
       if (unit !== undefined && !visit(engine, inside, unit)) {
         break;
       }
-
-      written = j + 1;
     }
 
     for (; inside.cursor < inside.count && !area.isEnding; inside.cursor++) {
       leave(engine, inside, units[inside.cursor]);
     }
+  } catch (error) {
+    keepHeld(engine, inside);
+
+    throw error;
   } finally {
     inside.isComparing = false;
   }
@@ -222,7 +225,7 @@ const compare = <G extends AreaTriggerTypes>(
       leave(engine, inside, units[i]);
     }
 
-    for (let k = 0; k < written; k++) {
+    for (let k = 0; k < inside.written; k++) {
       leave(engine, inside, nextUnits[k]);
     }
 
@@ -231,12 +234,39 @@ const compare = <G extends AreaTriggerTypes>(
     return;
   }
 
-  inside.swap(written);
+  inside.swap(inside.written);
 };
 
 /**
- * Visits the catch's entry `inside.at`: the units inside before it leave, it enters unless it was inside, and it is
- * written to the spare lists. False when a hook ended the area trigger.
+ * A hook threw mid-walk: every unit still held stays inside, this frame's written so far then the old ones not walked
+ * yet (in id order still, each after the last written), so a later frame or the end takes their auras off. One the walk
+ * left keeps no hold, so its leave then does nothing. A field already ending drops them now, as its end left that to
+ * the walk.
+ */
+const keepHeld = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraInside<G>): void => {
+  let written = inside.written;
+
+  for (let i = inside.cursor; i < inside.count; i++) {
+    inside.nextUnits[written] = inside.units[i];
+    inside.nextIds[written] = inside.ids[i] ?? 0;
+    written += 1;
+  }
+
+  inside.swap(written);
+
+  if (inside.area.isEnding) {
+    for (let i = 0; i < inside.count; i++) {
+      leave(engine, inside, inside.units[i]);
+    }
+
+    inside.clear();
+  }
+};
+
+/**
+ * Visits a unit of the catch: the units inside before it leave, it is written to the spare lists, and it
+ * enters unless it was inside (written first, so an enter hook that throws still leaves it held). False when a hook
+ * ended the area trigger.
  */
 const visit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -251,14 +281,17 @@ const visit = <G extends AreaTriggerTypes>(
     return false;
   }
 
-  if (inside.cursor < inside.count && inside.ids[inside.cursor] === id) {
+  const isInside = inside.cursor < inside.count && inside.ids[inside.cursor] === id;
+
+  inside.nextUnits[inside.written] = unit;
+  inside.nextIds[inside.written] = id;
+  inside.written += 1;
+
+  if (isInside) {
     inside.cursor += 1;
   } else {
     enter(engine, inside, unit);
   }
-
-  inside.nextUnits[inside.at] = unit;
-  inside.nextIds[inside.at] = id;
 
   return true;
 };
