@@ -111,6 +111,12 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   /** The time this frame's parts run over. */
   frameTime = 0;
 
+  /**
+   * The share of the tick this frame starts at: 0 for a whole tick's frame, later for one spawned flying with the
+   * tick's leftover time (`now`), whose sweeps then meet the units' motion over that last part of the tick alone.
+   */
+  tickFrom = 0;
+
   /** Whether an `advance` this frame swept up to where it stands, so the frame's contact has nothing left to sweep. */
   hasAdvanced = false;
 

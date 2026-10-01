@@ -200,10 +200,13 @@ export const catchAlong = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hi
 
   const options = engine.catcher.optionsFor(hit, area.owner);
 
-  // After an `advance` piece, it sweeps on from that piece's share of the frame and end, open so a joint counts once.
+  // After an `advance` piece, it sweeps on from that piece's share of the frame and end, open so a joint counts once;
+  // the frame's shares are the tick's from where the frame starts in it (a fork flying with the tick's leftover time).
+  const { tickFrom } = area;
+
   options.radius = radius;
-  options.since = area.advancedAt;
-  options.until = area.sweepUntil;
+  options.since = tickFrom + area.advancedAt * (1 - tickFrom);
+  options.until = tickFrom + area.sweepUntil * (1 - tickFrom);
   options.isOpen = area.hasAdvanced;
 
   engine.catcher.aim(area);

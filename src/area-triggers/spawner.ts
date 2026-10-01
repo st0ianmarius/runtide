@@ -37,8 +37,9 @@ export interface SpawnSpec<G extends AreaTriggerTypes> {
   readonly parent?: AreaTriggerHandle | undefined;
 
   /**
-   * The seconds of this frame it flies at once (a fork flying on with its parent's leftover time); without it
-   * its first frame is the next tick's.
+   * The seconds of this frame it flies at once (a fork flying on with its parent's leftover time): the tick's last
+   * seconds, so its sweep meets the units' motion over that part of the tick alone. Without it its first frame is the
+   * next tick's.
    */
   readonly now?: number | undefined;
 }

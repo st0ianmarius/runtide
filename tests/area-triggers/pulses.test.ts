@@ -251,6 +251,28 @@ describe('contacts and landings', () => {
     }
   });
 
+  it('sweeps a fork flying with the tick’s leftover time against the units’ motion over that part of the tick alone', () => {
+    // A runner crosses x = 1 at half or three quarters of a tick; a missile spawned mid-tick flies 0 to 1 in the tick's
+    // second half, so it is still at its start as the first crosses, and meets only the later one.
+    for (const [from, to, meets] of [
+      [4, -4, false],
+      [6, -2, true]
+    ] as const) {
+      const game = makeSpellGame({}, { areaTriggers: { fork: missile({ contact: { radius: 0.2 } }) } });
+      const runner = game.unit(100);
+
+      game.place(runner, vec2(1, from));
+      game.world.tick();
+      game.step();
+      game.place(runner, vec2(1, to));
+      game.areaTriggers.spawn(game.areaId.fork, { owner: game.unit(1), at: vec2(0, 0), now: 0.125 });
+      assert.equal(
+        game.log.some((line) => line.startsWith('contact')),
+        meets
+      );
+    }
+  });
+
   it('reaches a unit at a joint between pieces once, and nothing once a piece’s hook asked it to end', () => {
     const late: { game?: ReturnType<typeof makeSpellGame> } = {};
 

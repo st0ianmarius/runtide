@@ -112,6 +112,7 @@ export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: A
   const order = registry.get(area.kind).order ?? DEFAULT_ORDER;
 
   area.frameTime = dt;
+  area.tickFrom = Math.max(0, 1 - dt / engine.clock.dt);
 
   for (let i = 0; i < order.length && !area.isEnding; i++) {
     runPhase(engine, area, order[i] ?? 'frame');
