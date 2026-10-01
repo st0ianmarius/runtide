@@ -162,6 +162,9 @@ export class UnitEngine<G extends UnitTypes> {
   /** The states that raise interrupts, in declared order: each one's aura tags and its interrupt. */
   readonly interrupting: readonly InterruptingState<G['interrupt']>[];
 
+  /** Summon slots reserved while replacement callbacks run. */
+  readonly admittingOwners: G['bearer'][] = [];
+  readonly admittingTemplates: UnitId[] = [];
   nextId = 1;
 
   readonly #createExt: UnitExtFactory<G>;

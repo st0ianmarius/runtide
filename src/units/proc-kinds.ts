@@ -1,4 +1,5 @@
 import { ownValue } from '../core/records.ts';
+import type { Vec2 } from '../math/index.ts';
 import {
   PROC_LANDED,
   PROC_SKIPPED,
@@ -96,10 +97,8 @@ const summonStats = <G extends UnitTypes>(
 const spawnSummon = <G extends UnitTypes>(
   parts: UnitKindParts<G>,
   [proc, ctx, owner]: readonly [SummonProc<G>, ProcContext<G>, G['bearer']],
-  [template, stats]: readonly [UnitId, Readonly<Partial<Record<G['stat'], number>>> | undefined]
+  [template, stats, at]: readonly [UnitId, Readonly<Partial<Record<G['stat'], number>>> | undefined, Vec2 | undefined]
 ): void => {
-  const at = proc.atOf?.(ctx) ?? proc.at;
-
   const spec: SpawnUnit<G> = {
     side: proc.side ?? unitOf<G>(owner).side,
     owner,
@@ -137,7 +136,15 @@ const admitSummon = <G extends UnitTypes>(
   }
 
   const { summons } = unitOf<G>(owner);
+  const { admittingOwners, admittingTemplates } = parts.engine;
   let count = 0;
+
+  for (let i = 0; i < admittingOwners.length; i++) {
+    if (admittingOwners[i] === owner && admittingTemplates[i] === template) {
+      count += 1;
+    }
+  }
+
   let oldest: G['bearer'] | undefined = undefined;
 
   for (const summon of summons) {
@@ -155,8 +162,46 @@ const admitSummon = <G extends UnitTypes>(
     return false;
   }
 
-  return parts.despawn(oldest, 'replaced');
+  return replaceSummon(parts, owner, oldest, template, limit.perOwner);
 };
+
+/** Reserves the replacement slot across callbacks, then checks direct spawns did not fill it. */
+const replaceSummon = <G extends UnitTypes>(
+  parts: UnitKindParts<G>,
+  owner: G['bearer'],
+  oldest: G['bearer'],
+  template: UnitId,
+  limit: number
+): boolean => {
+  const { admittingOwners, admittingTemplates } = parts.engine;
+  const { summons } = unitOf<G>(owner);
+  admittingOwners.push(owner);
+  admittingTemplates.push(template);
+
+  try {
+    if (!parts.despawn(oldest, 'replaced')) {
+      return false;
+    }
+
+    // A callback may bypass this proc and spawn directly; recheck the actual population.
+    let remaining = 0;
+
+    for (const summon of summons) {
+      if (unitOf<G>(summon).template === template) {
+        remaining += 1;
+      }
+    }
+
+    return remaining < limit;
+  } finally {
+    admittingOwners.pop();
+    admittingTemplates.pop();
+  }
+};
+
+/** The number this invocation requests, evaluated once before spawning. */
+const summonCount = <G extends UnitTypes>(proc: SummonProc<G>, ctx: ProcContext<G>): number =>
+  Math.max(0, Math.floor(proc.countOf?.(ctx) ?? proc.count ?? 1));
 
 /** The `summon` kind. */
 const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<SummonProc<G>, G> => ({
@@ -170,13 +215,27 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
 
     const { engine } = parts;
     const template = templateOf(engine, proc.unit);
-    const count = Math.max(0, Math.floor(proc.countOf?.(ctx) ?? proc.count ?? 1));
+    const count = summonCount(proc, ctx);
     const stats = summonStats(engine, [proc, owner]);
 
     let summoned = 0;
 
-    for (let i = 0; i < count && admitSummon(parts, [proc, owner], template); i++) {
-      spawnSummon(parts, [proc, ctx, owner], [template, stats]);
+    for (let i = 0; i < count; i++) {
+      if (unitOf<G>(owner).lifecycle !== 'alive') {
+        break;
+      }
+
+      const at = proc.atOf?.(ctx) ?? proc.at;
+
+      if (
+        unitOf<G>(owner).lifecycle !== 'alive' ||
+        !admitSummon(parts, [proc, owner], template) ||
+        unitOf<G>(owner).lifecycle !== 'alive'
+      ) {
+        break;
+      }
+
+      spawnSummon(parts, [proc, ctx, owner], [template, stats, at]);
       summoned += 1;
     }
 

@@ -37,7 +37,8 @@ export interface PickOptions<G extends AiTypes> {
 export class Picker<G extends AiTypes> {
   readonly #spells: SpellSystem<G>;
   readonly #check = new CheckOptions<G>();
-  #weights = new Float64Array(8);
+  readonly #weights: Float64Array[] = [new Float64Array(8)];
+  #depth = 0;
 
   constructor(spells: SpellSystem<G>) {
     this.#spells = spells;
@@ -45,14 +46,28 @@ export class Picker<G extends AiTypes> {
 
   /** Picks a spell from `pool` for `caster`, or `undefined` when none fits. */
   pick(caster: G['bearer'], pool: readonly SpellId[], options: PickOptions<G>): SpellId | undefined {
-    const weights = this.#weigh(caster, pool, options);
-    let total = 0;
+    const depth = this.#depth;
+    let weights = this.#weights[depth];
 
-    for (let i = 0; i < pool.length; i++) {
-      total += weights[i] ?? 0;
+    if (weights === undefined || weights.length < pool.length) {
+      weights = new Float64Array(Math.max(8, pool.length * 2));
+      this.#weights[depth] = weights;
     }
 
-    return draw(pool, weights, total * options.random());
+    this.#depth += 1;
+
+    try {
+      this.#weigh(caster, pool, options, weights);
+      let total = 0;
+
+      for (let i = 0; i < pool.length; i++) {
+        total += weights[i] ?? 0;
+      }
+
+      return draw(pool, weights, total * options.random());
+    } finally {
+      this.#depth = depth;
+    }
   }
 
   /**
@@ -74,13 +89,7 @@ export class Picker<G extends AiTypes> {
   }
 
   /** Each candidate's weight, 0 for one that does not fit, into the reused column. */
-  #weigh(caster: G['bearer'], pool: readonly SpellId[], options: PickOptions<G>): Float64Array {
-    if (this.#weights.length < pool.length) {
-      this.#weights = new Float64Array(pool.length * 2);
-    }
-
-    const weights = this.#weights;
-
+  #weigh(caster: G['bearer'], pool: readonly SpellId[], options: PickOptions<G>, weights: Float64Array): void {
     for (let i = 0; i < pool.length; i++) {
       const spell = pool[i];
 
@@ -94,8 +103,6 @@ export class Picker<G extends AiTypes> {
 
       weights[i] = fits ? weight : 0;
     }
-
-    return weights;
   }
 
   /** Whether a spell would start now, checked with its input. */

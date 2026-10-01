@@ -266,6 +266,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   #release(area: AreaTrigger<G>): void {
     this.#resetExt?.(area.ext);
     area.cast = undefined;
+    area.capturedStats?.clear();
     area.state = undefined;
     area.input = undefined;
     area.kindNext = undefined;

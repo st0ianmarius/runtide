@@ -41,13 +41,15 @@ describe('absorbs, for any blow and any shells', () => {
           const spent = before.reduce((sum, value, index) => sum + (value - (after[index] ?? 0)), 0);
 
           assert.ok(after.every((value) => value >= 0));
-          assert.ok(blow.absorbed >= 0 && blow.absorbed <= amount);
+          // Summing several absorbed fractions can round one ulp above the original amount.
+          assert.ok(blow.absorbed >= 0 && blow.absorbed <= amount + 1e-9 * amount);
           assert.ok(Math.abs(spent - blow.absorbed) <= 1e-9 * amount);
           assert.ok(Math.abs(blow.amount + blow.absorbed - amount) <= 1e-9 * amount);
           assert.equal(target.hp, 1000 - blow.amount);
           assert.equal(blow.status, blow.amount === 0 ? 'absorbed' : 'landed');
         }
-      )
+      ),
+      { examples: [[0.001, [3.113723909049017e-18, 3.046239115894612e-20, 0.000999999999999997]]] }
     );
   });
 });

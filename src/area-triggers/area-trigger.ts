@@ -10,6 +10,7 @@ import { AuraInside } from './area-auras.ts';
 import type { AreaTriggerContext, EndReason, Position } from './area-def.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
+import type { CapturedStats } from './captured-stats.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import type { AreaLedger } from './delivery-def.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
@@ -85,6 +86,7 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
 
   cast: SpellContext<G> | undefined = undefined;
   rank = 1;
+  capturedStats: CapturedStats | undefined = undefined;
   stats: Readonly<Record<string, unknown>> = NO_STATS;
   scaled: Readonly<Record<string, number | ScaledSnapshot>> = NO_SCALED;
   input: G['areaInput'] | undefined = undefined;
