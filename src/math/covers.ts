@@ -83,7 +83,7 @@ const coversPolygon = (shape: Polygon, p: Vec2, margin: number): boolean => {
 const SAMPLE_RINGS = 3;
 
 /** The points a body is sampled at, as offsets in units of its reach: its centre, then `6k` points on ring `k`. */
-const SAMPLES = (() => {
+export const SAMPLES = (() => {
   const xs = [0];
   const zs = [0];
 
@@ -155,16 +155,23 @@ const coversBy = (shape: Shape, p: Vec2, margin: number): boolean => {
   }
 };
 
+/** Whether a body reaching `margin` into a shape the algebra built is sampled; `PathCandidates` asks the same. */
+export const isSampled = (shape: Outside | Difference, margin: number): boolean =>
+  margin > 0 && (shape.kind === 'difference' || !isBase(shape.shape));
+
 /** Whether a body reaching `margin` past `p` overlaps a shape the algebra built: exactly where it can, else sampled. */
 const coversBuilt = (shape: Outside | Union | Difference, p: Vec2, margin: number): boolean => {
-  switch (shape.kind) {
-    case 'outside':
-      return margin > 0 && !isBase(shape.shape) ? coversSampled(shape, p, margin) : !coversBy(shape.shape, p, -margin);
-    case 'union':
-      return coversAny(shape.shapes, p, margin);
-    case 'difference':
-      return margin > 0 ? coversSampled(shape, p, margin) : coversBy(shape.base, p, 0) && !coversBy(shape.minus, p, 0);
+  if (shape.kind === 'union') {
+    return coversAny(shape.shapes, p, margin);
   }
+
+  if (isSampled(shape, margin)) {
+    return coversSampled(shape, p, margin);
+  }
+
+  return shape.kind === 'outside'
+    ? !coversBy(shape.shape, p, -margin)
+    : coversBy(shape.base, p, 0) && !coversBy(shape.minus, p, 0);
 };
 
 /**

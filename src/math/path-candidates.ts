@@ -1,10 +1,12 @@
-import type { Shape } from './shapes.ts';
+import { isSampled, SAMPLES } from './covers.ts';
+import type { Difference, Outside, Shape, Union } from './shapes.ts';
 import { hypot, type Vec2 } from './vec2.ts';
 
 /**
  * The shares along a segment where a moving point may cross a shape's boundary, gathered from every curve that bounds
- * what `covers` covers (circles, and lines offset by the body's reach). A superset is harmless: the caller tests the
- * pieces between them with `covers` itself, so only a missing candidate would matter.
+ * what `covers` covers (circles, and lines offset by the body's reach). Where `covers` samples a body, the candidates
+ * are those of each sample point's own path. A superset is harmless: the caller tests the pieces between them with
+ * `covers` itself, so only a missing candidate would matter.
  */
 export class PathCandidates {
   /** The shares found, valid up to `count`, each in `(0, 1)`. */
@@ -15,6 +17,10 @@ export class PathCandidates {
 
   #from: Vec2 = { x: 0, z: 0 };
   #to: Vec2 = { x: 0, z: 0 };
+
+  /** A sample point's path, reused: sampling never nests, as a sample is a bare point. */
+  readonly #sampleFrom = { x: 0, z: 0 };
+  readonly #sampleTo = { x: 0, z: 0 };
 
   /** Gathers the candidates of `shape` for a body reaching `margin` along a segment, forgetting the last ones. */
   gather(shape: Shape, from: Vec2, to: Vec2, margin: number): void {
@@ -144,6 +150,33 @@ export class PathCandidates {
     }
   }
 
+  /**
+   * A sampled shape's candidates: those of the bare shape along the path of each point `covers` samples the body at,
+   * every one moved by the same offset, so a share along it is that share along the body's own path.
+   */
+  #sampled(shape: Outside | Difference, margin: number): void {
+    const from = this.#from;
+    const to = this.#to;
+    const { xs, zs } = SAMPLES;
+
+    this.#from = this.#sampleFrom;
+    this.#to = this.#sampleTo;
+
+    for (let i = 0; i < xs.length; i++) {
+      const dx = (xs[i] ?? 0) * margin;
+      const dz = (zs[i] ?? 0) * margin;
+
+      this.#sampleFrom.x = from.x + dx;
+      this.#sampleFrom.z = from.z + dz;
+      this.#sampleTo.x = to.x + dx;
+      this.#sampleTo.z = to.z + dz;
+      this.#collect(shape, 0);
+    }
+
+    this.#from = from;
+    this.#to = to;
+  }
+
   /** Collects the candidates of any shape; complements and cuts turn the margin around, as `covers` does. */
   #collect(shape: Shape, margin: number): void {
     switch (shape.kind) {
@@ -167,18 +200,27 @@ export class PathCandidates {
         this.#polygon(shape, margin);
         break;
       case 'outside':
-        this.#collect(shape.shape, -margin);
-        break;
       case 'union':
-        for (const part of shape.shapes) {
-          this.#collect(part, margin);
-        }
-
-        break;
       case 'difference':
-        this.#collect(shape.base, margin);
-        this.#collect(shape.minus, -margin);
+        this.#collectBuilt(shape, margin);
         break;
+    }
+  }
+
+  /** Collects the candidates of a shape the algebra built: each sample's where `covers` samples, else its parts'. */
+  #collectBuilt(shape: Outside | Union | Difference, margin: number): void {
+    if (shape.kind === 'union') {
+      for (const part of shape.shapes) {
+        this.#collect(part, margin);
+      }
+    } else if (isSampled(shape, margin)) {
+      this.#sampled(shape, margin);
+    } else if (shape.kind === 'outside') {
+      this.#collect(shape.shape, -margin);
+    } else {
+      // Not sampled, a difference is tested as a bare point, as `covers` tests it.
+      this.#collect(shape.base, 0);
+      this.#collect(shape.minus, 0);
     }
   }
 }

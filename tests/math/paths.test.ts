@@ -173,6 +173,18 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
     close(out[1], 1);
   });
 
+  it('finds where covers stops seeing a sampled body, outside two discs it sits inside both of', () => {
+    const twin = outside(union(circle(2, vec2(-1, 0)), circle(2, vec2(1, 0))));
+    const path = { from: vec2(1.4, -3.1), to: vec2(-3, 3.4), t0: 0, t1: 1, radius: 1.8 };
+    const out: number[] = [];
+    const count = pathIntervals(twin, path, out);
+
+    // Mid-path the body lies within the two discs together, and no sample of it is outside them.
+    assert.equal(covers(twin, vec2(-0.712, 0.02), 1.8), false);
+    assert.equal(count, 2);
+    assert.ok((out[1] ?? 1) < 0.48 && (out[2] ?? 0) > 0.48, `${out.slice(0, 4).join(', ')} spans the middle`);
+  });
+
   it('agrees with covers at every sampled point of any segment, for any shape', () => {
     const shapes: Shape[] = [
       circle(3, vec2(1, 2)),
@@ -180,7 +192,15 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
       cone({ r: 5, half: 0.6, dir: 0.3, apex: 0.5 }),
       lane({ length: 6, width: 2, dir: 1, back: 1 }),
       polygon([vec2(0, 0), vec2(4, 1), vec2(3, 4), vec2(-1, 3)], 0.5),
-      difference(circle(4), ring(1, 2))
+      difference(circle(4), ring(1, 2)),
+      difference(circle(5), lane({ length: 10, width: 0.5, dir: 0, at: vec2(0, -5) })),
+      outside(union(circle(2, vec2(-1, 0)), circle(2, vec2(1, 0)))),
+      outside(
+        union(
+          lane({ length: 4, width: 4, dir: Math.PI / 2, at: vec2(-4, 0) }),
+          lane({ length: 4, width: 4, dir: Math.PI / 2 })
+        )
+      )
     ];
 
     const coordinate = fc.double({ min: -8, max: 8, noNaN: true });
@@ -189,7 +209,7 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
       fc.property(
         fc.constantFrom(...shapes),
         fc.tuple(coordinate, coordinate, coordinate, coordinate),
-        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.double({ min: 0, max: 2, noNaN: true }),
         (shape, [ax, az, bx, bz], radius) => {
           const out: number[] = [];
           const path = { from: vec2(ax, az), to: vec2(bx, bz), t0: 0, t1: 1, radius };
