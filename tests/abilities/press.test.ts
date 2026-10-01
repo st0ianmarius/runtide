@@ -76,6 +76,77 @@ describe('a press, edge cases', () => {
     );
   });
 
+  it('gives an outer hook its own context, input and rank back after a press it made for another bearer', () => {
+    const seen: { pet?: Hero; lines: string[] } = { lines: [] };
+
+    const order = (pet: Hero | undefined): void => {
+      if (pet !== undefined) {
+        game.abilities.tryActivate(pet, game.abilities.bit(game.abilities.slots.id.dodge), { input: { x: 9, z: 9 } });
+      }
+    };
+
+    const game = makeAbilityGame({
+      command: spell({
+        ranks: 3,
+        activation: {
+          kind: 'button',
+
+          checkCast: () => {
+            order(seen.pet);
+
+            return true;
+          },
+
+          activate: (ctx) => {
+            order(seen.pet);
+            seen.lines.push(`${ctx.bearer.id} ${ctx.input?.x} rank ${ctx.rank}`);
+          }
+        },
+        release
+      }),
+      petDash: spell({ activation: { kind: 'button' }, release })
+    });
+
+    const hero = game.hero(1);
+    const { abilities } = game;
+
+    seen.pet = game.hero(2);
+    abilities.equip(hero, abilities.slots.id.dodge, { spell: game.id.command, rank: 3 });
+    abilities.equip(seen.pet, abilities.slots.id.dodge, game.id.petDash);
+    abilities.tryActivate(hero, abilities.bit(abilities.slots.id.dodge), { input: { x: 3, z: 4 } });
+    assert.deepEqual(seen.lines, ['1 3 rank 3']);
+  });
+
+  it('decides a spell an earlier slot’s hook equipped mid-press by its own rules before it fires', () => {
+    const game = makeAbilityGame({
+      swap: spell({
+        activation: {
+          kind: 'button',
+
+          activate: ({ bearer }) => {
+            game.abilities.equip(bearer, game.abilities.slots.id.skill, game.id.nuke);
+          }
+        },
+        release
+      }),
+      bolt: spell({ activation: { kind: 'button' }, release }),
+      nuke: spell({ activation: { kind: 'button', requires: ['stance'] }, release })
+    });
+
+    const hero = game.hero(1);
+    const { abilities } = game;
+    const { dodge, skill } = abilities.slots.id;
+    const refusals: (PressRefusal<AbilityGame> | undefined)[] = [];
+
+    abilities.equip(hero, dodge, game.id.swap);
+    abilities.equip(hero, skill, game.id.bolt);
+    assert.equal(
+      abilities.tryActivate(hero, abilities.bit(dodge) | abilities.bit(skill), { refusals }),
+      abilities.bit(dodge)
+    );
+    assert.deepEqual(refusals.slice(0, 2), [undefined, 'requires']);
+  });
+
   it('asks a toggle’s rules again when an earlier slot took the toggle off', () => {
     const game = makeAbilityGame({
       root: spell({ activation: { kind: 'button', clears: ['stance'], applies: ['root'] }, release }),

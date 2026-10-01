@@ -60,8 +60,14 @@ export const refusalAt = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
   slot: number
+): ButtonRefusal | undefined => refusalOf(engine, bearer, spellAt(loadoutOf(bearer), slot));
+
+/** Why a spell's ability may not fire now on a bearer, or `undefined` when it may (see `refusalAt`). */
+const refusalOf = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  spell: SpellId | undefined
 ): ButtonRefusal | undefined => {
-  const spell = spellAt(loadoutOf(bearer), slot);
   const button = spell === undefined ? undefined : engine.buttons[spell];
 
   if (spell === undefined || button === undefined) {
@@ -211,6 +217,13 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
     return engine.refuse('empty');
   }
 
+  // An earlier slot's hook put another spell here (a weapon swap): it was never decided, so it is decided now.
+  const swapped = spell === engine.decided()[slot] ? undefined : refusalOf(engine, bearer, spell);
+
+  if (swapped !== undefined) {
+    return engine.refuse(swapped);
+  }
+
   if (button.toggle >= 0) {
     if (engine.auras.has(bearer, toId<'auras'>(button.toggle))) {
       engine.auras.remove(bearer, toId<'auras'>(button.toggle));
@@ -227,24 +240,18 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
     }
   }
 
-  const { input, key } = engine;
-  const rank = record.ranks[slot] ?? 1;
+  options.input = engine.input;
+  options.key = engine.key;
+  options.rank = record.ranks[slot] ?? 1;
 
-  options.input = input;
-  options.key = key;
-  options.rank = rank;
-
+  // A press nested in `checkCast` or `activate` (a pet ordered along) gives all of this back as it found it.
   const refused = admission(engine, bearer, [spell, button]) ?? commit(engine, bearer, [spell, button]);
 
   if (refused !== undefined) {
     return engine.refuse(refused);
   }
 
-  // A press nested in `checkCast` or `activate` (a pet ordered along) used the same options.
   engine.refusal = undefined;
-  options.input = input;
-  options.key = key;
-  options.rank = rank;
   options.committed = !button.commitsOnCast;
   castCommitted(engine, bearer, spell);
   options.committed = false;
@@ -264,12 +271,16 @@ export const press = <G extends AbilityTypes>(
   pressed: number
 ): number => {
   const count = engine.slots.size;
-  const { refusals, input, key } = engine;
+  const { refusals } = engine;
+  const decided = engine.decided();
+  const record = loadoutOf(bearer);
   let accepted = 0;
 
   for (let slot = 0; slot < count; slot++) {
     const bit = 1 << slot;
     const refusal = (pressed & bit) === 0 ? undefined : refusalAt(engine, bearer, slot);
+
+    decided[slot] = record.spells[slot] ?? -1;
 
     if (refusals !== undefined) {
       refusals[slot] = refusal;
@@ -282,9 +293,6 @@ export const press = <G extends AbilityTypes>(
     const bit = 1 << slot;
 
     if ((accepted & bit) !== 0) {
-      // A press nested in an earlier slot's hooks cleared these on its way out.
-      engine.input = input;
-      engine.key = key;
       accepted &= fire(engine, bearer, slot) ? ~0 : ~bit;
 
       if (refusals !== undefined) {
@@ -293,10 +301,6 @@ export const press = <G extends AbilityTypes>(
     }
   }
 
-  engine.input = undefined;
-  engine.refusals = undefined;
-  engine.key = 0;
-  engine.options.input = undefined;
   engine.refusal = undefined;
 
   return accepted;

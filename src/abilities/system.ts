@@ -228,11 +228,18 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
     },
 
     tryActivate: (bearer, pressed, data) => {
-      engine.input = data?.input;
-      engine.key = data?.key ?? 0;
-      engine.refusals = data?.refusals;
+      // A press from a hook of another (a pet ordered along) leaves the one it interrupted as it found it.
+      engine.enter();
 
-      return press(engine, bearer, pressed);
+      try {
+        engine.input = data?.input;
+        engine.key = data?.key ?? 0;
+        engine.refusals = data?.refusals;
+
+        return press(engine, bearer, pressed);
+      } finally {
+        engine.leave();
+      }
     },
 
     explain: (spell) => explainButton(engine, spell)

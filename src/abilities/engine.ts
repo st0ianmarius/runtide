@@ -14,6 +14,21 @@ class PressOptions<G extends AbilityTypes> implements CastOptions<G> {
   committed = false;
 }
 
+/** What a nested press saves of the press it interrupts, and gives back as it leaves: one record per level. */
+class SavedPress<G extends AbilityTypes> {
+  input: G['input'] | undefined = undefined;
+  key = 0;
+  refusal: PressRefusal<G> | undefined = undefined;
+  refusals: (PressRefusal<G> | undefined)[] | undefined = undefined;
+  optionsInput: G['input'] | undefined = undefined;
+  optionsKey = 0;
+  rank = 1;
+  committed = false;
+}
+
+/** The state of an engine no press is running on. */
+const IDLE = new SavedPress<AbilityTypes>();
+
 /** What an ability system is built from: the spell and aura systems, the slots, and the caster's stats. */
 export interface AbilityParts<G extends AbilityTypes> {
   /** The spell system its abilities cast through. */
@@ -75,9 +90,20 @@ export class AbilityEngine<G extends AbilityTypes> {
   /** Whether it runs on a prediction mirror: a press fires only the spells' cast cues, and casts nothing. */
   readonly isMirror: boolean;
 
+  /** How many presses run, nested (a pet's button pressed from a hero's hook): each level has its own scratch. */
+  depth = 0;
+
   readonly #statsOf: AbilityParts<G>['statsOf'];
   readonly #world: StaticWorld;
-  #mirror: MirrorContext<G> | undefined = undefined;
+
+  /** The reused mirror contexts, one per press level, so a nested press leaves the outer hook's context alone. */
+  readonly #mirrors: MirrorContext<G>[] = [];
+
+  /** The spell each slot of the running press was decided against, one list per press level; -1 for none. */
+  readonly #decided: number[][] = [];
+
+  /** What each press level saved of the one it interrupted. */
+  readonly #saved: SavedPress<G>[] = [];
 
   constructor(parts: AbilityParts<G>) {
     this.spells = parts.spells;
@@ -102,7 +128,7 @@ export class AbilityEngine<G extends AbilityTypes> {
    * press's input and rank, and the step. Read it within the hook.
    */
   mirrorFor(bearer: G['bearer'], spell: SpellId): MirrorContext<G> {
-    const mirror = (this.#mirror ??= new MirrorContext<G>(this.#world, bearer));
+    const mirror = (this.#mirrors[this.depth] ??= new MirrorContext<G>(this.#world, bearer));
 
     mirror.bearer = bearer;
     mirror.stats = this.#statsOf?.(bearer, spell);
@@ -111,5 +137,46 @@ export class AbilityEngine<G extends AbilityTypes> {
     mirror.dt = this.dt;
 
     return mirror;
+  }
+
+  /** Starts a press level, saving a nested press's outer state (the press it interrupted) to give back on `leave`. */
+  enter(): void {
+    if (this.depth > 0) {
+      const saved = (this.#saved[this.depth] ??= new SavedPress<G>());
+      const { options } = this;
+
+      saved.input = this.input;
+      saved.key = this.key;
+      saved.refusal = this.refusal;
+      saved.refusals = this.refusals;
+      saved.optionsInput = options.input;
+      saved.optionsKey = options.key;
+      saved.rank = options.rank;
+      saved.committed = options.committed;
+    }
+
+    this.depth += 1;
+  }
+
+  /** Ends a press level: a nested press gives back the state `enter` saved, the outermost leaves the engine idle. */
+  leave(): void {
+    this.depth -= 1;
+
+    const saved = (this.depth > 0 ? this.#saved[this.depth] : undefined) ?? IDLE;
+    const { options } = this;
+
+    this.input = saved.input;
+    this.key = saved.key;
+    this.refusal = saved.refusal;
+    this.refusals = saved.refusals;
+    options.input = saved.optionsInput;
+    options.key = saved.optionsKey;
+    options.rank = saved.rank;
+    options.committed = saved.committed;
+  }
+
+  /** The spells the running press decided its slots against, by slot. */
+  decided(): number[] {
+    return (this.#decided[this.depth] ??= []);
   }
 }
