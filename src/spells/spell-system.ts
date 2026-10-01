@@ -209,8 +209,8 @@ export interface SpellSystem<G extends SpellTypes> {
    */
   readonly copyStats: (cast: CastHandle) => StatsBox | undefined;
 
-  /** Gives back a copy `copyStats` made. */
-  readonly giveStats: (box: StatsBox) => void;
+  /** Gives back a copy `copyStats` made; nothing for `undefined`, the copy of a cast that needed none. */
+  readonly giveStats: (box: StatsBox | undefined) => void;
 
   /**
    * Makes a live cast the current one while another system runs its procs as that cast's (an area trigger's hooks),

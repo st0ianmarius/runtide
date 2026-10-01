@@ -196,8 +196,10 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
   readonly copyStats = (cast: CastHandle): StatsBox | undefined => copyStats(this.#engine, cast);
 
-  readonly giveStats = (box: StatsBox): void => {
-    this.#engine.boxes.give(box);
+  readonly giveStats = (box: StatsBox | undefined): void => {
+    if (box !== undefined) {
+      this.#engine.boxes.give(box);
+    }
   };
 
   readonly enter = (cast: CastHandle): CastHandle => {
