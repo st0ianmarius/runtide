@@ -1,6 +1,4 @@
 {
-  // The build: src alone, emitted to dist with declarations. No Node types, so src cannot reach for Node: what the
-  // lint bans name, and every type it does not (the package runs in browsers too).
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "types": [],
