@@ -1,4 +1,5 @@
 import type { EventKind } from '../core/index.ts';
+import { ownValue } from '../core/records.ts';
 import type { ProcBus } from '../procs/index.ts';
 import type { TriggerEvent, TriggerTypes } from '../triggers/index.ts';
 import type { SpellRegistry } from './define-spells.ts';
@@ -68,7 +69,7 @@ const outcomeCode =
 const codeIn =
   (ids: Readonly<Record<string, number | undefined>>, what: string) =>
   (name: string): number => {
-    const id = ids[name];
+    const id = ownValue(ids, name);
 
     if (id === undefined) {
       throw new RangeError(`unknown ${what} ${name}.`);

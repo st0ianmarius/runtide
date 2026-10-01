@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
-import { applyAura, raise, removeAura } from '../../src/procs/index.ts';
+import { applyAura, type Proc, raise, removeAura, run } from '../../src/procs/index.ts';
 import { explainTriggers } from '../../src/triggers/index.ts';
 import { aura, defined, type Game, type HitEvent, KINDS, makeGame, mark, scripted } from '../helpers/trigger-game.ts';
 
@@ -49,6 +49,46 @@ describe('dispatch order', () => {
       'alpha.1@3',
       'beta.0@3'
     ]);
+  });
+
+  it('keeps each trigger event’s own triggers when two share a bus kind: a hit for its attacker, and its victim', () => {
+    const game = makeGame({
+      onHit: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('onHit')] }] }),
+      onStruck: aura({ duration: 9, triggers: [{ on: 'struck', do: [mark('onStruck')] }] })
+    });
+
+    const [a, b] = [game.unit(1), game.unit(2)];
+
+    for (const unit of [a, b]) {
+      game.auras.apply(unit, game.id.onHit);
+      game.auras.apply(unit, game.id.onStruck);
+    }
+
+    game.hit(a, { target: b });
+    assert.deepEqual(game.log, ['onHit@1', 'onStruck@2']);
+    assert.deepEqual(game.triggers.events, [game.bus.kind.hit]);
+  });
+
+  it('hears every party member it found, though one leaves the party as it answers', () => {
+    const late: { party?: Game['bearer'][] } = {};
+
+    const leave: Proc<Game> = run('leave', (ctx) => {
+      ctx.host.log.push(`leave@${ctx.self.id}`);
+      late.party?.splice(late.party.indexOf(ctx.self), 1);
+    });
+
+    const game = makeGame({
+      ears: aura({ duration: 9, triggers: [{ on: 'hit', hears: 'party', do: [mark('heard'), leave] }] })
+    });
+
+    late.party = game.party;
+
+    const [a, b, c] = [game.unit(1), game.unit(2), game.unit(3)];
+
+    game.auras.apply(b, game.id.ears);
+    game.auras.apply(c, game.id.ears);
+    game.hit(a);
+    assert.deepEqual(game.log, ['heard@2', 'leave@2', 'heard@3', 'leave@3']);
   });
 
   it('gathers before any runs: an aura landed now does not answer, one removed before its turn does not fire', () => {

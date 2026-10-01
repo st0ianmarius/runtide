@@ -1,3 +1,4 @@
+import { ownValue } from '../core/records.ts';
 import type { MutableVec2, Vec2 } from '../math/index.ts';
 import {
   PROC_LANDED,
@@ -53,7 +54,7 @@ const kindIdOf = <G extends AreaTriggerTypes>(
   }
 
   const ids: Readonly<Record<string, AreaTriggerId | undefined>> = registry.id;
-  const id = ids[areaTrigger];
+  const id = ownValue(ids, areaTrigger);
 
   if (id === undefined) {
     throw new RangeError(`unknown area trigger kind ${areaTrigger}.`);
@@ -113,7 +114,7 @@ const WITHDRAWN: readonly ProcOutcome[] = Array.from({ length: 17 }, (_unused, a
 const checkTag = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, tag: G['areaTag'] | undefined): void => {
   const ids: Readonly<Record<string, number | undefined>> = engine.registry.tags.id;
 
-  if (tag !== undefined && ids[tag] === undefined) {
+  if (tag !== undefined && ownValue(ids, tag) === undefined) {
     throw new RangeError(`unknown area trigger tag ${tag}.`);
   }
 };

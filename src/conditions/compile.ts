@@ -1,4 +1,5 @@
 import type { Id } from '../core/index.ts';
+import { ownValue } from '../core/records.ts';
 import type { CompiledCondition, ConditionExpr } from './expr.ts';
 import type { ConditionTable } from './table.ts';
 import type { ValueTable } from './values.ts';
@@ -37,7 +38,7 @@ const finite = (state: Compiling, value: number, field: string): number =>
 const idIn = <Kind extends string>(
   ids: Readonly<Record<string, Id<Kind> | undefined>> | undefined,
   name: string
-): Id<Kind> | undefined => ids?.[name];
+): Id<Kind> | undefined => ownValue(ids, name);
 
 /** Whether a compiled condition asks the world anywhere in it. */
 export const readsWorld = (tables: ConditionTables, condition: CompiledCondition): boolean => {

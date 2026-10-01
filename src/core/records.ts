@@ -42,3 +42,12 @@ export const deepFreeze = (value: unknown): void => {
     deepFreeze(child);
   }
 };
+
+/**
+ * The value a record holds under a key of its own, or `undefined`: a name like `constructor` finds nothing rather than
+ * Object's own, so a name-to-id lookup cannot be fooled by the prototype.
+ */
+export const ownValue = <Value>(
+  record: Readonly<Partial<Record<string, Value>>> | undefined,
+  key: string
+): Value | undefined => (record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined);

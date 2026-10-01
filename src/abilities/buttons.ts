@@ -1,5 +1,6 @@
 import type { AuraId, AuraSystem, AuraTagId } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
+import { ownValue } from '../core/records.ts';
 import { type ButtonActivation, isButton, type SpellId, type SpellSystem } from '../spells/index.ts';
 import type { AbilityTypes } from './ability-types.ts';
 
@@ -48,7 +49,7 @@ interface Compiling<G extends AbilityTypes> {
 /** A tag's id from its name, or a clear error naming the spell. */
 const tagOf = <G extends AbilityTypes>(state: Compiling<G>, name: G['tag']): AuraTagId => {
   const ids: Readonly<Record<string, AuraTagId | undefined>> = state.auras.tags.id;
-  const id = ids[name];
+  const id = ownValue(ids, name);
 
   if (id === undefined) {
     throw new RangeError(`${state.what}: there is no aura tag named ${name}.`);
@@ -75,7 +76,7 @@ const liveAura = (
   aura: string | AuraId,
   what: string
 ): AuraId => {
-  const id = typeof aura === 'string' ? registry.id[aura] : aura;
+  const id = typeof aura === 'string' ? ownValue(registry.id, aura) : aura;
 
   if (id === undefined || !Number.isInteger(id) || id < 0 || id >= registry.size || registry.isRetired(id)) {
     throw new RangeError(`${what}: ${aura} is not a live aura.`);

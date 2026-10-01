@@ -38,9 +38,10 @@ export interface ProcSystemOptions<G extends ProcTypes> {
 
   /**
    * A game's own chance rule, in place of one draw on `random` below `chance`: a keyed roll over the
-   * context, a proc-per-minute rate. Called only for `0 < chance < 1`.
+   * context, a proc-per-minute rate. Called only for `0 < chance < 1`. `index` counts the list's chance rolls (0 for its
+   * first, follow-ups included), so a keyed rule tells two procs of one list apart.
    */
-  readonly rollChance?: (chance: number, ctx: ProcContext<G>) => boolean;
+  readonly rollChance?: (chance: number, ctx: ProcContext<G>, index: number) => boolean;
 
   /** The host's named streams, which a `pickOne` names (the stream table). */
   readonly streams?: (stream: G['stream'], ctx: ProcContext<G>) => Random;
@@ -194,8 +195,9 @@ const createStack = <G extends ProcTypes>(
       const frame = state.frames[state.depth] ?? new ProcFrame<G>(shared(), state.depth + 1, origin);
 
       state.frames[state.depth] = frame;
-      state.depth += 1;
+      // Reset first: it asks the host (`idOf`), and a throw there must not leave a level taken.
       frame.reset(origin);
+      state.depth += 1;
 
       return frame;
     }

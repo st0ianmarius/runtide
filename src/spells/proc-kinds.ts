@@ -1,3 +1,4 @@
+import { ownValue } from '../core/records.ts';
 import { PROC_LANDED, PROC_REFUSED, PROC_SKIPPED, type ProcKindDef } from '../procs/index.ts';
 import { rescaleClocks } from './auto.ts';
 import type { CastOptions, CastReport } from './cast-request.ts';
@@ -39,7 +40,7 @@ const spellIdOf = <G extends SpellTypes>(
   }
 
   const ids: Readonly<Record<string, SpellId | undefined>> = registry.id;
-  const id = ids[spell];
+  const id = ownValue(ids, spell);
 
   if (id === undefined) {
     throw new RangeError(`unknown spell ${spell}.`);
@@ -129,7 +130,7 @@ const tagIdOf = <G extends SpellTypes>(
 
   const ids: Readonly<Record<string, SpellTagId | undefined>> = engine.registry.tags.id;
 
-  return ids[tag] ?? missing(`spell tag ${tag}`);
+  return ownValue(ids, tag) ?? missing(`spell tag ${tag}`);
 };
 
 /** Throws unless a rescale's factor is a finite number from 0. */

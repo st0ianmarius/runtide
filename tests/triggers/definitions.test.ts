@@ -112,6 +112,39 @@ describe('validation at load', () => {
     );
   });
 
+  it('finds no event, aura, filter argument or condition under a name Object itself has', () => {
+    const noop = mark('x');
+
+    assert.throws(
+      () =>
+        makeGame({
+          lost: aura({
+            duration: 1,
+            triggers: [
+              invalid(defineTrigger<Game>({ on: 'hit', do: [noop] }), { on: 'constructor' }),
+              { on: 'hit', do: [{ kind: 'applyAura', aura: 'toString' }] },
+              { on: 'aura', when: [{ filter: 'aura', arg: 'constructor' }], do: [noop] },
+              {
+                on: 'hit',
+                when: [invalid<IsCondition<'healthBelow'>>({ is: 'healthBelow' }, { is: 'constructor' })],
+                do: [noop]
+              }
+            ]
+          })
+        }),
+      {
+        name: 'RangeError',
+        message: [
+          'Invalid triggers:',
+          'Trigger aura.lost.0: answers constructor, which is not a trigger event.',
+          'Trigger aura.lost.1: unknown aura toString.',
+          'Trigger aura.lost.2: unknown aura constructor.',
+          'Trigger aura.lost.3: when: there is no condition named constructor.'
+        ].join('\n')
+      }
+    );
+  });
+
   it('refuses an icd whose cooldown aura the registry lacks, and a trigger that is not one', () => {
     const shapeless = invalid(defineTrigger<Game>({ on: 'hit', do: [mark('x')] }), {
       do: 'nothing'

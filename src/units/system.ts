@@ -1,3 +1,4 @@
+import { ownValue } from '../core/records.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { SpellId } from '../spells/index.ts';
 import type { UnitVariant } from './bases.ts';
@@ -191,7 +192,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
     hasTag: (unit, tag) => {
       const ids: Readonly<Record<string, number | undefined>> = registry.tags.id;
-      const id = ids[tag];
+      const id = ownValue(ids, tag);
 
       return id !== undefined && unitOf<G>(unit).tags.has(id);
     },

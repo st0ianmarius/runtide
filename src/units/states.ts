@@ -1,5 +1,6 @@
 import type { AuraTagTable } from '../auras/index.ts';
 import { type Bitset, createBitset } from '../core/index.ts';
+import { ownValue } from '../core/records.ts';
 
 /** What a derived state keeps a unit from doing, or from having done to it: being picked as a target (`target`). */
 export type UnitBlock = 'act' | 'move' | 'target';
@@ -71,7 +72,7 @@ export const defineUnitStates = <T extends string, const Name extends string, co
   const bitsOf = (name: Name, tags: readonly string[]): Bitset =>
     createBitset(
       tags.map((tag) => {
-        const id = ids[tag];
+        const id = ownValue(ids, tag);
 
         if (id === undefined) {
           throw new RangeError(`Unit state ${name}: there is no aura tag named ${tag}.`);

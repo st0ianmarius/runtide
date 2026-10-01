@@ -135,7 +135,7 @@ export interface Game extends TriggerTypes {
   readonly gameProc: StrikeProc;
 
   /** Three trigger events. */
-  readonly event: 'hit' | 'kill' | 'aura';
+  readonly event: 'hit' | 'struck' | 'kill' | 'aura';
 
   /** The filters the events carry. */
   readonly filter: 'minAmount' | 'isCrit' | 'aura' | 'change';
@@ -311,8 +311,8 @@ export interface TestGame<Name extends string> {
   /** Everything the procs did, as lines. */
   readonly log: string[];
 
-  /** The party, in order. */
-  readonly party: readonly Unit[];
+  /** The party, in order: the host's own list, which a test may change. */
+  readonly party: Unit[];
 
   /** Makes a unit, which joins the party. */
   readonly unit: (id: number) => Unit;
@@ -329,8 +329,8 @@ export const KINDS = makeBus(undefined).kind;
 
 /**
  * A small test game over `defs`: an aura system (one world clock of step 0.125 s), a proc system with the core kinds
- * and `strike`, and a trigger system over three events. Every unit made joins the one party, in order; unit `n` stands
- * at `(n, −n)`.
+ * and `strike`, and a trigger system over four events (`hit` and `struck` on one bus kind). Every unit made joins the
+ * one party, in order; unit `n` stands at `(n, −n)`.
  */
 export const makeGame = <const Name extends string>(
   defs: Readonly<Record<Name, AuraDef<Game>>>,
@@ -382,6 +382,8 @@ export const makeGame = <const Name extends string>(
         isCrit: (hit, wanted) => hit.isCrit === (wanted === 1)
       }
     }),
+    // The same bus kind as `hit`, about the other unit.
+    struck: triggerEvent<HitEvent, Game>(bus.kind.hit, { unit: (hit) => hit.target }),
     kill: triggerEvent<KillEvent, Game>(bus.kind.kill, { unit: (kill) => kill.killer }),
     aura: auraTriggerEvent<Game>(bus.kind.aura)
   };

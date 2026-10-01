@@ -1,5 +1,6 @@
 import type { AuraChange, AuraEvent, AuraRegistry } from '../auras/index.ts';
 import type { EventKind } from '../core/index.ts';
+import { ownValue } from '../core/records.ts';
 import type { TriggerTypes } from './trigger-types.ts';
 
 /** One event filter as the trigger system holds it: its test on the payload, and how a named argument resolves. */
@@ -99,7 +100,7 @@ const changeCode = (name: string): number => {
 /** Resolves an aura's name to its id. */
 const auraCode = <G extends TriggerTypes>(name: string, auras: AuraRegistry<G>): number => {
   const ids: Readonly<Record<string, number | undefined>> = auras.id;
-  const id = ids[name];
+  const id = ownValue(ids, name);
 
   if (id === undefined) {
     throw new RangeError(`unknown aura ${name}.`);

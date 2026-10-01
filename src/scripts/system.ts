@@ -1,5 +1,6 @@
 import type { AiSystem, TimerId } from '../ai/index.ts';
 import type { EventKind } from '../core/index.ts';
+import { ownValue } from '../core/records.ts';
 import type { ProcSystem } from '../procs/index.ts';
 import type { UnitScripts } from '../units/index.ts';
 import type { ScriptRegistry } from './define-scripts.ts';
@@ -194,7 +195,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
   /** Makes a unit's record: its script and each behaviour's state. */
   readonly #attach = (unit: G['bearer'], name: G['scriptName']): number => {
     const ids: Readonly<Record<string, number | undefined>> = this.registry.id;
-    const script = ids[name];
+    const script = ownValue(ids, name);
 
     if (script === undefined) {
       throw new RangeError(`There is no script named ${name}.`);

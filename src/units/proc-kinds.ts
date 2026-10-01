@@ -1,3 +1,4 @@
+import { ownValue } from '../core/records.ts';
 import {
   PROC_LANDED,
   PROC_SKIPPED,
@@ -38,7 +39,7 @@ const counted = (count: number): ProcOutcome =>
 /** A template's id from its name or id. Throws for one the registry does not have. */
 const templateOf = <G extends UnitTypes>(engine: UnitEngine<G>, unit: G['unitName'] | UnitId): UnitId => {
   const ids: Readonly<Record<string, UnitId | undefined>> = engine.registry.id;
-  const id = typeof unit === 'string' ? ids[unit] : unit;
+  const id = typeof unit === 'string' ? ownValue(ids, unit) : unit;
 
   if (id === undefined) {
     throw new RangeError(`unknown unit template ${unit}.`);

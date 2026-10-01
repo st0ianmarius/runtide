@@ -7,6 +7,7 @@ import {
   TOMBSTONE,
   type Tombstone
 } from '../core/index.ts';
+import { ownValue } from '../core/records.ts';
 import { checkAreaTrigger } from './area-checks.ts';
 import type { AnyAreaTriggerDef, EndReason } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
@@ -199,7 +200,9 @@ export const defineAreaTriggers = <G extends AreaTriggerTypes, const Name extend
     columns: buildColumns(slots),
     hooks: buildHooks(slots),
     tags,
-    tagSets: Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => tagIds[tag] ?? 0)))),
+    tagSets: Object.freeze(
+      slots.map((def) => createBitset((def?.tags ?? []).map((tag) => ownValue(tagIds, tag) ?? 0)))
+    ),
     replication: Object.freeze(slots.map((def, id) => compileReplication(base.names[id] ?? '?', def))),
     endReasons,
     reasonCodes: Object.freeze(Object.fromEntries(endReasons.map((reason, code) => [reason, code])))

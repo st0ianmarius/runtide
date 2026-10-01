@@ -55,9 +55,10 @@ export const createProcRegistry = <G extends ProcTypes>(kinds: ProcKinds<G>): Pr
     isTargeted: Uint8Array.from(defs, (def) => (hasTarget(def) ? 1 : 0)),
 
     kindOf: (proc: ProcShape): ProcKindId => {
-      const id = ids[proc.kind];
+      // Hot: every proc asks. A name Object itself has finds a function, not an id, so the type check refuses it.
+      const id: ProcKindId | undefined = ids[proc.kind];
 
-      if (id === undefined) {
+      if (typeof id !== 'number') {
         throw new RangeError(`Unknown proc kind ${proc.kind}.`);
       }
 

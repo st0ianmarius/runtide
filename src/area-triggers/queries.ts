@@ -1,3 +1,4 @@
+import { ownValue } from '../core/records.ts';
 import { covers, pathIntervals, type Vec2 } from '../math/index.ts';
 import type { AreaTriggerContext, EndReason } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
@@ -63,7 +64,7 @@ export interface AreaQueries<G extends AreaTriggerTypes> {
 /** A tag's id from its name, throwing for an unknown one. */
 const tagIdOf = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, tag: G['areaTag']): number => {
   const ids: Readonly<Record<string, number | undefined>> = engine.registry.tags.id;
-  const id = ids[tag];
+  const id = ownValue(ids, tag);
 
   if (id === undefined) {
     throw new RangeError(`unknown area trigger tag ${tag}.`);

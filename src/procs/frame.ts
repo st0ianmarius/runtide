@@ -90,6 +90,16 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
   /** How many units the list killed. */
   killedCount = 0;
 
+  /** How many chance rolls the list made under the game's rule: the index the next one is told. */
+  rolls = 0;
+
+  /**
+   * The party members its `party` procs walk, copied as a stack (a member's follow-up may be another party proc), valid
+   * up to `partyTop`.
+   */
+  readonly party: (G['bearer'] | undefined)[] = [];
+  partyTop = 0;
+
   application: ReusedApplication<G> | undefined = undefined;
 
   /** The spec and place a `cue` proc fires with, made on the first one. */
@@ -123,6 +133,8 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
     this.other = origin.other;
     this.source = origin.source ?? this.host.idOf?.(origin.self) ?? NO_SOURCE;
     this.aura = origin.aura;
+    this.rolls = 0;
+    this.partyTop = 0;
 
     // Cleared by index, never shrunk: shrinking an array to 0 drops its storage, and lists run all the time.
     for (let i = 0; i < this.killedCount; i++) {
@@ -130,6 +142,19 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
     }
 
     this.killedCount = 0;
+  }
+
+  /** Copies a party onto the top of the members stack; returns where it starts (it ends at `partyTop`). */
+  pushParty(members: readonly G['bearer'][]): number {
+    const from = this.partyTop;
+
+    for (let i = 0; i < members.length; i++) {
+      this.party[from + i] = members[i];
+    }
+
+    this.partyTop = from + members.length;
+
+    return from;
   }
 
   /** Whether the list killed a unit. */

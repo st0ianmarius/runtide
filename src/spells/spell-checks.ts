@@ -1,3 +1,4 @@
+import { ownValue } from '../core/records.ts';
 import type { ActivationKindDef, ActivationRegistry, CastSeconds } from './activation.ts';
 import type { AnySpellDef } from './spell-def.ts';
 import type { ActivationShape, SpellTypes } from './spell-types.ts';
@@ -31,7 +32,7 @@ const isSoundSeconds = <G extends SpellTypes>(seconds: CastSeconds<G> | undefine
 const checkActivation = <G extends SpellTypes>(name: string, def: AnySpellDef<G>, parts: CheckParts<G>): void => {
   const ids: Readonly<Record<string, number | undefined>> = parts.activations.id;
   const { activation } = def;
-  const id = ids[activation.kind];
+  const id = ownValue(ids, activation.kind);
 
   const kind: ActivationKindDef<ActivationShape, G> | undefined =
     id === undefined ? undefined : parts.activations.defs[id];
@@ -56,7 +57,7 @@ const checkShape = <G extends SpellTypes>(name: string, def: AnySpellDef<G>, par
   }
 
   const tagIds: Readonly<Record<string, number | undefined>> = parts.tags.id;
-  const unknown = (def.tags ?? []).find((tag) => tagIds[tag] === undefined);
+  const unknown = (def.tags ?? []).find((tag) => ownValue(tagIds, tag) === undefined);
 
   if (unknown !== undefined) {
     fail(name, `unknown spell tag ${unknown}.`);

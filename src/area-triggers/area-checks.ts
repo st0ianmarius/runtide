@@ -1,3 +1,4 @@
+import { ownValue } from '../core/records.ts';
 import type { AnyAreaTriggerDef } from './area-def.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaTagTable } from './tags.ts';
@@ -217,7 +218,7 @@ const checkTagsAndHooks = <G extends AreaTriggerTypes>(
   tags: AreaTagTable<G['areaTag']>
 ): void => {
   const tagIds: Readonly<Record<string, number | undefined>> = tags.id;
-  const unknown = (def.tags ?? []).find((tag) => tagIds[tag] === undefined);
+  const unknown = (def.tags ?? []).find((tag) => ownValue(tagIds, tag) === undefined);
 
   if (unknown !== undefined) {
     fail(name, `unknown area trigger tag ${unknown}.`);

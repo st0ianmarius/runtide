@@ -26,7 +26,7 @@ interface ApplyParts<G extends ProcTypes> {
   readonly random?: Random | undefined;
 
   /** The game's own chance rule. */
-  readonly rollChance?: ((chance: number, ctx: ProcContext<G>) => boolean) | undefined;
+  readonly rollChance?: ((chance: number, ctx: ProcContext<G>, index: number) => boolean) | undefined;
 }
 
 /** Applies one proc within a frame's list. */
@@ -112,9 +112,13 @@ export const createApplier = <G extends ProcTypes>(parts: ApplyParts<G>): Applie
       return false;
     }
 
-    return rollChance === undefined
-      ? (parts.random ?? missing('a random stream'))() < chance
-      : rollChance(chance, frame);
+    if (rollChance === undefined) {
+      return (parts.random ?? missing('a random stream'))() < chance;
+    }
+
+    frame.rolls += 1;
+
+    return rollChance(chance, frame, frame.rolls - 1);
   };
 
   const applyTo = (frame: ProcFrame<G>, proc: Proc<G>, unit: G['bearer']): ProcOutcome => {
@@ -134,19 +138,28 @@ export const createApplier = <G extends ProcTypes>(parts: ApplyParts<G>): Applie
     return procs === undefined || procs.length === 0 ? outcome : followUp(applyIn, frame, { procs, unit, outcome });
   };
 
+  /**
+   * A proc on each party member, copied first so a proc that changes the party changes no one's turn: landed when it
+   * landed on any. Kept small, as `applyIn` inlines it.
+   */
   const toParty = (frame: ProcFrame<G>, proc: Proc<G>): ProcOutcome => {
-    const members = (parts.host.party ?? missing('host.party'))(frame.self);
+    const from = frame.pushParty((parts.host.party ?? missing('host.party'))(frame.self));
+    const to = frame.partyTop;
     let last = PROC_SKIPPED;
+    let landed = PROC_SKIPPED;
 
-    for (let i = 0; i < members.length; i++) {
-      const member = members[i];
+    for (let i = from; i < to; i++) {
+      const member = frame.party[i];
 
       if (member !== undefined) {
         last = applyTo(frame, proc, member);
+        landed = last.status === 'skipped' ? landed : PROC_LANDED;
       }
     }
 
-    return last;
+    frame.partyTop = from;
+
+    return last.status === 'skipped' ? landed : last;
   };
 
   const applyIn = (frame: ProcFrame<G>, proc: Proc<G>): ProcOutcome => {

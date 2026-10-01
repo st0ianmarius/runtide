@@ -67,6 +67,10 @@ export interface DispatchParts<G extends TriggerTypes, Host> {
  */
 class DispatchFrame<G extends TriggerTypes, Host> implements TriggerContext<G>, ProcOrigin<G> {
   event: EventKind<unknown>;
+
+  /** The index of the trigger event answered, in the order the game declared its events: what triggers are found by. */
+  slot = 0;
+
   payload: unknown;
   eventUnit: G['bearer'];
   owner: G['bearer'];
@@ -83,6 +87,9 @@ class DispatchFrame<G extends TriggerTypes, Host> implements TriggerContext<G>, 
 
   /** How many entries of the gather lists are this answer's: the lists are overwritten, never shrunk. */
   count = 0;
+
+  /** The party members heard, copied before any answers, so procs that change the party change no one's turn. */
+  readonly members: (G['bearer'] | undefined)[] = [];
   #aura: ActiveAura<G> | undefined = undefined;
 
   constructor(event: TriggerEvent<G>, payload: unknown, unit: G['bearer']) {
@@ -240,9 +247,9 @@ const gather = <G extends TriggerTypes, Host>(
   frame: DispatchFrame<G, Host>,
   isListener: boolean
 ): void => {
-  const kind = frame.event;
-  const bits = (isListener ? parts.tables.partyAnswers : parts.tables.answers)[kind];
-  const byAura = parts.tables.byEvent[kind] ?? [];
+  const { slot } = frame;
+  const bits = (isListener ? parts.tables.partyAnswers : parts.tables.answers)[slot];
+  const byAura = parts.tables.byEvent[slot] ?? [];
   const list = parts.auras.list(frame.owner);
 
   for (let i = 0; bits !== undefined && i < list.length; i++) {
@@ -285,14 +292,20 @@ const answer = <G extends TriggerTypes, Host>(
  */
 export const createDispatcher = <G extends TriggerTypes, Host>(
   parts: DispatchParts<G, Host>
-): ((event: TriggerEvent<G>, payload: unknown) => void) => {
+): ((slot: number, event: TriggerEvent<G>, payload: unknown) => void) => {
   const frames: DispatchFrame<G, Host>[] = [];
   let depth = 0;
 
   const party = (frame: DispatchFrame<G, Host>, unit: G['bearer']): void => {
-    const members = parts.procs.host.party?.(unit) ?? [];
+    const { members } = frame;
+    const heard = parts.procs.host.party?.(unit) ?? [];
+    const count = heard.length;
 
-    for (let i = 0; i < members.length; i++) {
+    for (let i = 0; i < count; i++) {
+      members[i] = heard[i];
+    }
+
+    for (let i = 0; i < count; i++) {
       const member = members[i];
 
       if (member !== undefined && member !== unit) {
@@ -302,7 +315,7 @@ export const createDispatcher = <G extends TriggerTypes, Host>(
     }
   };
 
-  return (event, payload) => {
+  return (slot, event, payload) => {
     const unit = event.unit(payload);
 
     if (unit === undefined) {
@@ -313,12 +326,13 @@ export const createDispatcher = <G extends TriggerTypes, Host>(
 
     frames[depth] = frame;
     frame.answer(event, payload, unit);
+    frame.slot = slot;
     depth += 1;
 
     try {
       answer(parts, frame, false);
 
-      if (parts.tables.partyAnswers[event.kind]?.isEmpty() === false) {
+      if (parts.tables.partyAnswers[slot]?.isEmpty() === false) {
         party(frame, unit);
       }
     } finally {

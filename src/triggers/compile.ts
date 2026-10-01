@@ -9,6 +9,7 @@ import {
 } from '../conditions/index.ts';
 import { toId } from '../core/ids.ts';
 import { type Bitset, createBitset, type EventKind } from '../core/index.ts';
+import { ownValue } from '../core/records.ts';
 import type { Proc, ProcSystem } from '../procs/index.ts';
 import { cooldownName, triggerName } from './cooldowns.ts';
 import type { TriggerContext } from './dispatch.ts';
@@ -60,6 +61,12 @@ export interface CompiledTrigger<G extends TriggerTypes, Host> {
   /** The bus event kind it answers. */
   readonly event: EventKind<unknown>;
 
+  /**
+   * The index of the trigger event it answers, in the order the game declared its events: what dispatch finds it by,
+   * so two trigger events on one bus kind (a hit for its attacker, and for its victim) keep their own triggers.
+   */
+  readonly slot: number;
+
   /** Whether it hears its owner's party. */
   readonly isParty: boolean;
 
@@ -79,18 +86,18 @@ export interface CompiledTrigger<G extends TriggerTypes, Host> {
   readonly procs: readonly Proc<G>[];
 }
 
-/** Everything dispatch and explanation read, by event kind and aura id. */
+/** Everything dispatch and explanation read, by trigger event and aura id. */
 export interface TriggerTables<G extends TriggerTypes, Host> {
   /** Every trigger, by id. */
   readonly triggers: readonly CompiledTrigger<G, Host>[];
 
-  /** The triggers answering an event kind, by kind then aura id, in authored order. */
+  /** The triggers answering a trigger event, by its index then aura id, in authored order. */
   readonly byEvent: readonly (readonly (readonly CompiledTrigger<G, Host>[] | undefined)[] | undefined)[];
 
-  /** The aura ids with a trigger answering an event kind, by kind. */
+  /** The aura ids with a trigger answering a trigger event, by its index. */
   readonly answers: readonly (Bitset | undefined)[];
 
-  /** The aura ids with a `party` trigger answering an event kind, by kind. */
+  /** The aura ids with a `party` trigger answering a trigger event, by its index. */
   readonly partyAnswers: readonly (Bitset | undefined)[];
 
   /** Each aura's triggers, by aura id, in authored order. */
@@ -139,7 +146,7 @@ const filterArg = <G extends TriggerTypes, Host>(
 /** The spec of a filter on any event, for resolving its argument when this event does not carry it. */
 const anySpec = <G extends TriggerTypes, Host>(input: CompileInput<G, Host>, name: string): TriggerFilterSpec<G> => {
   for (const event of Object.values(input.events)) {
-    const spec = event?.filters[name];
+    const spec = ownValue(event?.filters, name);
 
     if (spec !== undefined) {
       return spec;
@@ -156,7 +163,7 @@ const compileCheck = <G extends TriggerTypes, Host>(
   entry: TriggerCondition<G>
 ): TriggerCheck<G, Host> => {
   if ('filter' in entry) {
-    const spec = at.event.filters[entry.filter];
+    const spec = ownValue(at.event.filters, entry.filter);
 
     const arg = filterArg(input, {
       name: entry.filter,
@@ -215,7 +222,10 @@ const cooldownOf = <G extends TriggerTypes, Host>(input: CompileInput<G, Host>, 
   const name = cooldownName(at.auraName, at.index);
   const ids: Readonly<Record<string, AuraId | undefined>> = input.auras.registry.id;
 
-  return ids[name] ?? refuse(`has an icd, but the aura registry has no ${name} (build it with withTriggerCooldowns).`);
+  return (
+    ownValue(ids, name) ??
+    refuse(`has an icd, but the aura registry has no ${name} (build it with withTriggerCooldowns).`)
+  );
 };
 
 /** Where a trigger sits. */
@@ -243,7 +253,10 @@ const compileOne = <G extends TriggerTypes, Host>(
   raw: unknown
 ): CompiledTrigger<G, Host> => {
   const def = isTriggerDef<G>(raw) ? raw : refuse('is not a trigger (it needs on and do).');
-  const event = input.events[def.on] ?? refuse(`answers ${def.on}, which is not a trigger event.`);
+  const slot = Object.keys(input.events).indexOf(def.on);
+
+  const event =
+    (slot < 0 ? undefined : input.events[def.on]) ?? refuse(`answers ${def.on}, which is not a trigger event.`);
 
   checkNumbers(def);
 
@@ -252,6 +265,7 @@ const compileOne = <G extends TriggerTypes, Host>(
     aura: at.aura,
     index: at.index,
     event: event.kind,
+    slot,
     isParty: def.hears === 'party',
     chance: def.chance ?? 1,
     icd: def.icd ?? 0,
@@ -300,14 +314,14 @@ const compileAll = <G extends TriggerTypes, Host>(
   return triggers;
 };
 
-/** Groups triggers by event kind, then by aura id. */
+/** Groups triggers by the trigger event they answer, then by aura id. */
 const byEventOf = <G extends TriggerTypes, Host>(
   triggers: readonly CompiledTrigger<G, Host>[]
 ): CompiledTrigger<G, Host>[][][] => {
   const byEvent: CompiledTrigger<G, Host>[][][] = [];
 
   for (const trigger of triggers) {
-    const byAura = (byEvent[trigger.event] ??= []);
+    const byAura = (byEvent[trigger.slot] ??= []);
 
     (byAura[trigger.aura] ??= []).push(trigger);
   }
@@ -315,7 +329,7 @@ const byEventOf = <G extends TriggerTypes, Host>(
   return byEvent;
 };
 
-/** The aura ids that have a trigger for each event kind, all or `party` ones only. */
+/** The aura ids that have a trigger for each trigger event, all or `party` ones only. */
 const answersOf = <G extends TriggerTypes, Host>(
   byEvent: readonly (readonly (readonly CompiledTrigger<G, Host>[] | undefined)[] | undefined)[],
   isPartyOnly: boolean

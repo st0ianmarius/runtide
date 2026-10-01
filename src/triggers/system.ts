@@ -119,19 +119,19 @@ export const createTriggerSystem = <G extends TriggerTypes, Host = never>(
     cooldownSeconds: options.cooldownSeconds
   });
 
-  const answered = Object.values(events).filter(
-    (event): event is TriggerEvent<G> => event !== undefined && tables.byEvent[event.kind] !== undefined
+  const answered = Object.values(events).flatMap((event, slot) =>
+    event !== undefined && tables.byEvent[slot] !== undefined ? [{ event, slot }] : []
   );
 
-  const stops = answered.map((event) =>
+  const stops = answered.map(({ event, slot }) =>
     options.bus.handle(event.kind, (payload) => {
-      dispatch(event, payload);
+      dispatch(slot, event, payload);
     })
   );
 
   const system: TriggerSystem = Object.freeze({
     count: tables.triggers.length,
-    events: Object.freeze(answered.map((event) => event.kind)),
+    events: Object.freeze([...new Set(answered.map(({ event }) => event.kind))]),
     filters: tables.filters,
     idOf: (aura: AuraId, index: number) => tables.byAura[aura]?.[index]?.id,
     cooldownOf: (aura: AuraId, index: number) => tables.byAura[aura]?.[index]?.cooldown,

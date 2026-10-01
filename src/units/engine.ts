@@ -1,6 +1,7 @@
 import { type AbilitySystem, NO_LOADOUT } from '../abilities/index.ts';
 import { type AiSystem, NO_BRAIN } from '../ai/index.ts';
 import type { AuraSystem } from '../auras/index.ts';
+import { ownValue } from '../core/records.ts';
 import type { Vec2 } from '../math/index.ts';
 import { basesView, type ModifierSystem, type StatId, type StatView } from '../modifiers/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
@@ -183,7 +184,7 @@ export class UnitEngine<G extends UnitTypes> {
 
       return name === undefined
         ? undefined
-        : (spellIds[name] ?? missing(`unit ${registry.name(id)}'s auto-attack ${name} is not a spell`));
+        : (ownValue(spellIds, name) ?? missing(`unit ${registry.name(id)}'s auto-attack ${name} is not a spell`));
     });
   }
 

@@ -1,4 +1,5 @@
 import type { AuraId, AuraSystem } from '../auras/index.ts';
+import { ownValue } from '../core/records.ts';
 import type { AnyAreaTriggerDef } from './area-def.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
@@ -42,7 +43,7 @@ const ownerAuraOf = <G extends AreaTriggerTypes>(
   }
 
   const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
-  const id = typeof aura === 'string' ? ids[aura] : aura;
+  const id = typeof aura === 'string' ? ownValue(ids, aura) : aura;
 
   if (id === undefined || id < 0 || id >= auras.registry.size || auras.registry.isRetired(id)) {
     throw new RangeError(`Area trigger ${name}: its owner aura ${aura} is not a live aura.`);
@@ -66,7 +67,7 @@ const areaAurasOf = <G extends AreaTriggerTypes>(
   const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
 
   return def?.auras?.map((spec) => {
-    const id = typeof spec.aura === 'string' ? ids[spec.aura] : spec.aura;
+    const id = typeof spec.aura === 'string' ? ownValue(ids, spec.aura) : spec.aura;
 
     if (id === undefined || id < 0 || id >= auras.registry.size || auras.registry.isRetired(id)) {
       throw new RangeError(`Area trigger ${name}: its area aura ${spec.aura} is not a live aura.`);

@@ -104,6 +104,38 @@ describe('a proc list applies in order', () => {
     assert.deepEqual(log, ['strike 60@2', 'strike 60@2']);
   });
 
+  it('counts a party proc that landed on any member as landed, its members copied before it lands', () => {
+    const late: { party?: Game['bearer'][] } = {};
+
+    const { procs, unit, log, party, auras, id } = makeGame({
+      ...defs,
+      // Leaves the party as it lands.
+      leaver: aura({
+        duration: 5,
+
+        onLand: (ctx) => {
+          late.party?.splice(late.party.indexOf(ctx.bearer), 1);
+        }
+      })
+    });
+
+    late.party = party;
+
+    const [a, b, c] = [unit(1), unit(2), unit(3)];
+
+    // The strike kills c, so the party grant skips it, the last member: still a landing.
+    assert.equal(
+      procs.run([{ kind: 'strike', amount: 200, to: c }, grant('gold', 1, { to: 'party' })], { self: a }),
+      2
+    );
+    procs.run([applyAura('leaver', { to: 'party' })], { self: a });
+    assert.deepEqual(
+      [a, b, c].map((each) => auras.has(each, id.leaver)),
+      [true, true, true]
+    );
+    assert.deepEqual(log.slice(0, 3), ['strike 200@3', 'grant 0x1@1', 'grant 0x1@2']);
+  });
+
   it('lands on self, target, eventUnit, the party in party order, or a unit', () => {
     const { procs, unit, log } = makeGame(defs);
     const [a, b, c] = [unit(1), unit(2), unit(3)];
@@ -186,12 +218,12 @@ describe('chance and groups', () => {
   });
 
   it('asks the game chance rule in place of a draw', () => {
-    const asked: [number, number][] = [];
+    const asked: [number, number, number][] = [];
 
     const { procs, unit, log } = makeGame(defs, {
       procs: {
-        rollChance: (chance, ctx) => {
-          asked.push([chance, ctx.self.id]);
+        rollChance: (chance, ctx, index) => {
+          asked.push([chance, ctx.self.id, index]);
 
           return chance > 0.3;
         }
@@ -201,9 +233,10 @@ describe('chance and groups', () => {
     procs.run([grant('gold', 1, { chance: 0.25 }), grant('gold', 2, { chance: 0.75 }), grant('gold', 3)], {
       self: unit(4)
     });
+    // Each roll is told its index in the list, so a keyed rule tells two procs of one list apart.
     assert.deepEqual(asked, [
-      [0.25, 4],
-      [0.75, 4]
+      [0.25, 4, 0],
+      [0.75, 4, 1]
     ]);
     assert.deepEqual(log, ['grant 0x2@4', 'grant 0x3@4']);
   });
@@ -263,6 +296,36 @@ describe('the depth cap', () => {
     assert.deepEqual(log, ['depth 1', 'depth 2', 'depth 3']);
     assert.equal(procs.dropped, 1);
     assert.equal(procs.depth, 0);
+  });
+
+  it('takes no level for a list whose origin the host fails on', () => {
+    const { procs: base, unit, log } = makeGame(defs);
+
+    const procs = createProcSystem<Game>({
+      kinds: base.kinds,
+      auras: base.auras,
+      resources: ['gold', 'shards'],
+
+      host: {
+        ...base.host,
+
+        idOf: (each) => {
+          if (each.id < 0) {
+            throw new Error('no id');
+          }
+
+          return each.id;
+        }
+      }
+    });
+
+    for (let i = 0; i < 4; i++) {
+      assert.throws(() => procs.run([grant('gold', 1)], { self: unit(-1) }), /no id/);
+    }
+
+    assert.equal(procs.depth, 0);
+    assert.equal(procs.run([grant('gold', 1)], { self: unit(1) }), 1);
+    assert.deepEqual(log, ['grant 0x1@1']);
   });
 
   it('refuses a depth cap below 1', () => {

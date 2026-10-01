@@ -1,3 +1,4 @@
+import { ownValue } from '../core/records.ts';
 import { PROC_LANDED, PROC_SKIPPED, type ProcContext, type ProcKindDef } from '../procs/index.ts';
 import type { AiTypes, TimerId } from './ai-types.ts';
 import { brainOf } from './brain.ts';
@@ -17,7 +18,7 @@ interface KindParts<G extends AiTypes> {
 /** A timer's id from its name or id. Throws for one the table does not have. */
 const timerIdOf = <G extends AiTypes>(timers: TimerTable<G['timerName']>, timer: G['timerName'] | TimerId): TimerId => {
   const ids: Readonly<Record<string, TimerId | undefined>> = timers.id;
-  const id = typeof timer === 'string' ? ids[timer] : timer;
+  const id = typeof timer === 'string' ? ownValue(ids, timer) : timer;
 
   if (id === undefined || !(id >= 0 && id < timers.names.length)) {
     throw new RangeError(`unknown timer ${timer}.`);

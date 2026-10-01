@@ -1,4 +1,5 @@
 import type { AuraId, AuraSystem, AuraTagId } from '../auras/index.ts';
+import { ownValue } from '../core/records.ts';
 import type { CueId, CueRegistry } from '../cues/index.ts';
 import type { Proc } from './proc-data.ts';
 import type { ProcResolver } from './proc-kind.ts';
@@ -77,7 +78,7 @@ export const createResolver = <G extends ProcTypes>(
         return isChecked ? checkedAura(parts.auras, aura, what) : aura;
       }
 
-      return auraIds[aura] ?? fail(what, `unknown aura ${aura}.`);
+      return ownValue(auraIds, aura) ?? fail(what, `unknown aura ${aura}.`);
     },
 
     tag: (tag) => {
@@ -85,7 +86,7 @@ export const createResolver = <G extends ProcTypes>(
         return isChecked && !Number.isInteger(tag) ? fail(what, `${tag} is not a tag id.`) : tag;
       }
 
-      return tagIds[tag] ?? fail(what, `unknown aura tag ${tag}.`);
+      return ownValue(tagIds, tag) ?? fail(what, `unknown aura tag ${tag}.`);
     },
 
     cue: (cue) => {
@@ -97,7 +98,7 @@ export const createResolver = <G extends ProcTypes>(
 
       const ids: Readonly<Record<string, CueId | undefined>> = cues.id;
 
-      return ids[cue] ?? fail(what, `unknown cue ${cue}.`);
+      return ownValue(ids, cue) ?? fail(what, `unknown cue ${cue}.`);
     },
 
     cues: () => parts.cues ?? fail(what, 'a cue proc needs the proc system to have cues.'),

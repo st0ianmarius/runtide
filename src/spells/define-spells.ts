@@ -7,6 +7,7 @@ import {
   TOMBSTONE,
   type Tombstone
 } from '../core/index.ts';
+import { ownValue } from '../core/records.ts';
 import type { StatTable } from '../modifiers/index.ts';
 import { type ActivationRegistry, CORE_ACTIVATIONS, defineActivations } from './activation.ts';
 import { constantOf, planOf } from './cast-plan.ts';
@@ -140,7 +141,7 @@ const buildColumns = <G extends SpellTypes>(
   const size = slots.length;
 
   return {
-    activation: columnOf(new Uint8Array(size), slots, (def) => kindIds[def.activation.kind] ?? 0),
+    activation: columnOf(new Uint8Array(size), slots, (def) => ownValue(kindIds, def.activation.kind) ?? 0),
     ranks: columnOf(new Uint8Array(size), slots, (def) => def.ranks ?? 1),
     flags: columnOf(new Uint8Array(size), slots, flagsOf),
     windup: Float64Array.from(plans, (plan) => constantOf(plan?.windup)),
@@ -174,7 +175,7 @@ const buildTagSets = <G extends SpellTypes>(
 ): readonly Bitset[] => {
   const ids: Readonly<Record<string, number | undefined>> = tags.id;
 
-  return Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => ids[tag] ?? 0))));
+  return Object.freeze(slots.map((def) => createBitset((def?.tags ?? []).map((tag) => ownValue(ids, tag) ?? 0))));
 };
 
 /** The framework's outcomes, then the game's; throws for a game outcome named twice or named like the framework's. */
