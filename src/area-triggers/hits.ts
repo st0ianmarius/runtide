@@ -1,4 +1,4 @@
-import type { Shape, Vec2 } from '../math/index.ts';
+import type { MutableVec2, Shape, Vec2 } from '../math/index.ts';
 import type { ProcOut, ProcReturn } from '../spells/index.ts';
 import type { QueryOptions, QuerySide, SweepOptions } from '../world/index.ts';
 import type { AreaTriggerContext } from './area-def.ts';
@@ -20,8 +20,8 @@ export type HitHook<G extends AreaTriggerTypes> = (
 
 /**
  * A hit an engine reuses, one per nesting level: what one catch is for (its area trigger, spec and hook) and
- * what it caught. Its `targets` and `shares` are exactly as long as the catch; the buffers behind them are never shrunk
- * to nothing, since that drops their storage and the next catch would allocate it again.
+ * what it caught. Its `targets`, `shares` and `contacts` are exactly as long as the catch; the buffers behind them are
+ * never shrunk to nothing, since that drops their storage and the next catch would allocate it again.
  */
 export class Hit<G extends AreaTriggerTypes> implements AreaHit<G> {
   /** The units caught, exactly as many as were caught. */
@@ -30,11 +30,24 @@ export class Hit<G extends AreaTriggerTypes> implements AreaHit<G> {
   /** Each unit's share, in the order of `targets`. */
   shares: readonly number[] = NO_UNITS;
 
+  /** The share of the frame each unit was reached at, in the order of `targets`. */
+  contacts: readonly number[] = NO_UNITS;
+
   /** The buffer the units are written into. */
   readonly units: G['bearer'][] = [];
 
   /** The buffer the shares are written into. */
   readonly weights: number[] = [];
+
+  /** The buffer the contacts are written into. */
+  readonly times: number[] = [];
+
+  /** The piece the catch swept: its ends, the shares of the frame it spans, and the frame's seconds. */
+  readonly #from = { x: 0, z: 0 };
+  readonly #to = { x: 0, z: 0 };
+  #since = 1;
+  #until = 1;
+  #frameTime = 0;
 
   target: unknown = undefined;
   at: Vec2 | undefined = undefined;
@@ -50,11 +63,12 @@ export class Hit<G extends AreaTriggerTypes> implements AreaHit<G> {
   /** The hook it is handed to. */
   hook: HitHook<G> | undefined = undefined;
 
-  /** Keeps the first `count` units and shares of the buffers as its targets and shares. */
+  /** Keeps the first `count` units, shares and contacts of the buffers as its targets, shares and contacts. */
   keep(count: number): void {
     if (count === 0) {
       this.targets = NO_UNITS;
       this.shares = NO_UNITS;
+      this.contacts = NO_UNITS;
 
       return;
     }
@@ -62,20 +76,49 @@ export class Hit<G extends AreaTriggerTypes> implements AreaHit<G> {
     if (this.units.length !== count) {
       this.units.length = count;
       this.weights.length = count;
+      this.times.length = count;
     }
 
     this.targets = this.units;
     this.shares = this.weights;
+    this.contacts = this.times;
   }
 
-  /** Keeps the first `count` units of the buffer, each at a full share. */
+  /** Keeps the first `count` units of the buffer, each at a full share, all reached at the frame's end. */
   fill(count: number): void {
     for (let i = 0; i < count; i++) {
       this.weights[i] = 1;
+      this.times[i] = 1;
     }
 
     this.keep(count);
   }
+
+  /**
+   * Notes the piece a catch covers: from `from` to `to` over the shares `since` to `until` of a frame of `frameTime`
+   * seconds. A catch in place (a pulse, a landing) is a piece of no length at the frame's end.
+   */
+  aim(from: Vec2, to: Vec2, since: number, until: number, frameTime: number): void {
+    this.#from.x = from.x;
+    this.#from.z = from.z;
+    this.#to.x = to.x;
+    this.#to.z = to.z;
+    this.#since = since;
+    this.#until = until;
+    this.#frameTime = frameTime;
+  }
+
+  readonly contactPoint = (index: number, out: MutableVec2): Vec2 => {
+    const span = this.#until - this.#since;
+    const along = span > 0 ? ((this.times[index] ?? this.#until) - this.#since) / span : 1;
+
+    out.x = this.#from.x + (this.#to.x - this.#from.x) * along;
+    out.z = this.#from.z + (this.#to.z - this.#from.z) * along;
+
+    return out;
+  };
+
+  readonly timeLeft = (index: number): number => Math.max(0, this.#frameTime * (1 - (this.times[index] ?? 1)));
 }
 
 /** The options a catch queries the world with, reused: the side relative to the owner, and the unit filter. */
@@ -89,6 +132,7 @@ class CatchOptions<G extends AreaTriggerTypes> implements QueryOptions<G['bearer
   since = 0;
   until = 1;
   isOpen = false;
+  shares: number[] | undefined = undefined;
   hit: Hit<G> | undefined = undefined;
 
   constructor(of: G['bearer']) {
@@ -185,6 +229,7 @@ export const catchIn = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit: 
   const count = engine.world.inside(shape, engine.catcher.optionsFor(hit, area.owner), hit.units);
 
   engine.catcher.release();
+  hit.aim(area.position, area.position, 1, 1, area.frameTime);
   hit.fill(count);
 
   return count;
@@ -208,13 +253,26 @@ export const catchAlong = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hi
   options.since = tickFrom + area.advancedAt * (1 - tickFrom);
   options.until = tickFrom + area.sweepUntil * (1 - tickFrom);
   options.isOpen = area.hasAdvanced;
+  options.shares = hit.times;
 
-  engine.catcher.aim(area);
+  const { catcher } = engine;
 
-  const count = engine.world.sweep(engine.catcher.from, engine.catcher.to, options, hit.units);
+  catcher.aim(area);
 
-  engine.catcher.release();
-  hit.fill(count);
+  const count = engine.world.sweep(catcher.from, catcher.to, options, hit.units);
+  const { advancedAt: since, sweepUntil: until } = area;
+
+  options.shares = undefined;
+  catcher.release();
+  hit.aim(catcher.from, catcher.to, since, until, area.frameTime);
+
+  // The world wrote each contact's share along the piece; the hit reads it as a share of the frame.
+  for (let i = 0; i < count; i++) {
+    hit.weights[i] = 1;
+    hit.times[i] = since + (hit.times[i] ?? 1) * (until - since);
+  }
+
+  hit.keep(count);
 
   return count;
 };
@@ -260,6 +318,7 @@ export const recordHit = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hit
     if (unit !== undefined && share > 0) {
       hit.units[kept] = unit;
       hit.weights[kept] = share * (hit.weights[i] ?? 1);
+      hit.times[kept] = hit.times[i] ?? 1;
       kept += 1;
     }
   }

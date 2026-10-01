@@ -103,7 +103,7 @@ export interface SweepOptions<Unit> extends QueryOptions<Unit> {
   readonly isOpen?: boolean;
 
   /** Where each contact's share along the segment is written, beside the unit, if given. */
-  readonly shares?: number[];
+  readonly shares?: number[] | undefined;
 }
 
 /** Where a body's move against static geometry stopped. */

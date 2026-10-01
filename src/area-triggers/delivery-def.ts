@@ -1,5 +1,5 @@
 import type { AuraId } from '../auras/index.ts';
-import type { Shape } from '../math/index.ts';
+import type { MutableVec2, Shape, Vec2 } from '../math/index.ts';
 import type { ProcOut, ProcReturn, SpellHit } from '../spells/index.ts';
 import type { QuerySide } from '../world/index.ts';
 import type { AreaFn, AreaTriggerContext } from './area-def.ts';
@@ -66,6 +66,24 @@ export interface AreaHit<G extends AreaTriggerTypes> extends SpellHit<G> {
 
   /** The pulse that caught them (its index in `every`), or -1 for a contact or a landing. */
   readonly pulse: number;
+
+  /**
+   * The share of its frame at which the area trigger reached each unit, in the order of `targets`: where along its move
+   * a contact touched it (0 at the frame's start, 1 at its end), and 1 for a pulse or a landing, which catch in place.
+   */
+  readonly contacts: readonly number[];
+
+  /**
+   * Writes where the area trigger stood as it reached the `index`-th unit into `out`, and returns it: on its swept
+   * move for a contact (the impact point a ricochet or a fork leaves from), its position for a pulse or a landing.
+   */
+  readonly contactPoint: (index: number, out: MutableVec2) => Vec2;
+
+  /**
+   * The seconds of the frame left after it reached the `index`-th unit: what a ricochet or a fork flies on with
+   * (`spawn`'s `now`). 0 for a pulse or a landing.
+   */
+  readonly timeLeft: (index: number) => number;
 }
 
 /** Which units a delivery catches: a side relative to the owner, a condition, and the ledger it records in. */

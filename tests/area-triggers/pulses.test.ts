@@ -3,8 +3,10 @@ import { describe, it } from 'node:test';
 
 import {
   type AnyAreaTriggerDef,
+  type AreaHit,
   type AreaPulse,
   type AreaTriggerHandle,
+  NO_AREA_TRIGGER,
   spawn
 } from '../../src/area-triggers/index.ts';
 import { circle, vec2 } from '../../src/math/index.ts';
@@ -271,6 +273,98 @@ describe('contacts and landings', () => {
         meets
       );
     }
+  });
+
+  it('tells onContact where along its move it reached each unit, where it stood, and the frame time left', () => {
+    const seen: string[] = [];
+    const point = { x: 0, z: 0 };
+
+    const report = (c: { readonly age: number }, hit: AreaHit<Game>): undefined => {
+      hit.targets.forEach((_unit, i) => {
+        const at = hit.contactPoint(i, point);
+
+        seen.push(
+          `${c.age}: ${hit.contacts[i]?.toFixed(3)} at ${at.x.toFixed(2)} with ${hit.timeLeft(i).toFixed(5)} left`
+        );
+      });
+
+      return undefined;
+    };
+
+    for (const pieces of [false, true]) {
+      const game = makeSpellGame(
+        {},
+        {
+          areaTriggers: {
+            blade: missile({
+              contact: { radius: 0.2 },
+              onContact: report,
+
+              // In two pieces, the first over half the frame.
+              ...(pieces
+                ? {
+                    move: (c) => {
+                      c.advance({ x: 2, z: 0 }, 0.5);
+                      c.advance({ x: 4, z: 0 });
+                    }
+                  }
+                : {})
+            })
+          }
+        }
+      );
+
+      game.place(game.unit(100), vec2(pieces ? 3 : 1.5, 0));
+      game.world.tick();
+      game.areaTriggers.spawn(game.areaId.blade, { owner: game.unit(1), at: vec2(0, 0) });
+      ticks(game, 1);
+    }
+
+    // Bodies of 0.2 and 0.5: a frame of 0 to 2 touches the unit at 1.5 from 0.8; pieces 0 to 2 then 2 to 4 touch the
+    // unit at 3 from 2.3, a share 0.15 into the second piece, which spans the frame's second half.
+    assert.deepEqual(seen, ['0.25: 0.400 at 0.80 with 0.15000 left', '0.25: 0.575 at 2.30 with 0.10625 left']);
+  });
+
+  it('lets a blade ricochet from its impact point with the frame time left, as far as it would have flown', () => {
+    const point = { x: 0, z: 0 };
+
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          blade: missile({
+            contact: { radius: 0.2 },
+
+            onContact: (c, hit) => {
+              const at = hit.contactPoint(0, point);
+
+              c.despawn();
+
+              return [spawn<Game>('relay', { at: vec2(at.x, at.z), now: hit.timeLeft(0) })];
+            }
+          }),
+
+          relay: {
+            shape: circle(0.5),
+            lifetime: 2,
+
+            move: (c, dt) => {
+              c.position.x += 8 * dt;
+            }
+          }
+        }
+      }
+    );
+
+    game.place(game.unit(100), vec2(1.5, 0));
+    game.world.tick();
+    game.areaTriggers.spawn(game.areaId.blade, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 1);
+
+    const relays: (AreaTriggerHandle | undefined)[] = [];
+
+    assert.equal(game.areaTriggers.query({ kind: game.areaId.relay }, relays), 1);
+    assert.equal(game.areaTriggers.get(relays[0] ?? NO_AREA_TRIGGER)?.position.x, 2);
   });
 
   it('reaches a unit at a joint between pieces once, and nothing once a piece’s hook asked it to end', () => {
