@@ -219,30 +219,62 @@ export class Scheduler<G extends AiTypes> {
 
   /**
    * Fires every timer due by the clock's tick, in due order, each once: `fire(unit, timer)`. With `keep`, each stays
-   * collected until `take`. Returns how many.
+   * collected until `take`. Returns how many. When `fire` throws, the timers due after it go back on the wheel, due at
+   * once, so the next step fires them.
    */
   step(fire: (unit: G['bearer'], timer: TimerId) => void, keep: boolean): number {
     const due = this.#due;
     const count = this.#wheel.collect(this.#clock.tick, due);
     let fired = 0;
+    let i = 0;
 
-    for (let i = 0; i < count; i++) {
-      const entry = due[i];
-      const unit = entry === undefined ? undefined : this.#claim(entry);
+    try {
+      for (; i < count; i++) {
+        const entry = due[i];
 
-      if (unit !== undefined && entry !== undefined) {
-        const timer = entry % MAX_TIMERS;
-
-        if (keep) {
-          brainOf(unit.brain).collected |= 1 << timer;
+        if (entry !== undefined && this.#fireEntry(entry, fire, keep)) {
+          fired += 1;
         }
-
-        fire(unit, toId<'timers'>(timer));
-        fired += 1;
       }
+    } catch (error) {
+      this.#requeue(i + 1, count);
+
+      throw error;
     }
 
     return fired;
+  }
+
+  /** Fires one collected entry unless it is stale, marking it collected with `keep`; whether it fired. */
+  #fireEntry(entry: number, fire: (unit: G['bearer'], timer: TimerId) => void, keep: boolean): boolean {
+    const unit = this.#claim(entry);
+
+    if (unit === undefined) {
+      return false;
+    }
+
+    const timer = entry % MAX_TIMERS;
+
+    if (keep) {
+      brainOf(unit.brain).collected |= 1 << timer;
+    }
+
+    fire(unit, toId<'timers'>(timer));
+
+    return true;
+  }
+
+  /** Puts the collected entries from `from` on back on the wheel, unchanged, for the next step. */
+  #requeue(from: number, count: number): void {
+    const due = this.#due;
+
+    for (let i = from; i < count; i++) {
+      const entry = due[i];
+
+      if (entry !== undefined) {
+        this.#wheel.schedule(this.#clock.tick, entry);
+      }
+    }
   }
 
   /**

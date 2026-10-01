@@ -174,6 +174,32 @@ describe('named timers (EventMap)', () => {
     }
   });
 
+  it('keep the timers due after one whose firing threw, for the next step', () => {
+    const { ai, a, b, fired, tick, clock, fire } = timed();
+    const { pick, raise } = TIMERS.id;
+
+    ai.start(a, pick, 0.5);
+    ai.start(b, raise, 0.5);
+    ai.start(a, raise, 0.5);
+    clock.step();
+    clock.step();
+    assert.throws(
+      () =>
+        ai.step((unit, timer) => {
+          if (timer === pick) {
+            throw new Error('fire');
+          }
+
+          fire(unit, timer);
+        }),
+      /fire/
+    );
+    assert.equal(ai.remaining(b, raise), 0);
+    tick();
+    assert.deepEqual(fired, ['raise@2@3', 'raise@1@3']);
+    assert.equal(ai.remaining(a, raise), undefined);
+  });
+
   it('are the setTimer and cancelTimer procs, by name', () => {
     const { procs, ai, a } = timed();
 

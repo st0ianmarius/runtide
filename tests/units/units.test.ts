@@ -67,7 +67,13 @@ describe('spawning', () => {
     assert.equal(hero.loadout.size, 0);
     assert.deepEqual(grunt.ext, { marks: 0, made: `${game.id.grunt}/1` });
     assert.throws(() => units.spawn(game.id.grunt, { side: 1, id: 2 }), /entity id 2 is already a live unit/);
-    assert.deepEqual(game.log, ['spawned 1 alive>alive', 'spawned 2 alive>alive']);
+
+    for (const id of [Number.NaN, 2.5, -1]) {
+      assert.throws(() => units.spawn(game.id.grunt, { side: 1, id }), /whole number from 0/);
+    }
+
+    assert.equal(units.spawn(game.id.grunt, { side: 1 }).id, 3);
+    assert.deepEqual(game.log, ['spawned 1 alive>alive', 'spawned 2 alive>alive', 'spawned 3 alive>alive']);
   });
 });
 
@@ -289,6 +295,36 @@ describe('bearer states on the lifecycle', () => {
     }
 
     assert.equal(auras.pool.created, 2);
+  });
+});
+
+describe('a despawn whose hook throws', () => {
+  it('still forgets the unit and releases its auras, when an aura hearing it or a listener throws', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const { units, auras } = game;
+    const [hearing, heard] = [units.spawn(game.id.grunt, { side: 1 }), units.spawn(game.id.grunt, { side: 1 })];
+
+    auras.apply(hearing, auraId('mark'));
+    HEARD.push = () => {
+      throw new Error('onState');
+    };
+
+    try {
+      assert.throws(() => units.despawn(hearing), /onState/);
+    } finally {
+      Reflect.deleteProperty(HEARD, 'push');
+    }
+
+    game.on('despawned', () => {
+      throw new Error('listener');
+    });
+    auras.apply(heard, auraId('haste'));
+    assert.throws(() => units.despawn(heard), /listener/);
+    assert.deepEqual([hearing.lifecycle, heard.lifecycle], ['despawned', 'despawned']);
+    assert.deepEqual(
+      [units.byId(hearing.id), units.byId(heard.id), units.live(), auras.pool.live],
+      [undefined, undefined, 0, 0]
+    );
   });
 });
 

@@ -114,7 +114,10 @@ export interface SpawnUnit<G extends UnitTypes> {
   /** The unit it belongs to; none when absent. */
   readonly owner?: G['bearer'];
 
-  /** Its entity id; the system's next when absent. */
+  /**
+   * Its entity id, a whole number from 0; the system's next when absent. With `allocateId`, an id given here must come
+   * from that counter (an id the server handed out), which is never told of it and could hand it out again.
+   */
   readonly id?: number;
 
   /** Its own base stats, over its template's (a one-off: a horde's shared numbers are a `variant`). */
@@ -233,6 +236,10 @@ export class UnitEngine<G extends UnitTypes> {
   /** A spawn's entity id: its own, or the next; refuses one already live. */
   #idFor(spawn: SpawnUnit<G>): number {
     const id = spawn.id ?? this.options.allocateId?.() ?? this.nextId;
+
+    if (!Number.isSafeInteger(id) || id < 0) {
+      throw new RangeError(`A unit's entity id is a whole number from 0; got ${id}.`);
+    }
 
     if (this.byId.has(id)) {
       missing(`entity id ${id} is already a live unit`);

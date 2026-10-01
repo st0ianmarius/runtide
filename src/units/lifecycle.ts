@@ -75,18 +75,21 @@ const leaveFor = <G extends UnitTypes>(
   bearer: G['bearer'],
   [from, to]: readonly [Lifecycle, Exclude<Lifecycle, 'alive'>]
 ): void => {
-  if (from === 'alive') {
-    engine.options.spells.cancelAll(bearer);
-  }
-
   const { auras } = engine.options;
 
-  if (auras.hasState(to)) {
-    auras.enterState(bearer, to);
-  }
+  // Its owner's summons are left, and its bound ones taken along, even when a cast's or an aura's hook throws.
+  try {
+    if (from === 'alive') {
+      engine.options.spells.cancelAll(bearer);
+    }
 
-  leaveOwner(engine, bearer, to === 'despawned');
-  despawnBound(engine, bearer);
+    if (auras.hasState(to)) {
+      auras.enterState(bearer, to);
+    }
+  } finally {
+    leaveOwner(engine, bearer, to === 'despawned');
+    despawnBound(engine, bearer);
+  }
 };
 
 /**
@@ -103,14 +106,20 @@ const despawned = <G extends UnitTypes>(
   engine.byId.delete(unit.id);
   orphanSummons(bearer);
   engine.options.ai?.release(bearer);
-  raise(engine, engine.options.events?.despawned, [bearer, from, 'despawned', undefined, reason]);
 
-  if (unit.scriptSlot >= 0 && engine.options.scripts !== undefined) {
-    lateOf(engine.options.scripts).detach(bearer);
+  // A listener or script hook that throws still leaves the unit's script detached and its auras released.
+  try {
+    raise(engine, engine.options.events?.despawned, [bearer, from, 'despawned', undefined, reason]);
+  } finally {
+    try {
+      if (unit.scriptSlot >= 0 && engine.options.scripts !== undefined) {
+        lateOf(engine.options.scripts).detach(bearer);
+      }
+    } finally {
+      unit.scriptSlot = -1;
+      engine.options.auras.release(bearer);
+    }
   }
-
-  unit.scriptSlot = -1;
-  engine.options.auras.release(bearer);
 };
 
 /**
@@ -188,13 +197,18 @@ const enter = <G extends UnitTypes>(
   if (to === 'alive') {
     unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
     rejoinOwner(bearer);
+  } else if (to === 'despawned') {
+    // A despawn cannot be asked again: a hook that throws while it leaves still has it forgotten and released.
+    try {
+      leaveFor(engine, bearer, [from, to]);
+    } finally {
+      despawned(engine, bearer, [from, reason ?? 'despawn']);
+    }
+
+    return;
   } else {
     leaveFor(engine, bearer, [from, to]);
   }
 
-  if (to === 'despawned') {
-    despawned(engine, bearer, [from, reason ?? 'despawn']);
-  } else {
-    raise(engine, engine.options.events?.changed, [bearer, from, to, undefined, '']);
-  }
+  raise(engine, engine.options.events?.changed, [bearer, from, to, undefined, '']);
 };
