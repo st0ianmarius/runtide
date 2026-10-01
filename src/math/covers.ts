@@ -15,8 +15,28 @@ const coversRing = (shape: Ring, p: Vec2, margin: number): boolean => {
 };
 
 /**
+ * Whether a body at `(dx, dz)` from a cone's apex, past its angle, reaches `margin` to the nearer straight edge: a
+ * segment from the apex out to the rim, inclusive, but for its outer corner, which lies on the exclusive rim.
+ */
+const reachesEdge = (shape: Cone, dx: number, dz: number, off: number, margin: number): boolean => {
+  const heading = shape.dir + (off < 0 ? -shape.half : shape.half);
+  const ux = Math.sin(heading);
+  const uz = Math.cos(heading);
+  const t = dx * ux + dz * uz;
+
+  if (t >= shape.r) {
+    return hypot(dx - shape.r * ux, dz - shape.r * uz) < margin;
+  }
+
+  const along = Math.max(0, t);
+
+  return hypot(dx - along * ux, dz - along * uz) <= margin;
+};
+
+/**
  * Whether a body reaching `margin` past `p` overlaps a cone; near the apex it counts at any angle, the apex's radius
- * grown by the reach like any round rim (a body behind the tip still touches it).
+ * grown by the reach like any round rim (a body behind the tip still touches it). Past the cone's angle a body
+ * reaching out is measured to the nearer edge, so one beyond an outer corner touches it only within its reach.
  */
 const coversCone = (shape: Cone, p: Vec2, margin: number): boolean => {
   const dx = p.x - shape.at.x;
@@ -33,9 +53,13 @@ const coversCone = (shape: Cone, p: Vec2, margin: number): boolean => {
     return true;
   }
 
-  const allowance = margin === 0 ? 0 : Math.asin(Math.max(-1, Math.min(1, margin / d)));
+  const off = wrap(Math.atan2(dx, dz) - shape.dir);
 
-  return Math.abs(wrap(Math.atan2(dx, dz) - shape.dir)) <= shape.half + allowance;
+  if (Math.abs(off) <= shape.half) {
+    return margin >= 0 || Math.abs(off) <= shape.half - Math.asin(Math.min(1, -margin / d));
+  }
+
+  return margin > 0 && reachesEdge(shape, dx, dz, off, margin);
 };
 
 /** Whether a body reaching `margin` past `p` overlaps a lane. */

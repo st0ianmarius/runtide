@@ -88,7 +88,10 @@ export class PathCandidates {
     }
   }
 
-  /** A cone's candidates: its rim, its apex circles (bare and grown by the reach), and each edge with its offsets. */
+  /**
+   * A cone's candidates: its rim, its apex circles (bare and grown by the reach), and each edge with its offsets and
+   * its outer corner rounded by the reach.
+   */
   #cone(shape: Extract<Shape, { kind: 'cone' }>, margin: number): void {
     const { at } = shape;
 
@@ -102,6 +105,7 @@ export class PathCandidates {
       const nz = -Math.sin(heading);
 
       this.#band(nx, nz, nx * at.x + nz * at.z, margin);
+      this.#circle(at.x + shape.r * Math.sin(heading), at.z + shape.r * Math.cos(heading), margin);
     }
   }
 

@@ -56,6 +56,59 @@ describe('covers: base shapes', () => {
     assert.equal(covers(sector, vec2(3, 2), 1), true);
   });
 
+  it('reaches a cone past its outer corner only within the body radius', () => {
+    const sector = cone({ r: 5, half: Math.PI / 4, dir: 0 });
+
+    const at = (degrees: number, d: number) =>
+      vec2(d * Math.sin((degrees * Math.PI) / 180), d * Math.cos((degrees * Math.PI) / 180));
+
+    // 5.3 out at 50°: inside the grown rim and the grown angle, but 0.54 from the corner at (3.54, 3.54).
+    assert.equal(covers(sector, at(50, 5.3), 0.5), false);
+    assert.equal(covers(sector, at(50, 5.3), 0.55), true);
+    assert.equal(covers(sector, vec2(3.536 + 0.3, 3.536 + 0.3), 0.5), true);
+    assert.equal(covers(sector, at(52, 3), 0.5), true);
+  });
+
+  it('covers a body by its distance to the nearest point of a cone, rim corners included', () => {
+    const near = (shape: ReturnType<typeof cone>, p: { x: number; z: number }): number => {
+      let best = Number.POSITIVE_INFINITY;
+
+      for (let i = 0; i <= 200; i++) {
+        const heading = shape.dir - shape.half + (2 * shape.half * i) / 200;
+
+        for (let j = 0; j <= 200; j++) {
+          const d = (shape.r * j) / 200;
+
+          best = Math.min(best, Math.hypot(p.x - d * Math.sin(heading), p.z - d * Math.cos(heading)));
+        }
+      }
+
+      return best;
+    };
+
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0.1, max: 1.4, noNaN: true }),
+        fc.double({ min: -Math.PI, max: Math.PI, noNaN: true }),
+        fc.double({ min: 0, max: 7, noNaN: true }),
+        fc.double({ min: 0.05, max: 1.5, noNaN: true }),
+        (half, angle, d, radius) => {
+          const sector = cone({ r: 5, half, dir: 0.4 });
+          const p = vec2(d * Math.sin(angle), d * Math.cos(angle));
+          const gap = near(sector, p);
+          const slack = 0.05;
+
+          if (gap < radius - slack) {
+            assert.equal(covers(sector, p, radius), true);
+          } else if (gap > radius + slack) {
+            assert.equal(covers(sector, p, radius), false);
+          }
+        }
+      ),
+      { numRuns: 300 }
+    );
+  });
+
   it('covers a lane along its heading, with the reach behind its start', () => {
     const path = lane({ length: 10, width: 2, dir: 0, at: vec2(0, 1), back: 0.5 });
 
