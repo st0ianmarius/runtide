@@ -283,6 +283,58 @@ describe('aura events on the bus', () => {
   });
 });
 
+describe('hooks that throw', () => {
+  it('still dispatch the rest of the operation’s events, then throw', () => {
+    const { auras, id, unit, log } = makeGame({
+      first: aura({
+        duration: 'infinite',
+        tags: ['magic'],
+
+        onRemoved: () => {
+          throw new Error('first');
+        }
+      }),
+      second: aura({ duration: 'infinite', tags: ['magic'], onRemoved: () => ['teardown:second'] })
+    });
+
+    const u = unit();
+
+    auras.apply(u, id.first);
+    auras.apply(u, id.second);
+    assert.throws(() => auras.removeByTag(u, TAGS.id.magic), /first/);
+    assert.deepEqual(log, ['teardown:second@1']);
+    assert.deepEqual([auras.list(u).length, auras.pool.live], [0, 0]);
+  });
+
+  it('still have every aura hear a state and the state’s auras go, then throw', () => {
+    const { auras, id, unit, log } = makeGame({
+      bomb: aura({
+        duration: 'infinite',
+        removedOn: ['dead'],
+
+        onState: () => {
+          throw new Error('bomb');
+        }
+      }),
+      shield: aura({ duration: 'infinite', removedOn: ['dead'], ...logged('shield') }),
+      mark: aura({ duration: 'infinite', ...logged('mark') })
+    });
+
+    const u = unit();
+
+    auras.apply(u, id.bomb);
+    auras.apply(u, id.shield);
+    auras.apply(u, id.mark);
+    log.length = 0;
+    assert.throws(() => auras.enterState(u, 'dead'), /bomb/);
+    assert.deepEqual(log, ['dead:shield@1', 'dead:mark@1', 'removed:shield@1']);
+    assert.deepEqual(
+      auras.list(u).map((a) => a.id),
+      [id.mark]
+    );
+  });
+});
+
 describe('slots of removed auras', () => {
   it('stay theirs until their removed events ran, though the cleansing aura’s onLand or stacking rule ran first', () => {
     const seen: string[] = [];

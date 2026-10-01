@@ -361,12 +361,26 @@ export class AuraEvents<G extends AuraTypes> {
     this.#dispatching += 1;
 
     try {
-      for (let i = from; i < this.#count; i++) {
-        this.#dispatch(i);
-      }
+      this.#dispatchFrom(from);
     } finally {
       this.#drop(from);
       this.#dispatching -= 1;
+    }
+  }
+
+  /**
+   * Dispatches the queued events from `start`: one whose hook or listener throws still has the rest dispatched (each
+   * aura's teardown runs, every aura hears a state), then it throws.
+   */
+  #dispatchFrom(start: number): void {
+    for (let i = start; i < this.#count; i++) {
+      try {
+        this.#dispatch(i);
+      } catch (error) {
+        this.#dispatchFrom(i + 1);
+
+        throw error;
+      }
     }
   }
 

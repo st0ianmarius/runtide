@@ -159,6 +159,20 @@ export const enterState = <G extends AuraTypes>(
     throw new RangeError(`There is no bearer state ${state}.`);
   }
 
+  // The auras the state removes go even when an aura's `onState` throws, so none outlives it; then it throws.
+  try {
+    hearState(engine, bearer, bit);
+  } catch (error) {
+    removeWhere(engine, bearer, 'enterState', byState, bit);
+
+    throw error;
+  }
+
+  return removeWhere(engine, bearer, 'enterState', byState, bit);
+};
+
+/** Every aura on a bearer hears it enter a state (its bit): `stateEntered`, in list order, dispatched at once. */
+const hearState = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], bit: number): void => {
   const set = setOf<G>(bearer);
   const from = engine.events.open('enterState');
 
@@ -173,8 +187,6 @@ export const enterState = <G extends AuraTypes>(
   } finally {
     engine.events.close(from);
   }
-
-  return removeWhere(engine, bearer, 'enterState', byState, bit);
 };
 
 /**
