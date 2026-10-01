@@ -89,6 +89,22 @@ describe('inside: the units a shape covers', () => {
     assert.deepEqual(names(out, world.inside(circle(2), { measure: 'edge' }, out)), ['m2']);
   });
 
+  it('ranks near and far as it measures: a large body nearer by its edge comes first', () => {
+    // A small body whose edge is 2.9 away, and a large one whose edge is 2 away though its centre is farther.
+    const { world } = worldOf([
+      [1, 3, 0, 0, 0.1],
+      [2, 5, 0, 0, 3]
+    ]);
+
+    const out: (Mob | undefined)[] = [];
+    const edge = { range: 4, measure: 'edge' } as const;
+
+    assert.deepEqual(names(out, world.nearest(vec2(0, 0), edge, out)), ['m2', 'm1']);
+    assert.deepEqual(names(out, world.nearest(vec2(0, 0), { ...edge, limit: 1 }, out)), ['m2']);
+    assert.deepEqual(names(out, world.nearest(vec2(0, 0), { ...edge, order: 'far' }, out)), ['m1', 'm2']);
+    assert.deepEqual(names(out, world.nearest(vec2(0, 0), { range: 6, limit: 1 }, out)), ['m1']);
+  });
+
   it('keeps foes or allies relative to the unit asking, and refuses a side without one', () => {
     const { world, mob } = worldOf([
       [1, 0, 0, 0],

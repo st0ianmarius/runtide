@@ -14,7 +14,7 @@ export type QuerySide = 'foes' | 'allies' | 'attackable' | 'all';
 
 /**
  * One key a query orders its results by, ascending: `near` and `far` by distance from the query's point (its `from`),
- * `id` by entity id, or the game's own score of a unit (lowest first). Ties always fall to the lower entity id.
+ * measured as the query measures (to a unit's edge with `measure: 'edge'`), `id` by entity id, or the game's own score of a unit (lowest first). Ties always fall to the lower entity id.
  */
 export type QueryOrder<Unit> = 'near' | 'far' | 'id' | 'none' | ((unit: Unit) => number);
 

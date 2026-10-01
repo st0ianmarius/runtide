@@ -73,6 +73,9 @@ export class Selector<Unit> {
   #fromX = 0;
   #fromZ = 0;
 
+  /** Whether `near` and `far` measure to a unit's edge, as the selection's range does. */
+  #isEdge = false;
+
   constructor(table: UnitTable<Unit>, index: PointIndex, rules: SelectorRules<Unit>) {
     this.#table = table;
     this.#index = index;
@@ -364,6 +367,7 @@ export class Selector<Unit> {
     this.#keyCount = keys.length;
     this.#fromX = from.x;
     this.#fromZ = from.z;
+    this.#isEdge = options.measure === 'edge';
 
     return keys;
   }
@@ -392,9 +396,17 @@ export class Selector<Unit> {
       return 0;
     }
 
-    const d = hypot((table.x[slot] ?? 0) - this.#fromX, (table.z[slot] ?? 0) - this.#fromZ);
+    const d = this.#reach(slot);
 
     return key === 'near' ? d : -d;
+  }
+
+  /** How far a slot is from the point `near` and `far` measure from: to its centre, or its edge when measured so. */
+  #reach(slot: number): number {
+    const table = this.#table;
+    const centre = hypot((table.x[slot] ?? 0) - this.#fromX, (table.z[slot] ?? 0) - this.#fromZ);
+
+    return this.#isEdge ? centre - (table.radius[slot] ?? 0) : centre;
   }
 
   /**
