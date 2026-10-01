@@ -6,6 +6,15 @@ import type { StatSheet, StatView } from '../modifiers/index.ts';
 import { type CasterState, type CastHandle, NO_CAST } from '../spells/index.ts';
 import type { Lifecycle, UnitId, UnitShape, UnitTypes } from './unit-types.ts';
 
+/** A unit's fold read against another unit: itself as the host, the other set before each read. */
+export interface AgainstRead<G extends UnitTypes> {
+  /** The unit. */
+  readonly host: G['bearer'];
+
+  /** The unit it is read against. */
+  against: G['bearer'] | undefined;
+}
+
 /** What a unit is made with: everything its template and spawn decided, and the states the other systems made. */
 export interface UnitParts<G extends UnitTypes> {
   /** Its entity id. */
@@ -121,6 +130,12 @@ export class Unit<G extends UnitTypes> implements UnitShape {
 
   /** Its stat view, made once (the sheet's view with the unit as the fold's host, or its bases). */
   view: StatView | undefined = undefined;
+
+  /** The read its view against another unit folds with, the other unit set at each read; made at the first. */
+  againstRead: AgainstRead<G> | undefined = undefined;
+
+  /** Its sheet's view against another unit (`statsOf(unit, against)`), made at the first such read. */
+  againstView: StatView | undefined = undefined;
 
   constructor(parts: UnitParts<G>) {
     this.id = parts.id;

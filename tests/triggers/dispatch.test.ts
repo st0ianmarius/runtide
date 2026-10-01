@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
+import { against } from '../../src/conditions/index.ts';
 import { applyAura, type Proc, raise, removeAura, run } from '../../src/procs/index.ts';
 import { explainTriggers } from '../../src/triggers/index.ts';
 import { aura, defined, type Game, type HitEvent, KINDS, makeGame, mark, scripted } from '../helpers/trigger-game.ts';
@@ -372,6 +373,31 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
     game.hit(u);
     assert.deepEqual(seen, [`roll 0.3 t0 #0 a${game.id.storm} 5/5`, 'icd 4 on 5']);
     assert.equal(game.auras.remaining(u, cooldown), 2);
+  });
+});
+
+describe('conditions against the event’s other unit', () => {
+  it('asks a condition of the other unit with against, and holds for none when the event has no other unit', () => {
+    const game = makeGame({
+      finisher: aura({
+        duration: 9,
+        triggers: [
+          { on: 'hit', when: [against({ is: 'healthBelow', arg: 0.5 })], do: [mark('finish')] },
+          { on: 'struck', when: [against({ is: 'healthBelow', arg: 2 })], do: [mark('never')] }
+        ]
+      })
+    });
+
+    const u = game.unit(1);
+    const target = game.unit(2);
+
+    game.auras.apply(u, game.id.finisher);
+    u.hp = 10;
+    game.hit(u, { target });
+    target.hp = 40;
+    game.hit(u, { target });
+    game.hit(target, { target: u });
+    assert.deepEqual(game.log, ['finish@1']);
   });
 });
 

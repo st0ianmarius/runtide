@@ -46,7 +46,7 @@ export const damageHostOf = <G extends UnitTypes>(
   },
 
   maxHealth: (unit) => unitOf<G>(unit).maxHealth,
-  statsOf: (unit) => engine.statsOf(unit),
+  statsOf: (unit, _spell, against) => engine.statsOf(unit, against),
   idOf: (unit) => unitOf<G>(unit).id,
   unitOf: (id) => engine.byId.get(id),
 

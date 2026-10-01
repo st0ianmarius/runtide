@@ -243,8 +243,8 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
   ): MitigationExplanation =>
     explainRows(this.#engine.rows, {
       kind: query.kind ?? this.#engine.defaultKind,
-      caster: this.#engine.viewOf(query.attacker, undefined),
-      target: this.#engine.viewOf(defender, undefined)
+      caster: this.#engine.viewOf(query.attacker, undefined, defender),
+      target: this.#engine.viewOf(defender, undefined, query.attacker)
     });
 
   readonly explainRolls = (defender: G['bearer'], query: RollQuery<G> = {}): RollExplanation[] =>

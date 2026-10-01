@@ -85,8 +85,12 @@ export interface UnitSystem<G extends UnitTypes> {
   /** Whether a unit has a class tag. */
   readonly hasTag: (unit: G['bearer'], tag: G['unitTag']) => boolean;
 
-  /** A unit's stats: its sheet folded with it as the host, or its own bases without a modifier system. */
-  readonly statsOf: (unit: G['bearer']) => StatView;
+  /**
+   * A unit's stats: its sheet folded with it as the host, or its own bases without a modifier system. With `against`,
+   * folded against that unit, for the modifiers that ask about it (`against`, `againstValue`): a view to read at once,
+   * since the next such read of the unit reuses it.
+   */
+  readonly statsOf: (unit: G['bearer'], against?: G['bearer']) => StatView;
 
   /**
    * The unit system's proc kinds (`revive`, `summon`, `despawn`, `despawnSummons`): `createProcRegistry({
@@ -198,7 +202,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     },
 
     syncStates: (unit) => syncStates(engine, unit),
-    statsOf: (unit) => engine.statsOf(unit),
+    statsOf: (unit, against) => engine.statsOf(unit, against),
     autoAttackOf: (unit) => engine.autoAttacks[unitOf<G>(unit).template],
     syncHealth: (unit) => syncHealth(engine, unit),
     damageHost: damageHostOf(engine)

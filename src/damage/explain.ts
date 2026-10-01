@@ -87,9 +87,9 @@ export const explainRolls = <G extends DamageTypes>(
 
   const views = engine.rollViews;
 
-  views.shared.view = engine.viewOf(query.attacker, undefined);
+  views.shared.view = engine.viewOf(query.attacker, undefined, defender);
   views.shared.spell = query.spell;
-  views.target = engine.viewOf(defender, undefined);
+  views.target = engine.viewOf(defender, undefined, query.attacker);
 
   const explained = table.rows.map((row): RollExplanation => ({
     outcome: row.outcome,

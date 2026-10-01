@@ -283,7 +283,7 @@ export const rollStage = <G extends DamageTypes>(
 
   views.shared.view = engine.attackerView(blow);
   views.shared.spell = blow.spell;
-  views.target = engine.viewOf(blow.target, blow);
+  views.target = engine.viewOf(blow.target, blow, blow.attacker);
 
   const stop =
     table.mode === 'single' ? rollSingle(engine, blow, table.rows) : rollIndependent(engine, blow, table.rows);
@@ -305,7 +305,7 @@ export const mitigationStage =
     const before = blow.amount;
 
     ctx.caster = engine.attackerView(blow);
-    ctx.target = engine.viewOf(blow.target, blow);
+    ctx.target = engine.viewOf(blow.target, blow, blow.attacker);
     ctx.amount = before;
     blow.amount = before * rowFactor(row, ctx);
     blow.mitigated += before - blow.amount;

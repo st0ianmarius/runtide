@@ -6,9 +6,10 @@ export type ValueId = Id<'values'>;
 
 /**
  * A game-supplied value read: a number from the read's host and a numeric argument, such as
- * `byMissingHealth(max)` giving `1 + max × (1 − hp / maxHp)`. It must be deterministic.
+ * `byMissingHealth(max)` giving `1 + max × (1 − hp / maxHp)`, and the unit the read is against, when it has one (as a
+ * condition test's). It must be deterministic.
  */
-export type ValueRead<Host> = (host: Host, arg: number) => number;
+export type ValueRead<Host> = (host: Host, arg: number, against: Host | undefined) => number;
 
 /** A value kind with its flags: what `defineValues` takes in place of a bare read. */
 export interface ValueSpec<Host> {

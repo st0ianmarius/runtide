@@ -376,6 +376,7 @@ export const makeGame = <const Name extends string>(
   const events = {
     hit: triggerEvent<HitEvent, Game>(bus.kind.hit, {
       unit: (hit) => hit.attacker,
+      other: (hit) => hit.target,
 
       filters: {
         minAmount: (hit, least) => hit.amount >= least,

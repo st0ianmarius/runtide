@@ -4,8 +4,8 @@ import type { CompareOp, CompiledCondition } from './expr.ts';
 import type { ConditionTable, ConditionTest } from './table.ts';
 import type { ValueRead, ValueTable } from './values.ts';
 
-/** A bound condition: whether it holds for a host. */
-export type Predicate<Host> = (host: Host) => boolean;
+/** A bound condition: whether it holds for a host, against another unit when the read has one. */
+export type Predicate<Host> = (host: Host, against?: Host) => boolean;
 
 /** The tables a condition is bound over: the game's tests and value reads, over its host. */
 export interface BoundTables<Host> {
@@ -23,26 +23,26 @@ const compareWith = <Host>(
 ): Predicate<Host> => {
   switch (op) {
     case '<':
-      return (host) => read(host, arg) < than;
+      return (host, against) => read(host, arg, against) < than;
     case '<=':
-      return (host) => read(host, arg) <= than + epsilon;
+      return (host, against) => read(host, arg, against) <= than + epsilon;
     case '>':
-      return (host) => read(host, arg) > than;
+      return (host, against) => read(host, arg, against) > than;
     case '>=':
-      return (host) => read(host, arg) >= than - epsilon;
+      return (host, against) => read(host, arg, against) >= than - epsilon;
     case '==':
-      return (host) => Math.abs(read(host, arg) - than) <= epsilon;
+      return (host, against) => Math.abs(read(host, arg, against) - than) <= epsilon;
     case '!=':
-      return (host) => Math.abs(read(host, arg) - than) > epsilon;
+      return (host, against) => Math.abs(read(host, arg, against) - than) > epsilon;
   }
 };
 
 /** Every part holds, tested in order, stopping at the first that does not. */
 const allOf =
   <Host>(parts: readonly Predicate<Host>[]): Predicate<Host> =>
-  (host) => {
+  (host, against) => {
     for (let i = 0; i < parts.length; i++) {
-      if (parts[i]?.(host) !== true) {
+      if (parts[i]?.(host, against) !== true) {
         return false;
       }
     }
@@ -53,9 +53,9 @@ const allOf =
 /** Some part holds, tested in order, stopping at the first that does. */
 const anyOf =
   <Host>(parts: readonly Predicate<Host>[]): Predicate<Host> =>
-  (host) => {
+  (host, against) => {
     for (let i = 0; i < parts.length; i++) {
-      if (parts[i]?.(host) === true) {
+      if (parts[i]?.(host, against) === true) {
         return true;
       }
     }
@@ -73,7 +73,7 @@ export const bindCondition = <Host>(tables: BoundTables<Host>, condition: Compil
       const test = (tables.conditions ?? missing('conditions')).get(condition.condition).test;
       const { arg } = condition;
 
-      return (host) => test(host, arg);
+      return (host, against) => test(host, arg, against);
     }
     case 'all':
       return allOf(condition.of.map((part) => bindCondition(tables, part)));
@@ -82,7 +82,12 @@ export const bindCondition = <Host>(tables: BoundTables<Host>, condition: Compil
     case 'not': {
       const inner = bindCondition(tables, condition.of);
 
-      return (host) => !inner(host);
+      return (host, against) => !inner(host, against);
+    }
+    case 'against': {
+      const inner = bindCondition(tables, condition.of);
+
+      return (host, against) => against !== undefined && inner(against, host);
     }
     case 'compare': {
       const { read } = (tables.values ?? missing('values')).get(condition.value);
@@ -115,7 +120,7 @@ export const conditionTest = <Host>(tables: BoundTables<Host>, condition: Compil
 
   const predicate = bindCondition(tables, condition);
 
-  return { test: (host) => predicate(host), arg: 0 };
+  return { test: (host, _arg, against) => predicate(host, against), arg: 0 };
 };
 
 /** Throws for a table a condition names that the reader was not given. */

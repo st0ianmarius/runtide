@@ -153,3 +153,31 @@ describe('the attacker-side float order', () => {
     assert.equal(damage.hit({ target, amount: 10, attacker }).amount, 10 * 1.3 * 1.75 * (1 - 30 / (30 + 100)) * 1.1);
   });
 });
+
+describe('stats read against the other side', () => {
+  it('read the attacker against the target and the target against the attacker, in every stage, heals too', () => {
+    const reads: string[] = [];
+
+    const { damage, unit } = makeDamageGame(
+      {},
+      { ...ATTACKER, heal: { received: 'healing', done: 'healingDone' } },
+      {
+        statsOf: (who, _spell, against) => {
+          reads.push(`${who.id}>${against?.id ?? '-'}`);
+
+          return { total: (stat) => who.stats[stat] ?? 0, base: () => 0 };
+        }
+      }
+    );
+
+    const attacker = unit(2);
+    const target = unit(1);
+
+    damage.hit({ target, amount: 10, attacker, kind: damage.kinds.id.fire });
+    assert.deepEqual(new Set(reads), new Set(['2>1', '1>2']));
+
+    reads.length = 0;
+    damage.heal({ target, healer: attacker, amount: 10 });
+    assert.deepEqual(reads, ['2>1', '1>2']);
+  });
+});

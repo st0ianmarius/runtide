@@ -10,6 +10,8 @@ export { bindCondition, type BoundTables, type BoundTest, conditionTest, type Pr
 export { compileCondition, type ConditionTables, isMirrorSafe, readsWorld } from './compile.ts';
 
 export {
+  against,
+  type AgainstCondition,
   all,
   type AllCondition,
   any,

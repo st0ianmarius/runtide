@@ -184,14 +184,24 @@ export class DamageEngine<G extends DamageTypes> {
     return this.host.isGone?.(unit) === true || this.isDead(this.host.health(unit));
   }
 
-  /** A blow's attacker's stats: its snapshot when it carries one, else the attacker's live ones for its spell. */
+  /**
+   * A blow's attacker's stats: its snapshot when it carries one, else the attacker's live ones for its spell, against
+   * the blow's target.
+   */
   attackerView(blow: Blow<G>): StatView {
-    return blow.attackerStats ?? this.viewOf(blow.attacker, blow);
+    return blow.attackerStats ?? this.viewOf(blow.attacker, blow, blow.target);
   }
 
-  /** A unit's stats for a blow's or a heal's spell (folded for it by the host), or none for no unit. */
-  viewOf(unit: G['bearer'] | undefined, scope: { readonly spell: G['spell'] | undefined } | undefined): StatView {
-    return unit === undefined ? NO_STATS : (this.host.statsOf ?? missing('statsOf'))(unit, scope?.spell);
+  /**
+   * A unit's stats for a blow's or a heal's spell (folded for it by the host), against the other unit when there is
+   * one, or none for no unit.
+   */
+  viewOf(
+    unit: G['bearer'] | undefined,
+    scope: { readonly spell: G['spell'] | undefined } | undefined,
+    against?: G['bearer']
+  ): StatView {
+    return unit === undefined ? NO_STATS : (this.host.statsOf ?? missing('statsOf'))(unit, scope?.spell, against);
   }
 
   /** A unit's maximum health. */

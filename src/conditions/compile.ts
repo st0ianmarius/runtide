@@ -49,6 +49,7 @@ export const readsWorld = (tables: ConditionTables, condition: CompiledCondition
     case 'any':
       return condition.of.some((part) => readsWorld(tables, part));
     case 'not':
+    case 'against':
       return readsWorld(tables, condition.of);
     case 'compare':
       return false;
@@ -67,6 +68,7 @@ export const isMirrorSafe = (tables: ConditionTables, condition: CompiledConditi
     case 'any':
       return condition.of.every((part) => isMirrorSafe(tables, part));
     case 'not':
+    case 'against':
       return isMirrorSafe(tables, condition.of);
     case 'compare':
       return tables.values?.get(condition.value).isMirrorSafe === true;
@@ -128,6 +130,10 @@ const compileWith = (state: Compiling, expr: ConditionExpr): CompiledCondition =
 
   if ('not' in expr) {
     return Object.freeze({ kind: 'not', of: compileWith(state, expr.not) });
+  }
+
+  if ('against' in expr) {
+    return Object.freeze({ kind: 'against', of: compileWith(state, expr.against) });
   }
 
   if ('value' in expr) {

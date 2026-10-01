@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  against,
   all,
   any,
   bindCondition,
@@ -15,7 +16,14 @@ import {
   not,
   readsWorld
 } from '../../src/conditions/index.ts';
-import { createModifierSystem, defineSources, defineStats, mul } from '../../src/modifiers/index.ts';
+import {
+  againstValue,
+  createModifierSystem,
+  defineSources,
+  defineStats,
+  mul,
+  plus
+} from '../../src/modifiers/index.ts';
 
 /** A bearer as the tests' conditions read it: health, a stance, and a log of the tests that ran. */
 interface Host {
@@ -147,7 +155,7 @@ describe('evaluating a condition', () => {
     assert.equal(lone.test, CONDITIONS.get(CONDITIONS.id.inStance).test);
     assert.equal(lone.arg, 4);
     assert.equal(composed.arg, 0);
-    assert.equal(composed.test(hostAt(100), 0), true);
+    assert.equal(composed.test(hostAt(100), 0, undefined), true);
   });
 });
 
@@ -199,5 +207,83 @@ describe('conditions in the modifier fold', () => {
       () => modifiers.compile([mul('damage', 2, { when: forged })]),
       /when: there is no value kind named mana/
     );
+  });
+});
+
+describe('conditions against another unit', () => {
+  it('ask the other unit as the host, the read’s host as its other, and never hold without one', () => {
+    const low = bound(against({ is: 'hurt' }));
+    const share = bound(against({ value: 'healthShare', op: '<', than: 0.5 }));
+    const notLow = bound(not(against({ is: 'hurt' })));
+
+    assert.equal(low(hostAt(100), hostAt(40)), true);
+    assert.equal(low(hostAt(40), hostAt(100)), false);
+    assert.equal(low(hostAt(40)), false);
+    assert.equal(share(hostAt(100), hostAt(40)), true);
+    assert.equal(share(hostAt(100)), false);
+    assert.equal(notLow(hostAt(100)), true);
+  });
+
+  it('hand every test and value read the unit the read is against', () => {
+    const seen: string[] = [];
+
+    const tables = {
+      conditions: defineConditions({
+        near: (host: Host, reach, other: Host | undefined) => (seen.push(`${host.hp}>${other?.hp}`), reach > 0)
+      }),
+      values: defineValues({ gap: (host: Host, _arg, other: Host | undefined) => host.hp - (other?.hp ?? 0) })
+    };
+
+    const near = bindCondition(tables, compileCondition(tables, { is: 'near', arg: 1 }));
+    const gap = bindCondition(tables, compileCondition(tables, { value: 'gap', op: '>', than: 10 }));
+    const flipped = conditionTest(tables, compileCondition(tables, against({ is: 'near', arg: 1 })));
+
+    assert.equal(near(hostAt(90), hostAt(30)), true);
+    assert.equal(gap(hostAt(90), hostAt(30)), true);
+    assert.equal(gap(hostAt(30), hostAt(90)), false);
+    assert.equal(flipped.test(hostAt(90), 0, hostAt(30)), true);
+    assert.deepEqual(seen, ['90>30', '30>90']);
+  });
+
+  it('read the world and mirror safety of what they ask', () => {
+    assert.equal(readsWorld(TABLES, compileCondition(TABLES, against({ is: 'inSight' }))), true);
+    assert.equal(isMirrorSafe(TABLES, compileCondition(TABLES, against({ is: 'hurt' }))), true);
+    assert.equal(isMirrorSafe(TABLES, compileCondition(TABLES, against({ is: 'plain' }))), false);
+  });
+
+  it('gate a modifier and value one in the fold only on a read against a unit, kept totals and all', () => {
+    const stats = defineStats({ damage: { base: 1, kind: 'multiplier' }, reach: { base: 0, kind: 'flat' } });
+    const sources = defineSources(['talents']);
+
+    const modifiers = createModifierSystem({
+      stats,
+      sources,
+      conditions: CONDITIONS,
+      values: VALUES,
+      revision: () => 0
+    });
+
+    const sheet = modifiers.createSheet();
+
+    modifiers.setSource(sheet, sources.id.talents, [
+      modifiers.compile([
+        mul('damage', 1.5, { when: against({ is: 'hurt' }) }),
+        plus('damage', againstValue('missing', 0.01)),
+        plus('reach', againstValue('missing', 1))
+      ])
+    ]);
+
+    const host = hostAt(100);
+    const plain = { host };
+    const versus = { host, against: hostAt(40) };
+
+    assert.equal(modifiers.resolve(sheet, stats.id.damage, plain), 1);
+    assert.equal(modifiers.resolve(sheet, stats.id.damage, versus), (1 + 0.6) * 1.5);
+    assert.equal(modifiers.resolve(sheet, stats.id.damage, plain), 1);
+    assert.equal(modifiers.explainStat(sheet, stats.id.damage, versus).total, (1 + 0.6) * 1.5);
+    // A value read against a unit alone: the plain total is kept, and must not stand for the read against one.
+    assert.equal(modifiers.resolve(sheet, stats.id.reach, plain), 0);
+    assert.equal(modifiers.resolve(sheet, stats.id.reach, versus), 60);
+    assert.equal(modifiers.resolve(sheet, stats.id.reach, plain), 0);
   });
 });

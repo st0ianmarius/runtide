@@ -61,7 +61,7 @@ const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, [name, walks]: 
     case 'done': {
       return (heal: HealRecord<G>) => {
         if (healDone !== undefined && heal.healer !== undefined) {
-          heal.amount *= Math.max(0, engine.viewOf(heal.healer, heal).total(healDone));
+          heal.amount *= Math.max(0, engine.viewOf(heal.healer, heal, heal.target).total(healDone));
         }
 
         return undefined;
@@ -71,7 +71,7 @@ const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, [name, walks]: 
     case 'received': {
       return (heal: HealRecord<G>) => {
         if (healReceived !== undefined) {
-          heal.amount *= Math.max(0, engine.viewOf(heal.target, heal).total(healReceived));
+          heal.amount *= Math.max(0, engine.viewOf(heal.target, heal, heal.healer).total(healReceived));
         }
 
         return undefined;

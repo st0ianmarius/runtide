@@ -263,11 +263,29 @@ export class UnitEngine<G extends UnitTypes> {
 
     modifiers.system.setBases(sheet, unit.base);
     unit.view = modifiers.system.view(sheet, { host: bearer });
+    unit.againstRead = undefined;
+    unit.againstView = undefined;
   }
 
-  /** A unit's stats. */
-  statsOf(bearer: G['bearer']): StatView {
-    return unitOf(bearer).view ?? missing('a unit lost its stat view');
+  /**
+   * A unit's stats, against another unit when one is named (a blow's other side): the same view each time, the other
+   * unit set on its read, so it is read at once and not kept.
+   */
+  statsOf(bearer: G['bearer'], against?: G['bearer']): StatView {
+    const unit = unitOf(bearer);
+    const view = unit.view ?? missing('a unit lost its stat view');
+    const { sheet } = unit;
+    const system = this.options.modifiers?.system;
+
+    if (against === undefined || sheet === undefined || system === undefined) {
+      return view;
+    }
+
+    const read = (unit.againstRead ??= { host: bearer, against });
+
+    read.against = against;
+
+    return (unit.againstView ??= system.view(sheet, read));
   }
 }
 

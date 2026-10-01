@@ -85,9 +85,12 @@ export interface DamageHost<G extends DamageTypes> {
 
   /**
    * A unit's stats for a spell (a blow's or a heal's: folded for the spell, as a scoped modifier needs) or, with none,
-   * in general. Outgoing multipliers, crit, block, mitigation, heal stats and scaled values read it.
+   * in general; and against the blow's or heal's other unit when there is one, which the modifiers that ask about it
+   * read (`against`, `againstValue`, through the fold read's `against`): the attacker's stats against the target, the
+   * target's against the attacker. Outgoing multipliers, crit, block, mitigation, heal stats and scaled values read
+   * it, each view at once: it is never kept past the read.
    */
-  readonly statsOf?: (unit: G['bearer'], spell: G['spell'] | undefined) => StatView;
+  readonly statsOf?: (unit: G['bearer'], spell: G['spell'] | undefined, against?: G['bearer']) => StatView;
 
   /**
    * A spell's share of an outgoing multiplier stat (`SpellDef.scaling`), looked up through the blow's source

@@ -13,6 +13,7 @@ interface ValueFields {
   readonly cap: number;
   readonly readId: number;
   readonly readArg: number;
+  readonly readsAgainst: boolean;
 }
 
 /** The value fields of a compiled value: a plain number, a followed stat, or a game value read. */
@@ -25,7 +26,8 @@ const valueFields = (value: CompiledValue): ValueFields => {
     neutral: 0,
     cap: Infinity,
     readId: -1,
-    readArg: 0
+    readArg: 0,
+    readsAgainst: false
   };
 
   if (typeof value === 'number') {
@@ -45,7 +47,7 @@ const valueFields = (value: CompiledValue): ValueFields => {
     };
   }
 
-  return { ...plain, valueKind: FROM_HOST, readId: value.value, readArg: value.arg };
+  return { ...plain, valueKind: FROM_HOST, readId: value.value, readArg: value.arg, readsAgainst: value.against };
 };
 
 /** The fold entry of one compiled modifier from one source, every field present (one hidden class). */
@@ -67,6 +69,7 @@ export const entryOf = <Host>(
     cap: fields.cap,
     read: fields.readId < 0 ? undefined : tables.reads[fields.readId],
     readArg: fields.readArg,
+    readsAgainst: fields.readsAgainst,
     test: bound?.test,
     testArg: bound?.arg ?? 0,
     scope: modifier.scope ?? -1,

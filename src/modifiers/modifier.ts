@@ -33,6 +33,9 @@ export interface HostValue<V extends string = string> {
 
   /** The kind's numeric argument. */
   readonly arg: number;
+
+  /** Whether it reads the unit the read is against (`againstValue`) instead of the bearer; false when absent. */
+  readonly against?: boolean;
 }
 
 /** What a modifier lands with: a number, another stat's bonus, or a game value read. */
@@ -135,6 +138,17 @@ export const hostValue = <const V extends string>(value: V, arg = 0): HostValue<
   arg
 });
 
+/**
+ * A value read from the unit the read is against (a blow's target) through a game value kind:
+ * `againstValue('missingHealth', 0.5)`. A modifier with one does not count when the read is against no unit.
+ */
+export const againstValue = <const V extends string>(value: V, arg = 0): HostValue<V> => ({
+  kind: 'host',
+  value,
+  arg,
+  against: true
+});
+
 /** A compiled value: a number, or a stat-valued or host-valued one with its names resolved to ids. */
 export type CompiledValue =
   | number
@@ -163,6 +177,9 @@ export type CompiledValue =
 
       /** Its argument. */
       readonly arg: number;
+
+      /** Whether it reads the unit the read is against. */
+      readonly against: boolean;
     };
 
 /** A modifier compiled against the game's tables: every name resolved to its id, every option present. */

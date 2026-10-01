@@ -70,7 +70,7 @@ const compileValue = <S extends string, C extends string, V extends string>(
 
   checkNumber(value.arg, place, 'arg');
 
-  return { kind: 'host', value: id, arg: value.arg };
+  return { kind: 'host', value: id, arg: value.arg, against: value.against === true };
 };
 
 /** Compiles a modifier's condition against the condition and value tables. */

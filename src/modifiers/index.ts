@@ -56,6 +56,7 @@ export {
 export { explainScaled, type ScaledExplanation, type TermExplanation } from './explain-scaled.ts';
 
 export {
+  againstValue,
   cap,
   type CompiledModifier,
   type CompiledValue,

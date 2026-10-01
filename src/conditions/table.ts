@@ -6,10 +6,12 @@ export type ConditionId = Id<'conditions'>;
 
 /**
  * A game-supplied condition test: whether it holds for the read's host (the bearer's state and world,
- * as the game shapes them) with the condition's numeric argument. It must be deterministic; it may ask the world
- * lazily, since it runs only when what waits on it would otherwise count.
+ * as the game shapes them) with the condition's numeric argument. `against` is the unit the read is against, when it
+ * has one: a blow's target when the attacker's stats are read, its attacker when the defender's are, a trigger
+ * event's other unit. It must be deterministic; it may ask the world lazily, since it runs only when what waits on it
+ * would otherwise count.
  */
-export type ConditionTest<Host> = (host: Host, arg: number) => boolean;
+export type ConditionTest<Host> = (host: Host, arg: number, against: Host | undefined) => boolean;
 
 /** A condition with its flags: what `defineConditions` takes in place of a bare test. */
 export interface ConditionSpec<Host> {

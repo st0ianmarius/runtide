@@ -51,12 +51,19 @@ export const entryValue = <Host>(sheet: Sheet<Host>, entry: Entry<Host>): number
     return value > entry.cap ? entry.cap : value;
   }
 
-  const host = sheet.view.read?.host;
+  const read = sheet.view.read;
+  const host = read?.host;
 
   if (entry.valueKind === FROM_HOST && entry.read !== undefined && host !== undefined) {
     sheet.readsHost = true;
 
-    return entry.read(host, entry.readArg);
+    const against = read?.against;
+
+    if (!entry.readsAgainst) {
+      return entry.read(host, entry.readArg, against);
+    }
+
+    return against === undefined ? 0 : entry.read(against, entry.readArg, host);
   }
 
   return entry.value;

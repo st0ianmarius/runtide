@@ -12,6 +12,7 @@ import {
   defineAuras,
   defineAuraTags
 } from '../../src/auras/index.ts';
+import { against, defineConditions, defineValues } from '../../src/conditions/index.ts';
 import { createBus, createClock, type SimClock, stream } from '../../src/core/index.ts';
 import {
   type Blow,
@@ -23,7 +24,14 @@ import {
   defineDamageKinds,
   type Force
 } from '../../src/damage/index.ts';
-import { createModifierSystem, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
+import {
+  againstValue,
+  createModifierSystem,
+  defineSources,
+  defineStats,
+  mul,
+  plus
+} from '../../src/modifiers/index.ts';
 import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc, type ProcSystem } from '../../src/procs/index.ts';
 import {
   createScriptSystem,
@@ -68,13 +76,13 @@ export interface UnitGame extends ScriptTypes {
   readonly trigger: never;
 
   /** The test stats. */
-  readonly stat: 'maxHealth' | 'speed' | 'power';
+  readonly stat: 'maxHealth' | 'speed' | 'power' | 'might';
 
-  /** No conditions. */
-  readonly condition: never;
+  /** Whether a unit is an elite. */
+  readonly condition: 'elite';
 
-  /** No value kinds. */
-  readonly valueKind: never;
+  /** A unit's share of its health missing. */
+  readonly valueKind: 'missingShare';
 
   /** A unit's base stats, then auras. */
   readonly source: 'base' | 'auras';
@@ -195,7 +203,8 @@ export const TIMERS = defineTimers(['pick', 'raise']);
 export const STATS = defineStats({
   maxHealth: { base: 100, kind: 'flat' },
   speed: { base: 5, kind: 'flat' },
-  power: { base: 10, kind: 'flat' }
+  power: { base: 10, kind: 'flat' },
+  might: { base: 1, kind: 'multiplier' }
 });
 
 const aura = defineAura<UnitGame>;
@@ -217,6 +226,8 @@ const AURAS = defineAuras<UnitGame, string>({
   vigour: aura({ duration: 'infinite', modifiers: [plus('maxHealth', 50)] }),
   frail: aura({ duration: 'infinite', modifiers: [mul('maxHealth', 0.5)] }),
   haste: aura({ duration: 'infinite', modifiers: [mul('speed', 2)] }),
+  slayer: aura({ duration: 'infinite', modifiers: [mul('might', 1.5, { when: against({ is: 'elite' }) })] }),
+  executioner: aura({ duration: 'infinite', modifiers: [plus('might', againstValue('missingShare'))] }),
   lastStand: aura({
     duration: 'infinite',
     removedOn: ['dead'],
@@ -247,6 +258,12 @@ export const auraId = (name: string): AuraId => {
 
 /** The test unit classes. */
 export const UNIT_TAGS = defineUnitTags(['horde', 'elite', 'boss', 'objective']);
+
+/** The test conditions: whether a unit is an elite. */
+const CONDITIONS = defineConditions({ elite: (unit: Unit<UnitGame>) => unit.tags.has(UNIT_TAGS.id.elite) });
+
+/** The test value kinds: a unit's share of its health missing. */
+const VALUES = defineValues({ missingShare: (unit: Unit<UnitGame>) => 1 - unit.health / unit.maxHealth });
 
 /**
  * The test derived states: a stun keeps a unit from acting and moving, a root or a freeze from moving; a freeze also
@@ -342,7 +359,9 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     sources,
     stacks: auraStacks,
     held: auraGates,
-    revision: auraRevision
+    revision: auraRevision,
+    conditions: CONDITIONS,
+    values: VALUES
   });
 
   const late: {
@@ -430,6 +449,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     auras,
     kinds: defineDamageKinds({ physical: {} }),
     stats: STATS,
+    outgoing: ['might'],
     host: {
       ...units.damageHost,
 

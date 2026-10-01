@@ -4,7 +4,7 @@ import { type ActiveAura, type AuraSystem, NO_SOURCE } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
 import type { EventKind, Random } from '../core/index.ts';
 import type { ProcOrigin, ProcSystem } from '../procs/index.ts';
-import type { CompiledTrigger, TriggerConditions, TriggerTables } from './compile.ts';
+import type { CompiledTrigger, TriggerCheck, TriggerConditions, TriggerTables } from './compile.ts';
 import type { TriggerEvent } from './events.ts';
 import type { TriggerId } from './trigger-id.ts';
 import type { TriggerTypes } from './trigger-types.ts';
@@ -140,6 +140,20 @@ const roll = (random: Random | undefined): number => {
   return random();
 };
 
+/** Whether a condition holds for a frame's owner, against the event's other unit when it has one. */
+const testsOwner = <G extends TriggerTypes, Host>(
+  conditions: TriggerConditions<G, Host>,
+  check: TriggerCheck<G, Host>,
+  frame: DispatchFrame<G, Host>
+): boolean => {
+  const { other } = frame;
+
+  return (
+    check.test?.(conditions.host(frame.owner), check.arg, other === undefined ? undefined : conditions.host(other)) ===
+    true
+  );
+};
+
 /** Whether every `when` entry holds, in order: filters on the payload, conditions on the owner. */
 const passes = <G extends TriggerTypes, Host>(
   parts: DispatchParts<G, Host>,
@@ -158,7 +172,7 @@ const passes = <G extends TriggerTypes, Host>(
     const holds =
       check.test === undefined
         ? check.spec?.test(frame.payload, check.arg) === true
-        : parts.conditions !== undefined && check.test(parts.conditions.host(frame.owner), check.arg);
+        : parts.conditions !== undefined && testsOwner(parts.conditions, check, frame);
 
     if (!holds) {
       return false;

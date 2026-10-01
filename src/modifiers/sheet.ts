@@ -18,6 +18,12 @@ export interface FoldRead<Host> {
    */
   readonly host?: Host | undefined;
 
+  /**
+   * The unit the read is against (a blow's target, for its attacker's stats): what `against` conditions and values
+   * ask. Without one, they do not count.
+   */
+  readonly against?: Host | undefined;
+
   /** The scope ids the read reaches (a spell's id and tags); without one, every scoped modifier is skipped. */
   readonly scope?: Bitset | undefined;
 
@@ -79,6 +85,9 @@ export interface Entry<Host> {
 
   /** The argument of the read. */
   readonly readArg: number;
+
+  /** Whether the read asks the unit the read is against instead of the host (`againstValue`). */
+  readonly readsAgainst: boolean;
 
   /** The condition test, or `undefined` for none. */
   readonly test: ConditionTest<Host> | undefined;

@@ -29,6 +29,16 @@ export interface NotCondition<C extends string = string, V extends string = stri
 }
 
 /**
+ * Its condition holds for the unit the read is against, asked as that unit's own (its tests and values read it as the
+ * host, with the read's host as theirs to be against): `against({ is: 'elite' })`. It does not hold when the read is
+ * against no unit.
+ */
+export interface AgainstCondition<C extends string = string, V extends string = string> {
+  /** The condition asked of the other unit. */
+  readonly against: ConditionExpr<C, V>;
+}
+
+/**
  * How a comparison compares a value with its threshold: `<` and `>` are strict; `<=` and `>=` admit the
  * epsilon (`v ≤ than + ε`, `v ≥ than − ε`); `==` and `!=` compare within it (`|v − than| ≤ ε`).
  */
@@ -54,13 +64,15 @@ export interface CompareCondition<V extends string = string> {
 
 /**
  * A condition: one data-driven predicate that modifiers, triggers, targeting and AI all read, as
- * game tests (`is`), comparisons of game values (`value`), and their composition (`all`, `any`, `not`).
+ * game tests (`is`), comparisons of game values (`value`), and their composition (`all`, `any`, `not`, and
+ * `against`, which asks the unit the read is against).
  */
 export type ConditionExpr<C extends string = string, V extends string = string> =
   | IsCondition<C>
   | AllCondition<C, V>
   | AnyCondition<C, V>
   | NotCondition<C, V>
+  | AgainstCondition<C, V>
   | CompareCondition<V>;
 
 /**
@@ -86,10 +98,10 @@ export type CompiledCondition =
       readonly of: readonly CompiledCondition[];
     }
   | {
-      /** A negation. */
-      readonly kind: 'not';
+      /** A negation, or a condition asked of the unit the read is against. */
+      readonly kind: 'not' | 'against';
 
-      /** What it negates. */
+      /** What it negates, or asks of the other unit. */
       readonly of: CompiledCondition;
     }
   | {
@@ -127,4 +139,11 @@ export const not = <C extends string, V extends string = never>(
   condition: ConditionExpr<C, V>
 ): NotCondition<C, V> => ({
   not: condition
+});
+
+/** `against(a)`: it holds for the unit the read is against (a blow's target); never when there is none. */
+export const against = <C extends string, V extends string = never>(
+  condition: ConditionExpr<C, V>
+): AgainstCondition<C, V> => ({
+  against: condition
 });
