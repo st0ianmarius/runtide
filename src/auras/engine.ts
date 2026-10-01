@@ -207,7 +207,6 @@ export class AuraEngine<G extends AuraTypes> {
     items[at] = item;
   }
 
-  /** Gives an aura's slot back to the pool, clearing the game's fields. */
   /** Takes the landing of this nesting level for an application and its length. */
   takeLanding(application: AuraApplication<G>, seconds: number): Landing<G> {
     const landing = (this.#landings[this.#landingDepth] ??= new Landing<G>(this.#blank, application));
@@ -232,6 +231,7 @@ export class AuraEngine<G extends AuraTypes> {
     }
   }
 
+  /** Gives an aura's slot back to the pool, clearing the game's fields. */
   #release(item: AuraItem<G>): void {
     item.isActive = false;
     this.#resetExt?.(item.ext);

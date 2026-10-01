@@ -203,8 +203,8 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   }
 
   /**
-   * Fills the record from a spec, every field reset, at a credit source and a nesting depth; its kind is the spec's, or
-   * `kind` when it names none.
+   * Fills the record from a spec, every field but its depth reset, credited to `source`; its kind is the spec's, or
+   * `kind` when it names none. The pipeline sets the depth.
    */
   reset(spec: BlowSpec<G>, source: number, kind: DamageKindId): void {
     this.target = spec.target;

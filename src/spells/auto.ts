@@ -1,4 +1,3 @@
-import { toId } from '../core/ids.ts';
 import { type AutoActivation, isAuto } from './activation.ts';
 import type { CastReport, Report } from './cast-request.ts';
 import { recordOf } from './caster.ts';
@@ -22,13 +21,12 @@ export const autoNext = (report: CastReport, interval: number): number => {
   return refusal === 'target' || isReachRefusal(refusal) ? 0 : interval;
 };
 
-/** The seconds until an `auto` clock tries again after a cast: its activation's `next`, else `autoNext`, checked. */
-const nextOf = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['bearer'], report: Report<G>): number => {
-  // The clock being walked: its spell, and its activation (a lookup, not a tuple built per cast).
-  const spell = toId<'spells'>(recordOf(caster).walking);
-  const activation = autoOf(engine, spell);
-  const next = activation.next?.(report, report.interval, caster) ?? autoNext(report, report.interval);
+/** The seconds until an `auto` clock tries again after a cast: its activation's `next`, else `autoNext`. */
+const nextOf = <G extends SpellTypes>(activation: AutoActivation<G>, caster: G['bearer'], report: Report<G>): number =>
+  activation.next?.(report, report.interval, caster) ?? autoNext(report, report.interval);
 
+/** An auto clock's next seconds, checked: finite from 0, or a clear error naming the spell. */
+const checkedNext = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId, next: number): number => {
   if (!(next >= 0) || !Number.isFinite(next)) {
     throw new RangeError(`Spell ${engine.registry.name(spell)}: an auto clock's next is finite seconds from 0.`);
   }
@@ -102,7 +100,7 @@ export const stepAutoClocks = <G extends SpellTypes>(
     if (activation !== undefined) {
       const report = cast(caster, spell);
 
-      record.settle(spell, nextOf(engine, caster, report), dt);
+      record.settle(spell, checkedNext(engine, spell, nextOf(activation, caster, report)), dt);
     }
 
     index = record.after(spell);
