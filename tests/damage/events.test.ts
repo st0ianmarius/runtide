@@ -12,6 +12,16 @@ import { applyAura } from '../../src/procs/index.ts';
 import { createTriggerSystem } from '../../src/triggers/index.ts';
 import { aura, CRIT, type DamageOverrides, type Game, KINDS, makeDamageGame } from '../helpers/damage-game.ts';
 
+/** The damage a `dealt` event's blow carried, read from the payload a proc list answers. */
+const dealtOf = (payload: unknown): number =>
+  typeof payload === 'object' && payload !== null && 'blow' in payload && isBlow(payload.blow)
+    ? payload.blow.amount
+    : 0;
+
+/** Whether a value is a blow with an amount. */
+const isBlow = (value: unknown): value is { readonly amount: number } =>
+  typeof value === 'object' && value !== null && 'amount' in value && typeof value.amount === 'number';
+
 /** Auras whose triggers answer the damage events, each marking its owner with a flag aura. */
 const AURAS = {
   frenzied: aura({ duration: 3 }),
@@ -27,6 +37,16 @@ const AURAS = {
     duration: 'infinite',
     triggers: [
       { on: 'taken', when: [{ filter: 'direct' }], do: [damage<Game>(5, { to: 'other', damageKind: 'fire' })] }
+    ]
+  }),
+  ignited: aura({ duration: 4 }),
+  igniting: aura({
+    duration: 'infinite',
+    triggers: [
+      {
+        on: 'dealt',
+        do: [applyAura<Game>('ignited', { to: 'other', valueFrom: (ctx) => 0.5 * dealtOf(ctx.payload) })]
+      }
     ]
   }),
   thorny: aura({
@@ -121,6 +141,17 @@ describe('the damage events', () => {
 
   it('name the blow statuses in code order', () => {
     assert.deepEqual(BLOW_STATUSES, ['skipped', 'ignored', 'blocked', 'absorbed', 'landed', 'avoided']);
+  });
+});
+
+describe('procs reading the answered event', () => {
+  it('size an aura from the blow that set it off: an ignite worth half the hit', () => {
+    const game = makeTriggerGame();
+    const [attacker, target] = [game.unit(1), game.unit(2)];
+
+    game.auras.apply(attacker, game.id.igniting);
+    game.damage.hit({ target, attacker, amount: 40 });
+    assert.equal(game.auras.find(target, game.id.ignited)?.value, 20);
   });
 });
 

@@ -26,6 +26,38 @@ const defs = {
   stack: aura({ duration: 4, stacking: 'stack', maxStacks: 9 })
 };
 
+describe('an applyAura read as it lands', () => {
+  it('takes its length, stacks and value from the list, in place of its own numbers', () => {
+    const { procs, unit, auras, id } = makeGame(defs);
+    const [u, v] = [unit(1), unit(2)];
+    const of = (ctx: { readonly target: { readonly id: number } }) => ctx.target.id;
+
+    for (const target of [u, v]) {
+      procs.run(
+        [
+          applyAura<Game>('stack', {
+            stacks: 1,
+            durationOf: (ctx) => of(ctx) * 2,
+            stacksOf: (ctx) => of(ctx) + 1,
+            valueFrom: (ctx) => of(ctx) * 10
+          })
+        ],
+        { self: target }
+      );
+    }
+
+    const views = [u, v].map((target) => auras.find(target, id.stack));
+
+    assert.deepEqual(
+      views.map((view) => [view?.duration, view?.stacks, view?.value]),
+      [
+        [2, 2, 10],
+        [4, 3, 20]
+      ]
+    );
+  });
+});
+
 describe('a proc list applies in order', () => {
   it('lets each proc see what the ones before it did', () => {
     const { procs, unit, log, auras, id } = makeGame(defs);

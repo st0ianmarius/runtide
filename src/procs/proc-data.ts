@@ -29,6 +29,24 @@ export interface ApplyAuraProc<G extends ProcTypes> extends ProcShape {
 
   /** What the aura's `onLand` hook receives. */
   readonly payload?: G['payload'];
+
+  /**
+   * Its length read as it lands, in place of `duration`: from the list's context, the answered event's payload
+   * included (`ctx.payload`); `undefined` for the aura's own.
+   */
+  readonly durationOf?: (ctx: ProcContext<G>) => number | undefined;
+
+  /** The stacks it adds, read as it lands, in place of `stacks`. */
+  readonly stacksOf?: (ctx: ProcContext<G>) => number | undefined;
+
+  /**
+   * Its value read as it lands, in place of `value`: an ignite's share of the blow that set it off. It is named
+   * `valueFrom` because every object already has a `valueOf`.
+   */
+  readonly valueFrom?: (ctx: ProcContext<G>) => number | undefined;
+
+  /** What `onLand` receives, read as it lands, in place of `payload`. */
+  readonly payloadOf?: (ctx: ProcContext<G>) => G['payload'] | undefined;
 }
 
 /** Removes every instance of an aura. */

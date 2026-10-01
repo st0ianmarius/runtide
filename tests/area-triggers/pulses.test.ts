@@ -337,10 +337,11 @@ describe('contacts and landings', () => {
 
             onContact: (c, hit) => {
               const at = hit.contactPoint(0, point);
+              const left = hit.timeLeft(0);
 
               c.despawn();
 
-              return [spawn<Game>('relay', { at: vec2(at.x, at.z), now: hit.timeLeft(0) })];
+              return [spawn<Game>('relay', { at: vec2(at.x, at.z), nowOf: () => left })];
             }
           }),
 

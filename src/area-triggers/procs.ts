@@ -38,6 +38,9 @@ export interface SpawnProc<G extends AreaTriggerTypes> extends ProcShape {
 
   /** The seconds of this frame it flies at once (a fork with its parent's leftover time); next tick when absent. */
   readonly now?: number;
+
+  /** Its `now` read as it spawns, in place of `now`: a prepared list's fork reading its parent's leftover time. */
+  readonly nowOf?: (ctx: ProcContext<G>) => number | undefined;
 }
 
 /**

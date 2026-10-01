@@ -131,12 +131,12 @@ const applyAuraKind: CoreProcKind<'applyAura'> = {
     });
 
     application.aura = aura;
-    application.duration = proc.duration;
-    application.stacks = proc.stacks;
-    application.value = proc.value;
+    application.duration = proc.durationOf === undefined ? proc.duration : proc.durationOf(ctx);
+    application.stacks = proc.stacksOf === undefined ? proc.stacks : proc.stacksOf(ctx);
+    application.value = proc.valueFrom === undefined ? proc.value : proc.valueFrom(ctx);
     application.source = ctx.source;
     application.stacking = proc.stacking;
-    application.payload = proc.payload;
+    application.payload = proc.payloadOf === undefined ? proc.payload : proc.payloadOf(ctx);
 
     return ctx.auras.apply(target, application).applied ? PROC_LANDED : PROC_REFUSED;
   },

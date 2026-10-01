@@ -92,7 +92,7 @@ const spawnKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindD
       request.input = proc.inputOf === undefined ? proc.input : proc.inputOf(ctx);
       request.source = ctx.source;
       request.cast = engine.spells.castFor(ctx);
-      request.now = proc.now;
+      request.now = proc.nowOf === undefined ? proc.now : proc.nowOf(ctx);
 
       const handle = spawnArea(engine, kindIdOf(engine, proc.areaTrigger, false), request);
 

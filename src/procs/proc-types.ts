@@ -142,6 +142,9 @@ export interface ProcOrigin<G extends ProcTypes> {
   /** The event's other unit, for `other` targets (a blow's victim for its attacker's procs). */
   readonly other?: G['bearer'] | undefined;
 
+  /** The payload of the event being answered (a blow, for a trigger on a damage event), if any. */
+  readonly payload?: unknown;
+
   /** The entity id the procs are credited to; the host's id of `self` when absent. */
   readonly source?: number | undefined;
 
@@ -165,6 +168,13 @@ export interface ProcContext<G extends ProcTypes> {
 
   /** The event's other unit, if any. */
   readonly other: G['bearer'] | undefined;
+
+  /**
+   * The payload of the event being answered (a blow, for a trigger on a damage event), if any: what a computed field
+   * reads (an ignite's `valueFrom` the blow's damage). The bus reuses it, so it is read while the list runs and
+   * never kept; a delayed list does not carry it.
+   */
+  readonly payload: unknown;
 
   /** The entity id the procs are credited to. */
   readonly source: number;
