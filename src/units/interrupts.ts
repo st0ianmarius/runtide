@@ -24,15 +24,14 @@ export const syncStates = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
     unit.interrupts ^= bit;
     changed += 1;
 
-    const isOn = (unit.interrupts & bit) !== 0;
-
-    if (isOn) {
+    if ((unit.interrupts & bit) !== 0) {
       spells.interrupt(bearer, state.reason);
     } else {
       spells.endInterrupt(bearer, state.reason);
     }
 
-    engine.options.ai?.hold(bearer, state.reason, isOn);
+    // A cast's hooks may have flipped this state again (a nested sync); the brain follows where it ended up.
+    engine.options.ai?.hold(bearer, state.reason, (unit.interrupts & bit) !== 0);
   }
 
   return changed;

@@ -350,9 +350,10 @@ export const interruptCaster = <G extends SpellTypes>(
 
   try {
     for (let i = 0; i < count; i++) {
+      // A cast's hooks may end (or raise again) this interrupt mid-loop, so each cast answers its state as it now is.
       answered += answer(engine, handles[i] ?? NO_CAST, {
         reason: change.reason,
-        isOn: change.isOn,
+        isOn: (record.interrupts & bits) !== 0,
         bits
       });
     }

@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { defineAuraTags } from '../../src/auras/index.ts';
 import { defineUnitStates, revive, type UnitDef } from '../../src/units/index.ts';
-import { auraId, makeUnitGame, type UnitGame } from '../helpers/unit-game.ts';
+import { auraId, makeUnitGame, TIMERS, type UnitGame, type UnitTestGame } from '../helpers/unit-game.ts';
 
 /** A creature. */
 const TEMPLATES = { grunt: {} } satisfies Record<string, UnitDef<UnitGame>>;
@@ -79,6 +79,45 @@ describe('states interrupting casts', () => {
 
     assert.equal(states.interrupting.length, 1);
     assert.deepEqual([only?.tags.has(tags.id.freeze), only?.tags.has(tags.id.sleep)], [true, true]);
+  });
+
+  it('let a cast cancelled by an interrupt end it, leaving no cast paused and no brain held', () => {
+    const late: { game?: UnitTestGame<'grunt', 'thaw'> } = {};
+
+    const game = makeUnitGame(TEMPLATES, {
+      spells: {
+        thaw: {
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 1 }, interrupts: { freeze: 'cancel' } },
+          release: () => undefined,
+
+          onEnd: (cast) => {
+            if (cast.caster !== undefined) {
+              late.game?.auras.remove(cast.caster, auraId('freeze'));
+            }
+
+            return undefined;
+          }
+        }
+      }
+    });
+
+    late.game = game;
+
+    const { auras, spells, ai, clock, units, spellId } = game;
+    const grunt = units.spawn(game.id.grunt, { side: 1 });
+    const thaw = spells.cast(grunt, spellId.thaw).handle;
+    const channel = spells.cast(grunt, spellId.channel).handle;
+
+    ai.start(grunt, TIMERS.id.pick, 1);
+    auras.apply(grunt, auraId('freeze'));
+    assert.equal(spells.isRunning(thaw), false);
+    assert.equal(spells.isInterrupted(grunt, 'freeze'), false);
+    clock.step();
+    spells.step(grunt);
+    ai.step(() => undefined);
+    assert.equal(spells.get(channel)?.remaining, 0.75);
+    assert.equal(ai.remaining(grunt, TIMERS.id.pick), 0.75);
   });
 });
 
