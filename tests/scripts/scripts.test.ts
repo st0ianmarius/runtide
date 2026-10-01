@@ -109,6 +109,35 @@ describe('scripts', () => {
     assert.equal(game.events.filter((line) => line.startsWith('timer')).length, 1);
   });
 
+  it('fire an unscripted unit’s timer handed to the game once, though its brain is held and let go after', () => {
+    const game = scripted();
+    const grunt = game.units.spawn(game.id.grunt, { side: 1 });
+    const unscripted: string[] = [];
+
+    const step = (): void => {
+      game.clock.step();
+      game.scripts.collect((_unit, timer) => unscripted.push(`${TIMERS.names[timer] ?? '?'}@${game.clock.time}`));
+    };
+
+    game.ai.start(grunt, TIMERS.id.raise, 0.5);
+
+    for (let i = 0; i < 4; i++) {
+      step();
+    }
+
+    assert.deepEqual(unscripted, ['raise@0.5']);
+    assert.equal(game.ai.cancel(grunt, TIMERS.id.raise), false, 'it fired: nothing runs to cancel');
+    game.ai.hold(grunt, 'freeze', true);
+    step();
+    game.ai.hold(grunt, 'freeze', false);
+
+    for (let i = 0; i < 4; i++) {
+      step();
+    }
+
+    assert.deepEqual(unscripted, ['raise@0.5']);
+  });
+
   it('run tick handlers only for scripted units, and do nothing for the rest', () => {
     const game = scripted();
     const caster = game.units.spawn(game.id.caster, { side: 1 });

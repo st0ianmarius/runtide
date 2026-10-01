@@ -185,7 +185,9 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
   readonly #mark = (unit: G['bearer'], timer: TimerId): void => {
     const record = unit.scriptSlot < 0 ? undefined : this.#records[unit.scriptSlot];
 
+    // Delivered now, not in a step of its own: taken at once, so a later hold does not find it waiting to fire again.
     if (record === undefined) {
+      this.#options.ai.take(unit, timer);
       this.#fallback?.(unit, timer);
 
       return;
