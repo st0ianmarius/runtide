@@ -4,7 +4,6 @@
   "jsPlugins": ["./oxlint-plugin.js"],
   "categories": { "correctness": "error" },
   "options": { "typeAware": true, "reportUnusedDisableDirectives": "error" },
-  "ignorePatterns": ["dist/", "node_modules/"],
   "rules": {
     "curly": ["error", "all"],
     "eqeqeq": ["error", "always"],
