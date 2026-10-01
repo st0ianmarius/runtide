@@ -105,7 +105,7 @@ framework/                # a sibling of the swarm checkout, its own git reposit
   tests/
     <system>/*.test.ts    # unit tests per system
     helpers/              # fake hosts and bearers shared by the tests (not exported)
-  bench/                  # tinybench benchmarks (npm run bench, never part of npm test) and BASELINE.md
+  bench/                  # mitata benchmarks (npm run bench, never part of npm test) and BASELINE.md
 ```
 
 `package.json` exports one entry per system (`<name>/auras`, `<name>/spells`, …) and `.` for the whole, each with a `types` and a `default` condition pointing into `dist/`. The package manager is npm, as in swarm.
@@ -192,7 +192,7 @@ The plan adopts these; others follow the same test:
 | package                     | where                    | why                                                                                                                                                                                                                                    |
 | --------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `flatbush` (runtime)        | `world/` static geometry | a packed R-tree for what never moves (walls, colliders, zones): `search` and `neighbors` over static shapes. Moving units use the hand-written uniform grid instead (§I.5.4)                                                           |
-| `tinybench` (dev)           | `bench/`                 | the benchmark harness for §I.5.4's budgets, outside the unit tests                                                                                                                                                                     |
+| `mitata` (dev)              | `bench/`                 | the benchmark harness for §I.5.4's budgets, outside the unit tests                                                                                                                                                                     |
 | `flatqueue` (runtime)       | `core/timers`            | a binary heap on typed arrays (ISC, no dependencies) for the timer overflow beyond the timing wheel's horizon (§I.5.4)                                                                                                                 |
 | `kdbush` (runtime)          | `world/` point index     | a static k-d tree of points on typed arrays (ISC, no dependencies), rebuilt per tick in well under a millisecond for thousands of units; the alternative to the uniform grid for large, sparse worlds where one cell size does not fit |
 | `typedfastbitset` (runtime) | `core/bitset`            | fast bitsets on typed arrays (Apache-2.0, no dependencies): tag sets, `has`-hook tables, and per-cast hit sets over dense unit indexes (replacing `Set<number>` in `once-per-cast` and `repeat-share`)                                 |
@@ -301,7 +301,7 @@ The framework runs on the server and on every client, every tick, for hundreds o
 
 **Measured, not assumed.**
 
-- `bench/` holds `tinybench` benchmarks, run with `npm run bench` and kept out of `npm test`: registry lookups, aura application and fold, trigger dispatch, proc runs, the grid's queries, and a horde tick (for example 2,000 creatures, each with three auras and a spell in flight, plus 200 area triggers, 300 scripted horde units with movement intents and contact checks, 20 scripted elites and bosses, and a few hundred pickups).
+- `bench/` holds `mitata` benchmarks, run with `npm run bench` and kept out of `npm test`: registry lookups, aura application and fold, trigger dispatch, proc runs, the grid's queries, and a horde tick (for example 2,000 creatures, each with three auras and a spell in flight, plus 200 area triggers, 300 scripted horde units with movement intents and contact checks, 20 scripted elites and bosses, and a few hundred pickups).
 - Each benchmark records a baseline in the repository; CI runs them on a fixed machine type and flags any regression beyond 20%. Absolute budgets per tick are set from the first measurements rather than guessed.
 - Unit tests pin the performance-shaped contracts that can be checked exactly: registries expose typed columns of the right length, hook tables match the definitions, a pooled handle goes stale after release, and a steady-state tick allocates no new casts, auras or area triggers (counted through the pools).
 

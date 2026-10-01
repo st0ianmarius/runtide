@@ -454,6 +454,6 @@ export const coopStats = (): { readonly live: number; readonly inReach: number }
 });
 
 /** The co-op benchmark task, and how many operations each call of its function is. */
-export const COOP_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['co-op: 350 mobs on 4 heroes, 60 Hz, fields + AoE (tick)', tick, 1]
+export const COOP_TASKS: readonly (readonly [string, () => void])[] = [
+  ['co-op: 350 mobs on 4 heroes, 60 Hz, fields + AoE (tick)', tick]
 ];

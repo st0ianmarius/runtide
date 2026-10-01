@@ -274,7 +274,7 @@ export const areaStats = (): { readonly live: number; readonly created: number }
 });
 
 /** The F8 area trigger benchmark tasks, and how many operations each call of its function is. */
-export const AREA_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['areas: 150 pools + 50 missiles over 2,000 units (tick)', areaTick, 1000],
-  ['areas: the same, stepped owner by owner, 2,010 units (tick)', ownerTick, 1000]
+export const AREA_TASKS: readonly (readonly [string, () => void])[] = [
+  ['areas: 150 pools + 50 missiles over 2,000 units (tick)', areaTick],
+  ['areas: the same, stepped owner by owner, 2,010 units (tick)', ownerTick]
 ];

@@ -37,7 +37,7 @@ npm ci
 npm run check         # typecheck, lint, format check, tests, build
 npm run knip          # no unused files, exports or dependencies
 npm run bundle:check  # src/ bundles for the browser without any Node built-in
-npm run bench         # tinybench benchmarks (bench/BASELINE.md), never part of npm test; CI runs them on master
+npm run bench         # mitata benchmarks (bench/BASELINE.md), never part of npm test; CI runs them on master
 npm run format        # oxlint --fix, then oxfmt
 ```
 

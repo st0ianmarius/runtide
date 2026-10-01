@@ -324,7 +324,7 @@ const firePick = (unit: Unit<BenchGame>): void => {
 };
 
 /** The F13 unit, F17 AI and F19 script benchmark tasks, and how many operations each call of its function is. */
-export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
+export const UNIT_TASKS: readonly (readonly [string, () => void])[] = [
   [
     'units: spawn + despawn a grunt (template stats)',
     () => {
@@ -332,8 +332,7 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
 
       unitCounter.seen += unit.health > 0 ? 1 : 0;
       UNITS.despawn(unit);
-    },
-    1
+    }
   ],
   [
     'scripts: step 2,000 unscripted grunts (tick)',
@@ -343,8 +342,7 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
       for (const unit of units) {
         SCRIPTS.step(unit);
       }
-    },
-    1
+    }
   ],
   [
     'scripts: step 2,000 scripted units, nothing due (tick)',
@@ -354,8 +352,7 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
       for (const unit of units) {
         SCRIPTS.step(unit);
       }
-    },
-    1
+    }
   ],
   [
     'scripts: collect + step 2,000 thinkers, a pick every 1–3 s (tick)',
@@ -368,8 +365,7 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
       for (const unit of units) {
         SCRIPTS.step(unit);
       }
-    },
-    1
+    }
   ],
   [
     'ai: 2,000 brains, a pick timer each every 1–3 s (tick)',
@@ -377,28 +373,24 @@ export const UNIT_TASKS: readonly (readonly [string, () => void, number])[] = [
       spawnHorde();
       CLOCK.step();
       unitCounter.seen += AI.step(firePick);
-    },
-    1
+    }
   ],
   [
     'ai: a weighted pick of 4 spells (checked)',
     () => {
       unitCounter.seen += AI.pick(GRUNT, POOL, PICK) ?? 0;
-    },
-    1
+    }
   ],
   [
     'units: canAct + canMove',
     () => {
       unitCounter.seen += UNITS.canAct(GRUNT) && UNITS.canMove(GRUNT) ? 1 : 0;
-    },
-    1
+    }
   ],
   [
     'units: a folded stat (an aura modifier)',
     () => {
       unitCounter.seen += UNITS.statsOf(GRUNT).total(STATS.id.speed) > 0 ? 1 : 0;
-    },
-    1
+    }
   ]
 ];

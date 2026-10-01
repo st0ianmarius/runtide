@@ -464,6 +464,6 @@ export const hordeStats = (): { readonly swings: number; readonly inReach: numbe
 };
 
 /** The whole-game benchmark task, and how many operations each call of its function is. */
-export const HORDE_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['horde: 2,000 mobs + 4 heroes, the whole unit game (tick)', tick, 1]
+export const HORDE_TASKS: readonly (readonly [string, () => void])[] = [
+  ['horde: 2,000 mobs + 4 heroes, the whole unit game (tick)', tick]
 ];

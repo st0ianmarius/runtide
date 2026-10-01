@@ -1,4 +1,4 @@
-import { Bench } from 'tinybench';
+import { bench, do_not_optimize, run } from 'mitata';
 
 import {
   type AuraBearer,
@@ -47,8 +47,18 @@ import { SPELL_TASKS, spellCounter, spellHordeStats } from './spells.ts';
 import { UNIT_TASKS, unitCounter } from './units.ts';
 import { WORLD_TASKS, worldCounter } from './world.ts';
 
-/** Operations per task call: single operations are far below the timer's resolution, so each call runs a batch. */
-const BATCH = 1000;
+/**
+ * How the runner is asked: `node bench/run.ts [filter] [--json]`. The filter (a case-blind pattern) picks the rows to
+ * run; `--json` prints only each row's median nanoseconds per operation, by name, for `bench/ab.ts` to compare (a
+ * median, as the garbage collector's pauses swing a mean from run to run).
+ */
+const ARGS = process.argv.slice(2);
+const IS_JSON = ARGS.includes('--json');
+const PATTERN = ARGS.find((arg) => !arg.startsWith('--'));
+const FILTER = PATTERN === undefined ? undefined : new RegExp(PATTERN, 'i');
+
+/** How many schedules the timing wheel row makes per tick it collects. */
+const PER_TICK = 1000;
 
 /** A registry of 256 definitions with a typed column and one hook, as a spell table would be. */
 const SPELLS = createRegistry(
@@ -256,90 +266,101 @@ const PASSIVES: AuraBearer[] = Array.from({ length: 2000 }, () => {
   return bearer;
 });
 
-/** Operations per call of each task, where it is not `BATCH`. */
-const BATCHES = new Map([
-  ['aura tick, 2,000 bearers x 3 auras (per tick)', 1],
-  ['aura tick, 2,000 bearers x 2 auras, nothing due (per tick)', 1]
-]);
+let n = 0;
 
-const bench = new Bench({ time: 400, warmup: true });
-
-bench
-  .add('registry get(id) + column read', () => {
-    for (let i = 0; i < BATCH; i++) {
-      const id = IDS[i & 255];
+/** Every row, in order: the core's, then each system's. */
+const ROWS: readonly (readonly [string, () => void])[] = [
+  [
+    'registry get(id) + column read',
+    () => {
+      const id = IDS[(n += 1) & 255];
 
       if (id !== undefined) {
         sink += SPELLS.get(id).cooldown + (SPELLS.columns.cooldown[id] ?? 0);
       }
     }
-  })
-  .add('registry has-bit + hook table dispatch', () => {
-    for (let i = 0; i < BATCH; i++) {
-      const id = i & 255;
+  ],
+  [
+    'registry has-bit + hook table dispatch',
+    () => {
+      const id = (n += 1) & 255;
 
       if (HAS_ON_HIT.has(id)) {
         sink += ON_HIT[id]?.() ?? 0;
       }
     }
-  })
-  .add('bitset has', () => {
-    for (let i = 0; i < BATCH; i++) {
-      sink += TAGS.has(i & 255) ? 1 : 0;
+  ],
+  [
+    'bitset has',
+    () => {
+      sink += TAGS.has((n += 1) & 255) ? 1 : 0;
     }
-  })
-  .add('bitset intersects (immunity check)', () => {
-    for (let i = 0; i < BATCH; i++) {
+  ],
+  [
+    'bitset intersects (immunity check)',
+    () => {
       sink += TAGS.intersects(IMMUNE) ? 1 : 0;
     }
-  })
-  .add('timing wheel schedule + collect (15% overflow)', () => {
-    for (let i = 0; i < BATCH; i++) {
-      WHEEL.schedule(tick + 1 + (i % 300), i);
-    }
+  ],
+  [
+    'timing wheel schedule + collect (15% overflow)',
+    () => {
+      n += 1;
+      WHEEL.schedule(tick + 1 + (n % 300), n);
 
-    tick += 1;
-    sink += WHEEL.collect(tick, FIRED);
-  })
-  .add('keyed roll, 5-part key (spread)', () => {
-    for (let i = 0; i < BATCH; i++) {
-      sink += roll(12_345, 7, tick, i, 3, 12, 0);
+      if (n % PER_TICK === 0) {
+        tick += 1;
+        sink += WHEEL.collect(tick, FIRED);
+      }
     }
-  })
-  .add('keyed roll, 4-part scratch key', () => {
-    for (let i = 0; i < BATCH; i++) {
+  ],
+  [
+    'keyed roll, 5-part key (spread)',
+    () => {
+      sink += roll(12_345, 7, tick, (n += 1), 3, 12, 0);
+    }
+  ],
+  [
+    'keyed roll, 4-part scratch key',
+    () => {
       SCRATCH_KEY[0] = tick;
-      SCRATCH_KEY[1] = i;
+      SCRATCH_KEY[1] = n += 1;
       sink += rollKey(12_345, 7, SCRATCH_KEY);
     }
-  })
-  .add('sequential stream draw', () => {
-    for (let i = 0; i < BATCH; i++) {
+  ],
+  [
+    'sequential stream draw',
+    () => {
       sink += MAIN();
     }
-  })
-  .add('modifier fold, two stats (6 sources, gates)', () => {
-    for (let i = 0; i < BATCH; i++) {
+  ],
+  [
+    'modifier fold, two stats (6 sources, gates)',
+    () => {
       sink += MODIFIERS.resolve(SHEET, STATS.id.damage, READ) + MODIFIERS.resolve(SHEET, STATS.id.moveSpeed, READ);
     }
-  })
-  .add('scaled value evaluation (live folded stats)', () => {
-    for (let i = 0; i < BATCH; i++) {
+  ],
+  [
+    'scaled value evaluation (live folded stats)',
+    () => {
       sink += evaluateScaled(DAMAGE, EVALUATION);
     }
-  })
-  .add('scaled value finish from a snapshot', () => {
-    for (let i = 0; i < BATCH; i++) {
+  ],
+  [
+    'scaled value finish from a snapshot',
+    () => {
       sink += finishScaled(SNAPSHOT, TARGET);
     }
-  })
-  .add('scaled cooldown through the haste curve', () => {
-    for (let i = 0; i < BATCH; i++) {
+  ],
+  [
+    'scaled cooldown through the haste curve',
+    () => {
       sink += evaluateScaled(COOLDOWN, EVALUATION);
     }
-  })
-  .add('aura apply x3 + fold two stats', () => {
-    for (let i = 0; i < BATCH; i++) {
+  ],
+  [
+    'aura apply x3 + fold two stats',
+    () => {
       AURA_SYSTEM.apply(AURA_BEARER, AURAS.id.might);
       AURA_SYSTEM.apply(AURA_BEARER, AURAS.id.fury);
       AURA_SYSTEM.apply(AURA_BEARER, AURAS.id.haste);
@@ -347,33 +368,30 @@ bench
         AURA_MODIFIERS.resolve(AURA_SHEET, AURA_STATS.id.damage, AURA_READ) +
         AURA_MODIFIERS.resolve(AURA_SHEET, AURA_STATS.id.moveSpeed, AURA_READ);
     }
-  })
-  .add('fold a stat, 120 aura lists in the game, 2 held', () => {
-    for (let i = 0; i < BATCH; i++) {
+  ],
+  [
+    'fold a stat, 120 aura lists in the game, 2 held',
+    () => {
       sink += CATALOGUE_MODIFIERS.resolve(CATALOGUE_SHEET, AURA_STATS.id.moveSpeed, CATALOGUE_READ);
     }
-  })
-  .add('aura tick, 2,000 bearers x 3 auras (per tick)', () => {
-    for (const bearer of HORDE) {
-      AURA_SYSTEM.tick(bearer, 'world');
+  ],
+  [
+    'aura tick, 2,000 bearers x 3 auras (per tick)',
+    () => {
+      for (const bearer of HORDE) {
+        AURA_SYSTEM.tick(bearer, 'world');
+      }
     }
-  })
-  .add('aura tick, 2,000 bearers x 2 auras, nothing due (per tick)', () => {
-    for (const bearer of PASSIVES) {
-      AURA_SYSTEM.tick(bearer, 'world');
+  ],
+  [
+    'aura tick, 2,000 bearers x 2 auras, nothing due (per tick)',
+    () => {
+      for (const bearer of PASSIVES) {
+        AURA_SYSTEM.tick(bearer, 'world');
+      }
     }
-  });
-
-for (const [name, task] of PROC_TRIGGER_TASKS) {
-  bench.add(name, () => {
-    for (let i = 0; i < BATCH; i++) {
-      task();
-    }
-  });
-}
-
-/** The damage and cue tasks run fewer calls per batch when one call is a burst of many blows or a tick of cues. */
-for (const [name, task, blows] of [
+  ],
+  ...PROC_TRIGGER_TASKS,
   ...DAMAGE_TASKS,
   ...CUE_TASKS,
   ...SPELL_TASKS,
@@ -382,53 +400,61 @@ for (const [name, task, blows] of [
   ...ABILITY_TASKS,
   ...LOG_TASKS,
   ...UNIT_TASKS
-]) {
-  const calls = Math.max(1, BATCH / blows);
+];
 
-  BATCHES.set(name, calls);
-  bench.add(name, () => {
-    for (let i = 0; i < calls; i++) {
+/** Each row's median nanoseconds per operation, by name, as the phases ran. */
+const medians = new Map<string, number>();
+
+/** Whether any row of a list passes the filter: a phase none of whose rows run is not loaded at all. */
+const isWanted = (names: readonly string[]): boolean => FILTER === undefined || names.some((name) => FILTER.test(name));
+
+/**
+ * Runs one phase's rows through mitata: one operation per iteration, the sink kept live with `do_not_optimize`, its
+ * table printed unless `--json` asks for the means alone.
+ */
+const runPhase = async (rows: readonly (readonly [string, () => void])[]): Promise<void> => {
+  for (const [name, task] of rows) {
+    bench(name, () => {
       task();
-    }
+      do_not_optimize(sink);
+    });
+  }
+
+  const { benchmarks } = await run({
+    ...(FILTER === undefined ? {} : { filter: FILTER }),
+    format: IS_JSON ? 'quiet' : 'mitata'
   });
-}
 
-await bench.run();
-
-// The whole-game horde runs last and is loaded only now: a whole game's systems made at load would change the type
-// feedback every row above runs under, so its module waits until they are done.
-const { HORDE_TASKS, hordeCounter, hordeStats } = await import('./horde.ts');
-const last = new Bench({ time: 400, warmup: true });
-
-for (const [name, task, ticks] of HORDE_TASKS) {
-  const calls = Math.max(1, BATCH / ticks);
-
-  BATCHES.set(name, calls);
-  last.add(name, () => {
-    for (let i = 0; i < calls; i++) {
-      task();
+  for (const trial of benchmarks) {
+    for (const each of trial.runs) {
+      if (each.stats !== undefined) {
+        medians.set(each.name, each.stats.p50);
+      }
     }
-  });
-}
+  }
+};
 
-await last.run();
+await runPhase(ROWS);
+
+// The whole-game horde runs after the rows above and is loaded only now: a whole game's systems made at load would
+// change the type feedback every row above runs under, so its module waits until they are done. A late phase whose
+// rows the filter leaves out is never loaded.
+const horde = isWanted(['horde: 2,000 mobs + 4 heroes, the whole unit game (tick)'])
+  ? await import('./horde.ts')
+  : undefined;
+
+if (horde !== undefined) {
+  await runPhase(horde.HORDE_TASKS);
+}
 
 // The co-op game runs after it, on a fresh module for the same reason.
-const { COOP_TASKS, coopCounter, coopStats } = await import('./coop.ts');
-const coop = new Bench({ time: 400, warmup: true });
+const coop = isWanted(['co-op: 350 mobs on 4 heroes, 60 Hz, fields + AoE (tick)'])
+  ? await import('./coop.ts')
+  : undefined;
 
-for (const [name, task, ticks] of COOP_TASKS) {
-  const calls = Math.max(1, BATCH / ticks);
-
-  BATCHES.set(name, calls);
-  coop.add(name, () => {
-    for (let i = 0; i < calls; i++) {
-      task();
-    }
-  });
+if (coop !== undefined) {
+  await runPhase(coop.COOP_TASKS);
 }
-
-await coop.run();
 
 sink +=
   counter.granted +
@@ -442,27 +468,30 @@ sink +=
   abilityCounter.granted +
   logCounter.seen +
   unitCounter.seen +
-  hordeCounter.seen +
-  coopCounter.seen;
+  (horde?.hordeCounter.seen ?? 0) +
+  (coop?.coopCounter.seen ?? 0);
 
-const horde = spellHordeStats();
-const areas = areaStats();
-const whole = hordeStats();
-const party = coopStats();
+if (IS_JSON) {
+  process.stdout.write(`${JSON.stringify(Object.fromEntries(medians))}\n`);
+} else {
+  const flight = spellHordeStats();
+  const areas = areaStats();
+  const whole = horde?.hordeStats();
+  const party = coop?.coopStats();
 
-const rows = [...bench.tasks, ...last.tasks, ...coop.tasks].map((task) => {
-  const { result } = task;
-  const batch = BATCHES.get(task.name) ?? BATCH;
+  // What the rows did, so a change in behaviour shows beside a change in time.
+  const facts = [
+    `sink ${sink > 0 ? 'ok' : 'empty'}`,
+    `one cue tick is ${CUE_TICK_BYTES} bytes`,
+    `${flight.inFlight} of 2,000 casters have a spell in flight, ${flight.created} cast records made`,
+    `${areas.live} area triggers live, ${areas.created} records made`,
+    ...(whole === undefined
+      ? []
+      : [`${whole.inReach} of the whole game's mobs in reach, ${whole.swings} swings landed`]),
+    ...(party === undefined
+      ? []
+      : [`${party.inReach} of the co-op game's mobs in reach, ${party.live} area triggers live`])
+  ];
 
-  const nanoseconds = result.state === 'completed' ? (result.latency.mean * 1e6) / batch : Number.NaN;
-
-  return `${task.name.padEnd(48)} ${nanoseconds.toFixed(1).padStart(8)} ns/op`;
-});
-
-process.stdout.write(
-  `${[`${'benchmark'.padEnd(48)}    per op`, ...rows].join('\n')}\n(sink ${sink > 0 ? 'ok' : 'empty'}; ` +
-    `one cue tick is ${CUE_TICK_BYTES} bytes; ${horde.inFlight} of 2,000 casters have a spell in flight, ` +
-    `${horde.created} cast records made; ${areas.live} area triggers live, ${areas.created} records made; ` +
-    `${whole.inReach} of the whole game's mobs in reach, ${whole.swings} swings landed; ` +
-    `${party.inReach} of the co-op game's mobs in reach, ${party.live} area triggers live)\n`
-);
+  process.stdout.write(`\n(${facts.join('; ')})\n`);
+}

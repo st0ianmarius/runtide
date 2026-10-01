@@ -355,12 +355,12 @@ const idleTick = (): void => {
 };
 
 /** The F7 benchmark tasks, and how many operations each call of its function is. */
-export const SPELL_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['spells: horde tick, 2,000 casters in flight (tick)', hordeTick, 1000],
-  ['spells: auto step, 2,000 casters, 1 of 20 auto spells armed (tick)', idleTick, 1000],
-  ['spells: 2,000 mobs, swing out of reach, polling a cast (tick)', pollTick, 1000],
-  ['spells: 2,000 mobs, swing out of reach, waiting on ready (tick)', waitTick, 1000],
-  ['spells: instant cast, table stats + release', castBolt, 1],
-  ['spells: after(0), scheduled + landed (per list)', delayOne, 1],
-  ['spells: 1,000 after(0) landing on one tick (tick)', delayThousand, 1000]
+export const SPELL_TASKS: readonly (readonly [string, () => void])[] = [
+  ['spells: horde tick, 2,000 casters in flight (tick)', hordeTick],
+  ['spells: auto step, 2,000 casters, 1 of 20 auto spells armed (tick)', idleTick],
+  ['spells: 2,000 mobs, swing out of reach, polling a cast (tick)', pollTick],
+  ['spells: 2,000 mobs, swing out of reach, waiting on ready (tick)', waitTick],
+  ['spells: instant cast, table stats + release', castBolt],
+  ['spells: after(0), scheduled + landed (per list)', delayOne],
+  ['spells: 1,000 after(0) landing on one tick (tick)', delayThousand]
 ];

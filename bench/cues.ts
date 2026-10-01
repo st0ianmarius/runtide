@@ -169,8 +169,8 @@ const decodeTick = (): void => {
 export const CUE_TICK_BYTES = TICK_BYTES.length;
 
 /** The F6 benchmark tasks, and how many operations each call of its function is (one tick). */
-export const CUE_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['cues: fire 200 specs + encode bytes (tick)', specsToBytes, PER_TICK],
-  ['cues: emit 200 by slot + encode numbers (tick)', slotsToNumbers, PER_TICK],
-  ['cues: decode 200 events from bytes (tick)', decodeTick, PER_TICK]
+export const CUE_TASKS: readonly (readonly [string, () => void])[] = [
+  ['cues: fire 200 specs + encode bytes (tick)', specsToBytes],
+  ['cues: emit 200 by slot + encode numbers (tick)', slotsToNumbers],
+  ['cues: decode 200 events from bytes (tick)', decodeTick]
 ];

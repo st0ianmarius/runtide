@@ -84,49 +84,43 @@ const wander = (world: MemoryWorld<Mob>): void => {
 };
 
 /** The F8 world benchmark tasks, and how many operations each call of its function is. */
-export const WORLD_TASKS: readonly (readonly [string, () => void, number])[] = [
+export const WORLD_TASKS: readonly (readonly [string, () => void])[] = [
   [
     'world: inside r 6, 2,000 units (grid)',
     () => {
       worldCounter.found += GRID.inside(CIRCLE, FOES, OUT);
-    },
-    1
+    }
   ],
   [
     'world: nearest foe in a crowd, 2,000 within 30 m (grid)',
     () => {
       worldCounter.found += CROWD.nearest(HERO, CROWD_NEAR, OUT);
-    },
-    1
+    }
   ],
   [
     'world: nearest foe in 10 m (grid)',
     () => {
       worldCounter.found += GRID.nearest(CASTER, NEAR, OUT);
-    },
-    1
+    }
   ],
   [
     'world: sweep 40 m, body 0.5 (grid)',
     () => {
       worldCounter.found += GRID.sweep(SEGMENT, SWEEP, OUT);
-    },
-    1
+    }
   ],
   [
     'world: 2,000 units move, grid updated (tick)',
     () => {
       wander(GRID);
-    },
-    1000
+    }
   ],
   [
     'world: 2,000 units move, k-d rebuilt + a query (tick)',
     () => {
       wander(KD);
       worldCounter.found += KD.inside(CIRCLE, FOES, OUT);
-    },
-    1000
+    }
   ],
   [
     'world: a body crossing a circle over one tick',
@@ -136,7 +130,6 @@ export const WORLD_TASKS: readonly (readonly [string, () => void, number])[] = [
         { from: vec2(0, 10), to: vec2(20, 10), t0: 0, t1: 1 / 30 },
         INTERVALS
       );
-    },
-    1
+    }
   ]
 ];

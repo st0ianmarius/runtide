@@ -225,7 +225,7 @@ const burst = (): void => {
 };
 
 /** The F5 benchmark tasks, and how many operations each call of its function is. */
-export const DAMAGE_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['blow, full pipeline, 3 hooking auras', oneBlow, 1],
-  ['burst of 100 blows on 100 hooked targets', burst, 100]
+export const DAMAGE_TASKS: readonly (readonly [string, () => void])[] = [
+  ['blow, full pipeline, 3 hooking auras', oneBlow],
+  ['burst of 100 blows on 100 hooked targets', burst]
 ];

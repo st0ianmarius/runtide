@@ -56,7 +56,7 @@ const logged = (withMeter: boolean) => {
 };
 
 /** The F11 combat log benchmark tasks, and how many operations each call of its function is. */
-export const LOG_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['combat log: a blow raised and recorded', logged(false), 1],
-  ['combat log: a blow recorded, a meter subscribed', logged(true), 1]
+export const LOG_TASKS: readonly (readonly [string, () => void])[] = [
+  ['combat log: a blow raised and recorded', logged(false)],
+  ['combat log: a blow recorded, a meter subscribed', logged(true)]
 ];

@@ -1,6 +1,6 @@
 # Benchmark baseline
 
-`npm run bench` (tinybench, `bench/run.ts`), never part of `npm test`. Each task runs a batch of 1,000 operations per call, since one operation is far below the timer's resolution; the numbers are the mean time per operation.
+`npm run bench` (`bench/run.ts`), never part of `npm test`. Up to the fifth review the suite ran on tinybench, each task a batch of 1,000 operations per call, the numbers the mean time per operation; since then it runs on mitata (the last section), whose numbers are not comparable with the tables above it.
 
 Recorded at F1 on the development container (Node 22.22.2, linux x64, shared and noisy), as the range of three runs. They are a first reference, not a budget: CI on a fixed machine type sets the budgets later (§I.5.4).
 
@@ -250,3 +250,72 @@ Measured the same way, each change against the commit before it in a worktree, r
 | spells read a live definition unchecked on per-step paths          |            | 186 µs               |
 
 The abilities tick did not move (92–94 µs outside tinybench): an aura not held is answered without a walk and a press allocates nothing, but the tick is bound by reading a thousand heroes' records, not by the checks. What a horde mob with nothing due still costs is its aura clock's count, written every tick per bearer, which stays: a clock counts only for the bearers the game steps.
+
+## Mitata: medians, allocations and the JIT
+
+The suite now runs on [mitata](https://github.com/evanwashere/mitata): one operation per iteration (no hand-made batches), the result kept live with `do_not_optimize`, and each row's distribution (min, p75, p99, max) and the heap it allocates per iteration printed beside its mean. Under `--expose-gc` (the `bench` script) mitata collects garbage before each row, so one row's garbage is not the next row's pause.
+
+- `npm run bench [filter]` runs every row, or those whose names the filter (a case-blind pattern) matches; a late phase (the whole-game horde, the co-op game) whose rows the filter leaves out is never loaded.
+- `npm run bench:ab <ref> [filter]` runs the working tree's rows over a commit's `src/` in a temporary worktree and over the working tree's, twice each, alternating, and prints each row's faster median side by side, flagging a change of 5% or more.
+- `npm run bench:jit <filter> [function]` runs the rows under `--trace-deopt` and `--trace-turbo-inlining` and sums up the deoptimisations and the calls TurboFan would not inline; with a function name, also where it was inlined and what it inlined. The whole trace is kept in `.bench/jit.txt`.
+- `npm run bench:prof [filter]` writes a CPU profile to `.bench/` for Chrome DevTools or speedscope.
+
+A/B comparisons read medians: a row's mean includes the collector's pauses, which swing from run to run (the whole-game horde's ticks run from 201 µs to 3.75 ms, a mean of about 300 µs over a median near 276 µs). The heap column shows where ticks allocate: the out-of-reach polling row allocates about 0.5 MB a tick, the whole-game horde about 165 KB and the co-op tick about 41 KB, which the medians below do not show.
+
+Recorded on the Apple Silicon Mac (M4 Pro, Node 25.8.1), one full run, medians:
+
+| benchmark                                                          | median   |
+| ------------------------------------------------------------------ | -------- |
+| registry get(id) + column read                                     | 8.5 ns   |
+| registry has-bit + hook table dispatch                             | 4.7 ns   |
+| bitset has                                                         | 5.6 ns   |
+| bitset intersects (immunity check)                                 | 11.0 ns  |
+| timing wheel schedule + collect (15% overflow)                     | 31.9 ns  |
+| keyed roll, 5-part key (spread)                                    | 25.3 ns  |
+| keyed roll, 4-part scratch key                                     | 21.6 ns  |
+| sequential stream draw                                             | 2.8 ns   |
+| modifier fold, two stats (6 sources, gates)                        | 122.5 ns |
+| scaled value evaluation (live folded stats)                        | 142.0 ns |
+| scaled value finish from a snapshot                                | 43.9 ns  |
+| scaled cooldown through the haste curve                            | 29.8 ns  |
+| aura apply x3 + fold two stats                                     | 332.6 ns |
+| fold a stat, 120 aura lists in the game, 2 held                    | 88.9 ns  |
+| aura tick, 2,000 bearers x 3 auras (per tick)                      | 113.6 µs |
+| aura tick, 2,000 bearers x 2 auras, nothing due (per tick)         | 28.9 µs  |
+| trigger dispatch, owner + 4 party listeners                        | 484.9 ns |
+| trigger dispatch, owner + 24 party listeners                       | 2.1 µs   |
+| proc list run, 8 prepared procs                                    | 872.5 ns |
+| blow, full pipeline, 3 hooking auras                               | 375.0 ns |
+| burst of 100 blows on 100 hooked targets                           | 35.4 µs  |
+| cues: fire 200 specs + encode bytes (tick)                         | 27.2 µs  |
+| cues: emit 200 by slot + encode numbers (tick)                     | 18.3 µs  |
+| cues: decode 200 events from bytes (tick)                          | 12.8 µs  |
+| spells: horde tick, 2,000 casters in flight (tick)                 | 97.4 µs  |
+| spells: auto step, 2,000 casters, 1 of 20 auto spells armed (tick) | 7.6 µs   |
+| spells: 2,000 mobs, swing out of reach, polling a cast (tick)      | 423.9 µs |
+| spells: 2,000 mobs, swing out of reach, waiting on ready (tick)    | 45.2 µs  |
+| spells: instant cast, table stats + release                        | 337.2 ns |
+| spells: after(0), scheduled + landed (per list)                    | 375.0 ns |
+| spells: 1,000 after(0) landing on one tick (tick)                  | 163.8 µs |
+| world: inside r 6, 2,000 units (grid)                              | 306.0 ns |
+| world: nearest foe in a crowd, 2,000 within 30 m (grid)            | 41.4 µs  |
+| world: nearest foe in 10 m (grid)                                  | 505.8 ns |
+| world: sweep 40 m, body 0.5 (grid)                                 | 440.2 ns |
+| world: 2,000 units move, grid updated (tick)                       | 35.5 µs  |
+| world: 2,000 units move, k-d rebuilt + a query (tick)              | 98.6 µs  |
+| world: a body crossing a circle over one tick                      | 57.8 ns  |
+| areas: 150 pools + 50 missiles over 2,000 units (tick)             | 43.3 µs  |
+| areas: the same, stepped owner by owner, 2,010 units (tick)        | 66.3 µs  |
+| abilities: 1,000 heroes press 3 slots (tick)                       | 97.6 µs  |
+| combat log: a blow raised and recorded                             | 33.3 ns  |
+| combat log: a blow recorded, a meter subscribed                    | 56.2 ns  |
+| units: spawn + despawn a grunt (template stats)                    | 631.4 ns |
+| scripts: step 2,000 unscripted grunts (tick)                       | 2.3 µs   |
+| scripts: step 2,000 scripted units, nothing due (tick)             | 5.4 µs   |
+| scripts: collect + step 2,000 thinkers, a pick every 1–3 s (tick)  | 28.6 µs  |
+| ai: 2,000 brains, a pick timer each every 1–3 s (tick)             | 39.8 µs  |
+| ai: a weighted pick of 4 spells (checked)                          | 443.8 ns |
+| units: canAct + canMove                                            | 14.1 ns  |
+| units: a folded stat (an aura modifier)                            | 11.6 ns  |
+| horde: 2,000 mobs + 4 heroes, the whole unit game (tick)           | 275.9 µs |
+| co-op: 350 mobs on 4 heroes, 60 Hz, fields + AoE (tick)            | 85.5 µs  |

@@ -255,6 +255,6 @@ for (let i = 0; i < 300; i++) {
 }
 
 /** The F9 ability benchmark tasks, and how many operations each call of its function is. */
-export const ABILITY_TASKS: readonly (readonly [string, () => void, number])[] = [
-  ['abilities: 1,000 heroes press 3 slots (tick)', pressTick, 1000]
+export const ABILITY_TASKS: readonly (readonly [string, () => void])[] = [
+  ['abilities: 1,000 heroes press 3 slots (tick)', pressTick]
 ];
