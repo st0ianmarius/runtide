@@ -1,5 +1,5 @@
 /**
- * Compares the benchmarks of a commit with the working tree: `node bench/ab.ts <ref> [filter]`. The ref is checked
+ * Compares the benchmarks of a commit with the working tree: `npm run bench ab <ref> [filter]`. The ref is checked
  * out in a temporary worktree, which takes the working tree's `bench/` (the same rows over the ref's `src/`, so a ref
  * whose API the rows no longer fit fails), and both run twice, alternating, each row keeping its faster median.
  */
@@ -17,7 +17,7 @@ const ROUNDS = 2;
 const [ref, filter] = process.argv.slice(2);
 
 if (ref === undefined) {
-  process.stderr.write('Usage: node bench/ab.ts <ref> [filter]\n');
+  process.stderr.write('Usage: npm run bench ab <ref> [filter]\n');
   process.exit(2);
 }
 

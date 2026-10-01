@@ -1,9 +1,9 @@
 /**
- * What each benchmark row allocates: `node bench/alloc.ts [filter] [--sites[=N]]`. Each row the filter picks runs
+ * What each benchmark row allocates: `npm run bench -- alloc [filter] [--sites[=N]]`. Each row the filter picks runs
  * warm, then under V8's sampling heap profiler with collected objects included, so short-lived garbage counts; it
  * prints the bytes a run allocates and, with `--sites`, the N sites (8 by default) that allocate most, each with its
  * callers. Inlined callees allocate in their caller's name: run it under `--no-turbo-inlining --no-maglev-inlining`
- * to see them apart, knowing that numbers then show boxing that inlining would have spared.
+ * (`node --no-turbo-inlining --no-maglev-inlining bench/alloc.ts …`) to see them apart, knowing that numbers then show boxing that inlining would have spared.
  */
 import { Session } from 'node:inspector/promises';
 

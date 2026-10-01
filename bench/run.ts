@@ -12,7 +12,7 @@ import { UNIT_TASKS, unitCounter } from './units.ts';
 import { WORLD_TASKS, worldCounter } from './world.ts';
 
 /**
- * How the runner is asked: `node bench/run.ts [filter] [--json]`. The filter (a case-blind pattern) picks the rows to
+ * How the runner is asked: `npm run bench -- [filter] [--json]`. The filter (a case-blind pattern) picks the rows to
  * run; `--json` prints only each row's median nanoseconds per operation, by name, for `bench/ab.ts` to compare (a
  * median, as the garbage collector's pauses swing a mean from run to run).
  */

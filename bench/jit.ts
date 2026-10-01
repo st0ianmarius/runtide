@@ -1,5 +1,5 @@
 /**
- * What V8's optimiser did while some benchmarks ran: `node bench/jit.ts <filter> [function]`. It runs the rows the
+ * What V8's optimiser did while some benchmarks ran: `npm run bench jit <filter> [function]`. It runs the rows the
  * filter picks under `--trace-deopt` and `--trace-turbo-inlining`, keeps the whole trace in `.bench/jit.txt`, and
  * prints the deoptimisations (by function and reason) and the calls TurboFan would not inline. With a function name,
  * it lists only what concerns that function: where it was inlined, what it inlined, and why it was not.
@@ -14,7 +14,7 @@ const TOP = 25;
 const [filter, only] = process.argv.slice(2);
 
 if (filter === undefined) {
-  process.stderr.write('Usage: node bench/jit.ts <filter> [function]\n');
+  process.stderr.write('Usage: npm run bench jit <filter> [function]\n');
   process.exit(2);
 }
 

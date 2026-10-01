@@ -19,11 +19,6 @@ A game plugs in by defining its resources as plain objects and functions, regist
 
 Runtide is built for MMO-like games in general, not around any one game. Every behaviour it ships is a documented contract with a sensible default. Where a game needs a rule of its own (a countdown epsilon, a stacking or merge rule, how a derived stat measures its gain, a curve), it writes that rule in its own code on a declared escape hatch: hooks, pluggable rules and functions, custom curves, host interfaces and typed `ext` slots. The framework grows a hatch when a game needs one, never a mode for one game.
 
-## Documentation
-
-[Game integration guides](docs/README.md) begin with a detailed [modifiers guide](docs/modifiers.md), including runnable
-examples for equipment, conditions, scopes, aura stacks, curves, scaling, snapshots, and stat-change policies.
-
 ## Not published
 
 Runtide is `"private": true` and is never published to npm or any other registry. Consume it straight from this repository (a git dependency or a local folder); see §I.8 of the plan.
@@ -34,11 +29,14 @@ Requires Node `^22.22.2 || >=24.15.0`: Node's built-in type stripping runs the `
 
 ```sh
 npm ci
-npm run check         # typecheck, lint, format check, tests, build
+npm run typecheck     # src, tests and bench
+npm run lint          # oxlint (lint:fix to fix what it can)
+npm run fmt:check     # oxfmt (fmt to format)
+npm test
+npm run build
 npm run knip          # no unused files, exports or dependencies
-npm run bundle:check  # src/ bundles for the browser without any Node built-in
-npm run bench         # mitata benchmarks (bench/BASELINE.md), never part of npm test; CI runs them on master
-npm run format        # oxlint --fix, then oxfmt
+npm run bench         # mitata benchmarks (bench/BASELINE.md), never part of npm test
+                      # modes: npm run bench [ab <ref> | alloc | jit | prof] [filter]
 ```
 
 `npm ci` installs a pre-commit hook (`simple-git-hooks` running `lint-staged`) that lints and formats the staged files.

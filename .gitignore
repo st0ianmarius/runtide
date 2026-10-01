@@ -145,5 +145,5 @@ vite.config.ts.timestamp-*
 # JetBrains IDE settings
 .idea/
 
-# Benchmark traces and CPU profiles (npm run bench:jit, bench:prof)
+# Benchmark traces and CPU profiles (npm run bench jit, bench prof)
 .bench/
