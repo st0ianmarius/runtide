@@ -10,7 +10,7 @@ import type { WorldQuery } from '../world/index.ts';
 import { AuraHolds } from './area-auras.ts';
 import type { EndReason } from './area-def.ts';
 import type { AreaTriggerHost } from './area-host.ts';
-import { type AreaServices, AreaTrigger } from './area-trigger.ts';
+import { type AreaServices, AreaTrigger, NO_SCALED, NO_STATS } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import type { AreaLedger } from './delivery-def.ts';
@@ -265,9 +265,12 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   /** Clears a record (its state, the game's fields, its references) and gives it to the pool. */
   #release(area: AreaTrigger<G>): void {
     this.#resetExt?.(area.ext);
-    area.cast = undefined;
     this.spells.giveStats(area.statsBox);
+
+    area.cast = undefined;
     area.statsBox = undefined;
+    area.stats = NO_STATS;
+    area.scaled = NO_SCALED;
     area.state = undefined;
     area.input = undefined;
     area.kindNext = undefined;
@@ -277,6 +280,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.hasAdvanced = false;
     area.advancedAt = 0;
     area.placer.clear();
+
     this.pool.release(toHandle<AreaTrigger<G>>(area.handle));
   }
 
