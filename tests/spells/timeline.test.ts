@@ -248,6 +248,38 @@ describe('stage order', () => {
     assert.equal(game.log.filter((line) => line === 'beat@1').length, 4);
   });
 
+  it('reads live stats again before each beat, several due in one step among them', () => {
+    const seen: number[] = [];
+    let charge = 0;
+
+    const game = timeline({
+      surge: spell({
+        activation: { kind: 'trigger' },
+        live: true,
+        stats: () => ({ charge }),
+        timeline: {
+          channel: {
+            seconds: 0.25,
+            every: 0.125,
+
+            tick: (ctx) => {
+              charge += 1;
+              seen.push(ctx.stats.charge);
+
+              return undefined;
+            }
+          }
+        },
+        release: () => undefined
+      })
+    });
+
+    game.spells.cast(game.a, game.id.surge);
+    charge = 1;
+    game.advance(1);
+    assert.deepEqual(seen, [1, 2]);
+  });
+
   it('moves a stage’s end by a delay: pushback later, a negative one sooner, never below none left', () => {
     const game = timeline({
       heal: spell({

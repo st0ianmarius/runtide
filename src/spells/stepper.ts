@@ -76,12 +76,19 @@ const beat = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void
   }
 };
 
-/** Runs the beats of a channel due this step, the leftover carried. */
+/**
+ * Runs the beats of a channel due this step, the leftover carried. Live stats are read again before each beat after
+ * the first (the step read them before it), so a beat sees what the one before it changed.
+ */
 const beatsDue = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, every: number): void => {
   cast.beat -= engine.clock.dt;
 
   // A beat may finish, cancel or pause its own cast: the beats still due then wait, or never come.
-  while (isRunOut(cast.beat) && cast.stage === 'channel' && cast.pauses === 0) {
+  for (let n = 0; isRunOut(cast.beat) && cast.stage === 'channel' && cast.pauses === 0; n++) {
+    if (n > 0) {
+      refreshLive(engine, cast, engine.defOf(cast.spell));
+    }
+
     beat(engine, cast);
     cast.beat += every;
   }
