@@ -22,15 +22,16 @@ export const hitCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: Ca
 
   cast.holds += 1;
 
+  // Held through both, so a hook or cue that throws still lets the cast go.
   try {
-    refreshLive(engine, cast, def);
-    engine.fire(cast, def.cues?.hit?.(cast, hit));
-    went = onHit === undefined ? 0 : engine.run(cast, onHit(cast, hit, list), list);
-  } finally {
-    engine.giveList(list);
-  }
+    try {
+      refreshLive(engine, cast, def);
+      engine.fire(cast, def.cues?.hit?.(cast, hit));
+      went = onHit === undefined ? 0 : engine.run(cast, onHit(cast, hit, list), list);
+    } finally {
+      engine.giveList(list);
+    }
 
-  try {
     engine.raise('hit', cast, hit);
   } finally {
     engine.unhold(cast);

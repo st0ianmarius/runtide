@@ -92,23 +92,26 @@ export const stepAutoClocks = <G extends SpellTypes>(
   let index = 0;
   let spell = record.autos[0];
 
-  while (spell !== undefined) {
-    record.walking = spell;
+  // A cast that throws ends the walk where it is: no clock is left marked as walked, and the next due is set again.
+  try {
+    while (spell !== undefined) {
+      record.walking = spell;
 
-    const activation = countClock(engine, caster, index);
+      const activation = countClock(engine, caster, index);
 
-    if (activation !== undefined) {
-      const report = cast(caster, spell);
+      if (activation !== undefined) {
+        const report = cast(caster, spell);
 
-      record.settle(spell, checkedNext(engine, spell, nextOf(activation, caster, report)), dt);
+        record.settle(spell, checkedNext(engine, spell, nextOf(activation, caster, report)), dt);
+      }
+
+      index = record.after(spell);
+      spell = record.autos[index];
     }
-
-    index = record.after(spell);
-    spell = record.autos[index];
+  } finally {
+    record.walking = -1;
+    record.resetDue();
   }
-
-  record.walking = -1;
-  record.resetDue();
 };
 
 /** The seconds left on a caster's `auto` clock for a spell; 0 for a spell it has not armed. */

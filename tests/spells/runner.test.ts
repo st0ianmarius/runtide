@@ -360,6 +360,28 @@ describe('pooled casts', () => {
     assert.deepEqual([game.spells.isRunning(handle), game.spells.pool.live, beats], [false, 0, 1]);
   });
 
+  it('lets a cast go after a hit whose onHit throws', () => {
+    const game = makeSpellGame({
+      bolt: spell({
+        activation: { kind: 'trigger' },
+        timeline: { windup: { seconds: 1 } },
+
+        onHit: () => {
+          throw new Error('game bug');
+        },
+
+        release: () => undefined
+      })
+    });
+
+    const hero = game.unit(1);
+    const { handle } = game.spells.cast(hero, game.id.bolt);
+
+    assert.throws(() => game.spells.hit(handle, { targets: [], target: undefined }), /game bug/);
+    game.spells.cancel(handle);
+    assert.equal(game.spells.pool.live, 0);
+  });
+
   it('gives a check the ordinal of the next cast, taking none: a check does not move later casts’ rolls', () => {
     const ordinals: number[] = [];
 

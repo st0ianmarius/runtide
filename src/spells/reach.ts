@@ -10,8 +10,9 @@ import type { SpellTypes } from './spell-types.ts';
  * A cast's reach rules, asked right after its target is picked, in order: how far the target may be (`range`) and how
  * near (`minRange`), whether a clear line to it is needed (`sight`), and the game's own rule over the picked target
  * (`allows`: a facing arc, an execute threshold, room at a placed point). A refusal names the rule (`range`, `close`,
- * `sight`, `reach` or the game's reason), which an `auto` clock answers as it answers no target (its `auto` clock's
- * `next`). The target's point is `pointOf`'s, else the host's (`pointOf`), else the target itself when it is a point.
+ * `sight`, `reach` or the game's reason). An `auto` clock answers `range`, `close`, `sight` and `reach` as it answers no
+ * target, trying again the next step; a game's own reason waits the interval, as any other refusal does, unless the
+ * clock's `next` says otherwise. The target's point is `pointOf`'s, else the host's (`pointOf`), else the target itself when it is a point.
  */
 export interface Reach<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>, Target = unknown> {
   /** The farthest the target's point may be from the caster's, centre to centre: a number, or read from the cast. */

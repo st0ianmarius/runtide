@@ -57,3 +57,30 @@ describe('cast views', () => {
     assert.equal(game.spells.viewOf(handle, view), false);
   });
 });
+
+describe('cast views at a stage’s end', () => {
+  it('report a running stage with nothing left as ending on the next step, when it does', () => {
+    const game = makeSpellGame({
+      bolt: spell({ activation: { kind: 'trigger' }, timeline: { windup: { seconds: 1 } }, release: () => undefined })
+    });
+
+    const hero = game.unit(1);
+    const { handle } = game.spells.cast(hero, game.id.bolt);
+
+    const view: CastView = {
+      spell: game.id.bolt,
+      rank: 0,
+      stage: 0,
+      seconds: 0,
+      end: 0,
+      started: 0,
+      caster: 0,
+      source: 0,
+      key: 0
+    };
+
+    game.spells.delay(handle, -5);
+    game.spells.viewOf(handle, view);
+    assert.equal(view.end, game.clock.tick + 1);
+  });
+});

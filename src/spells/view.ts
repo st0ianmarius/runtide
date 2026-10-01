@@ -54,7 +54,8 @@ export const viewCast = <G extends SpellTypes>(engine: SpellEngine<G>, handle: C
   out.rank = cast.rank;
   out.stage = CAST_STAGES.indexOf(cast.stage);
   out.seconds = cast.stageSeconds;
-  out.end = cast.isPaused ? Infinity : clock.tick + stepsUntil(cast.remaining, clock.dt);
+  // A running stage ends on a step to come: one with nothing left ends on the next.
+  out.end = cast.isPaused ? Infinity : clock.tick + Math.max(1, stepsUntil(cast.remaining, clock.dt));
   out.started = cast.startTick;
   out.caster = cast.casterId;
   out.source = cast.source;

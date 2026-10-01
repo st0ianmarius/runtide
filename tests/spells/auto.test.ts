@@ -326,3 +326,36 @@ describe('an auto clock after the caster’s other casts', () => {
     assert.throws(() => autoGame({ x: spell({ activation: unready, release: () => undefined }) }), /ready/);
   });
 });
+
+describe('auto clocks under a throwing cast', () => {
+  it('end the walk as if it finished: a clock armed after counts its full time', () => {
+    let isBroken = true;
+
+    const game = makeSpellGame({
+      first: spell({
+        activation: { kind: 'auto', interval: 1 },
+
+        release: () => {
+          if (isBroken) {
+            isBroken = false;
+
+            throw new Error('game bug');
+          }
+
+          return [mark('first')];
+        }
+      }),
+      second: spell({ activation: { kind: 'auto', interval: 1 }, release: () => [mark('second')] })
+    });
+
+    const unit = game.unit(1);
+
+    game.spells.disarm(unit, game.id.second);
+    game.step();
+    assert.throws(() => {
+      game.spells.stepAuto(unit);
+    }, /game bug/);
+    game.spells.arm(unit, game.id.second, 1);
+    assert.equal(game.spells.autoClock(unit, game.id.second), 1);
+  });
+});
