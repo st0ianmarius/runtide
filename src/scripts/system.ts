@@ -155,11 +155,14 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
       return;
     }
 
+    const { serial } = record;
+
     if (record.dueCount > 0) {
       this.#runner.deliver(record, this.#options.ai);
     }
 
-    if (record.hasTick) {
+    // A timer handler that despawned the unit (or handed its record to the next unit) ends its step here.
+    if (record.hasTick && record.serial === serial) {
       this.#runner.moment(record, 'tick');
     }
   };
@@ -214,8 +217,17 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     record.dueCount = 0;
     record.states.length = behaviours.length;
 
-    for (const [index, behaviour] of behaviours.entries()) {
-      record.states[index] = behaviour.state?.(unit);
+    try {
+      for (const [index, behaviour] of behaviours.entries()) {
+        record.states[index] = behaviour.state?.(unit);
+      }
+    } catch (error) {
+      // A state factory threw: the record goes back free, never counted or attached.
+      record.isLive = false;
+      record.states.length = 0;
+      this.#free.push(slot);
+
+      throw error;
     }
 
     this.#counts[script] = (this.#counts[script] ?? 0) + 1;

@@ -72,15 +72,25 @@ export class ScriptRunner<G extends ScriptTypes> {
   deliver(record: ScriptRecord<G>, timers: DueTimers<G>): void {
     const count = record.dueCount;
     const { serial, unit } = record;
+    let i = 0;
 
     record.dueCount = 0;
 
-    for (let i = 0; i < count && record.serial === serial; i++) {
-      const timer = record.due[i];
+    try {
+      for (; i < count && record.serial === serial; i++) {
+        const timer = record.due[i];
 
-      if (timer !== undefined && timers.take(unit, timer)) {
-        this.#timer(record, timer);
+        if (timer !== undefined && timers.take(unit, timer)) {
+          this.#timer(record, timer);
+        }
       }
+    } catch (error) {
+      // A handler threw: the timers due after it, already taken off the wheel, wait for the unit's next step.
+      if (record.serial === serial) {
+        keepUndelivered(record, [i + 1, count]);
+      }
+
+      throw error;
     }
   }
 
@@ -168,6 +178,22 @@ export class ScriptRunner<G extends ScriptTypes> {
     return (typeof system === 'function' ? system() : system).run(procs, origin);
   }
 }
+
+/**
+ * Puts a record's undelivered due timers (`from` to `count` of its list) back as due, after any marked meanwhile, so
+ * its next step delivers them rather than leaving them collected and never fired.
+ */
+const keepUndelivered = <G extends ScriptTypes>(
+  record: ScriptRecord<G>,
+  [from, count]: readonly [number, number]
+): void => {
+  const marked = record.dueCount;
+
+  if (from < count && marked <= from) {
+    record.due.copyWithin(marked, from, count);
+    record.dueCount = marked + count - from;
+  }
+};
 
 /** No behaviour indexes. */
 const NO_INDEXES: readonly number[] = Object.freeze([]);

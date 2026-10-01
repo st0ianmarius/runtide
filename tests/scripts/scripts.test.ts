@@ -299,3 +299,99 @@ describe('scripts', () => {
     assert.deepEqual([Object.isFrozen(march), Object.isFrozen(march.on), Object.isFrozen(loose)], [true, true, false]);
   });
 });
+
+describe('scripts under hooks that despawn or throw', () => {
+  it('runs no tick for a unit its own timer handler despawned', () => {
+    const log: string[] = [];
+    const late: { game?: ReturnType<typeof makeUnitGame> } = {};
+
+    const doomed = behaviour({
+      spawn: () => [setTimer<UnitGame>('pick', 0.25)],
+
+      timer: (ctx) => {
+        log.push(`timer ${ctx.unit.id}`);
+        late.game?.units.despawn(ctx.unit);
+
+        return undefined;
+      },
+
+      tick: (ctx) => {
+        log.push(`tick ${ctx.unit.id}`);
+
+        return undefined;
+      }
+    });
+
+    const game = makeUnitGame(
+      { grunt: { script: 'doomed' } },
+      { scripts: defineScripts<UnitGame, 'doomed'>({ doomed: [doomed] }) }
+    );
+
+    late.game = game;
+
+    const unit = game.units.spawn(game.id.grunt, { side: 1 });
+
+    game.clock.step();
+    game.scripts.collect();
+    game.scripts.step(unit);
+    assert.deepEqual(log, ['timer 1']);
+  });
+
+  it('frees the record of a unit whose state factory threw, so the next spawn takes it', () => {
+    let isBroken = true;
+
+    const fragile = behaviour({
+      state: () => {
+        if (isBroken) {
+          throw new Error('game bug');
+        }
+
+        return {};
+      }
+    });
+
+    const scripts = defineScripts<UnitGame, 'fragile'>({ fragile: [fragile] });
+    const game = makeUnitGame({ grunt: { script: 'fragile' } }, { scripts });
+
+    assert.throws(() => game.units.spawn(game.id.grunt, { side: 1 }), /game bug/);
+    isBroken = false;
+    assert.equal(game.units.spawn(game.id.grunt, { side: 1 }).scriptSlot, 0);
+    assert.deepEqual([game.scripts.count(scripts.id.fragile), game.scripts.records.live], [1, 1]);
+  });
+
+  it('keeps the timers due after a throwing handler for the next step', () => {
+    const log: string[] = [];
+    let isBroken = true;
+
+    const both = behaviour({
+      spawn: () => [setTimer<UnitGame>('pick', 0.25), setTimer<UnitGame>('raise', 0.25)],
+
+      timer: (_ctx, timer) => {
+        log.push(TIMERS.names[timer] ?? '?');
+
+        if (isBroken) {
+          isBroken = false;
+
+          throw new Error('game bug');
+        }
+
+        return undefined;
+      }
+    });
+
+    const game = makeUnitGame(
+      { grunt: { script: 'both' } },
+      { scripts: defineScripts<UnitGame, 'both'>({ both: [both] }) }
+    );
+
+    const unit = game.units.spawn(game.id.grunt, { side: 1 });
+
+    game.clock.step();
+    game.scripts.collect();
+    assert.throws(() => {
+      game.scripts.step(unit);
+    }, /game bug/);
+    game.scripts.step(unit);
+    assert.deepEqual(log, ['pick', 'raise']);
+  });
+});
