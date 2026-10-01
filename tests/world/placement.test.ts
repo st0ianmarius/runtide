@@ -102,6 +102,17 @@ describe('moveBody: a body swept against static geometry', () => {
     assert.deepEqual([deeper.hit, deeper.share], [true, 0]);
   });
 
+  it('lets a body that starts past the bounds come back in, but not out through the far side', () => {
+    const small = createMemoryWorld<string>({ bounds: { minX: -5, minZ: -5, maxX: 5, maxZ: 5 } });
+    const across = small.moveBody(vec2(-6, 0), vec2(10, 0), 1);
+    const back = small.moveBody(vec2(6, 0), vec2(-10, 0), 1);
+    const into = small.moveBody(vec2(-6, 0), vec2(0, 0), 1);
+
+    assert.deepEqual([across.hit, across.position.x], [true, 4]);
+    assert.deepEqual([back.hit, back.position.x], [true, -4]);
+    assert.deepEqual([into.hit, into.share], [false, 1]);
+  });
+
   it('never sticks a body that slides along what stopped it: a bound, a pillar or a wall', () => {
     const boxed = createMemoryWorld<string>({ bounds: { minX: 0, minZ: 0, maxX: 10, maxZ: 10 } });
 

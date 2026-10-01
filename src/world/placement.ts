@@ -167,15 +167,25 @@ export class Placement {
 
 /**
  * The share at which a move along one axis leaves `[low, high]`, 1 if never. One that starts outside (a rounding past a
- * stop, a spawn off the map) goes free while it heads back in or along, and stops at once heading further out.
+ * stop, a spawn off the map) goes free while it heads back in or along, stopping at the far side should it cross the
+ * whole range, and stops at once heading further out.
  */
 const axisExit = (p: number, q: number, low: number, high: number): number => {
   if (p < low) {
-    return q < p ? 0 : 1;
+    if (q < p) {
+      return 0;
+    }
+
+    // A range narrower than nothing (a body wider than the map) has no far side to reach: it stops at once.
+    return q > high ? Math.max(0, (high - p) / (q - p)) : 1;
   }
 
   if (p > high) {
-    return q > p ? 0 : 1;
+    if (q > p) {
+      return 0;
+    }
+
+    return q < low ? Math.max(0, (low - p) / (q - p)) : 1;
   }
 
   if (q < low) {
