@@ -116,6 +116,19 @@ describe('covers: shape algebra', () => {
     assert.equal(covers(gapped, vec2(0, 5), 2), true);
   });
 
+  it('covers a body by what the algebra leaves, not by each part grown or shrunk alone', () => {
+    const left = lane({ length: 4, width: 4, dir: Math.PI / 2, at: vec2(-4, 0) });
+    const right = lane({ length: 4, width: 4, dir: Math.PI / 2 });
+    const beyond = outside(union(left, right));
+    const hole = difference(circle(4), circle(2));
+
+    assert.equal(covers(difference(circle(3), circle(3)), vec2(2.5, 0), 1), false);
+    assert.equal(covers(beyond, vec2(0, 0), 1), false);
+    assert.equal(covers(beyond, vec2(3.5, 0), 1), true);
+    assert.equal(covers(hole, vec2(0, 0), 1), false);
+    assert.equal(covers(hole, vec2(0, 0), 2.5), true);
+  });
+
   const shapes = fc.oneof(
     fc
       .record({
@@ -144,6 +157,22 @@ describe('covers: shape algebra', () => {
         assert.equal(covers(difference(a, b), p), covers(a, p) && !covers(b, p));
         assert.equal(covers(difference(a, a), p), false);
         assert.equal(covers(union(a, outside(a)), p), true);
+      })
+    );
+  });
+
+  it('finds no body in what the algebra leaves empty, nor misses one a part alone covers', () => {
+    const radii = fc.double({ min: 0.01, max: 4, noNaN: true });
+
+    fc.assert(
+      fc.property(shapes, shapes, points, radii, (a: Shape, b: Shape, p, r) => {
+        assert.equal(covers(difference(a, a), p, r), false);
+        assert.equal(covers(outside(union(a, outside(a))), p, r), false);
+        assert.equal(covers(union(a, b), p, r), covers(a, p, r) || covers(b, p, r));
+
+        if (covers(difference(a, b), p, r)) {
+          assert.equal(covers(a, p, r), true);
+        }
       })
     );
   });
