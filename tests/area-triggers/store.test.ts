@@ -301,6 +301,37 @@ describe('the tick order', () => {
     assert.deepEqual(game.log, ['a2', 'a3', 'b1', 'b5', 'b8', 'child4', 'child6', 'child7', 'child9']);
   });
 
+  it('steps the rest of a slot when one area trigger’s frame throws, then throws, on every tick it does', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          faulty: logged({
+            lifetime: 'spent',
+
+            frame: () => {
+              throw new Error('faulty');
+            }
+          }),
+          b: kinds.b
+        }
+      }
+    );
+
+    const owner = game.unit(1);
+
+    game.areaTriggers.spawn(game.areaId.faulty, { owner, at: vec2(0, 0) });
+    game.areaTriggers.spawn(game.areaId.b, { owner, at: vec2(0, 0) });
+    game.log.length = 0;
+
+    for (let i = 0; i < 3; i++) {
+      game.step();
+      assert.throws(() => game.areaTriggers.step(), /faulty/);
+    }
+
+    assert.deepEqual(game.log, ['b2', 'b2', 'b2']);
+  });
+
   it('steps an owner’s area triggers in the order the whole walk steps them, whatever owners they sit among', () => {
     const quiet = (name: string) =>
       logged({

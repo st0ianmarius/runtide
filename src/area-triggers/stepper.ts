@@ -123,22 +123,44 @@ export const stepSlot = <G extends AreaTriggerTypes>(
 
   const count = owned === undefined ? snapshotAll(engine, kinds, handles) : snapshotOwned(owned, kinds, handles);
 
-  let stepped = 0;
-
   engine.hold();
 
   try {
-    for (let i = 0; i < count; i++) {
-      const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
-
-      if (area !== undefined && area.steppedTick !== engine.clock.tick) {
-        stepArea(engine, area, engine.clock.dt);
-        stepped += 1;
-      }
-    }
+    return stepFrom(engine, handles, 0, count);
   } finally {
     engine.handles.give(count);
     engine.unhold();
+  }
+};
+
+/**
+ * Steps a snapshot's area triggers from `start`, skipping the ones gone or stepped this tick; how many stepped. One
+ * whose step throws still has the rest stepped, so it never starves the others of its slot, then it throws.
+ */
+const stepFrom = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  handles: readonly (AreaTriggerHandle | undefined)[],
+  start: number,
+  count: number
+): number => {
+  let stepped = 0;
+
+  for (let i = start; i < count; i++) {
+    const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
+
+    if (area === undefined || area.steppedTick === engine.clock.tick) {
+      continue;
+    }
+
+    try {
+      stepArea(engine, area, engine.clock.dt);
+    } catch (error) {
+      stepFrom(engine, handles, i + 1, count);
+
+      throw error;
+    }
+
+    stepped += 1;
   }
 
   return stepped;
