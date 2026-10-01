@@ -270,22 +270,34 @@ export class AuraEvents<G extends AuraTypes> {
 
   /**
    * Dispatches queued lifecycle change `i`: the tag edge, the hook and its procs, then the bus. An application, refresh
-   * or state change of an aura an earlier event of the flush removed is dropped: its `onRemoved` already ran, and an
-   * `onApplied` after it would set up what nothing tears down.
+   * or state change of an aura an earlier event of the flush (or its own tag edge) removed is dropped: its `onRemoved`
+   * already ran, and an `onApplied` after it would set up what nothing tears down.
    */
   #change(i: number, bearer: G['bearer'], item: AuraItem<G>): void {
     const code = this.#codes[i] ?? 0;
 
-    if (code !== EXPIRED && code !== REMOVED && (!item.isActive || item.handle !== this.#handles[i])) {
+    if (this.#isGone(i, item)) {
       return;
     }
 
     if (isTagEdge(this.#parts, code, item.id)) {
       this.#parts.host.onTagsChanged?.(bearer);
+
+      // The tag edge may have removed the aura (a cancelled cast's `onEnd`), its `onRemoved` already run.
+      if (this.#isGone(i, item)) {
+        return;
+      }
     }
 
     this.#hook(i, bearer, item);
     this.#publish(i, bearer, item);
+  }
+
+  /** Whether queued change `i` is an application, refresh or state change of an aura no longer the one it was for. */
+  #isGone(i: number, item: AuraItem<G>): boolean {
+    const code = this.#codes[i] ?? 0;
+
+    return code !== EXPIRED && code !== REMOVED && (!item.isActive || item.handle !== this.#handles[i]);
   }
 
   /** Runs queued change `i`'s hook, if its aura has one: `onState` told the state, any other with the context alone. */

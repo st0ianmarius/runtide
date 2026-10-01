@@ -66,6 +66,49 @@ describe('game fields and landing', () => {
     assert.deepEqual([game.auras.has(u, game.id.charge), game.auras.has(u, game.id.surge)], [false, true]);
   });
 
+  it('run no onApplied for an aura its own tag edge removed, whose onRemoved already ran', () => {
+    const seen: string[] = [];
+    const late: { game?: Game<'daze'> } = {};
+
+    const game = makeGame(
+      {
+        daze: aura({
+          duration: 4,
+          tags: ['stun'],
+
+          onApplied: () => {
+            seen.push('applied');
+
+            return undefined;
+          },
+
+          onRemoved: () => {
+            seen.push('removed');
+
+            return undefined;
+          }
+        })
+      },
+      {
+        host: {
+          run: () => undefined,
+
+          onTagsChanged: (bearer) => {
+            late.game?.auras.remove(bearer, late.game.id.daze);
+          }
+        }
+      }
+    );
+
+    late.game = game;
+
+    const u = game.unit();
+
+    game.auras.apply(u, game.id.daze);
+    assert.deepEqual(seen, ['removed']);
+    assert.equal(game.auras.has(u, game.id.daze), false);
+  });
+
   it('hand hooks the bearer stats the host reports', () => {
     const seen: number[] = [];
     const table = defineStats({ armor: { base: 0, kind: 'flat' } });
