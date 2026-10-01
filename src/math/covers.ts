@@ -27,7 +27,9 @@ const coversCone = (shape: Cone, p: Vec2, margin: number): boolean => {
     return false;
   }
 
-  if (d < shape.apex + margin || d === 0) {
+  // At the apex every direction is the cone's own, but only for a body reaching out: one asked whether it lies wholly
+  // inside (a negative margin, for an `outside`) is not, as the cone spans less than every direction.
+  if (d < shape.apex + margin || (d === 0 && margin >= 0)) {
     return true;
   }
 
@@ -110,5 +112,7 @@ const coversBy = (shape: Shape, p: Vec2, margin: number): boolean => {
  * inclusive, so rings sharing a radius tile the plane with no point in two of them; a lane's and a cone's straight
  * edges are inclusive, and a point shape is reached at exactly the body's radius. An `outside` or `difference` covers
  * a body that is not wholly inside what it excludes. A game that needs other rims wraps `covers` with its own test.
+ * A point that is not finite (a NaN from upstream) is covered by nothing, `outside` shapes included.
  */
-export const covers = (shape: Shape, p: Vec2, radius = 0): boolean => coversBy(shape, p, radius);
+export const covers = (shape: Shape, p: Vec2, radius = 0): boolean =>
+  Number.isFinite(p.x) && Number.isFinite(p.z) && coversBy(shape, p, radius);

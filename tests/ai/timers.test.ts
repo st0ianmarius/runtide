@@ -145,6 +145,35 @@ describe('named timers (EventMap)', () => {
     assert.deepEqual(fired, ['pick@1@2', 'raise@3@4']);
   });
 
+  it('fire a timer another’s firing started for now on the next tick, whatever a cancelled start left behind', () => {
+    for (const hasLeftover of [false, true]) {
+      const game = timed();
+      const { ai, a, b } = game;
+
+      const fire = (unit: Unit<UnitGame>, timer: TimerId): void => {
+        game.fire(unit, timer);
+
+        if (unit === b) {
+          ai.start(a, TIMERS.id.pick, 0);
+        }
+      };
+
+      ai.start(b, TIMERS.id.raise, 0.5);
+
+      if (hasLeftover) {
+        ai.start(a, TIMERS.id.pick, 0.5);
+        ai.cancel(a, TIMERS.id.pick);
+      }
+
+      for (let i = 0; i < 3; i++) {
+        game.clock.step();
+        ai.step(fire);
+      }
+
+      assert.deepEqual(game.fired, ['raise@2@2', 'pick@1@3']);
+    }
+  });
+
   it('are the setTimer and cancelTimer procs, by name', () => {
     const { procs, ai, a } = timed();
 

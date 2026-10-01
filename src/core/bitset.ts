@@ -58,6 +58,10 @@ class WordBitset implements Bitset {
   }
 
   add(index: number): void {
+    if (!(Number.isInteger(index) && index >= 0)) {
+      throw new RangeError(`A bitset holds whole indices from 0; got ${index}.`);
+    }
+
     this.#set.add(index);
   }
 

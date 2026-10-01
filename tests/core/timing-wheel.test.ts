@@ -70,10 +70,14 @@ describe('the timing wheel', () => {
     assert.deepEqual(out, [undefined, undefined, undefined]);
   });
 
-  it('refuses a tick that is not finite', () => {
+  it('refuses a tick that is not finite, and a start that is not a whole tick from 0', () => {
     assert.throws(() => {
       createTimingWheel<number>().schedule(Number.NaN, 1);
     }, RangeError);
+
+    for (const start of [-3, 2.5, Number.NaN]) {
+      assert.throws(() => createTimingWheel<number>({ start }), /whole tick from 0/);
+    }
   });
 
   it('orders any schedule by tick, then by scheduling order', () => {

@@ -15,6 +15,12 @@ describe('bitsets', () => {
     assert.equal(tags.has(40), false);
     assert.equal(tags.size(), 2);
     assert.deepEqual(tags.toArray(), [1, 3]);
+
+    for (const index of [-1, 1.5, Number.NaN]) {
+      assert.throws(() => {
+        tags.add(index);
+      }, /whole indices from 0/);
+    }
   });
 
   it('combine in place: union, difference, intersection', () => {

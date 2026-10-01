@@ -5,8 +5,14 @@ import type { AiTypes, TimerId } from './ai-types.ts';
 import { Brain, brainOf } from './brain.ts';
 import { MAX_TIMERS } from './timers.ts';
 
-/** The most brains one system holds at once: a wheel entry is `slot × MAX_TIMERS + timer`, a small integer. */
+/**
+ * The most brains one system holds at once. A wheel entry is `(start × SLOT_SPAN + slot) × MAX_TIMERS + timer`, a safe
+ * integer: `start` counts the timer's starts, so an entry left by a start since stopped never fires a later one.
+ */
 const SLOT_SPAN = 2 ** 20;
+
+/** How many starts of one timer the entries tell apart before the count wraps. */
+const STARTS = 2 ** 27;
 
 /** No timer: the entry's timer field. */
 const NONE = Number.NaN;
@@ -82,8 +88,12 @@ export class Scheduler<G extends AiTypes> {
     brain.focus = -1;
     this.#owners[brain.slot] = undefined;
     this.#isLive[brain.slot] = false;
-    // The slot's next brain is a new record, so a late call through the freed unit's `brain` reaches nothing live.
-    this.#brains[brain.slot] = new Brain(brain.slot, this.#timers);
+    // The slot's next brain is a new record, so a late call through the freed unit's `brain` reaches nothing live; it
+    // counts starts on from this one's, so the freed brain's entries still on the wheel stay stale.
+    const next = new Brain(brain.slot, this.#timers);
+
+    next.starts.set(brain.starts);
+    this.#brains[brain.slot] = next;
     this.#free.push(brain.slot);
 
     return true;
@@ -263,10 +273,16 @@ export class Scheduler<G extends AiTypes> {
    */
   #claim(entry: number): G['bearer'] | undefined {
     const timer = entry % MAX_TIMERS;
-    const slot = (entry - timer) / MAX_TIMERS;
+    const rest = (entry - timer) / MAX_TIMERS;
+    const slot = rest % SLOT_SPAN;
     const brain = this.#brains[slot];
 
-    if (brain === undefined || !((brain.due[timer] ?? NONE) <= this.#clock.tick)) {
+    // Its timer was started again since (for this very tick, maybe): this entry is the old start's.
+    if (brain === undefined || brain.starts[timer] !== (rest - slot) / SLOT_SPAN) {
+      return undefined;
+    }
+
+    if (!((brain.due[timer] ?? NONE) <= this.#clock.tick)) {
       return undefined;
     }
 
@@ -279,8 +295,11 @@ export class Scheduler<G extends AiTypes> {
   #schedule(brain: Brain, timer: number, seconds: number): void {
     const { tick, dt } = this.#clock;
     const at = tick + stepsUntil(seconds, dt);
+    const start = ((brain.starts[timer] ?? 0) + 1) % STARTS;
+
     brain.due[timer] = at;
-    this.#wheel.schedule(at, brain.slot * MAX_TIMERS + timer);
+    brain.starts[timer] = start;
+    this.#wheel.schedule(at, (start * SLOT_SPAN + brain.slot) * MAX_TIMERS + timer);
   }
 
   /** Takes a timer off the wheel: its entry goes stale. */

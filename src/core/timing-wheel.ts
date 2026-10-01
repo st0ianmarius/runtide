@@ -72,6 +72,11 @@ class Wheel<Item extends Defined> implements TimingWheel<Item> {
     this.#horizon = powerOfTwo(options.horizon ?? 256);
     this.#buckets = Array.from({ length: this.#horizon }, () => ({ items: [], count: 0 }));
     this.#cursor = options.start ?? 0;
+
+    // A tick finds its bucket as `tick % horizon`: a negative or fractional start would find none, dropping every item.
+    if (!Number.isSafeInteger(this.#cursor) || this.#cursor < 0) {
+      throw new RangeError(`A timing wheel starts at a whole tick from 0; got ${this.#cursor}.`);
+    }
   }
 
   get cursor(): number {

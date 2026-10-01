@@ -90,6 +90,15 @@ describe('covers: shape algebra', () => {
     assert.equal(covers(burn, vec2(4.5, 0), 1), true);
   });
 
+  it('covers a body on a cone’s apex from outside it, as one a hair away, and no NaN point at all', () => {
+    const outCone = outside(cone({ r: 10, half: 0.3, dir: 0 }));
+
+    assert.equal(covers(outCone, vec2(0, 0), 1), true);
+    assert.equal(covers(outCone, vec2(1e-9, 0), 1), true);
+    assert.equal(covers(outside(circle(5)), vec2(Number.NaN, 0)), false);
+    assert.equal(covers(circle(5), vec2(0, Number.NaN)), false);
+  });
+
   it('covers a union where any part does', () => {
     const both = union(circle(1), circle(1, vec2(5, 0)));
 
