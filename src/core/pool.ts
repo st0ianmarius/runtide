@@ -66,8 +66,11 @@ class ItemPool<Item extends Defined> implements Pool<Item> {
   readonly #items: Item[] = [];
   readonly #generations: number[] = [];
   readonly #isAcquired: boolean[] = [];
+
+  /** The free slots, a queue from `#freeHead` to `#freeTail`: written by index, never shrunk, so it keeps its storage. */
   readonly #free: number[] = [];
   #freeHead = 0;
+  #freeTail = 0;
   #live = 0;
 
   constructor(options: PoolOptions<Item>) {
@@ -115,7 +118,8 @@ class ItemPool<Item extends Defined> implements Pool<Item> {
 
     this.#isAcquired[slot] = false;
     this.#live -= 1;
-    this.#free.push(slot);
+    this.#free[this.#freeTail] = slot;
+    this.#freeTail += 1;
 
     if (item !== undefined) {
       this.#reset?.(item);
@@ -128,17 +132,19 @@ class ItemPool<Item extends Defined> implements Pool<Item> {
   #takeSlot(): number {
     const free = this.#free;
 
-    if (this.#freeHead < free.length) {
+    if (this.#freeHead < this.#freeTail) {
       const slot = free[this.#freeHead] ?? 0;
 
       this.#freeHead += 1;
 
-      if (this.#freeHead === free.length) {
-        free.length = 0;
+      // Emptied, the queue starts over at 0; long, its taken front moves out. `length = 0` would drop the storage, and
+      // the next release would allocate it again.
+      if (this.#freeHead === this.#freeTail) {
         this.#freeHead = 0;
-      } else if (this.#freeHead >= 1024 && this.#freeHead * 2 >= free.length) {
-        free.copyWithin(0, this.#freeHead);
-        free.length -= this.#freeHead;
+        this.#freeTail = 0;
+      } else if (this.#freeHead >= 1024 && this.#freeHead * 2 >= this.#freeTail) {
+        free.copyWithin(0, this.#freeHead, this.#freeTail);
+        this.#freeTail -= this.#freeHead;
         this.#freeHead = 0;
       }
 

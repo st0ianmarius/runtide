@@ -336,13 +336,15 @@ export const startCast = <G extends SpellTypes>(
   request: CastRequest<G>,
   report: Report<G>
 ): Report<G> => {
-  const def = engine.registry.get(request.spell);
+  // Checked before a record is taken: a retired or unknown spell throws here.
+  engine.registry.get(request.spell);
+
   const cast = engine.acquire(request.caster);
 
   try {
     initCast(engine, cast, request);
 
-    return runStart(engine, [cast, def], report);
+    return runStart(engine, cast, report);
   } catch (error) {
     stopThrown(cast);
     engine.unhold(cast);
@@ -352,11 +354,8 @@ export const startCast = <G extends SpellTypes>(
 };
 
 /** The cast order of `startCast` on its fresh cast, which it lets go of when done. */
-const runStart = <G extends SpellTypes>(
-  engine: SpellEngine<G>,
-  [cast, def]: readonly [Cast<G>, AnySpellDef<G>],
-  report: Report<G>
-): Report<G> => {
+const runStart = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, report: Report<G>): Report<G> => {
+  const def = engine.defOf(cast.spell);
   const refusal = admit(engine, cast, def);
   const interval = autoIntervalOf(engine, cast, def);
 

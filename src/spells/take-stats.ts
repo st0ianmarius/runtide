@@ -29,7 +29,11 @@ export const takeStats = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Ca
   if (compiled !== undefined) {
     const box = (cast.box ??= engine.boxes.take(cast.spell));
 
-    takeTable(box, compiled, { caster: view, rank: cast.rank });
+    const ctx = engine.tableCall;
+
+    ctx.caster = view;
+    ctx.rank = cast.rank;
+    takeTable(box, compiled, ctx);
     cast.stats = box.stats;
     cast.scaled = box.scaled;
 

@@ -1,3 +1,4 @@
+import { toId } from '../core/ids.ts';
 import { type AutoActivation, isAuto } from './activation.ts';
 import type { CastReport, Report } from './cast-request.ts';
 import { recordOf } from './caster.ts';
@@ -22,11 +23,10 @@ export const autoNext = (report: CastReport, interval: number): number => {
 };
 
 /** The seconds until an `auto` clock tries again after a cast: its activation's `next`, else `autoNext`, checked. */
-const nextOf = <G extends SpellTypes>(
-  engine: SpellEngine<G>,
-  caster: G['bearer'],
-  [spell, activation, report]: readonly [SpellId, AutoActivation<G>, Report<G>]
-): number => {
+const nextOf = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['bearer'], report: Report<G>): number => {
+  // The clock being walked: its spell, and its activation (a lookup, not a tuple built per cast).
+  const spell = toId<'spells'>(recordOf(caster).walking);
+  const activation = autoOf(engine, spell);
   const next = activation.next?.(report, report.interval, caster) ?? autoNext(report, report.interval);
 
   if (!(next >= 0) || !Number.isFinite(next)) {
@@ -102,7 +102,7 @@ export const stepAutoClocks = <G extends SpellTypes>(
     if (activation !== undefined) {
       const report = cast(caster, spell);
 
-      record.settle(spell, nextOf(engine, caster, [spell, activation, report]), dt);
+      record.settle(spell, nextOf(engine, caster, report), dt);
     }
 
     index = record.after(spell);
