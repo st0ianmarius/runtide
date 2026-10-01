@@ -350,6 +350,44 @@ describe('delayed procs', () => {
     assert.deepEqual(game.log.slice(-3), ['late one@1', 'early one@1', 'early two@1']);
   });
 
+  it('never lands a later list through a withdrawn one’s entry, however often the pool reuses its slot', () => {
+    const game = makeSpellGame({});
+    const [gone, other, waiting] = [game.unit(1), game.unit(2), game.unit(3)];
+
+    game.procs.run([after<Game>(10, [mark('withdrawn')])], { self: gone });
+    game.spells.withdrawDelayed(gone);
+
+    // Enough schedules and withdrawals for a pool slot's generation to come round to the first list's again.
+    for (let i = 0; i < 2046; i++) {
+      game.procs.run([after<Game>(20, [mark('churn')])], { self: other });
+      game.spells.withdrawDelayed(other);
+    }
+
+    game.procs.run([after<Game>(20, [mark('future')])], { self: waiting });
+    assert.equal(game.spells.delayed.pending, 1);
+
+    for (let i = 0; i < 40; i++) {
+      game.step();
+      game.spells.stepDelayed();
+    }
+
+    assert.deepEqual(
+      game.log.filter((line) => /^(withdrawn|churn|future)/.test(line)),
+      []
+    );
+
+    for (let i = 0; i < 41; i++) {
+      game.step();
+      game.spells.stepDelayed();
+    }
+
+    assert.deepEqual(
+      game.log.filter((line) => /^(withdrawn|churn|future)/.test(line)),
+      ['future@3']
+    );
+    assert.deepEqual([game.spells.delayed.pending, game.spells.pool.live], [0, 0]);
+  });
+
   it('keeps the event’s other unit for a list it delays, as for one it runs at once', () => {
     const seen: (number | undefined)[] = [];
     const game = makeSpellGame({});

@@ -49,6 +49,9 @@ class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
   /** Its index in the live list. */
   index = -1;
 
+  /** Whether it was withdrawn: its slot waits, emptied, for its entry on the wheel to come due before it is reused. */
+  isWithdrawn = false;
+
   /** Who owns it, for a withdrawal: its cast's caster, else its self. */
   owner: G['bearer'];
 
@@ -103,9 +106,12 @@ export class DelayedProcs<G extends SpellTypes> {
     this.#wheels = Array.from({ length: slots }, () => createTimingWheel({ start: engine.clock.tick }));
   }
 
+  /** How many withdrawn lists' slots wait for their wheel entries, so no stale entry can reach a reused slot. */
+  #withdrawn = 0;
+
   /** How many lists wait to land, over every slot. */
   get size(): number {
-    return this.#pool.live;
+    return this.#pool.live - this.#withdrawn;
   }
 
   /** How many records the pool has made: a steady state makes no new ones. */
@@ -168,7 +174,9 @@ export class DelayedProcs<G extends SpellTypes> {
         const handle = due[i];
         const record = handle === undefined ? undefined : this.#pool.get(handle);
 
-        if (record !== undefined && this.#landDue(record)) {
+        if (record?.isWithdrawn === true) {
+          this.#reclaim(record);
+        } else if (record !== undefined && this.#landDue(record)) {
           landed += 1;
         }
       }
@@ -185,7 +193,9 @@ export class DelayedProcs<G extends SpellTypes> {
 
   /**
    * Withdraws every list a unit owns that has not landed (`despawnOwned`): those its casts scheduled, and those
-   * scheduled for it outside a cast. None of their procs run; returns how many it withdrew.
+   * scheduled for it outside a cast. None of their procs run; returns how many it withdrew. Each lets go of its cast
+   * and procs at once, but keeps its slot until its entry on the wheel comes due, so that entry never reaches a list
+   * scheduled since in a reused slot.
    */
   withdraw(owner: G['bearer']): number {
     const live = this.#live;
@@ -199,7 +209,10 @@ export class DelayedProcs<G extends SpellTypes> {
       const record = live[i];
 
       if (record?.owner === owner) {
-        this.#free(record);
+        this.#unlist(record);
+        this.#letGo(record);
+        record.isWithdrawn = true;
+        this.#withdrawn += 1;
         withdrawn += 1;
       }
     }
@@ -256,10 +269,19 @@ export class DelayedProcs<G extends SpellTypes> {
       const handle = due[i];
       const record = handle === undefined ? undefined : this.#pool.get(handle);
 
-      if (record !== undefined) {
+      if (record?.isWithdrawn === true) {
+        this.#reclaim(record);
+      } else if (record !== undefined) {
         this.#free(record);
       }
     }
+  }
+
+  /** Gives a withdrawn list's slot back to the pool, its wheel entry collected. */
+  #reclaim(record: Delayed<G>): void {
+    record.isWithdrawn = false;
+    this.#withdrawn -= 1;
+    this.#pool.release(record.handle);
   }
 
   /** Lets go of a list that has not landed: out of the live list, then released. */
@@ -304,6 +326,12 @@ export class DelayedProcs<G extends SpellTypes> {
 
   /** Gives a list's record back to the pool and lets go of its cast. */
   #release(record: Delayed<G>): void {
+    this.#pool.release(record.handle);
+    this.#letGo(record);
+  }
+
+  /** Lets go of what a list points at: its cast (one hold), its procs, its bound and its units. */
+  #letGo(record: Delayed<G>): void {
     const { cast } = record;
 
     record.cast = undefined;
@@ -311,7 +339,6 @@ export class DelayedProcs<G extends SpellTypes> {
     record.procs = NO_PROCS;
     record.eventUnit = undefined;
     record.other = undefined;
-    this.#pool.release(record.handle);
 
     if (cast !== undefined) {
       this.#engine.unhold(cast);
