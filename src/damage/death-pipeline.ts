@@ -1,5 +1,3 @@
-// Hot path: every death walks its reward slots, so the loops are indexed.
-/* oxlint-disable typescript/prefer-for-of */
 import type { EventKind } from '../core/index.ts';
 import type { DamageTypes } from './damage-types.ts';
 import type { DeathRecord, DeathSpec } from './death.ts';
@@ -26,18 +24,70 @@ const raiseDeath = <G extends DamageTypes>(
   payload.death = undefined;
 };
 
-/** Runs one reward slot's steps, in order. */
+/** Runs one reward slot's steps from `start`, in order: one that throws still has the rest run, then it throws. */
 const runSteps = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   steps: readonly DeathStep<G>[] | undefined,
-  death: DeathRecord<G>
+  death: DeathRecord<G>,
+  start = 0
 ): void => {
   if (steps === undefined) {
     return;
   }
 
-  for (let i = 0; i < steps.length; i++) {
-    steps[i]?.(death, engine.system);
+  for (let i = start; i < steps.length; i++) {
+    try {
+      steps[i]?.(death, engine.system);
+    } catch (error) {
+      runSteps(engine, steps, death, i + 1);
+
+      throw error;
+    }
+  }
+};
+
+/** One part of a death, in the order a death runs them. */
+type DeathPhase = <G extends DamageTypes>(engine: DamageEngine<G>, death: DeathRecord<G>) => void;
+
+/** A death's parts: its cue, the rewards before, the `death` and `kill` events, the rewards after, the removal. */
+const DEATH_PHASES: readonly DeathPhase[] = [
+  (engine, death) => {
+    const cues = engine.options.cues;
+
+    cues?.death?.(death, cues.out);
+  },
+  (engine, death) => {
+    runSteps(engine, engine.options.death?.before, death);
+  },
+  (engine, death) => {
+    raiseDeath(engine, engine.options.events?.death, death);
+  },
+  (engine, death) => {
+    if (death.killer !== undefined) {
+      raiseDeath(engine, engine.options.events?.kill, death);
+    }
+  },
+  (engine, death) => {
+    runSteps(engine, engine.options.death?.after, death);
+  },
+  (engine, death) => {
+    engine.host.remove?.(death.unit, death);
+  }
+];
+
+/**
+ * Runs a death's parts from `start`: one that throws (a reward step, a listener) still has the rest run, so the unit
+ * is always taken out and never left alive at no health, then it throws.
+ */
+const runPhases = <G extends DamageTypes>(engine: DamageEngine<G>, death: DeathRecord<G>, start: number): void => {
+  for (let i = start; i < DEATH_PHASES.length; i++) {
+    try {
+      DEATH_PHASES[i]?.(engine, death);
+    } catch (error) {
+      runPhases(engine, death, i + 1);
+
+      throw error;
+    }
   }
 };
 
@@ -50,9 +100,6 @@ const runSteps = <G extends DamageTypes>(
  */
 export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: DeathSpec<G>): void => {
   const death = engine.deathRecord(spec.unit);
-  const slots = engine.options.death;
-  const events = engine.options.events;
-
   const { base } = engine;
   const procs = engine.host.procs;
   const procBase = procs?.rebase() ?? 0;
@@ -63,20 +110,7 @@ export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: D
   engine.base = engine.depth;
 
   try {
-    const cues = engine.options.cues;
-
-    cues?.death?.(death, cues.out);
-
-    runSteps(engine, slots?.before, death);
-    raiseDeath(engine, events?.death, death);
-
-    if (death.killer !== undefined) {
-      raiseDeath(engine, events?.kill, death);
-    }
-
-    runSteps(engine, slots?.after, death);
-
-    engine.host.remove?.(death.unit, death);
+    runPhases(engine, death, 0);
   } finally {
     procs?.restoreBase(procBase);
     engine.base = base;

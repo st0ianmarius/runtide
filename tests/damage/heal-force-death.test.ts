@@ -321,6 +321,46 @@ describe('the death pipeline', () => {
     assert.deepEqual(log, ['remove@1']);
   });
 
+  it('still runs for a blow that killed when a listener after the health stage throws, then throws', () => {
+    const deaths: number[] = [];
+    const { damage, unit, bus, log } = makeDamageGame({});
+    const target = unit(1);
+
+    bus.on(bus.kind.death, (event) => deaths.push(event.death?.unit.id ?? -1));
+    bus.on(bus.kind.taken, () => {
+      throw new Error('taken');
+    });
+
+    assert.throws(() => damage.hit({ target, attacker: unit(2), amount: 500 }), /taken/);
+    assert.deepEqual([deaths, log, damage.depth], [[1], ['remove@1'], 0]);
+  });
+
+  it('runs every part of a death and takes the unit out when a reward step throws, then throws', () => {
+    const order: string[] = [];
+
+    const { damage, unit, bus, log } = makeDamageGame(
+      {},
+      {
+        death: {
+          before: [
+            () => {
+              throw new Error('souls');
+            },
+            (death) => order.push(`marks ${death.unit.id}`)
+          ],
+          after: [(death) => order.push(`loot ${death.blow?.dealt}`)]
+        }
+      }
+    );
+
+    bus.on(bus.kind.death, (event) => order.push(`death ${event.death?.unit.id}`));
+    bus.on(bus.kind.kill, (event) => order.push(`kill ${event.death?.killer?.id}`));
+
+    assert.throws(() => damage.hit({ target: unit(1), attacker: unit(2), amount: 150 }), /souls/);
+    assert.deepEqual(order, ['marks 1', 'death 1', 'kill 2', 'loot 100']);
+    assert.deepEqual(log, ['remove@1']);
+  });
+
   it('never runs for a blow that did not kill, nor twice for one target', () => {
     const deaths: number[] = [];
     const { damage, unit, bus } = makeDamageGame({});

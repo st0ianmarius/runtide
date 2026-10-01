@@ -236,8 +236,28 @@ const runBlowStages = <G extends DamageTypes>(
     }
   }
 
-  for (let i = afterFrom; i < runs.length; i++) {
-    runs[i]?.(engine, blow);
+  runAfter(engine, runs, blow, afterFrom);
+};
+
+/**
+ * Runs a blow's after-stages from `start`: one that throws (a hook, a listener) still has the rest run, so a blow that
+ * killed always reaches the death pipeline and never leaves its target alive at no health, then it throws.
+ */
+const runAfter = <G extends DamageTypes>(
+  engine: DamageEngine<G>,
+  runs: readonly BuiltInStage<G>[],
+  blow: BlowRecord<G>,
+  start: number
+): void => {
+  for (let i = start; i < runs.length; i++) {
+    try {
+      runs[i]?.(engine, blow);
+    } catch (error) {
+      runAfter(engine, runs, blow, i + 1);
+
+      throw error;
+    }
+
     traceStep(engine, blow, i);
   }
 };
