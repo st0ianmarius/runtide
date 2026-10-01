@@ -155,6 +155,12 @@ export interface Blow<G extends DamageTypes> extends ProcOutcome {
   /** The health it took, capped at the health there was: `min(amount, healthBefore)`, so overkill is left out. */
   readonly dealt: number;
 
+  /**
+   * The damage past the health there was, `amount − dealt`: above 0 only for a blow that took the target to 0 or
+   * below (what an "excess damage spreads" effect passes on), 0 otherwise.
+   */
+  readonly overkill: number;
+
   /** Whether it killed the target. */
   readonly hasKilled: boolean;
 
@@ -190,6 +196,7 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   healthBefore = 0;
   healthAfter = 0;
   dealt = 0;
+  overkill = 0;
   hasKilled = false;
   isDeathPrevented = false;
   ext: G['blowExt'] | undefined = undefined;
@@ -236,6 +243,7 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
     this.healthBefore = 0;
     this.healthAfter = 0;
     this.dealt = 0;
+    this.overkill = 0;
     this.hasKilled = false;
     this.isDeathPrevented = false;
   }

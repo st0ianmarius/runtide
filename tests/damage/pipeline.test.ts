@@ -140,18 +140,20 @@ describe('a blow', () => {
     assert.equal(blow.healthBefore, 100);
     assert.equal(blow.healthAfter, 70);
     assert.equal(blow.dealt, 30);
+    assert.equal(blow.overkill, 0);
     assert.equal(blow.hasKilled, false);
     assert.equal(blow.kind, damage.kinds.id.physical);
     assert.equal(target.hp, 70);
   });
 
-  it('hands the host health below 0 on overkill, and counts only the health there was as dealt', () => {
+  it('hands the host health below 0 on overkill, and counts only the health there was as dealt, the rest overkill', () => {
     const { damage, unit, log } = makeDamageGame({});
     const target = unit(1);
     const blow = damage.hit({ target, amount: 130, attacker: unit(2) });
 
     assert.equal(target.hp, -30);
     assert.equal(blow.dealt, 100);
+    assert.equal(blow.overkill, 30);
     assert.equal(blow.hasKilled, true);
     assert.deepEqual(log, ['remove@1']);
   });
