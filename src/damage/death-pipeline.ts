@@ -76,7 +76,7 @@ export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: D
 
     runSteps(engine, slots?.after, death);
 
-    engine.host.remove?.(spec.unit, death);
+    engine.host.remove?.(death.unit, death);
   } finally {
     procs?.restoreBase(procBase);
     engine.base = base;

@@ -149,6 +149,39 @@ describe('units out of play', () => {
   });
 });
 
+describe('nested deaths', () => {
+  it('take out each victim once, the outer one too, when a death kills another', () => {
+    const late: { game?: DamageGame<never> } = {};
+
+    const game = makeDamageGame(
+      {},
+      {
+        death: {
+          before: [
+            (death) => {
+              const next = late.game?.units.get(2);
+
+              if (death.unit.id === 1 && next !== undefined) {
+                late.game?.damage.hit({ target: next, attacker: death.unit, amount: 1000 });
+              }
+            }
+          ]
+        }
+      }
+    );
+
+    late.game = game;
+
+    const [first] = [game.unit(1), game.unit(2)];
+
+    game.damage.hit({ target: first, amount: 1000 });
+    assert.deepEqual(
+      game.log.filter((line) => line.startsWith('remove')),
+      ['remove@2', 'remove@1']
+    );
+  });
+});
+
 describe('pipelines that cannot turn a sign or move the dead', () => {
   it('takes a whole blow, and no more, when a damage-taken multiplier goes below 0', () => {
     const { damage: system, unit, set } = makeDamageGame({});
