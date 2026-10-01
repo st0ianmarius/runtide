@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
 import { explainAura, NO_SOURCE } from '../../src/auras/index.ts';
+import { POOL_MIN_FREE } from '../../src/core/index.ts';
 import { aura, makeGame, TAGS } from '../helpers/aura-game.ts';
 
 /** A bearer's aura views, in a fresh array. */
@@ -154,13 +155,25 @@ describe('the aura pool', () => {
     const { auras, id, unit, run } = makeGame(defs);
     const u = unit();
 
-    for (let i = 0; i < 3; i++) {
+    const cycle = (): void => {
       auras.apply(u, id.echo);
       auras.apply(u, id.echo);
       run(u, 24);
+    };
+
+    // Past the pool's minimum of waiting free slots, it reuses them.
+    for (let i = 0; i <= POOL_MIN_FREE; i++) {
+      cycle();
     }
 
-    assert.equal(auras.pool.created, 2);
+    const { created } = auras.pool;
+
+    for (let i = 0; i < 3; i++) {
+      cycle();
+    }
+
+    assert.equal(auras.pool.created, created);
+    assert.ok(created <= POOL_MIN_FREE + 2);
     assert.equal(auras.pool.live, 0);
   });
 

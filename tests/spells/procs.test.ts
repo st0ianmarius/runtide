@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { defineTickSlots } from '../../src/core/index.ts';
+import { defineTickSlots, POOL_MIN_FREE } from '../../src/core/index.ts';
 import { damage } from '../../src/damage/index.ts';
 import { applyAura, escapeReport, explainProc, run } from '../../src/procs/index.ts';
 import { after, castSpell, CORE_ACTIVATIONS, defineActivationKind, defineActivations } from '../../src/spells/index.ts';
@@ -412,14 +412,24 @@ describe('delayed procs', () => {
   it('makes no new records in a steady state', () => {
     const game = dropping([]);
 
-    for (let i = 0; i < 20; i++) {
+    const drop = (): void => {
       game.spells.cast(game.a, game.id.drop, { input: game.b });
       game.step(2);
       game.spells.stepDelayed();
+    };
+
+    // Past the pools' minimum of waiting free slots, they reuse them.
+    for (let i = 0; i <= POOL_MIN_FREE; i++) {
+      drop();
     }
 
-    assert.equal(game.spells.delayed.created, 1);
-    assert.equal(game.spells.pool.created, 1);
+    const made = [game.spells.delayed.created, game.spells.pool.created];
+
+    for (let i = 0; i < 20; i++) {
+      drop();
+    }
+
+    assert.deepEqual([game.spells.delayed.created, game.spells.pool.created], made);
   });
 });
 

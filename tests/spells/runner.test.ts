@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { rollKey } from '../../src/core/index.ts';
+import { POOL_MIN_FREE, rollKey } from '../../src/core/index.ts';
 import { damage } from '../../src/damage/index.ts';
 import { add, scaled } from '../../src/modifiers/index.ts';
 import { run } from '../../src/procs/index.ts';
@@ -258,15 +258,15 @@ describe('the cast order', () => {
 });
 
 describe('pooled casts', () => {
-  it('reuses one record for casts that do not overlap', () => {
+  it('reuses records for casts that do not overlap, once the pool keeps its minimum of free ones', () => {
     const game = makeSpellGame({ bolt });
     const a = game.unit(1);
 
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < POOL_MIN_FREE + 50; i++) {
       game.spells.cast(a, game.id.bolt);
     }
 
-    assert.equal(game.spells.pool.created, 1);
+    assert.equal(game.spells.pool.created, POOL_MIN_FREE + 1);
     assert.equal(game.spells.pool.live, 0);
   });
 
@@ -447,6 +447,104 @@ describe('pooled casts', () => {
     game.spells.check(hero, game.id.bolt);
     game.spells.cast(hero, game.id.bolt);
     assert.deepEqual(ordinals, [0, 0, 0, 1, 1]);
+  });
+
+  it('asks checks and refused casts on a record outside the pool, so they never bring a kept handle back to life', () => {
+    const seen: CastHandle[] = [];
+
+    const game = makeSpellGame({
+      long: spell({ activation: { kind: 'trigger' }, timeline: { windup: { seconds: 10 } }, release: () => undefined }),
+      refused: spell({
+        activation: { kind: 'trigger' },
+        canCast: (ctx) => seen.push(ctx.cast) < 0,
+        release: () => undefined
+      })
+    });
+
+    const [a, b] = [game.unit(1), game.unit(2)];
+    const stale = game.spells.cast(a, game.id.long).handle;
+
+    game.spells.cancel(stale);
+
+    const { created } = game.spells.pool;
+
+    // A generation wraps after 2,047 reuses of a slot: this many checks and refusals would have wrapped the freed one.
+    for (let i = 0; i < 2047; i++) {
+      assert.equal(game.spells.check(b, game.id.refused), 'canCast');
+      assert.equal(game.spells.cast(b, game.id.refused).refusal, 'canCast');
+    }
+
+    assert.equal(game.spells.pool.created, created);
+    assert.equal(
+      seen.every((cast) => cast === NO_CAST),
+      true
+    );
+
+    const theirs = game.spells.cast(b, game.id.long).handle;
+
+    assert.notEqual(theirs, stale);
+    assert.equal(game.spells.isRunning(stale), false);
+    assert.equal(game.spells.cancel(stale), false);
+    assert.equal(game.spells.isRunning(theirs), true);
+  });
+
+  it('admits a cast before it has a handle, then moves it into the pool with its game fields as it begins', () => {
+    const seen: string[] = [];
+
+    const game = makeSpellGame({
+      bolt: spell({
+        activation: { kind: 'trigger' },
+
+        canCast: (ctx) => {
+          seen.push(`canCast ${ctx.cast === NO_CAST ? 'none' : 'live'}`);
+
+          return true;
+        },
+
+        begin: (ctx) => {
+          seen.push(`begin ${game.spells.get(ctx.cast) === ctx ? 'live' : 'stale'}`);
+
+          return [];
+        },
+
+        timeline: { windup: { seconds: 1 } },
+        release: () => undefined
+      })
+    });
+
+    const report = game.spells.cast(game.unit(1), game.id.bolt);
+
+    assert.deepEqual(seen, ['canCast none', 'begin live']);
+    assert.equal(report.status, 'running');
+    assert.equal(game.spells.isRunning(report.handle), true);
+    assert.deepEqual([game.spells.pool.created, game.spells.pool.live], [1, 1]);
+  });
+
+  it('checks a spell from inside another check’s hooks, each on its own record', () => {
+    const asked: string[] = [];
+
+    const game = makeSpellGame({
+      outer: spell({
+        activation: { kind: 'trigger' },
+        stats: { power: 3 },
+
+        canCast: (ctx) => {
+          asked.push(`inner ${game0.spells.check(ctx.caster, game0.id.inner) ?? 'ok'}`);
+          asked.push(`outer power ${String(ctx.stats.power)}`);
+
+          return true;
+        },
+
+        release: () => undefined
+      }),
+      inner: spell({ activation: { kind: 'trigger' }, stats: { power: 9 }, release: () => undefined })
+    });
+
+    const game0 = game;
+
+    assert.equal(game.spells.check(game.unit(1), game.id.outer), undefined);
+    assert.deepEqual(asked, ['inner ok', 'outer power 3']);
+    assert.equal(game.spells.pool.live, 0);
   });
 });
 

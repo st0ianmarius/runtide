@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { POOL_MIN_FREE } from '../../src/core/index.ts';
 import { run } from '../../src/procs/index.ts';
 import { type AnySpellDef, type CastHandle, lockBefore, NO_CAST } from '../../src/spells/index.ts';
 import { type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
@@ -528,12 +529,12 @@ describe('stepping per caster', () => {
       })
     });
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < POOL_MIN_FREE + 20; i++) {
       game.spells.cast(game.a, game.id.loop);
       game.advance(2);
     }
 
-    assert.equal(game.spells.pool.created, 1);
+    assert.equal(game.spells.pool.created, POOL_MIN_FREE + 1);
     assert.equal(game.spells.pool.live, 0);
   });
 });

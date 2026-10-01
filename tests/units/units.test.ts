@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { createEntityIds } from '../../src/core/index.ts';
+import { createEntityIds, POOL_MIN_FREE } from '../../src/core/index.ts';
 import { defineUnits, type UnitDef } from '../../src/units/index.ts';
 import { AURA_TAGS, auraId, HEARD, makeUnitGame, STATS, UNIT_TAGS, type UnitGame } from '../helpers/unit-game.ts';
 
@@ -285,16 +285,27 @@ describe('bearer states on the lifecycle', () => {
     const game = makeUnitGame(TEMPLATES);
     const { units, auras } = game;
 
-    for (let i = 0; i < 3; i++) {
+    const comeAndGo = (): void => {
       const grunt = units.spawn(game.id.grunt, { side: 1 });
 
       auras.apply(grunt, auraId('haste'));
       auras.apply(grunt, auraId('vigour'));
       units.despawn(grunt);
       assert.deepEqual([auras.list(grunt).length, auras.pool.live], [0, 0]);
+    };
+
+    // Past the pool's minimum of waiting free slots, it reuses them.
+    for (let i = 0; i <= POOL_MIN_FREE; i++) {
+      comeAndGo();
     }
 
-    assert.equal(auras.pool.created, 2);
+    const { created } = auras.pool;
+
+    for (let i = 0; i < 3; i++) {
+      comeAndGo();
+    }
+
+    assert.equal(auras.pool.created, created);
   });
 });
 

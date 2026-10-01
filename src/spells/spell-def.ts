@@ -96,7 +96,10 @@ export interface GateContext<G extends SpellTypes> {
   /** The spell cast. */
   readonly spell: SpellId;
 
-  /** This cast's handle. */
+  /**
+   * This cast's handle: `NO_CAST` until it is admitted (in its gates, `stats`, `canCast` and `target`, and in a check,
+   * which starts nothing), as the cast order is asked on a record outside the pool and only an admitted cast takes one.
+   */
   readonly cast: CastHandle;
 
   /** The entity id its hits are credited to (the caster's, or what the cast was started with). */

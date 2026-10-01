@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { POOL_MIN_FREE } from '../../src/core/index.ts';
 import { circle } from '../../src/math/index.ts';
 import { add, finishScaled, scaled } from '../../src/modifiers/index.ts';
 import { makeSpellGame, STATS } from '../helpers/spell-game.ts';
@@ -104,12 +105,18 @@ test('reused areas discard the previous live spell stat keys', () => {
 
   const owner = g.unit(1);
   const first = g.spells.cast(owner, g.id.first).handle;
+
+  // Fills the pool past its minimum of waiting free slots, each record having held the first spell's keys.
+  for (let i = 0; i <= POOL_MIN_FREE; i++) {
+    g.areaTriggers.despawn(g.areaTriggers.spawn(g.areaId.zone, { owner, at: { x: 0, z: 0 }, cast: first }));
+  }
+
   const area = g.areaTriggers.spawn(g.areaId.zone, { owner, at: { x: 0, z: 0 }, cast: first });
   const snapshot = g.areaTriggers.get(area)?.scaled['power'];
   g.areaTriggers.despawn(area);
   const reused = g.areaTriggers.spawn(g.areaId.zone, { owner, at: { x: 0, z: 0 }, cast: first });
   assert.equal(g.areaTriggers.get(reused)?.scaled['power'], snapshot);
-  assert.equal(g.areaTriggers.pool.created, 1);
+  assert.equal(g.areaTriggers.pool.created, POOL_MIN_FREE + 1);
   g.areaTriggers.despawn(reused);
   const second = g.spells.cast(owner, g.id.second).handle;
   const next = g.areaTriggers.spawn(g.areaId.zone, { owner, at: { x: 0, z: 0 }, cast: second });

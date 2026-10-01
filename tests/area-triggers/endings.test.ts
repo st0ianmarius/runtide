@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { type AnyAreaTriggerDef, type EndReason, NO_AREA_TRIGGER, spawn } from '../../src/area-triggers/index.ts';
+import { POOL_MIN_FREE } from '../../src/core/index.ts';
 import { circle, covers, lane, vec2 } from '../../src/math/index.ts';
 import { run } from '../../src/procs/index.ts';
 import { aura, CUES, type Game, makeSpellGame, mark } from '../helpers/spell-game.ts';
@@ -702,7 +703,8 @@ describe('procs and keys', () => {
     const game = makeSpellGame({}, { areaTriggers: { pool: ending({ lifetime: 0.25 }) } });
     const owner = game.unit(1);
 
-    for (let i = 0; i < 5; i++) {
+    // Past the pool's minimum of waiting free slots, it reuses them.
+    for (let i = 0; i <= POOL_MIN_FREE; i++) {
       game.areaTriggers.spawn(game.areaId.pool, { owner, at: vec2(0, 0) });
       game.step();
       game.areaTriggers.step();

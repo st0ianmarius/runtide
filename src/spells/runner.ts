@@ -346,31 +346,25 @@ export const startCast = <G extends SpellTypes>(
   report: Report<G>
 ): Report<G> => {
   // Checked before a record is taken: a retired or unknown spell throws here.
-  engine.registry.get(request.spell);
+  const def = engine.registry.get(request.spell);
 
-  const cast = engine.acquire(request.caster);
+  // Admitted on a scratch record, so a refusal takes no pool slot; only an admitted cast moves into the pool.
+  const asked = engine.borrow(request.caster);
+  let refusal: CastRefusal<G> | undefined;
+  let interval = Number.NaN;
 
   try {
-    initCast(engine, cast, request);
-
-    return runStart(engine, cast, report);
+    initCast(engine, asked, request);
+    refusal = admit(engine, asked, def);
+    interval = autoIntervalOf(engine, asked, def);
   } catch (error) {
-    stopThrown(cast);
-    engine.unhold(cast);
+    engine.giveBack(asked);
 
     throw error;
   }
-};
-
-/** The cast order of `startCast` on its fresh cast, which it lets go of when done. */
-const runStart = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, report: Report<G>): Report<G> => {
-  const def = engine.defOf(cast.spell);
-  const refusal = admit(engine, cast, def);
-  const interval = autoIntervalOf(engine, cast, def);
 
   if (refusal !== undefined) {
-    cast.stage = 'ended';
-    engine.unhold(cast);
+    engine.giveBack(asked);
     report.handle = NO_CAST;
     report.status = 'refused';
     report.refusal = refusal;
@@ -381,6 +375,26 @@ const runStart = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, r
     return report;
   }
 
+  const cast = engine.adopt(asked);
+
+  try {
+    return runStart(engine, cast, def, interval, report);
+  } catch (error) {
+    stopThrown(cast);
+    engine.unhold(cast);
+
+    throw error;
+  }
+};
+
+/** The cast order of `startCast` from `begin` on its admitted cast, which it lets go of when done. */
+const runStart = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  cast: Cast<G>,
+  def: AnySpellDef<G>,
+  interval: number,
+  report: Report<G>
+): Report<G> => {
   recordOf(cast.caster).countStart();
   beginCast(engine, cast, def);
 
@@ -408,15 +422,14 @@ export const checkCast = <G extends SpellTypes>(
   request: CastRequest<G>
 ): CastRefusal<G> | undefined => {
   const def = engine.registry.get(request.spell);
-  const cast = engine.acquire(request.caster);
+  const cast = engine.borrow(request.caster);
 
   try {
     initCast(engine, cast, request);
 
     return admit(engine, cast, def);
   } finally {
-    cast.stage = 'ended';
-    engine.unhold(cast);
+    engine.giveBack(cast);
   }
 };
 
@@ -438,14 +451,13 @@ export const startCooldowns = <G extends SpellTypes>(
     return;
   }
 
-  const cast = engine.acquire(request.caster);
+  const cast = engine.borrow(request.caster);
 
   try {
     initCast(engine, cast, request);
     takeStats(engine, cast, def);
     engine.cooldowns.start(cast, 'all', typeof windup === 'function' ? windup(cast) : (windup ?? 0));
   } finally {
-    cast.stage = 'ended';
-    engine.unhold(cast);
+    engine.giveBack(cast);
   }
 };

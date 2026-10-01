@@ -141,6 +141,11 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   readonly #random: Random | undefined;
   readonly #streams: EngineParts<G>['streams'];
   readonly #resetExt: EngineParts<G>['resetExt'];
+  readonly #createExt: EngineParts<G>['createExt'];
+
+  /** The scratch casts `borrow` hands out, by nesting level, as a check's hooks may check another spell. */
+  readonly #scratch: Cast<G>[] = [];
+  #scratchDepth = 0;
   readonly #lists: ProcList<G>[] = [];
   readonly #handles: CastHandle[][] = [];
   #handleDepth = 0;
@@ -167,6 +172,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     this.#random = parts.random;
     this.#streams = parts.streams;
     this.#resetExt = parts.resetExt;
+    this.#createExt = parts.createExt;
     this.delayed = new DelayedProcs<G>(this, parts.slots);
     this.pool = createPool({
       create: () => new Cast<G>(this, this.#pending ?? missing('a caster'), parts.createExt())
@@ -188,20 +194,51 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     return typeof procs === 'function' ? procs() : procs;
   }
 
-  /** Takes a cast from the pool for a caster, held once by the caller. */
-  acquire(caster: G['bearer']): Cast<G> {
-    this.#pending = caster;
+  /**
+   * A cast record outside the pool for a caster, for the cast order up to `begin` (a check, the cooldowns a press
+   * commits, a cast until it is admitted): it has no handle (`NO_CAST`), so asking takes no pool slot and ages no
+   * slot's generation, which a stream of checks and refusals would otherwise wrap until a kept handle read as live
+   * again. Give it back with `giveBack`, or move an admitted cast into the pool with `adopt`, innermost first.
+   */
+  borrow(caster: G['bearer']): Cast<G> {
+    const depth = this.#scratchDepth;
+    const cast = this.#scratch[depth] ?? new Cast<G>(this, caster, this.#createExt());
 
-    const handle = this.pool.acquire();
-    const cast = this.pool.get(handle) ?? missing('a pooled cast');
-
-    this.#pending = undefined;
-    cast.cast = toCastHandle(handle);
+    this.#scratch[depth] = cast;
+    this.#scratchDepth = depth + 1;
+    cast.cast = NO_CAST;
     cast.caster = caster;
     cast.origin.self = caster;
     cast.holds = 1;
 
     return cast;
+  }
+
+  /**
+   * Moves the innermost record `borrow` handed out, an admitted cast, into the pool: it takes a slot and its handle,
+   * and the slot's former record becomes the scratch one, so nothing is copied and the game's fields stay with their
+   * record. Held once by the caller.
+   */
+  adopt(cast: Cast<G>): Cast<G> {
+    this.#pending = cast.caster;
+
+    const handle = this.pool.acquire();
+
+    this.#pending = undefined;
+    this.#scratchDepth -= 1;
+    this.#scratch[this.#scratchDepth] = this.pool.swap(handle, cast);
+    cast.cast = toCastHandle(handle);
+    cast.holds = 1;
+
+    return cast;
+  }
+
+  /** Puts back the innermost record `borrow` handed out, cleared as a pooled one is. */
+  giveBack(cast: Cast<G>): void {
+    this.#scratchDepth -= 1;
+    cast.stage = 'ended';
+    cast.holds = 0;
+    this.#clear(cast);
   }
 
   /** The cast record behind a handle, live (running, or ended and still held), or `undefined` when stale. */
@@ -345,8 +382,14 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     events.bus.raise(event, payload);
   }
 
-  /** Puts an ended cast's record back: its stats box, the game's fields, its references. */
+  /** Puts an ended cast's record back in the pool. */
   #free(cast: Cast<G>): void {
+    this.#clear(cast);
+    this.pool.release(toHandle<Cast<G>>(cast.cast));
+  }
+
+  /** Clears an ended cast's record: its stats box, the game's fields, its references. */
+  #clear(cast: Cast<G>): void {
     if (cast.box !== undefined) {
       this.boxes.give(cast.box);
       cast.box = undefined;
@@ -358,6 +401,5 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     cast.state = undefined;
     cast.stats = NO_STATS;
     cast.scaled = NO_SCALED;
-    this.pool.release(toHandle<Cast<G>>(cast.cast));
   }
 }

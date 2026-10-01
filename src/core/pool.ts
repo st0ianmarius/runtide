@@ -17,6 +17,14 @@ const SLOT_MASK = SLOT_SPAN - 1;
  */
 const GENERATIONS = 2 ** (31 - SLOT_BITS) - 1;
 
+/**
+ * How many released slots a pool keeps waiting before it reuses the oldest, by default. Once that many are free, at
+ * least that many other acquisitions come between two occupants of one slot, so its generation wraps only after
+ * 2,047 × 1,024 (about 2.1 million) acquisitions, not after 2,047 when a nearly full pool cycles its one free slot. A
+ * steady state then holds up to this many items beyond its peak of live ones.
+ */
+export const POOL_MIN_FREE = 1024;
+
 /** A handle that never points at anything: slot 0 at generation 0, which no acquire returns. */
 export const NO_HANDLE = 0;
 
@@ -27,14 +35,21 @@ export interface PoolOptions<Item> {
 
   /** Resets an item as it is released, so the next acquire gets it clean. */
   readonly reset?: (item: Item) => void;
+
+  /**
+   * How many released slots wait before the oldest is reused (`POOL_MIN_FREE` by default); below it, acquiring makes
+   * a new item. 0 reuses a slot as soon as one is free, and wraps its generation after 2,047 reuses.
+   */
+  readonly minFree?: number;
 }
 
 /**
  * A pool of reusable items with generational handles: a released slot is reused, and its generation rises,
  * so a handle kept past its release is detected as stale and never reaches the slot's next occupant. Released slots
- * are reused oldest first, so a slot comes round again only after every other free slot, and its generation wraps
- * after 2,047 reuses: a handle kept that long after its release could read as live again, so keep a handle no longer
- * than its item lives, as the systems do.
+ * are reused oldest first, and only while more than `minFree` of them wait, so a slot comes round again only after at
+ * least that many other acquisitions. Its generation wraps after 2,047 reuses: a handle kept that long after its
+ * release (2,047 × `minFree` acquisitions at the least) could read as live again, so keep a handle no longer than its
+ * item lives, as the systems do.
  */
 export interface Pool<Item extends Defined> {
   /** How many items the pool has ever made: a steady-state tick that allocates nothing leaves it unchanged. */
@@ -52,6 +67,12 @@ export interface Pool<Item extends Defined> {
   /** Whether `handle` still points at a live item. */
   readonly isLive: (handle: Handle<Item>) => boolean;
 
+  /**
+   * Puts `item` behind a live handle in place of the item there, and returns that one (a record filled outside the
+   * pool, moved in once it is kept, with the pool's own taking its place outside); throws for a stale handle.
+   */
+  readonly swap: (handle: Handle<Item>, item: Item) => Item;
+
   /** Releases the item behind `handle`; returns false, and changes nothing, for a stale handle. */
   readonly release: (handle: Handle<Item>) => boolean;
 
@@ -63,6 +84,7 @@ export interface Pool<Item extends Defined> {
 class ItemPool<Item extends Defined> implements Pool<Item> {
   readonly #create: () => Item;
   readonly #reset: ((item: Item) => void) | undefined;
+  readonly #minFree: number;
   readonly #items: Item[] = [];
   readonly #generations: number[] = [];
   readonly #isAcquired: boolean[] = [];
@@ -76,6 +98,11 @@ class ItemPool<Item extends Defined> implements Pool<Item> {
   constructor(options: PoolOptions<Item>) {
     this.#create = options.create;
     this.#reset = options.reset;
+    this.#minFree = options.minFree ?? POOL_MIN_FREE;
+
+    if (!Number.isInteger(this.#minFree) || this.#minFree < 0) {
+      throw new RangeError(`A pool's minFree is a whole number from 0, not ${this.#minFree}.`);
+    }
   }
 
   get created(): number {
@@ -108,6 +135,19 @@ class ItemPool<Item extends Defined> implements Pool<Item> {
   readonly get = (handle: Handle<Item>): Item | undefined =>
     this.isLive(handle) ? this.#items[handle & SLOT_MASK] : undefined;
 
+  readonly swap = (handle: Handle<Item>, item: Item): Item => {
+    const slot = handle & SLOT_MASK;
+    const held = this.isLive(handle) ? this.#items[slot] : undefined;
+
+    if (held === undefined) {
+      throw new RangeError('A pool swaps the item behind a live handle only.');
+    }
+
+    this.#items[slot] = item;
+
+    return held;
+  };
+
   readonly release = (handle: Handle<Item>): boolean => {
     if (!this.isLive(handle)) {
       return false;
@@ -128,11 +168,11 @@ class ItemPool<Item extends Defined> implements Pool<Item> {
     return true;
   };
 
-  /** The oldest free slot, or a new one with a new item. */
+  /** The oldest free slot while more than `minFree` wait, else a new one with a new item. */
   #takeSlot(): number {
     const free = this.#free;
 
-    if (this.#freeHead < this.#freeTail) {
+    if (this.#freeTail - this.#freeHead > this.#minFree) {
       const slot = free[this.#freeHead] ?? 0;
 
       this.#freeHead += 1;
