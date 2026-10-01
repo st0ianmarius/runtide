@@ -33,7 +33,6 @@ npm run typecheck     # src, tests and bench
 npm run lint          # oxlint (lint:fix to fix what it can)
 npm run fmt:check     # oxfmt (fmt to format)
 npm test
-npm run build
 npm run knip          # no unused files, exports or dependencies
 npm run bench         # mitata benchmarks (bench/BASELINE.md), never part of npm test
                       # modes: npm run bench [ab <ref> | alloc | jit | prof] [filter]
@@ -43,5 +42,5 @@ No hook runs them: run them before committing. The whole project lints, format-c
 
 ### Toolchain
 
-- **TypeScript 7.0.2**, the native compiler (`tsc` from the `typescript` package), on ES2025 (the newest year Node 24, the LTS, fully supports). `tsconfig.json` typechecks `src/`, `tests/` and `bench/` with Node types. `tsconfig.build.json` emits `dist/` from `src/` only, with no Node or DOM types, so a build fails on any Node type in `src/`.
+- **TypeScript 7.0.2**, the native compiler (`tsc` from the `typescript` package), on ES2025 (the newest year Node 24, the LTS, fully supports). `tsconfig.json` typechecks `src/`, `tests/` and `bench/` with Node types. `tsconfig.src.json` checks `src/` alone with no Node or DOM types, so a Node type in `src/` fails `typecheck`. Nothing is emitted: the package's exports are the `src/` files themselves, which Vite and Node 24's type stripping run as they are.
 - **oxlint** lints, with type-aware rules run by `oxlint-tsgolint`, which is built on TypeScript 7's compiler. `.oxlintrc.json` holds the rules, including a set that prefers modern syntax (`Object.hasOwn`, `.at()`, spread, optional chaining, `??=`); `oxlint-plugin.js` adds the project rules oxlint has no native rule for (doc blocks on exports, naming, import order, blank lines); oxlint's JS plugin API is still alpha, which is one more reason every tool is pinned exactly. The linter reads the root `tsconfig.json`, so tests and benchmarks are linted with Node types, and `src/` is kept off Node by the lint bans and the build's `types: []`. Only `src/**/*-adapter.ts` and `src/**/ids.ts` (the branded-id constructors) may use `as` casts.

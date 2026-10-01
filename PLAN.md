@@ -69,7 +69,7 @@ A rule of thumb for borderline code: if it names a class, a card, a creature, a 
 framework/                # a sibling of the swarm checkout, its own git repository
   package.json            # name per §I.9, "private": true (never published, §I.2), "type": "module", "sideEffects": false, ESM exports per system (no Node-only conditions), engines (dev tooling only), scripts; vetted deps only (§I.5.1)
   tsconfig.json           # the strict base (§I.4.1) for src, tests and bench, with Node types; the linter reads it
-  tsconfig.build.json     # extends it for src only, types: [] so src never sees Node; emits dist/ (ESM JS + .d.ts)
+  tsconfig.src.json       # extends it for src only, types: [] so src never sees Node; emits nothing
   .oxlintrc.json          # oxlint: the §I.4.2 rules, type-aware through oxlint-tsgolint
   oxlint-plugin.js        # the project's own lint rules, for what oxlint has no native rule for
   .oxfmtrc.json           # the style of §I.4.2
@@ -107,14 +107,14 @@ framework/                # a sibling of the swarm checkout, its own git reposit
   bench/                  # mitata benchmarks (npm run bench, never part of npm test) and BASELINE.md
 ```
 
-`package.json` exports one entry per system (`<name>/auras`, `<name>/spells`, …) and `.` for the whole, each with a `types` and a `default` condition pointing into `dist/`. The package manager is npm, as in swarm.
+`package.json` exports one entry per system (`<name>/auras`, `<name>/spells`, …) and `.` for the whole, each pointing at its `src/` index: consumers (Vite, Node 24's type stripping) run the TypeScript itself, so nothing is built. The package manager is npm, as in swarm.
 
 ### I.4.1 Toolchain on TypeScript 7
 
 - **TypeScript 7**, the native compiler, pinned exactly; its `typescript` package ships `tsc`. It has no JavaScript compiler API yet, so no tool here depends on one.
-- **Compiler options** (the strict end of what TypeScript 7 offers): `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (no enums, namespaces or parameter properties, so every source runs under Node's type stripping, which also fits §I.5.2), `module` and `moduleResolution` `nodenext`, `target` and `lib` at the newest ECMAScript year that the compiler, the Node LTS and the evergreen browsers all support. **`src/` sees neither Node nor the DOM**: `lib` is ECMAScript only and `tsconfig.build.json` has `types: []`, so a stray `process`, `Buffer` or `window` fails the build, and the lint bans name the common ones. The root `tsconfig.json` covers `src/`, `tests/` and `bench/` with Node types; `typecheck` and the linter read it.
+- **Compiler options** (the strict end of what TypeScript 7 offers): `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (no enums, namespaces or parameter properties, so every source runs under Node's type stripping, which also fits §I.5.2), `module` and `moduleResolution` `nodenext`, `target` and `lib` at the newest ECMAScript year that the compiler, the Node LTS and the evergreen browsers all support. **`src/` sees neither Node nor the DOM**: `lib` is ECMAScript only and `tsconfig.src.json` has `types: []`, so a stray `process`, `Buffer` or `window` fails the typecheck, and the lint bans name the common ones. The root `tsconfig.json` covers `src/`, `tests/` and `bench/` with Node types; `typecheck` runs both, and the linter reads the root one.
 - **Imports** use explicit `.ts` extensions (`allowImportingTsExtensions`), which Node runs as they are; the build rewrites them to `.js` (`rewriteRelativeImportExtensions`) and emits declarations.
-- **Scripts**: `typecheck` (`tsc -p tsconfig.json`), `build` (`tsc -p tsconfig.build.json`), `test` (`node --test "tests/**/*.test.ts"`), `lint` (`oxlint`), `format` / `format:check` (`oxfmt`). No bundler, and no `tsx`: Node's type stripping runs the TypeScript directly.
+- **Scripts**: `typecheck` (`tsc -p tsconfig.json && tsc -p tsconfig.src.json`), `test` (`node --test "tests/**/*.test.ts"`), `lint` (`oxlint`), `format` / `format:check` (`oxfmt`). No bundler, and no `tsx`: Node's type stripping runs the TypeScript directly.
 - **Lint**: oxlint, with the type-aware rules of `typescript-eslint`'s strict and stylistic type-checked presets that it has, run by `oxlint-tsgolint` (built on TypeScript 7's compiler), and the project's own rules in `oxlint-plugin.js` (doc blocks, naming, import order, blank lines, presentation fields). `typescript-eslint` does not support TypeScript 7, so ESLint is not used.
 
 ### I.4.2 Code quality and style
@@ -268,7 +268,7 @@ runtide runs on the server (Node), in the browser (swarm's "local play" runs the
 - **`src/` uses ECMAScript only.** No `node:` imports; no `process`, `Buffer`, `global`, `require`, `module`, `__dirname`, `setImmediate` or `fs`; no DOM or `window` either. Timers, randomness and clocks come from the host (§I.5), so nothing needs a platform API. Typed arrays, `Math.imul`, `Map` / `Set` / `WeakMap` and `BigInt` are ECMAScript and allowed.
 - **Checked three ways.** The `src/` compiler config has no Node or DOM types (§I.4.1); the lint config rejects any Node built-in import and any reference to the Node globals above inside `src/` (`import/no-nodejs-modules`, `no-restricted-globals`); and CI bundles `src/` for the browser (`esbuild --platform=browser --bundle`, a dev dependency) and fails if anything reaches for a Node built-in.
 - **Dependencies meet the same bar** (§I.5.1, condition 1): `flatbush`, `flatqueue`, `kdbush` and `typedfastbitset` are plain ESM with no Node imports. The browser bundle check covers them too.
-- **Built as ESM for any bundler.** `dist/` (built locally or by the consumer, never published, §I.2) is standard ES modules with `.js` extensions and declarations, `"sideEffects": false` for tree-shaking, and `exports` with only `types` and `default` conditions, so Vite, esbuild, webpack and Node all resolve it the same way.
+- **Source as ESM for any consumer.** The `exports` are the `src/` files (never published, §I.2): standard ES modules in erasable TypeScript with `.ts` extensions, `"sideEffects": false` for tree-shaking, so Vite and Node 24 run them with no build. A consumer's `tsconfig` needs `allowImportingTsExtensions`, and a TypeScript and `lib` at least as new as the framework's.
 - **Tests stay on `node:test`.** The unit tests and benchmarks run on Node, which is fine: they exercise the same ECMAScript code the browser runs. `node:` imports are allowed under `tests/` and `bench/` only.
 
 ### I.5.4 Performance: built for hordes
@@ -367,7 +367,7 @@ Each is summarised by what it must offer; Part II has the full model.
 - **Run.** `node --test "tests/**/*.test.ts"` on Node's own type stripping, as the `test` script; optionally `--experimental-test-coverage` locally. Benchmarks (`npm run bench`, §I.5.4) are separate and never part of `npm test`.
 - **Per phase.** Every phase adds the tests for what it builds: stacking modes, clock arithmetic, fold order, dispatch order, chance rolls, depth caps, timeline transitions, hit policies, tick order, pipeline order, and refusals. A phase is not done until its system's contract is covered.
 
-Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` and `npm run format:check` clean, and `npm run build` emitting `dist/`.
+Each phase ends with the tests green, `npm run typecheck` clean, `npm run lint` and `npm run format:check` clean.
 
 - **F0. Scaffold.** In this repository (it already has `LICENSE` and `.gitignore`): `package.json` (TypeScript 7 and the §I.5.1 dependencies pinned exactly, `engines` on the Node LTS), the §I.4.1 `tsconfig.json` / `tsconfig.build.json`, `.oxlintrc.json` and `oxlint-plugin.js` with every rule of §I.4.2 that oxlint can hold (doc blocks on exports, no presentation fields, no swarm imports, no Node built-ins or globals in `src/`), `.oxfmtrc.json`, `.editorconfig`, the pre-commit hook, `npm run check`, README skeleton, the CI workflow with `knip`. The Node-free rule (§I.5.5) is in place from the start: the split `tsconfig.json` / `tsconfig.src.json`, the lint bans on Node built-ins and globals in `src/`, and the CI browser-bundle check.
 - **F1. Core and math.** Sequential streams (tested for determinism, range and salt independence, with a frozen literal table of their own draws), keyed rolls (tested for key independence, platform-free integer arithmetic, and a uniformity check), the fixed-step clock with its stamps and countdowns, registries (the §I.5.2 rule: key order, `id` check, freezing, hooks callable detached), bus, scope; shapes and sweeps. The registry's dense layout, typed columns, dispatch tables and bitsets, the pools, and the first `bench/` baselines land here, so every later system is built on them.
@@ -473,10 +473,9 @@ The coverage audit (§II.6) widens F1–F19 as well: each catalogue entry names 
 
 Once the framework is ready, swarm consumes it from the outside, as any other game would, and only ever straight from the source (it is never published, §I.2):
 
-- **During development**, as a `file:` dependency on the sibling checkout (or `npm link`) from swarm's `packages/game`.
-- **Once it settles**, as a git dependency on `st0ianmarius/spellweave` pinned to a commit.
+- **In swarm's monorepo**, as a workspace package: its apps (Vite and Node) import its `src/` through its exports, with no build step. A workspace link resolves to the real path, outside `node_modules`, where Node strips types.
 
-Swarm's `packages/game` is then rebuilt on it from scratch in the order of §II.5, with every behaviour of its own that the framework's defaults do not give written on the hatches (§I.5.6); `packages/protocol` and `packages/sync` take the replication contracts as they are rebuilt, and swarm's own `effects/`, `modifiers/`, `triggers/`, `cues/`, `abilities/` and `spells/` folders give way to content. Swarm's older TypeScript config needs no change to consume the framework's emitted `dist/` and declarations.
+Swarm's `packages/game` is then rebuilt on it from scratch in the order of §II.5, with every behaviour of its own that the framework's defaults do not give written on the hatches (§I.5.6); `packages/protocol` and `packages/sync` take the replication contracts as they are rebuilt, and swarm's own `effects/`, `modifiers/`, `triggers/`, `cues/`, `abilities/` and `spells/` folders give way to content. Swarm's TypeScript config reads the framework's sources, so it allows `.ts` imports and runs a TypeScript at least as new as the framework's.
 
 ## I.9 Decisions
 

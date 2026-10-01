@@ -227,9 +227,13 @@ const setHealthKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines
     return pipelines.setHealth(target, health, { attacker: creditedUnit(engine, ctx), source: ctx.source });
   },
 
-  explain: (proc: SetHealthProc<G>) => ({
-    values: typeof proc.health === 'number' ? { health: proc.health } : { share: proc.health.share }
-  })
+  explain: (proc: SetHealthProc<G>) => {
+    // Typed whole, so a consumer without `exactOptionalPropertyTypes` does not widen it to `share?: undefined`.
+    const values: Readonly<Record<string, number>> =
+      typeof proc.health === 'number' ? { health: proc.health } : { share: proc.health.share };
+
+    return { values };
+  }
 });
 
 /** The damage system's proc kinds over its pipelines. */
