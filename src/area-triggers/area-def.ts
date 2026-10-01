@@ -208,7 +208,8 @@ export interface AreaLimit<G extends AreaTriggerTypes, State = unknown> {
 
   /**
    * What a spawn past the limit does: end the oldest as `replaced` (`oldest`, the default), or refuse the new one
-   * (`refuse`). An end the game wants silent is its end cue answering none for the reason (`cues.end`).
+   * (`refuse`). An end the game wants silent is its end cue answering none for the reason (`cues.end`). The new one
+   * holds its room while the oldest ends: a spawn of the same kind and owner from the oldest's end hooks is refused.
    */
   readonly replace?: 'oldest' | 'refuse';
 }

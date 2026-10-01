@@ -54,6 +54,12 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   /** The queries over the area triggers, which hooks read as `c.areas`. */
   readonly queries: AreaQueryApi<G>;
 
+  /**
+   * The spawns whose limit is ending an older trigger to make room, innermost last: each holds its room, so a spawn
+   * the ending's hooks make of the same owner and kind finds the limit full.
+   */
+  readonly admitting: AreaTrigger<G>[] = [];
+
   /** The hit ledgers. */
   readonly ledgers = new LedgerBook((cast) => this.spells.get(cast) !== undefined);
 

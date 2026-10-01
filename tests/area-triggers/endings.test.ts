@@ -306,6 +306,29 @@ describe('limits', () => {
     assert.deepEqual(linesOf(game.log), ['end replaced', 'ended pool@1 replaced']);
   });
 
+  it('holds the room of the one replacing: a spawn from the replaced one’s onEnd is refused, and the limit holds', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          pool: ending({
+            limit: { perOwner: 1, replace: 'oldest' },
+            onEnd: () => [spawn('pool')]
+          })
+        }
+      }
+    );
+
+    const owner = game.unit(1);
+
+    game.areaTriggers.spawn(game.areaId.pool, { owner, at: vec2(0, 0) });
+
+    const second = game.areaTriggers.spawn(game.areaId.pool, { owner, at: vec2(0, 0) });
+
+    assert.equal(game.areaTriggers.isLive(second), true);
+    assert.deepEqual([game.areaTriggers.countOf(owner, game.areaId.pool), game.areaTriggers.pool.live], [1, 1]);
+  });
+
   it('replaces silently when its end cue answers none for the reason, or refuses the new one', () => {
     const silent = limitGame('oldest', 'replaced');
     const owner = silent.unit(1);

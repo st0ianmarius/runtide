@@ -110,8 +110,9 @@ const fill = <G extends AreaTriggerTypes>(
 };
 
 /**
- * How many of the owner's area triggers of a kind are not ending: one whose end runs its hooks still counts in
- * `countOf` until it is gone, but leaves room for one its `onEnd` spawns.
+ * How many of the owner's area triggers of a kind are not ending, with the room held by spawns replacing one: one
+ * whose end runs its hooks still counts in `countOf` until it is gone, but leaves room for one its `onEnd` spawns,
+ * unless a spawn replacing it holds that room.
  */
 const liveOf = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): number => {
   let live = 0;
@@ -120,12 +121,31 @@ const liveOf = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTri
     live += walk.isEnding ? 0 : 1;
   }
 
+  for (const held of engine.admitting) {
+    live += held !== area && held.owner === area.owner && held.kind === area.kind ? 1 : 0;
+  }
+
   return live;
+};
+
+/** The owner's oldest area trigger of a kind that is not ending, if any. */
+const oldestOf = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  area: AreaTrigger<G>
+): AreaTrigger<G> | undefined => {
+  for (let walk = engine.ownerOf(area.owner)?.heads[area.kind]; walk !== undefined; walk = walk.ownerNext) {
+    if (!walk.isEnding) {
+      return walk;
+    }
+  }
+
+  return undefined;
 };
 
 /**
  * Whether the limit lets it in: under it, yes; at it, the owner's oldest of the kind ends as `replaced`, or
- * the new one is refused (`refuse`).
+ * the new one is refused (`refuse`). While the oldest ends, the new one holds its room: a spawn its hooks make of the
+ * same owner and kind, with nothing left to replace, is refused, and the new one is let in only if there is room after.
  */
 const admitLimit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -148,14 +168,21 @@ const admitLimit = <G extends AreaTriggerTypes>(
     return false;
   }
 
-  for (let walk = engine.ownerOf(area.owner)?.heads[area.kind]; walk !== undefined; walk = walk.ownerNext) {
-    if (!walk.isEnding) {
-      endArea(engine, walk, 'replaced');
-      break;
-    }
+  const oldest = oldestOf(engine, area);
+
+  if (oldest === undefined) {
+    return false;
   }
 
-  return true;
+  engine.admitting.push(area);
+
+  try {
+    endArea(engine, oldest, 'replaced');
+  } finally {
+    engine.admitting.pop();
+  }
+
+  return liveOf(engine, area) < perOwner;
 };
 
 /** Gives it its id and lifetime, and puts an owner-anchored one on its owner: nothing links it anywhere yet. */
