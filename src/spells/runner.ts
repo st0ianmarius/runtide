@@ -238,7 +238,7 @@ export const afterPayload = <G extends SpellTypes>(
 
 /**
  * Releases a cast: its stats read again when live, its aim locked, its release cue, `release` and the
- * `release` event; then its channel, or what follows the payload.
+ * `release` event; then its channel, or what follows the payload. A cooldown aura's hooks may end it first.
  */
 export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
   const def = engine.registry.get(cast.spell);
@@ -248,6 +248,10 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
 
   if (!cast.isCommitted) {
     engine.cooldowns.start(cast, 'release');
+
+    if (cast.stage !== 'windup') {
+      return;
+    }
   }
 
   engine.fire(cast, def.cues?.release?.(cast, cast.target));
@@ -283,8 +287,9 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
 };
 
 /**
- * Enters an admitted cast: it joins its caster's casts, makes its own state, starts its cooldowns (unless a press
- * committed them), enters its windup, paused by any interrupt its caster holds that it answers by pausing.
+ * Enters an admitted cast: it joins its caster's casts, makes its own state, enters its windup, paused by any interrupt
+ * its caster holds that it answers by pausing, then starts its cooldowns (unless a press committed them), whose auras'
+ * hooks may end it.
  */
 const enterCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
   const record = recordOf(cast.caster);
@@ -292,13 +297,13 @@ const enterCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>):
   record.add(cast.cast);
   cast.state = engine.registry.hooks.state[cast.spell]?.();
 
-  if (!cast.isCommitted) {
-    engine.cooldowns.start(cast, 'start');
-  }
-
   enterStage(cast, 'windup', engine.plans[cast.spell]?.windup);
   cast.pauses = record.interrupts & (engine.pauseMasks[cast.spell] ?? 0);
   cast.isLocked = engine.plans[cast.spell]?.track === undefined;
+
+  if (!cast.isCommitted) {
+    engine.cooldowns.start(cast, 'start');
+  }
 };
 
 /**
@@ -307,6 +312,10 @@ const enterCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>):
  */
 const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def: AnySpellDef<G>): void => {
   enterCast(engine, cast);
+
+  if (isEnded(cast)) {
+    return;
+  }
 
   if (def.cues?.cast !== undefined) {
     fireCastCue(engine, cast.caster, [cast.spell, cast.input, cast.cueKey, cast.rank]);

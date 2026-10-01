@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { timeLeft } from '../../src/procs/index.ts';
 import { explainSpell, rescaleClocks } from '../../src/spells/index.ts';
 import { type AbilityGame, auraNamed, makeAbilityGame } from '../helpers/ability-game.ts';
-import { aura, type Game, makeSpellGame, mark, spell, SPELL_TAGS } from '../helpers/spell-game.ts';
+import { aura, type Game, makeSpellGame, mark, spell, SPELL_TAGS, type SpellGame } from '../helpers/spell-game.ts';
 
 describe('a spell’s cooldowns', () => {
   /** A game with a spell on its own cooldown and a global one, and another on the global one landing at release. */
@@ -178,6 +178,70 @@ describe('a spell’s cooldowns', () => {
 
     game.spells.cast(hero, game.id.zap);
     assert.equal(game.spells.isCooling(hero, game.id.zap), false);
+  });
+
+  it('let a cooldown aura cancel its cast, which then neither releases nor runs on, at the start or the release', () => {
+    const late: { game?: SpellGame<'zap' | 'slam' | 'lob', 'stop'> } = {};
+
+    const hooks = {
+      release: () => [mark('release')],
+      onEnd: (_ctx: unknown, outcome: string) => [mark(`end ${outcome}`)]
+    };
+
+    const game = makeSpellGame(
+      {
+        zap: spell({ ...hooks, activation: { kind: 'trigger' }, cooldown: { aura: 'stop', seconds: 1 } }),
+        slam: spell({
+          ...hooks,
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 0.5 } },
+          cooldown: { aura: 'stop', seconds: 1 }
+        }),
+        lob: spell({
+          ...hooks,
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 0.5 } },
+          cooldown: { aura: 'stop', seconds: 1, startsOn: 'release' }
+        })
+      },
+      {
+        auras: {
+          stop: aura({
+            duration: 9,
+
+            onApplied: (ctx) => {
+              late.game?.spells.cancelAll(ctx.bearer);
+
+              return undefined;
+            }
+          })
+        }
+      }
+    );
+
+    late.game = game;
+
+    for (const [name, id] of [
+      ['zap', 1],
+      ['slam', 2],
+      ['lob', 3]
+    ] as const) {
+      const hero = game.unit(id);
+      const { handle, status } = game.spells.cast(hero, game.id[name]);
+
+      for (let i = 0; i < 3; i++) {
+        game.step();
+        game.spells.step(hero);
+      }
+
+      assert.deepEqual([status === 'ended', game.spells.isRunning(handle)], [name !== 'lob', false], name);
+      assert.equal(game.spells.isCasting(hero), false, name);
+      assert.deepEqual(
+        game.log.filter((line) => line.endsWith(`@${id}`) && !line.startsWith(`start`)),
+        [`end cancelled@${id}`],
+        name
+      );
+    }
   });
 
   it('start all at once for a press that commits them, and a committed cast neither asks nor lands them', () => {
