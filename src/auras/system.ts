@@ -148,6 +148,13 @@ export interface AuraSystem<G extends AuraTypes> {
    */
   readonly release: (bearer: G['bearer']) => number;
 
+  /**
+   * Calls `watch` each time an aura comes off a bearer (removed, expired, dispelled, spent, on a bearer state), but not
+   * as a gone bearer's auras are released: for a system that keeps auras on units, as area triggers do, to notice one
+   * taken off behind it. `watch` only takes note, changing no aura.
+   */
+  readonly watchRemovals: (watch: (bearer: G['bearer'], aura: AuraId) => void) => void;
+
   /** Steps the bearer's clock once: beats, then expiries. */
   readonly tick: (bearer: G['bearer'], clock: G['clock']) => void;
 
@@ -315,6 +322,10 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
 
     tick: (bearer, clock) => {
       tickAuras(engine, bearer, clockIds[clock] ?? 0);
+    },
+
+    watchRemovals: (watch) => {
+      engine.removalWatchers.push(watch);
     },
 
     ...operationsOf(engine),

@@ -37,6 +37,9 @@ export class AuraEngine<G extends AuraTypes> {
   /** Whether the instance a spend just took from is now empty and goes: what `spendOne` reads. */
   isSpentEmpty = false;
 
+  /** What `watchRemovals` registered: each hears an aura come off a bearer. */
+  readonly removalWatchers: ((bearer: G['bearer'], aura: AuraId) => void)[] = [];
+
   readonly #resetExt: ((ext: G['ext']) => void) | undefined;
 
   constructor(parts: EngineParts<G>) {
@@ -61,6 +64,15 @@ export class AuraEngine<G extends AuraTypes> {
 
     for (const id of registry.ids) {
       this.#applications[id] = Object.freeze({ aura: id });
+    }
+  }
+
+  /** Tells every removal watcher an aura came off a bearer. */
+  noteRemoved(bearer: G['bearer'], aura: AuraId): void {
+    const watchers = this.removalWatchers;
+
+    for (let i = 0; i < watchers.length; i++) {
+      watchers[i]?.(bearer, aura);
     }
   }
 

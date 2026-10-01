@@ -9,7 +9,8 @@ import { catchIn } from './hits.ts';
 /**
  * The units inside one of an area trigger's auras as of its last frame, in entity id order with their ids, and the
  * spare lists the next frame is written to before they swap: a frame compares its catch (in id order too) with them,
- * so it allocates nothing and touches only the units that entered or left.
+ * so it allocates nothing and applies or removes the aura only for the units that entered or left, and for a unit
+ * still inside whose aura something else took off.
  */
 export class AuraInside<G extends AreaTriggerTypes> {
   /** The area trigger record whose aura this is (records are pooled, so it outlives any one instance). */
@@ -87,11 +88,16 @@ class AreaAuraApplication implements AuraApplication {
 
 /**
  * How many enter-exit area auras hold each unit's aura, so overlapping area triggers never stack it and
- * the last one the unit leaves takes it off.
+ * the last one the unit leaves takes it off; and which held auras something else took off, for the next area holding
+ * one to put back.
  */
 export class AuraHolds<Unit> {
   readonly #holds = new Map<Unit, Map<number, number>>();
+  readonly #missing = new Map<Unit, Set<number>>();
   #application: AreaAuraApplication | undefined = undefined;
+
+  /** How many held auras are missing: while none are, a frame asks nothing of the units still inside. */
+  missing = 0;
 
   /**
    * The reused application, set for an area aura: its own length as a unit enters, or the linger (a refresh to it) as
@@ -131,12 +137,52 @@ export class AuraHolds<Unit> {
     return count === 0;
   }
 
+  /** Notes an aura come off a unit: missing, when an area still holds it there. */
+  noteRemoved(unit: Unit, aura: number): void {
+    if ((this.#holds.get(unit)?.get(aura) ?? 0) === 0) {
+      return;
+    }
+
+    let auras = this.#missing.get(unit);
+
+    if (auras === undefined) {
+      auras = new Set();
+      this.#missing.set(unit, auras);
+    }
+
+    if (!auras.has(aura)) {
+      auras.add(aura);
+      this.missing += 1;
+    }
+  }
+
+  /** Whether a held aura on a unit is missing. */
+  isMissing(unit: Unit, aura: number): boolean {
+    return this.missing > 0 && this.#missing.get(unit)?.has(aura) === true;
+  }
+
+  /** Forgets that an aura on a unit is missing: it is back, or no area holds it any more. */
+  found(unit: Unit, aura: number): void {
+    const auras = this.#missing.get(unit);
+
+    if (auras?.delete(aura) !== true) {
+      return;
+    }
+
+    this.missing -= 1;
+
+    if (auras.size === 0) {
+      this.#missing.delete(unit);
+    }
+  }
+
   /** Counts one fewer hold of an aura on a unit; true when it was the last. */
   drop(unit: Unit, aura: number): boolean {
     const byAura = this.#holds.get(unit);
     const count = byAura?.get(aura) ?? 0;
 
     if (count <= 1) {
+      this.found(unit, aura);
       byAura?.delete(aura);
 
       if (byAura?.size === 0) {
@@ -160,6 +206,33 @@ const enter = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraIn
 
   if (spec !== undefined && aura !== undefined && engine.auraHolds.take(unit, aura)) {
     engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, area.source, undefined));
+  }
+};
+
+/**
+ * A unit still inside: when something else took its aura off (a dispel, a spend, its own length run out, a bearer
+ * state), the area puts it back as it would on entry, its hold unchanged, as it keeps its aura on every unit inside;
+ * the aura system's removals mark it missing, so no unit is asked about otherwise. Who may hold it is the catch's
+ * (the world's targeting rule, the aura's filters) and the host's application policy: one refused stays missing, and
+ * is asked again each catch while the unit stays inside.
+ */
+const restore = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraInside<G>, unit: G['bearer']): void => {
+  const { area, index } = inside;
+  const { auraHolds, auras } = engine;
+  const aura = engine.areaAuras[area.kind]?.[index];
+
+  if (aura === undefined || !auraHolds.isMissing(unit, aura)) {
+    return;
+  }
+
+  const spec = engine.registry.get(area.kind).auras?.[index];
+
+  if (spec !== undefined && !auras.has(unit, aura)) {
+    auras.apply(unit, auraHolds.applicationFor(aura, spec, area.source, undefined));
+  }
+
+  if (auras.has(unit, aura)) {
+    auraHolds.found(unit, aura);
   }
 };
 
@@ -265,8 +338,8 @@ const keepHeld = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: Aur
 
 /**
  * Visits a unit of the catch: the units inside before it leave, it is written to the spare lists, and it
- * enters unless it was inside (written first, so an enter hook that throws still leaves it held). False when a hook
- * ended the area trigger.
+ * enters, or has its aura put back when it was inside (written first, so a hook that throws still leaves it held).
+ * False when a hook ended the area trigger.
  */
 const visit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -289,6 +362,10 @@ const visit = <G extends AreaTriggerTypes>(
 
   if (isInside) {
     inside.cursor += 1;
+
+    if (engine.auraHolds.missing > 0) {
+      restore(engine, inside, unit);
+    }
   } else {
     enter(engine, inside, unit);
   }

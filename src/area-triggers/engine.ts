@@ -106,6 +106,9 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     this.registry = parts.registry;
     this.spells = parts.spells;
     this.auras = parts.auras;
+    this.auras.watchRemovals((bearer, aura) => {
+      this.auraHolds.noteRemoved(bearer, aura);
+    });
     this.world = parts.world;
     this.clock = parts.clock;
     this.host = parts.host;

@@ -92,6 +92,26 @@ describe('lifecycle hooks and their raise rules', () => {
     assert.deepEqual([auras.list(u).length, auras.hasTag(u, TAGS.id.immune), auras.pool.live], [0, false, 0]);
   });
 
+  it('tell removal watchers of each aura that comes off, but not of a gone bearer’s released ones', () => {
+    const { auras, id, unit, run } = makeGame(defs);
+    const u = unit();
+    const heard: number[] = [];
+
+    auras.watchRemovals((bearer, aura) => {
+      assert.equal(bearer, u);
+      heard.push(aura);
+    });
+    auras.apply(u, id.renew);
+    auras.remove(u, id.renew);
+    auras.apply(u, id.chill);
+    run(u, 17); // chill's 2 s, on steps of 1/8 s
+    auras.apply(u, id.scald);
+    auras.apply(u, id.purge);
+    auras.apply(u, id.ward);
+    auras.release(u);
+    assert.deepEqual(heard, [id.renew, id.chill, id.scald]);
+  });
+
   it('raise expired once, in list order after the whole list has counted, and a state entered without removing', () => {
     const { auras, id, unit, run, log } = makeGame(defs);
     const u = unit();

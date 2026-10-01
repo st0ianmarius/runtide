@@ -184,6 +184,79 @@ describe('area auras on enter and exit', () => {
     assert.equal(game.auras.has(foe, game.auraId.chilled), false);
   });
 
+  it('puts the aura back on a unit still inside whose aura something else took off, holding it once', () => {
+    const game = fieldGame({ aura: 'chilled' });
+    const foe = game.unit(100);
+    const owner = game.unit(1);
+
+    game.place(foe, vec2(0, 0));
+    game.areaTriggers.spawn(game.areaId.field, { owner, at: vec2(-1, 0) });
+    game.areaTriggers.spawn(game.areaId.field, { owner, at: vec2(1, 0) });
+    ticks(game, 1, [foe]);
+    game.auras.remove(foe, game.auraId.chilled);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false);
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.list(foe).length, 1, 'one instance, though two fields hold it');
+    assert.equal(game.auras.find(foe, game.auraId.chilled)?.source, 1);
+    game.place(foe, vec2(10, 0));
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false, 'the holds are as before: leaving takes it off');
+  });
+
+  it('puts an aura with a length of its own back as it runs out while the unit is inside', () => {
+    const game = fieldGame({ aura: 'soothed' });
+    const foe = game.unit(100);
+
+    game.place(foe, vec2(0, 0));
+    game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.remaining(foe, game.auraId.soothed), 4.75);
+    ticks(game, 20, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.soothed), true);
+    assert.ok(game.auras.remaining(foe, game.auraId.soothed) > 4);
+  });
+
+  it('puts an aura back no sooner than its next catch when it checks every so many seconds', () => {
+    const game = fieldGame({ aura: 'chilled', every: 0.5 });
+    const foe = game.unit(100);
+
+    game.place(foe, vec2(0, 0));
+    game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 1, [foe]);
+    game.auras.remove(foe, game.auraId.chilled);
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false);
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), true);
+  });
+
+  it('asks again each catch for an aura refused as it was put back, until it lands', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        // Soothed here is what turns chilled away: tagged busy, which chilled is blocked by.
+        auras: {
+          chilled: aura({ duration: 'infinite', blockedBy: ['busy'] }),
+          soothed: aura({ duration: 'infinite', tags: ['busy'] })
+        },
+        areaTriggers: { field: field({ aura: 'chilled' }) }
+      }
+    );
+
+    const foe = game.unit(100);
+
+    game.place(foe, vec2(0, 0));
+    game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 1, [foe]);
+    game.auras.apply(foe, game.auraId.soothed);
+    game.auras.remove(foe, game.auraId.chilled);
+    ticks(game, 3, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false, 'refused while soothed');
+    game.auras.remove(foe, game.auraId.soothed);
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), true);
+  });
+
   it('lets through only the units its filter keeps, and the side it names', () => {
     const game = fieldGame({
       aura: 'chilled',

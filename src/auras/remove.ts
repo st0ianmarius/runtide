@@ -53,10 +53,13 @@ const takeOffAs =
       return;
     }
 
+    const { id } = item;
+
     cut(engine, set, index);
     set.changes += 1;
     engine.events.retire(item);
     engine.events.raise(change, bearer, item);
+    engine.noteRemoved(bearer, id);
   };
 
 /** Takes the aura at an index off its bearer and queues `removed` for it. */
