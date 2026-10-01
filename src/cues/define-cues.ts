@@ -1,6 +1,7 @@
 import { createRegistry, type Registry, type Tombstone } from '../core/index.ts';
 import type { CueAnchor, CueAudience, CueDef } from './cue-def.ts';
 import { type CueId, type CueIdOf, type CueParam, namedCueIds, toCueParam } from './ids.ts';
+import { VEC2 } from './quantise.ts';
 import { compileSchema, type CueSchema } from './schema.ts';
 
 /** The anchors, by column code. */
@@ -154,9 +155,12 @@ export const defineCues = <const Table extends CueTable>(
         return '';
       }
 
-      const fields = schema.fields.map(
-        (field, i) => `${field.param}:${field.kind}:${field.scale}:${schema.wireDefaults[field.slot] ?? 0}:${i}`
-      );
+      // A point's default takes two slots: both are signed, so peers that differ on its z do not agree.
+      const fields = schema.fields.map((field, i) => {
+        const z = field.kind === VEC2 ? `,${schema.wireDefaults[field.slot + 1] ?? 0}` : '';
+
+        return `${field.param}:${field.kind}:${field.scale}:${schema.wireDefaults[field.slot] ?? 0}${z}:${i}`;
+      });
 
       return [def.anchor, def.audience ?? 'all', def.isPredicted === true ? 'p' : '', positionScale, ...fields].join(
         ' '

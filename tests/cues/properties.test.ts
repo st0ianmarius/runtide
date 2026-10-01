@@ -141,7 +141,8 @@ const checkFlare = (sent: CueEvent, got: CueEvent) => {
   assert.ok(turnBetween(now(P.facing), was(P.facing)) <= Math.PI / 4096 + 1e-12);
   assert.ok(near(P.reach, 0.01) && near(P.count, 1) && near(P.aim, 0.05) && near(P.aim + 1, 0.05));
   assert.equal(now(P.heavy), Math.min(255, Math.max(0, Math.round(was(P.heavy)))));
-  assert.equal(now(P.glow), Math.fround(was(P.glow)) + 0);
+  // A float goes as itself, an infinite one as 0 (JSON writes no infinity).
+  assert.equal(now(P.glow), Number.isFinite(was(P.glow)) ? Math.fround(was(P.glow)) + 0 : 0);
   assert.deepEqual([now(P.spell), now(P.mark)], [was(P.spell), was(P.mark)]);
   checkTrail(sent, got);
 };

@@ -183,7 +183,25 @@ describe('the cue wire layout', () => {
     assert.deepEqual(flat(back.events[0]).slice(6), [3, 255]);
     assert.deepEqual(flat(back.events[1]).slice(6), [-2, 0]);
     assert.deepEqual(flat(back.events[2]).slice(3, 5), [2 ** 51 / 100, 0]);
-    assert.deepEqual(flat(back.events[2]).slice(6), [-Math.PI / 2, 0, 0, 0, 0, 0, Number.NaN, 0, NO_ENTITY]);
+    assert.deepEqual(flat(back.events[2]).slice(6), [-Math.PI / 2, 0, 0, 0, 0, 0, 0, 0, NO_ENTITY]);
+  });
+
+  it('sends a NaN entity as nobody and an infinite float as 0, so a JSON transport reads the batch back', () => {
+    const out = createCueBuffer(CUES);
+    const back = createCueBuffer(CUES);
+    const numbers = createNumberWriter();
+
+    fireCue(out, { cue: CUES.id.flare, params: { mark: Number.NaN, glow: Infinity } }, { ...ORIGIN });
+    encodeCues(out, numbers);
+
+    // Through JSON, as a JSON transport sends it: an infinity would come back as null.
+    const text = JSON.stringify(numbers.numbers());
+    const parsed: unknown = JSON.parse(text);
+    const sent = Array.isArray(parsed) ? parsed.map((n: unknown) => (typeof n === 'number' ? n : Number.NaN)) : [];
+
+    decodeCues(createNumberReader(sent), back);
+    assert.equal(back.count, 1);
+    assert.deepEqual(flat(back.events[0]).slice(-2), [0, NO_ENTITY]);
   });
 
   it('writes only the events `admit` picks, counting them first', () => {

@@ -59,7 +59,8 @@ const angleStep = (value: number, steps: number): number => {
 export const quantise = (kind: number, scale: number, value: number): number => {
   switch (kind) {
     case F32: {
-      return Math.fround(value);
+      // JSON writes infinities and NaN as null, which no reader takes back.
+      return Number.isFinite(value) ? Math.fround(value) : 0;
     }
 
     case FIXED:
@@ -77,9 +78,8 @@ export const quantise = (kind: number, scale: number, value: number): number => 
     }
 
     case ENTITY: {
-      const id = whole(value);
-
-      return id < 0 ? -1 : id;
+      // Anything but an entity id is nobody, as an owner is: NaN must not become entity 0.
+      return Number.isSafeInteger(value) && value >= 0 ? value : -1;
     }
 
     case REGISTRY_ID: {

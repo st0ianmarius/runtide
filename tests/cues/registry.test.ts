@@ -33,6 +33,16 @@ const TABLE = {
 const refused = (def: CueDef) => () => defineCues({ bad: def });
 
 describe('defineCues', () => {
+  it('signs every wire default of a cue, both coordinates of a point', () => {
+    const signed = (z: number): string =>
+      defineCues({
+        aim: defineCue({ anchor: 'world', params: { at: { kind: 'vec2', default: { x: 0, z } } } })
+      }).signature(0);
+
+    assert.notEqual(signed(1), signed(0));
+    assert.equal(signed(1), signed(1));
+  });
+
   it('gives each cue its id by key order, a tombstone keeping its slot', () => {
     const cues = defineCues(TABLE);
 
