@@ -1,4 +1,4 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
-  "entry": ["src/index.ts", "src/*/index.ts", "bench/{bench,run,ab,alloc,jit}.ts"]
+  "entry": ["bench/*.ts"]
 }
