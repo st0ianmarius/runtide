@@ -61,6 +61,8 @@ export {
   type SpawnProc
 } from './procs.ts';
 
+export { fanHeading, pursue, pursueUnit, retarget, type RetargetOptions } from './projectiles.ts';
+
 export type { AreaInterception, AreaQueries, AreaQuery, CoverQuery } from './queries.ts';
 
 export {

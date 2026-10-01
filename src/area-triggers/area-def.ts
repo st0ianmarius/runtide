@@ -102,6 +102,9 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** Where it was at the start of this frame, or where its last `advance` piece ended: what its frame's contact sweeps from. */
   readonly previous: Vec2;
 
+  /** The share of this frame its last `advance` piece reached: 0 before any, where its next piece's share starts. */
+  readonly advancedAt: number;
+
   /** Its shape, placed at its position and turned to its heading once its own motion this frame is done. */
   readonly shape: Shape;
 
