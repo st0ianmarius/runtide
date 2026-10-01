@@ -98,6 +98,7 @@
     "test": "node --test \"tests/**/*.test.ts\"",
     "bench": "node --expose-gc bench/run.ts",
     "bench:ab": "node bench/ab.ts",
+    "bench:alloc": "node bench/alloc.ts",
     "bench:jit": "node bench/jit.ts",
     "bench:prof": "node --expose-gc --cpu-prof --cpu-prof-dir=.bench bench/run.ts",
     "lint": "oxlint",
