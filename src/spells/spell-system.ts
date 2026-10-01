@@ -10,6 +10,7 @@ import type { CastHandle } from './ids.ts';
 import type { SpellProcKinds } from './procs.ts';
 import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
+import type { StatsBox } from './stats-box.ts';
 import type { CastView } from './view.ts';
 
 /**
@@ -200,6 +201,16 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /** Lets go of one retain; an ended cast nothing retains goes back to the pool. */
   readonly unretain: (cast: CastHandle) => void;
+
+  /**
+   * A copy of a `live` cast's stats table for a retainer that must keep reading them as they are now, however later
+   * hooks take them again; `undefined` for any other cast, whose `stats` and `scaled` may be held as they are. Give the
+   * copy back with `giveStats` once nothing reads it.
+   */
+  readonly copyStats: (cast: CastHandle) => StatsBox | undefined;
+
+  /** Gives back a copy `copyStats` made. */
+  readonly giveStats: (box: StatsBox) => void;
 
   /**
    * Makes a live cast the current one while another system runs its procs as that cast's (an area trigger's hooks),

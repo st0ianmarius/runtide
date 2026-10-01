@@ -88,6 +88,7 @@ export type { SpellHost } from './spell-host.ts';
 export type { ActivationKindId, ActivationShape, SpellCaster, SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 
 export type { SpellSystem } from './spell-system.ts';
+export type { StatsBox } from './stats-box.ts';
 export { createSpellSystem } from './system.ts';
 export type { SpellSystemBase, SpellSystemOptions } from './system-options.ts';
 

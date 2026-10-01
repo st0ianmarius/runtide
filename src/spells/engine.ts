@@ -348,7 +348,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   /** Puts an ended cast's record back: its stats box, the game's fields, its references. */
   #free(cast: Cast<G>): void {
     if (cast.box !== undefined) {
-      this.boxes.give(cast.spell, cast.box);
+      this.boxes.give(cast.box);
       cast.box = undefined;
     }
 

@@ -3,7 +3,6 @@ import { type CastHandle, NO_CAST } from '../spells/index.ts';
 import type { AnyAreaTriggerDef, Lifetime } from './area-def.ts';
 import { type AreaTrigger, NO_SCALED, NO_STATS } from './area-trigger.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
-import { CapturedStats } from './captured-stats.ts';
 import { ANCHOR_OWNER } from './define-area-triggers.ts';
 import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
@@ -74,17 +73,11 @@ const bindCast = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
     return;
   }
 
+  // A live cast takes its stats again before each hook; the area keeps its own copy of the ones it was made with.
+  area.statsBox = engine.spells.copyStats(cast);
   area.rank = context.rank;
-  if (engine.spells.registry.get(context.spell).live === true) {
-    const captured = (area.capturedStats ??= new CapturedStats());
-
-    captured.take(context.stats, context.scaled);
-    area.stats = captured.stats;
-    area.scaled = captured.scaled;
-  } else {
-    area.stats = context.stats;
-    area.scaled = context.scaled;
-  }
+  area.stats = area.statsBox?.stats ?? context.stats;
+  area.scaled = area.statsBox?.scaled ?? context.scaled;
 };
 
 /** Fills a new area trigger's credit: its owner's id, and the source its hits are credited to. */

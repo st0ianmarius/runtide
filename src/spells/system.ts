@@ -24,6 +24,7 @@ import { checkCast, startCast, startCooldowns } from './runner.ts';
 import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
 import type { SpellSystem } from './spell-system.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
+import type { StatsBox } from './stats-box.ts';
 import {
   cancelCast,
   cancelCaster,
@@ -38,6 +39,7 @@ import {
   unholdCast
 } from './stepper.ts';
 import type { SpellSystemOptions } from './system-options.ts';
+import { copyStats } from './take-stats.ts';
 import { type CastView, viewCast } from './view.ts';
 
 /** A spell system: a class for fast properties, its functions arrow fields so they work detached. */
@@ -190,6 +192,12 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
   readonly unretain = (cast: CastHandle): void => {
     unholdCast(this.#engine, cast);
+  };
+
+  readonly copyStats = (cast: CastHandle): StatsBox | undefined => copyStats(this.#engine, cast);
+
+  readonly giveStats = (box: StatsBox): void => {
+    this.#engine.boxes.give(box);
   };
 
   readonly enter = (cast: CastHandle): CastHandle => {

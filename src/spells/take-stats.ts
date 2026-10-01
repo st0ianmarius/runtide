@@ -2,9 +2,10 @@ import { isAuto } from './activation.ts';
 import { type Cast, NO_SCALED, NO_STATS, StatsCall } from './cast.ts';
 import { LIVE, STATS_FUNCTION, STATS_TABLE } from './define-spells.ts';
 import type { SpellEngine } from './engine.ts';
+import type { CastHandle } from './ids.ts';
 import type { AnySpellDef } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
-import { takeTable } from './stats-box.ts';
+import { copyTable, type StatsBox, takeTable } from './stats-box.ts';
 
 /**
  * Takes a cast's stats (decision 2): a stats table's values snapshotted from the caster's stats for the
@@ -61,6 +62,30 @@ export const refreshLive = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
   if (((engine.registry.columns.flags[cast.spell] ?? 0) & LIVE) !== 0) {
     takeStats(engine, cast, def);
   }
+};
+
+/**
+ * A copy of a `live` cast's stats table in a box of its own, which the cast's later refreshes leave alone; `undefined`
+ * for any other cast, whose stats are never written again once it holds them.
+ */
+export const copyStats = <G extends SpellTypes>(engine: SpellEngine<G>, handle: CastHandle): StatsBox | undefined => {
+  const cast = engine.castOf(handle);
+
+  if (cast?.box === undefined || ((engine.registry.columns.flags[cast.spell] ?? 0) & LIVE) === 0) {
+    return undefined;
+  }
+
+  const compiled = engine.registry.compiled[cast.spell];
+
+  if (compiled === undefined) {
+    return undefined;
+  }
+
+  const box = engine.boxes.take(cast.spell);
+
+  copyTable(box, cast.box, compiled);
+
+  return box;
 };
 
 /**

@@ -4,13 +4,12 @@ import type { Random } from '../core/index.ts';
 import type { Shape, Vec2 } from '../math/index.ts';
 import type { ScaledSnapshot } from '../modifiers/index.ts';
 import type { Proc, ProcOrigin, ProcOutcome } from '../procs/index.ts';
-import { type CastHandle, NO_CAST, type SpellContext } from '../spells/index.ts';
+import { type CastHandle, NO_CAST, type SpellContext, type StatsBox } from '../spells/index.ts';
 import type { WorldQuery } from '../world/index.ts';
 import { AuraInside } from './area-auras.ts';
 import type { AreaTriggerContext, EndReason, Position } from './area-def.ts';
 import type { AreaTriggerHost } from './area-host.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
-import type { CapturedStats } from './captured-stats.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import type { AreaLedger } from './delivery-def.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
@@ -86,7 +85,7 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
 
   cast: SpellContext<G> | undefined = undefined;
   rank = 1;
-  capturedStats: CapturedStats | undefined = undefined;
+  statsBox: StatsBox | undefined = undefined;
   stats: Readonly<Record<string, unknown>> = NO_STATS;
   scaled: Readonly<Record<string, number | ScaledSnapshot>> = NO_SCALED;
   input: G['areaInput'] | undefined = undefined;
