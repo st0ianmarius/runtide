@@ -57,8 +57,8 @@ export interface EventParts<G extends AuraTypes> {
  * operation has finished, in the order the changes happened: each one runs the aura's hook (its procs
  * handed to the host), then raises on the bus (triggers, then subscribers). Operations nest: a hook that changes
  * auras queues and dispatches its own before it returns, and the outer operation's remaining events after. Slots of
- * auras that left their bearers go back to the pool only once no dispatch is running, so nothing queued can see a
- * reused slot.
+ * auras that left their bearers go back to the pool only once no operation is open and no dispatch is running, so
+ * nothing queued can see a reused slot.
  */
 export class AuraEvents<G extends AuraTypes> {
   readonly #parts: EventParts<G>;
@@ -91,11 +91,13 @@ export class AuraEvents<G extends AuraTypes> {
 
   /**
    * Opens an operation with its cause, and who did it (a dispel's caster; `NO_SOURCE` when absent), which its events
-   * carry. Returns where its events start; close it with it.
+   * carry. Returns where its events start; close it with it. An open operation holds retired slots as a dispatch
+   * does: its own `removed` events are still queued, so no nested hook or operation may hand their slots on.
    */
   open(cause: AuraCause, remover = NO_SOURCE): number {
     this.#openCauses.push(cause);
     this.#openRemovers.push(remover);
+    this.#dispatching += 1;
 
     return this.#count;
   }
@@ -105,13 +107,14 @@ export class AuraEvents<G extends AuraTypes> {
     this.#openCauses[this.#openCauses.length - 1] = cause;
   }
 
-  /** Dispatches the open operation's events and closes it. */
+  /** Dispatches the open operation's events and closes it, giving back the retired slots if it was the outermost. */
   close(from: number): void {
     try {
       this.finish(from);
     } finally {
       this.#openCauses.pop();
       this.#openRemovers.pop();
+      this.unhold();
     }
   }
 

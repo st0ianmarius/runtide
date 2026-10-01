@@ -209,17 +209,24 @@ export class DelayedProcs<G extends SpellTypes> {
    * neither its bound nor its own procs can withdraw it while it is asked or runs.
    */
   #landDue(record: Delayed<G>): boolean {
+    let lands = false;
+
     this.#unlist(record);
 
-    if (record.bound?.(record.owner) === false) {
-      this.#release(record);
-
-      return false;
+    // Released when its bound fails or throws: out of the live list already, nothing else would let it go.
+    try {
+      lands = record.bound?.(record.owner) !== false;
+    } finally {
+      if (!lands) {
+        this.#release(record);
+      }
     }
 
-    this.#landOne(record);
+    if (lands) {
+      this.#landOne(record);
+    }
 
-    return true;
+    return lands;
   }
 
   /** Runs one list, out of the live list already, for its origin as its cast's procs, then lets go of it. */

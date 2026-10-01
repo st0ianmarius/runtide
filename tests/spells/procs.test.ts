@@ -239,6 +239,29 @@ describe('delayed procs', () => {
     assert.equal(game.log.includes('struck@1'), false);
   });
 
+  it('lets a list whose bound throws go with its cast, as one whose bound fails', () => {
+    const game = makeSpellGame({
+      strike: spell({
+        activation: { kind: 'trigger' },
+
+        release: () => [
+          after<Game>(0.5, [mark('struck')], {
+            bound: () => {
+              throw new Error('game bug');
+            }
+          })
+        ]
+      })
+    });
+
+    const { handle } = game.spells.cast(game.unit(1), game.id.strike);
+
+    game.step(2);
+    assert.throws(() => game.spells.stepDelayed(), /game bug/);
+    assert.deepEqual([game.spells.delayed.pending, game.spells.pool.live], [0, 0]);
+    assert.equal(game.spells.get(handle), undefined);
+  });
+
   it('asks a bound with its list out of the live list, so a bound that withdraws its owner withdraws only the rest', () => {
     const late: { game?: ReturnType<typeof makeSpellGame> } = {};
 

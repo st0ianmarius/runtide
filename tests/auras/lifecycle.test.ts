@@ -253,6 +253,67 @@ describe('aura events on the bus', () => {
     assert.deepEqual(heard, ['dispel 0 by 7', 'dispel 1 by 7']);
     assert.deepEqual(removers, [7]);
     assert.equal(auras.dispel(u, { tag: TAGS.id.magic }), 1);
-    assert.throws(() => auras.dispel(u, { tag: TAGS.id.magic, limit: -1 }), /limit from 0/);
+    assert.throws(() => auras.dispel(u, { tag: TAGS.id.magic, limit: -1, by: 77 }), /limit from 0/);
+
+    // The refused dispel opened nothing: a context taken outside any operation reads no dispel.
+    const context = auras.takeContext(u, auras.find(u, id.ward) ?? assert.fail('ward'));
+
+    assert.deepEqual([context.cause, context.remover === 77], ['apply', false]);
+    auras.giveContext();
+  });
+});
+
+describe('slots of removed auras', () => {
+  it('stay theirs until their removed events ran, though the cleansing aura’s onLand or stacking rule ran first', () => {
+    const seen: string[] = [];
+    const late: { apply?: (bearer: object, name: 'mark' | 'other') => void } = {};
+
+    const { auras, id, unit } = makeGame({
+      venom: aura({
+        duration: 10,
+        tags: ['poison'],
+
+        onLand: (ctx) => {
+          ctx.aura.ext.snapshot = 42;
+        },
+
+        onRemoved: (ctx) => {
+          seen.push(`venom ${ctx.aura.ext.snapshot}`);
+          late.apply?.(ctx.bearer, 'mark');
+          late.apply?.(ctx.bearer, 'other');
+        }
+      }),
+      sting: aura({ duration: 10, tags: ['poison'], onRemoved: () => void seen.push('sting') }),
+      mark: aura({ duration: 10, onRemoved: () => void seen.push('mark') }),
+      other: aura({ duration: 10, onRemoved: () => void seen.push('other') }),
+      antidote: aura({ duration: 5, removes: ['poison'], onLand: () => undefined }),
+
+      tonic: aura({
+        duration: 5,
+        removes: ['poison'],
+
+        stacking: (ctx) => {
+          late.apply?.(ctx.bearer, 'mark');
+        }
+      })
+    });
+
+    const u = unit();
+
+    late.apply = (bearer, name) => {
+      if (bearer === u) {
+        auras.apply(u, id[name]);
+      }
+    };
+
+    for (const cure of [id.antidote, id.tonic]) {
+      auras.apply(u, id.tonic);
+      auras.apply(u, id.venom);
+      auras.apply(u, id.sting);
+      auras.apply(u, cure);
+    }
+
+    assert.deepEqual(seen, ['venom 42', 'sting', 'venom 42', 'sting']);
+    assert.deepEqual([auras.has(u, id.mark), auras.has(u, id.other)], [true, true]);
   });
 });

@@ -27,12 +27,13 @@ export interface Dispel<G extends AuraTypes> {
 export const dispel = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], spec: Dispel<G>): number => {
   const set = setOf<G>(bearer);
   const limit = spec.limit ?? Number.POSITIVE_INFINITY;
-  const from = engine.events.open('dispel', spec.by);
-  let removed = 0;
 
   if (!(limit >= 0)) {
     throw new RangeError(`A dispel takes a limit from 0; got ${spec.limit}.`);
   }
+
+  const from = engine.events.open('dispel', spec.by);
+  let removed = 0;
 
   try {
     for (let i = 0; i < set.items.length && removed < limit; i++) {
