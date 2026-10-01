@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/st0ianmarius/spellweave.git"
+    "url": "git+https://github.com/st0ianmarius/runtide.git"
   },
   "type": "module",
   "sideEffects": false,
@@ -106,7 +106,6 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "knip": "knip",
-    "bundle:check": "esbuild src/index.ts --bundle --platform=browser --format=esm --log-level=warning --outfile=/dev/null",
     "prepare": "simple-git-hooks"
   },
   "dependencies": {
@@ -118,7 +117,6 @@
   "devDependencies": {
     "@types/node": "26.6.3",
     "del-cli": "7.0.0",
-    "esbuild": "0.28.2",
     "fast-check": "4.10.2",
     "knip": "6.38.0",
     "lint-staged": "17.6.0",
