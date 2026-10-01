@@ -16,6 +16,16 @@ export interface UnitSpec {
   readonly side?: number;
 }
 
+/**
+ * Throws unless a position is finite: a NaN or infinite one never lands in a query, and its motion would make every
+ * relative sweep of the tick reach nothing.
+ */
+export const checkPosition = (at: Vec2, id: number): void => {
+  if (!(Number.isFinite(at.x) && Number.isFinite(at.z))) {
+    throw new RangeError(`Unit ${id} is placed at a finite position; got (${at.x}, ${at.z}).`);
+  }
+};
+
 /** A column of numbers per slot, grown by doubling so it keeps one typed array between growths. */
 class Column {
   values: Float64Array;
@@ -128,6 +138,7 @@ export class UnitTable<Unit> {
   /** Adds a unit and returns its slot; throws when it is already here. */
   add(unit: Unit, spec: UnitSpec): number {
     this.#checkNew(unit, spec.id);
+    this.#checkBody(spec);
 
     const slot = this.#free.pop() ?? this.units.length;
 
@@ -170,6 +181,17 @@ export class UnitTable<Unit> {
 
     if (this.find(unit) >= 0 || (idOf !== undefined && this.#byId.get(id) >= 0)) {
       throw new RangeError(`Unit ${id} is already in the world.`);
+    }
+  }
+
+  /** Throws unless a new unit's position is finite and its radius a finite number from 0. */
+  #checkBody(spec: UnitSpec): void {
+    checkPosition(spec.at, spec.id);
+
+    const radius = spec.radius ?? 0;
+
+    if (!(Number.isFinite(radius) && radius >= 0)) {
+      throw new RangeError(`Unit ${spec.id} has a body radius that is a finite number from 0; got ${radius}.`);
     }
   }
 

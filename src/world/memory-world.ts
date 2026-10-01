@@ -6,7 +6,7 @@ import { type SearchParts, sweep } from './searches.ts';
 import { Selection } from './selection.ts';
 import { bySides, type ReactionRule, Selector, type TargetRule } from './selector.ts';
 import { StaticGeometry, type StaticShape } from './statics.ts';
-import { type UnitSpec, UnitTable, type WorldSlots } from './unit-table.ts';
+import { checkPosition, type UnitSpec, UnitTable, type WorldSlots } from './unit-table.ts';
 
 /** What a memory world is created with. */
 export interface MemoryWorldOptions<Unit = unknown> {
@@ -60,13 +60,13 @@ export interface MemoryWorld<Unit> extends WorldQuery<Unit> {
   /** Whether a unit is in the world. */
   readonly has: (unit: Unit) => boolean;
 
-  /** Adds a unit; throws when it is already here. */
+  /** Adds a unit; throws when it is already here, or its position or radius is not finite. */
   readonly add: (unit: Unit, spec: UnitSpec) => void;
 
   /** Removes a unit; false when it was not here. */
   readonly remove: (unit: Unit) => boolean;
 
-  /** Moves a unit to `at` now. */
+  /** Moves a unit to `at` now; throws for a position that is not finite (a NaN from upstream), moving nothing. */
   readonly place: (unit: Unit, at: Vec2) => void;
 
   /** Puts a unit on another side now (a charm, a flag for combat), which every query reads from here on. */
@@ -152,6 +152,11 @@ class World<Unit> implements MemoryWorld<Unit> {
     const table = this.#table;
     const slot = table.slotOf(unit);
     const motion = hypot(at.x - (table.px[slot] ?? 0), at.z - (table.pz[slot] ?? 0));
+
+    // The previous position was checked as it was written, so a position that is not finite makes the motion so too.
+    if (!(motion < Number.POSITIVE_INFINITY)) {
+      checkPosition(at, table.id[slot] ?? -1);
+    }
 
     table.x[slot] = at.x;
     table.z[slot] = at.z;

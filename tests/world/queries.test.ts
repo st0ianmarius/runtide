@@ -340,6 +340,41 @@ describe('sweep: what a moving body touches', () => {
     assert.equal(world.sweep(vec2(0, 0), vec2(10, 0), {}, out), 0);
     assert.equal(world.sweep(vec2(0, 0), vec2(10, 0), { relative: true }, out), 1);
   });
+
+  it('refuses a position that is not finite, moving nothing, so relative sweeps still reach the rest', () => {
+    const { world, mob } = worldOf([
+      [1, 5, 0, 0, 0.5],
+      [2, 30, 30, 0, 0.5]
+    ]);
+
+    const out: (Mob | undefined)[] = [];
+
+    world.tick();
+
+    for (const at of [vec2(Number.NaN, 0), vec2(0, Number.POSITIVE_INFINITY)]) {
+      assert.throws(() => {
+        world.place(mob(2), at);
+      }, /Unit 2 is placed at a finite position/);
+    }
+
+    assert.deepEqual(world.positionOf(mob(2), { x: 0, z: 0 }), { x: 30, z: 30 });
+    assert.equal(world.sweep(vec2(0, 0), vec2(10, 0), { radius: 0.5, relative: true }, out), 1);
+  });
+
+  it('refuses to add a unit at a position that is not finite, or with a radius that is not a finite number from 0', () => {
+    const { world } = worldOf([]);
+
+    const add =
+      (at: { x: number; z: number }, radius = 0) =>
+      () => {
+        world.add({ name: 'm1' }, { id: 1, at, radius });
+      };
+
+    assert.throws(add(vec2(Number.NaN, 0)), /finite position/);
+    assert.throws(add(vec2(0, 0), Number.NaN), /body radius/);
+    assert.throws(add(vec2(0, 0), -1), /body radius/);
+    assert.equal(world.size, 0);
+  });
 });
 
 describe('motion and the point index', () => {
