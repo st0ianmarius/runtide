@@ -101,8 +101,7 @@
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "knip": "knip",
-    "prepare": "simple-git-hooks"
+    "knip": "knip"
   },
   "dependencies": {
     "flatbush": "4.6.2",
@@ -115,23 +114,11 @@
     "del-cli": "7.0.0",
     "fast-check": "4.10.2",
     "knip": "6.38.0",
-    "lint-staged": "17.6.0",
     "mitata": "1.0.34",
     "oxfmt": "0.71.0",
     "oxlint": "1.86.0",
     "oxlint-tsgolint": "7.0.2003",
-    "simple-git-hooks": "2.14.0",
     "typescript": "7.0.2"
-  },
-  "simple-git-hooks": {
-    "pre-commit": "npx lint-staged"
-  },
-  "lint-staged": {
-    "*.{ts,js}": [
-      "oxlint --fix --max-warnings 0",
-      "oxfmt --no-error-on-unmatched-pattern"
-    ],
-    "*.{json,md,yml,yaml}": "oxfmt --no-error-on-unmatched-pattern"
   },
   "engines": {
     "node": ">=24"

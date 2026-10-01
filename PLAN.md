@@ -135,7 +135,7 @@ The bar is code a reviewer reads without friction: one style everywhere, enforce
 - **No noise.** No `console`, no commented-out code, no `TODO` without an issue reference, no dead exports (`knip` in CI).
 - **Doc blocks.** Every exported type, field, function and hook has a `/** */` block (a project lint rule, which also holds the form: full sentences) that says what it guarantees, in full sentences; inline comments explain only a non-obvious why.
 - **Tests follow the same rules**: one `describe` per contract, test names that state the behaviour (`'a refresh keeps the beat'`), literal expectations beside the assertion, and no state shared between tests.
-- **One command.** `npm run check` runs typecheck, lint, format check, tests and build, and passes before every commit; a pre-commit hook (`simple-git-hooks` with `lint-staged`) runs oxfmt and oxlint on the staged files. `npm run format` fixes what can be fixed (`oxlint --fix`, then `oxfmt`).
+- **The checks.** `typecheck`, `lint`, `fmt:check`, `test` and `build` pass before every commit, run by hand: no git hook, as the whole project checks in about a second. `lint:fix` and `fmt` fix what can be fixed.
 
 ## I.5 How it stays generic, and exact
 

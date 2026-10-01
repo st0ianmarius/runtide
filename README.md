@@ -25,7 +25,7 @@ Runtide is `"private": true` and is never published to npm or any other registry
 
 ## Development
 
-Requires Node `^22.22.2 || >=24.15.0`: Node's built-in type stripping runs the `.ts` sources and tests directly, and the dev toolchain (`lint-staged`) sets that floor.
+Requires Node 24 or later: Node's built-in type stripping runs the `.ts` sources and tests directly.
 
 ```sh
 npm ci
@@ -39,7 +39,7 @@ npm run bench         # mitata benchmarks (bench/BASELINE.md), never part of npm
                       # modes: npm run bench [ab <ref> | alloc | jit | prof] [filter]
 ```
 
-`npm ci` installs a pre-commit hook (`simple-git-hooks` running `lint-staged`) that lints and formats the staged files.
+No hook runs them: run them before committing. The whole project lints, format-checks and typechecks in about a second.
 
 ### Toolchain
 
