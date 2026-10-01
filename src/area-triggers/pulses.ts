@@ -97,8 +97,6 @@ export const stepPulses = <G extends AreaTriggerTypes>(
 export const joinPulses = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const pulses = engine.registry.get(area.kind).every ?? [];
 
-  area.beats.length = pulses.length;
-
   for (const [index, pulse] of pulses.entries()) {
     area.beats[index] = pulse.first ?? secondsOf(pulse, area);
   }

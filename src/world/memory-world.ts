@@ -252,7 +252,9 @@ class World<Unit> implements MemoryWorld<Unit> {
     const parts = this.#enter();
 
     try {
-      return sweep(parts, [segment, options], out);
+      parts.selection.along(segment, options);
+
+      return sweep(parts, options, out);
     } finally {
       this.#depth -= 1;
     }

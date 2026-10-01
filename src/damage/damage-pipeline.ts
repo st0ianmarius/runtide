@@ -254,11 +254,8 @@ export const createDamagePipeline = <G extends DamageTypes>(engine: DamageEngine
   return (spec: BlowSpec<G>): Blow<G> => {
     const blow = engine.blowRecord(spec.target);
 
-    blow.reset(spec, {
-      source: engine.sourceOf(spec.source, spec.attacker),
-      kind: spec.kind ?? engine.defaultKind,
-      depth: engine.depth
-    });
+    blow.reset(spec, engine.sourceOf(spec.source, spec.attacker), engine.defaultKind);
+    blow.depth = engine.depth;
 
     if (!(spec.amount > 0) || engine.isDeadNow(spec.target) || !engine.enter()) {
       blow.status = 'skipped';

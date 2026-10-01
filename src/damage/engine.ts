@@ -262,7 +262,7 @@ export class DamageEngine<G extends DamageTypes> {
       for (let i = 0; i < count; i++) {
         const aura = list[i];
 
-        if (aura?.isActive === true && this.#visitOne(walk, subject, { unit, aura })) {
+        if (aura?.isActive === true && this.#visitOne(walk, subject, aura)) {
           return true;
         }
       }
@@ -338,15 +338,18 @@ export class DamageEngine<G extends DamageTypes> {
   }
 
   /** Runs one walk step for one aura inside a taken hook context. */
-  #visitOne<S>(
-    walk: HookWalk<G, S>,
-    subject: S,
-    at: { readonly unit: G['bearer']; readonly aura: ActiveAura<G> }
-  ): boolean {
-    const ctx = this.auras.takeContext(at.unit, at.aura, walk.other?.(subject));
+  #visitOne<S>(walk: HookWalk<G, S>, subject: S, aura: ActiveAura<G>): boolean {
+    // The walk's unit asked again, not handed over in an object built per aura.
+    const unit = walk.unit(subject);
+
+    if (unit === undefined) {
+      return false;
+    }
+
+    const ctx = this.auras.takeContext(unit, aura, walk.other?.(subject));
 
     try {
-      return walk.step(subject, at.aura, ctx);
+      return walk.step(subject, aura, ctx);
     } finally {
       this.auras.giveContext();
     }

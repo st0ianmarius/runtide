@@ -4,7 +4,7 @@ import { type ActiveAura, type AuraContext, MutableContext } from './active-aura
 import type { AuraApplication } from './application.ts';
 import { applyAura } from './apply.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
-import { type CollectedHook, collectIn } from './collect.ts';
+import { type CollectedHook, collectIn, hasOf } from './collect.ts';
 import { PREDICTED } from './define-auras.ts';
 import { dispel, type Dispel } from './dispel.ts';
 import type { AuraEngine } from './engine.ts';
@@ -77,10 +77,19 @@ export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operat
 
   spendStacks: (bearer: G['bearer'], id: AuraId, count: number) => spendStacks(engine, bearer, { id, count }),
 
-  spendValue: (bearer: G['bearer'], aura: AuraId | ActiveAura, amount: number) =>
-    typeof aura === 'number'
-      ? spendValue(engine, bearer, { id: aura, amount })
-      : spendValue(engine, bearer, { id: aura.id, amount, only: aura }),
+  spendValue: (bearer: G['bearer'], aura: AuraId | ActiveAura, amount: number) => {
+    const spend = engine.spending;
+
+    spend.id = typeof aura === 'number' ? aura : aura.id;
+    spend.only = typeof aura === 'number' ? undefined : aura;
+    spend.amount = amount;
+
+    const spent = spendValue(engine, bearer, spend);
+
+    spend.only = undefined;
+
+    return spent;
+  },
 
   enterState: (bearer: G['bearer'], state: G['state']) => enterState(engine, bearer, state),
   hasState: (state: string): state is G['state'] => engine.tables.stateNames.includes(state),
@@ -125,7 +134,7 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
   lengthOf: (id: AuraId, bearer: G['bearer']) => engine.lengthOf(id, bearer),
 
   collect: (bearer: G['bearer'], hook: CollectedHook<G>, out: (ActiveAura<G> | undefined)[]) =>
-    collectIn(engine, bearer, { hook, out }),
+    collectIn(bearer, hasOf(engine, hook), out),
 
   hold: () => {
     engine.events.hold();

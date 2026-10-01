@@ -148,7 +148,7 @@ export const despawnWhere = <G extends AreaTriggerTypes>(
       const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
 
       if (area !== undefined) {
-        endArea(engine, area, { reason });
+        endArea(engine, area, reason);
         ended += 1;
       }
     }

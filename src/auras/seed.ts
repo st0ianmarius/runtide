@@ -1,14 +1,10 @@
 import type { ActiveAura, AuraItem } from './active-aura.ts';
 import type { AuraTypes } from './aura-types.ts';
-import { CHANGES } from './compile.ts';
 import { PREDICTED } from './define-auras.ts';
 import type { AuraEngine } from './engine.ts';
 import { takeOff } from './remove.ts';
 import { type AuraSet, setOf } from './state.ts';
 import type { AuraView } from './view.ts';
-
-/** The change code of `removed`. */
-const REMOVED = CHANGES.indexOf('removed');
 
 /**
  * What a prediction mirror is seeded from: a bearer's aura views as the server sent them, and the steps the
@@ -97,7 +93,7 @@ export const seedAuras = <G extends AuraTypes>(
   try {
     for (let i = set.items.length - 1; i >= 0; i--) {
       if (((engine.flags[set.items[i]?.id ?? 0] ?? 0) & PREDICTED) !== 0) {
-        takeOff(engine, bearer, { index: i, change: REMOVED });
+        takeOff(engine, bearer, i);
       }
     }
 

@@ -3,13 +3,9 @@
 import { isRunOut } from '../core/index.ts';
 import type { AuraItem } from './active-aura.ts';
 import type { AuraTypes } from './aura-types.ts';
-import { CHANGES } from './compile.ts';
 import type { AuraEngine } from './engine.ts';
-import { takeOff } from './remove.ts';
+import { expireAt } from './remove.ts';
 import { type AuraSet, setOf } from './state.ts';
-
-/** The change code of `expired`. */
-const EXPIRED = CHANGES.indexOf('expired');
 
 /** The period of an aura's beat, read live when it is a function; it must be more than 0. */
 const periodOf = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], item: AuraItem<G>): number => {
@@ -78,7 +74,7 @@ const expire = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'])
     }
 
     if (engine.isDue(set, item)) {
-      takeOff(engine, bearer, { index: i, change: EXPIRED });
+      expireAt(engine, bearer, i);
       i -= 1;
       expired += 1;
     } else {

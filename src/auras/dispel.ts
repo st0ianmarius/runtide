@@ -1,12 +1,8 @@
 import type { ActiveAura } from './active-aura.ts';
 import type { AuraTagId, AuraTypes } from './aura-types.ts';
-import { CHANGES } from './compile.ts';
 import type { AuraEngine } from './engine.ts';
 import { takeOff } from './remove.ts';
 import { setOf } from './state.ts';
-
-/** The change code of `removed`. */
-const REMOVED = CHANGES.indexOf('removed');
 
 /** What a dispel takes: auras granting a tag, at most `limit` of them, those `filter` keeps, and who dispels. */
 export interface Dispel<G extends AuraTypes> {
@@ -47,7 +43,7 @@ export const dispel = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['be
         engine.tables.tagBits[item.id]?.has(spec.tag) === true &&
         spec.filter?.(item) !== false
       ) {
-        takeOff(engine, bearer, { index: i, change: REMOVED });
+        takeOff(engine, bearer, i);
         i -= 1;
         removed += 1;
       }

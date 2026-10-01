@@ -1,4 +1,3 @@
-import type { Vec2 } from '../math/index.ts';
 import type { SweepOptions } from './query.ts';
 import type { Selection } from './selection.ts';
 import type { Selector } from './selector.ts';
@@ -16,14 +15,17 @@ export interface SearchParts<Unit> {
   readonly selection: Selection<Unit>;
 }
 
-/** The units a body sweeping a segment touches, in order of contact, with the shares written when asked. */
+/**
+ * The units a body sweeping a segment touches, in order of contact, with the shares written when asked: the parts'
+ * selection set up `along` the segment by the caller, so a query passes no tuple.
+ */
 export const sweep = <Unit>(
   parts: SearchParts<Unit>,
-  [segment, options]: readonly [readonly [Vec2, Vec2], SweepOptions<Unit>],
+  options: SweepOptions<Unit>,
   out: (Unit | undefined)[]
 ): number => {
   const { table, selector, selection } = parts;
-  const count = selector.run(selection.along(segment, options));
+  const count = selector.run(selection);
   const { shares } = options;
 
   for (let i = 0; i < count; i++) {

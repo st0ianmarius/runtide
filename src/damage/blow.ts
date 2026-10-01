@@ -202,18 +202,17 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
     this.kind = kind;
   }
 
-  /** Fills the record from a spec, every field reset. */
-  reset(
-    spec: BlowSpec<G>,
-    parts: { readonly source: number; readonly kind: DamageKindId; readonly depth: number }
-  ): void {
-    this.depth = parts.depth;
+  /**
+   * Fills the record from a spec, every field reset, at a credit source and a nesting depth; its kind is the spec's, or
+   * `kind` when it names none.
+   */
+  reset(spec: BlowSpec<G>, source: number, kind: DamageKindId): void {
     this.target = spec.target;
     this.attacker = spec.attacker;
-    this.source = parts.source;
+    this.source = source;
     this.spell = spec.spell;
     this.aura = spec.aura;
-    this.kind = parts.kind;
+    this.kind = spec.kind ?? kind;
     this.base = spec.amount;
     this.amount = spec.amount;
     this.from = spec.from;

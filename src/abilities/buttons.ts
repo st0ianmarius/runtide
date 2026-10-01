@@ -9,6 +9,9 @@ import type { AbilityTypes } from './ability-types.ts';
  * ids, so firing reads no names.
  */
 export interface CompiledButton<G extends AbilityTypes> {
+  /** Its spell. */
+  readonly spell: SpellId;
+
   /** The activation data, for its motion hooks. */
   readonly def: ButtonActivation<G>;
 
@@ -40,9 +43,10 @@ export interface CompiledButton<G extends AbilityTypes> {
   readonly applies: readonly AuraId[];
 }
 
-/** What compiling one spell's button reads: the aura table, and the spell for messages. */
+/** What compiling one spell's button reads: the aura table, and the spell (its name for messages). */
 interface Compiling<G extends AbilityTypes> {
   readonly auras: AuraSystem<G>;
+  readonly spell: SpellId;
   readonly what: string;
 }
 
@@ -90,6 +94,7 @@ const compileButton = <G extends AbilityTypes>(state: Compiling<G>, def: ButtonA
   const { cost } = def;
 
   return Object.freeze({
+    spell: state.spell,
     def,
     commitsOnCast: def.commitsOn === 'cast',
     costAura: cost === undefined ? -1 : checkAura(state, cost.aura),
@@ -120,7 +125,7 @@ export const compileButtons = <G extends AbilityTypes>(
     }
 
     const { activation } = registry.get(id);
-    const state = { auras, what: `spell ${registry.name(id)}` };
+    const state = { auras, spell: id, what: `spell ${registry.name(id)}` };
 
     return isButton<G>(activation) ? compileButton(state, activation) : undefined;
   });

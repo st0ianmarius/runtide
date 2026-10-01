@@ -102,8 +102,11 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   state: unknown = undefined;
   readonly ext: G['areaExt'];
 
-  /** The seconds to each pulse's next beat, by pulse index. */
-  readonly beats: number[] = [];
+  /**
+   * The seconds to each pulse's next beat, by pulse index: a typed array as long as any kind's pulses, so a frame's
+   * count-down writes a number in place rather than a boxed one into a plain array.
+   */
+  readonly beats: Float64Array;
 
   /** The time this frame's parts run over. */
   frameTime = 0;
@@ -169,6 +172,7 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
     this.owner = owner;
     this.ext = ext;
     this.origin = new AreaOrigin<G>(owner);
+    this.beats = new Float64Array(Math.max(0, ...services.registry.defs.map((def) => def?.every?.length ?? 0)));
   }
 
   get shape(): Shape {

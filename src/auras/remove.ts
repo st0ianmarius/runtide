@@ -14,6 +14,9 @@ const REFRESHED = CHANGES.indexOf('refreshed');
 /** The change code of `removed`. */
 const REMOVED = CHANGES.indexOf('removed');
 
+/** The change code of `expired`. */
+const EXPIRED = CHANGES.indexOf('expired');
+
 /** The code of the `independent` stacking rule. */
 const INDEPENDENT = STACKINGS.indexOf('independent');
 
@@ -36,24 +39,31 @@ const cut = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, index:
   set.items.pop();
 };
 
-/** Takes the aura at `index` off its bearer and queues `change` (`removed` or `expired`) for it. */
-export const takeOff = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
-  bearer: G['bearer'],
-  at: { readonly index: number; readonly change: number }
-): void => {
-  const set = setOf<G>(bearer);
-  const item = set.items[at.index];
+/**
+ * Makes the function that takes the aura at an index off its bearer and queues `change` for it: one per change, made
+ * once, so a removal or an expiry passes its index alone, not an object built per call.
+ */
+const takeOffAs =
+  (change: number) =>
+  <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], index: number): void => {
+    const set = setOf<G>(bearer);
+    const item = set.items[index];
 
-  if (item === undefined) {
-    return;
-  }
+    if (item === undefined) {
+      return;
+    }
 
-  cut(engine, set, at.index);
-  set.changes += 1;
-  engine.events.retire(item);
-  engine.events.raise(at.change, bearer, item);
-};
+    cut(engine, set, index);
+    set.changes += 1;
+    engine.events.retire(item);
+    engine.events.raise(change, bearer, item);
+  };
+
+/** Takes the aura at an index off its bearer and queues `removed` for it. */
+export const takeOff = takeOffAs(REMOVED);
+
+/** Takes the aura at an index off its bearer and queues `expired` for it. */
+export const expireAt = takeOffAs(EXPIRED);
 
 /**
  * Whether a removal takes an aura, given the removal's numeric argument. Matchers are module-level functions with the
@@ -94,7 +104,7 @@ const strip = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], 
     const item = set.items[i];
 
     if (item !== undefined && removal.match(engine, item, removal.arg)) {
-      takeOff(engine, bearer, { index: i, change: REMOVED });
+      takeOff(engine, bearer, i);
       i -= 1;
       removed += 1;
     }
@@ -249,7 +259,7 @@ export const evictFor = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['
   const least = leastLeftOf(engine, set, id);
 
   if (count >= (engine.maxStacks[id] ?? 1) && least >= 0) {
-    takeOff(engine, bearer, { index: least, change: REMOVED });
+    takeOff(engine, bearer, least);
     engine.refreshTags(set);
   }
 };
@@ -288,7 +298,8 @@ export const spendStacks = <G extends AuraTypes>(
 
     item.stacks -= taken;
     left -= taken;
-    i -= spendOne(engine, bearer, { index: i, isEmpty: item.stacks <= 0 });
+    engine.isSpentEmpty = item.stacks <= 0;
+    i -= spendOne(engine, bearer, i);
   }
 
   engine.refreshTags(set);
@@ -308,17 +319,17 @@ const heldStacks = <G extends AuraTypes>(set: AuraSet<G>, id: AuraId): number =>
   return stacks;
 };
 
-/** Settles one spent instance: removed when empty, else refreshed. Returns 1 when it left the list. */
-const spendOne = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
-  bearer: G['bearer'],
-  at: { readonly index: number; readonly isEmpty: boolean }
-): number => {
+/**
+ * Settles one spent instance at `index`: removed when its emptiness (`isEmpty`, read first) says so, else refreshed.
+ * Returns 1 when it left the list. A spend hands its instance over by index and a flag in the engine, not in an object
+ * built per instance.
+ */
+const spendOne = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], index: number): number => {
   const set = setOf<G>(bearer);
-  const item = set.items[at.index];
+  const item = set.items[index];
 
-  if (at.isEmpty) {
-    takeOff(engine, bearer, { index: at.index, change: REMOVED });
+  if (engine.isSpentEmpty) {
+    takeOff(engine, bearer, index);
 
     return 1;
   }
@@ -341,15 +352,18 @@ export const spendValue = <G extends AuraTypes>(
   bearer: G['bearer'],
   spend: { readonly id: AuraId; readonly amount: number; readonly only?: ActiveAura | undefined }
 ): number => {
+  // Read at once: `spend` may be the engine's reused spec, which a hook's own spend writes over.
+  const { id, only } = spend;
+  const amount = spend.amount > 0 ? spend.amount : 0;
   const set = setOf<G>(bearer);
   const from = engine.events.open('spendValue');
-  const keeps = ((engine.flags[spend.id] ?? 0) & KEEP_DEPLETED) !== 0;
-  let left = spend.amount > 0 ? spend.amount : 0;
+  const keeps = ((engine.flags[id] ?? 0) & KEEP_DEPLETED) !== 0;
+  let left = amount;
 
   for (let i = 0; i < set.items.length && left > 0; i++) {
     const item = set.items[i];
 
-    if (item?.id !== spend.id || !(item.value > 0) || (spend.only !== undefined && item !== spend.only)) {
+    if (item?.id !== id || !(item.value > 0) || (only !== undefined && item !== only)) {
       continue;
     }
 
@@ -357,13 +371,14 @@ export const spendValue = <G extends AuraTypes>(
 
     item.value -= taken;
     left -= taken;
-    i -= spendOne(engine, bearer, { index: i, isEmpty: item.value <= 0 && !keeps });
+    engine.isSpentEmpty = item.value <= 0 && !keeps;
+    i -= spendOne(engine, bearer, i);
   }
 
   engine.refreshTags(set);
   engine.events.close(from);
 
-  return (spend.amount > 0 ? spend.amount : 0) - left;
+  return amount - left;
 };
 
 /** Sets the clock of every instance of an aura again (to `seconds`, or its own length); true when there was one. */

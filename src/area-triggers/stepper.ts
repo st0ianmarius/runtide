@@ -26,7 +26,7 @@ const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
   }
 
   if (bound.when !== undefined && !bound.when(area)) {
-    endArea(engine, area, { reason: 'bound' });
+    endArea(engine, area, 'bound');
 
     return false;
   }
@@ -58,7 +58,7 @@ export const stepArea = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area
   area.isLifeSet = false;
 
   if (isRunOut(area.remaining)) {
-    endArea(engine, area, { reason: 'expired' });
+    endArea(engine, area, 'expired');
   }
 };
 
@@ -165,7 +165,7 @@ export const endOwned = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, owne
       const area = engine.areaOf(handles[i] ?? NO_AREA_TRIGGER);
 
       if (area !== undefined && needsOwner(engine, area)) {
-        endArea(engine, area, { reason: 'source-gone' });
+        endArea(engine, area, 'source-gone');
         ended += 1;
       }
     }

@@ -155,7 +155,7 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
       return false;
     }
 
-    endArea(this.#engine, area, { reason });
+    endArea(this.#engine, area, reason);
 
     return true;
   };

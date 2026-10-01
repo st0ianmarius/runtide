@@ -66,7 +66,7 @@ const runEndHook = <G extends AreaTriggerTypes>(
 export const endArea = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  end: { readonly reason: EndReason<G> }
+  reason: EndReason<G>
 ): void => {
   if (area.isEnding) {
     return;
@@ -76,13 +76,13 @@ export const endArea = <G extends AreaTriggerTypes>(
   engine.hold();
 
   try {
-    runEndHook(engine, area, end.reason);
+    runEndHook(engine, area, reason);
     dropAreaAuras(engine, area);
     closeLedgers(engine, area);
     unlinkKind(engine, area);
     engine.count(area.owner, [area.kind, -1]);
     engine.holdOwnerAura(area, false);
-    engine.raise('ended', area, end.reason);
+    engine.raise('ended', area, reason);
     engine.spells.unretain(area.castHandle);
     engine.free(area);
   } finally {

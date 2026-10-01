@@ -15,21 +15,21 @@ export const spellAt = (record: LoadoutRecord, slot: number): SpellId | undefine
   return spell < 0 ? undefined : toId<'spells'>(spell);
 };
 
-/** Whether a bearer holds every tag of a list (`every`) or any of them. */
-const holds = <G extends AbilityTypes>(
+/** How many tags of a list a bearer holds. */
+const heldTags = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  [tags, every]: readonly [readonly AuraTagId[], boolean]
-): boolean => {
+  tags: readonly AuraTagId[]
+): number => {
+  let held = 0;
+
   for (let i = 0; i < tags.length; i++) {
     const tag = tags[i];
 
-    if (tag !== undefined && engine.auras.hasTag(bearer, tag) !== every) {
-      return !every;
-    }
+    held += tag !== undefined && engine.auras.hasTag(bearer, tag) ? 1 : 0;
   }
 
-  return every;
+  return held;
 };
 
 /** Which of a button's own rules fails on a bearer: its required tags, its blocking tags, its cost. */
@@ -38,11 +38,11 @@ const failedRule = <G extends AbilityTypes>(
   bearer: G['bearer'],
   button: CompiledButton<G>
 ): ButtonRefusal | undefined => {
-  if (button.requires.length > 0 && !holds(engine, bearer, [button.requires, true])) {
+  if (button.requires.length > 0 && heldTags(engine, bearer, button.requires) < button.requires.length) {
     return 'requires';
   }
 
-  if (button.blockedBy.length > 0 && holds(engine, bearer, [button.blockedBy, false])) {
+  if (button.blockedBy.length > 0 && heldTags(engine, bearer, button.blockedBy) > 0) {
     return 'blocked';
   }
 
@@ -110,8 +110,10 @@ const pay = <G extends AbilityTypes>(
 const commit = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  [spell, button]: readonly [SpellId, CompiledButton<G>]
+  button: CompiledButton<G>
 ): ButtonRefusal | undefined => {
+  const { spell } = button;
+
   if (engine.spells.isCooling(bearer, spell)) {
     return 'cooldown';
   }
@@ -184,8 +186,10 @@ const castCommitted = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer:
 const admission = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
   bearer: G['bearer'],
-  [spell, button]: readonly [SpellId, CompiledButton<G>]
+  button: CompiledButton<G>
 ): PressRefusal<G> | undefined => {
+  const { spell } = button;
+
   if (!passesCheck(engine, bearer, spell)) {
     return 'check';
   }
@@ -245,7 +249,7 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
   options.rank = record.ranks[slot] ?? 1;
 
   // A press nested in `checkCast` or `activate` (a pet ordered along) gives all of this back as it found it.
-  const refused = admission(engine, bearer, [spell, button]) ?? commit(engine, bearer, [spell, button]);
+  const refused = admission(engine, bearer, button) ?? commit(engine, bearer, button);
 
   if (refused !== undefined) {
     return engine.refuse(refused);

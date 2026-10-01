@@ -23,7 +23,7 @@ export type AuraPipelineHook = Extract<
 export type CollectedHook<G extends AuraTypes> = AuraPipelineHook | Extract<keyof G['auraHooks'], string>;
 
 /** The `has` bitset of a collected hook; `undefined` for a game hook no aura answers. */
-const hasOf = <G extends AuraTypes>(engine: AuraEngine<G>, hook: CollectedHook<G>): Bitset | undefined => {
+export const hasOf = <G extends AuraTypes>(engine: AuraEngine<G>, hook: CollectedHook<G>): Bitset | undefined => {
   const has: Readonly<Record<string, Bitset | undefined>> = engine.registry.has;
 
   return has[hook] ?? engine.registry.hasOn[hook];
@@ -34,13 +34,11 @@ const hasOf = <G extends AuraTypes>(engine: AuraEngine<G>, hook: CollectedHook<G
  * earlier call left, and counts.
  */
 export const collectIn = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
   bearer: G['bearer'],
-  at: { readonly hook: CollectedHook<G>; readonly out: (ActiveAura<G> | undefined)[] }
+  has: Bitset | undefined,
+  out: (ActiveAura<G> | undefined)[]
 ): number => {
   const { items } = setOf<G>(bearer);
-  const has = hasOf(engine, at.hook);
-  const { out } = at;
   let count = 0;
 
   for (let i = 0; i < items.length && has !== undefined; i++) {

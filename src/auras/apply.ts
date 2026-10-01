@@ -5,7 +5,7 @@ import type { ApplyResult, AuraApplication } from './application.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 import { CHANGES } from './compile.ts';
 import { CREDIT_FIRST, CUSTOM_STACKING, PER_SOURCE, STACKINGS } from './define-auras.ts';
-import type { AuraEngine } from './engine.ts';
+import type { AuraEngine, Landing } from './engine.ts';
 import { cleanse, evictFor } from './remove.ts';
 import { addedStacks, restack, stackingOf } from './restack.ts';
 import { type AuraSet, setOf } from './state.ts';
@@ -61,19 +61,16 @@ const existingFor = <G extends AuraTypes>(
   return undefined;
 };
 
-/** Runs the aura's `onLand` hook for an instance an application landed on. */
-const land = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
-  at: { readonly bearer: G['bearer']; readonly item: AuraItem<G> },
-  application: AuraApplication<G>
-): void => {
-  const onLand = engine.registry.hooks.onLand[at.item.id];
+/** Runs the aura's `onLand` hook for the instance a landing landed on. */
+const land = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], landing: Landing<G>): void => {
+  const { item, application } = landing;
+  const onLand = engine.registry.hooks.onLand[item.id];
 
   if (onLand === undefined) {
     return;
   }
 
-  const context = engine.events.take(at.bearer, at.item);
+  const context = engine.events.take(bearer, item);
 
   // Held, so an onLand that removes its own aura cannot hand its slot to one it applies before this one's event is raised.
   engine.events.hold();
@@ -104,12 +101,8 @@ const firstBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer
 };
 
 /** Lands a fresh instance: evicts at the cap, fills it, inserts it in order and queues `applied`. */
-const fresh = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
-  bearer: G['bearer'],
-  at: { readonly application: AuraApplication<G>; readonly seconds: number }
-): AuraItem<G> => {
-  const { application, seconds } = at;
+const fresh = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], landing: Landing<G>): AuraItem<G> => {
+  const { application, seconds } = landing;
   const set = setOf<G>(bearer);
   const id = application.aura;
   const item = engine.acquire(id);
@@ -134,7 +127,8 @@ const fresh = <G extends AuraTypes>(
   item.nextBeat = firstBeat(engine, bearer, item);
 
   if (engine.registry.has.onLand.has(id)) {
-    land(engine, { bearer, item }, application);
+    landing.item = item;
+    land(engine, bearer, landing);
   }
 
   engine.events.raise(APPLIED, bearer, item);
@@ -142,18 +136,10 @@ const fresh = <G extends AuraTypes>(
   return item;
 };
 
-/** Lands a re-application on the instance already there; true when it changed anything. */
-const again = <G extends AuraTypes>(
-  engine: AuraEngine<G>,
-  bearer: G['bearer'],
-  at: {
-    readonly item: AuraItem<G>;
-    readonly application: AuraApplication<G>;
-    readonly seconds: number;
-  }
-): boolean => {
-  const { item, application } = at;
-  const isChanged = restack(engine, bearer, at);
+/** Lands a re-application on the instance already there (the landing's item); true when it changed anything. */
+const again = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], landing: Landing<G>): boolean => {
+  const { item, application } = landing;
+  const isChanged = restack(engine, bearer, landing);
 
   if (
     application.source !== undefined &&
@@ -166,7 +152,7 @@ const again = <G extends AuraTypes>(
   }
 
   if (engine.registry.has.onLand.has(item.id)) {
-    land(engine, { bearer, item }, application);
+    land(engine, bearer, landing);
   }
 
   if (isChanged) {
@@ -207,6 +193,7 @@ const landAura = <G extends AuraTypes>(
   checkSeconds(engine, id, seconds);
 
   const from = engine.events.open('cleanse');
+  const landing = engine.takeLanding(application, seconds);
   let result = FRESH;
 
   try {
@@ -216,11 +203,13 @@ const landAura = <G extends AuraTypes>(
     const existing = existingFor(engine, set, application);
 
     if (existing === undefined) {
-      fresh(engine, bearer, { application, seconds });
+      fresh(engine, bearer, landing);
     } else {
-      result = again(engine, bearer, { item: existing, application, seconds }) ? CHANGED : UNCHANGED;
+      landing.item = existing;
+      result = again(engine, bearer, landing) ? CHANGED : UNCHANGED;
     }
   } finally {
+    engine.giveLanding();
     engine.events.close(from);
   }
 

@@ -117,7 +117,7 @@ export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: A
     runPhase(engine, area, order[i] ?? 'frame');
 
     if (area.pending !== undefined && !area.isEnding) {
-      endArea(engine, area, { reason: area.pending });
+      endArea(engine, area, area.pending);
     }
   }
 };
