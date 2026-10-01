@@ -124,7 +124,8 @@ class CooldownApplication implements AuraApplication {
 export class Cooldowns<G extends SpellTypes> {
   readonly #auras: AuraSystem<G>;
   readonly #bySpell: readonly (readonly CompiledCooldown<G>[])[];
-  readonly #application = new CooldownApplication();
+  readonly #applications: CooldownApplication[] = [];
+  #depth = 0;
 
   constructor(auras: AuraSystem<G>, bySpell: readonly (readonly CompiledCooldown<G>[])[]) {
     this.#auras = auras;
@@ -284,10 +285,17 @@ export class Cooldowns<G extends SpellTypes> {
       return;
     }
 
-    const application = this.#application;
+    // An aura hook may cast another spell, landing its cooldowns while this application is still read: one per depth.
+    const depth = this.#depth++;
+    const application = (this.#applications[depth] ??= new CooldownApplication());
 
     application.aura = cooldown.aura;
     application.duration = seconds;
-    this.#auras.apply(caster, application);
+
+    try {
+      this.#auras.apply(caster, application);
+    } finally {
+      this.#depth = depth;
+    }
   }
 }
