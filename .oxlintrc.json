@@ -280,6 +280,23 @@
             "name": "window",
             "message": "src/ runs anywhere: no Node or DOM globals, no host timers."
           }
+        ],
+        "typescript/no-restricted-types": [
+          "error",
+          {
+            "types": {
+              "Buffer": "src/ runs anywhere: no Node types.",
+              "BufferEncoding": "src/ runs anywhere: no Node types.",
+              "NodeJS.Timeout": "src/ runs anywhere: no Node types.",
+              "NodeJS.Timer": "src/ runs anywhere: no Node types.",
+              "NodeJS.Immediate": "src/ runs anywhere: no Node types.",
+              "NodeJS.Process": "src/ runs anywhere: no Node types.",
+              "NodeJS.ProcessEnv": "src/ runs anywhere: no Node types.",
+              "NodeJS.ErrnoException": "src/ runs anywhere: no Node types.",
+              "NodeJS.ReadableStream": "src/ runs anywhere: no Node types.",
+              "NodeJS.WritableStream": "src/ runs anywhere: no Node types."
+            }
+          }
         ]
       }
     },
