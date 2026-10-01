@@ -235,6 +235,61 @@ describe('limits', () => {
       }
     );
 
+  it('leaves room for the one an ending trigger’s onEnd spawns, refusing nothing and replacing no one', () => {
+    for (const replace of ['refuse', 'oldest'] as const) {
+      const late: { respawn?: (owner: Game['bearer']) => boolean } = {};
+      let respawned = false;
+
+      const game = makeSpellGame(
+        {},
+        {
+          areaTriggers: {
+            turret: {
+              shape: circle(1),
+              lifetime: 1,
+              limit: { perOwner: 2, replace },
+
+              onEnd: (c, reason) => {
+                if (reason === 'expired' && !respawned) {
+                  respawned = true;
+
+                  c.host.log.push(`respawned ${late.respawn?.(c.owner) === true}`);
+                }
+
+                return undefined;
+              }
+            }
+          }
+        }
+      );
+
+      late.respawn = (owner) =>
+        game.areaTriggers.spawn(game.areaId.turret, { owner, at: vec2(0, 0) }) !== NO_AREA_TRIGGER;
+
+      const owner = game.unit(1);
+      const first = game.areaTriggers.spawn(game.areaId.turret, { owner, at: vec2(0, 0) });
+
+      game.step();
+      game.areaTriggers.step();
+
+      const second = game.areaTriggers.spawn(game.areaId.turret, { owner, at: vec2(0, 0) });
+
+      for (let i = 0; i < 100 && game.areaTriggers.isLive(first); i++) {
+        game.step();
+        game.areaTriggers.step();
+      }
+
+      assert.deepEqual(
+        [
+          game.log.includes('respawned true'),
+          game.areaTriggers.isLive(second),
+          game.areaTriggers.countOf(owner, game.areaId.turret)
+        ],
+        [true, true, 2]
+      );
+    }
+  });
+
   it('ends the owner’s oldest as replaced, firing its end cue, and counts per owner', () => {
     const game = limitGame('oldest');
     const [one, two] = [game.unit(1), game.unit(2)];

@@ -18,6 +18,16 @@ import {
 /** How far short of 0, relative to the lengths, a move's step out of a shape still counts as along it. */
 const ALONG = 1e-9;
 
+/**
+ * How deep a body touching a shape may pass along it, relative to its radius (at least 1), and still slide on: a graze
+ * at a seam between two shapes lying flush, a rounding past a corner, never a real entry.
+ */
+const GRAZE = 1e-6;
+
+/** The nearest point a direction is measured from, and a step off an edge, reused. */
+const NEAR = { x: 0, z: 0 };
+const STEP = { x: 0, z: 0 };
+
 /** A piece of static geometry: a wall, a pillar, a zone that never moves. */
 export type StaticShape = Circle | Polygon;
 
@@ -38,7 +48,8 @@ export class StaticGeometry {
   readonly #box = emptyBox();
   readonly #times: number[] = [];
   readonly #contact: Contact = { share: 1, index: -1 };
-  readonly #near = { x: 0, z: 0 };
+  readonly #out = { x: 0, z: 0 };
+  readonly #grazes: number[] = [];
 
   constructor(shapes: readonly StaticShape[]) {
     this.set(shapes);
@@ -130,16 +141,7 @@ export class StaticGeometry {
       return undefined;
     }
 
-    const near = shape.kind === 'circle' ? shape.at : nearestOnEdges(p, shape.points, this.#near);
-    const sign = shape.kind === 'polygon' && inPolygon(p, shape.points) ? -1 : 1;
-    const dx = (p.x - near.x) * sign;
-    const dz = (p.z - near.z) * sign;
-    const length = Math.hypot(dx, dz);
-
-    out.x = length > 1e-12 ? dx / length : 0;
-    out.z = length > 1e-12 ? dz / length : 0;
-
-    return out;
+    return outwardAt(shape, p, out);
   }
 
   /**
@@ -158,11 +160,18 @@ export class StaticGeometry {
 
     const share = this.#times[0] ?? 1;
 
-    if (share > 0 || !this.#isLeaving(shape, [from, to])) {
+    if (share > 0 || !(this.#isLeaving(shape, [from, to]) || this.#isGrazing(shape, [segment, radius]))) {
       return share;
     }
 
     return count > 1 ? this.#times[2] : undefined;
+  }
+
+  /** Whether a body touching a shape only grazes it along the move: a body a hair smaller would not touch it at all. */
+  #isGrazing(shape: StaticShape, [[from, to], radius]: readonly [readonly [Vec2, Vec2], number]): boolean {
+    const smaller = radius - GRAZE * Math.max(1, radius);
+
+    return smaller > 0 && pathIntervals(shape, { from, to, t0: 0, t1: 1, radius: smaller }, this.#grazes) === 0;
   }
 
   /**
@@ -170,15 +179,11 @@ export class StaticGeometry {
    * nearest point, a rounding short of 0 counting as along (a slide on the normal `moveBody` returned).
    */
   #isLeaving(shape: StaticShape, [from, to]: readonly [Vec2, Vec2]): boolean {
-    const near = shape.kind === 'circle' ? shape.at : nearestOnEdges(from, shape.points, this.#near);
-
-    const sign = shape.kind === 'polygon' && inPolygon(from, shape.points) ? -1 : 1;
+    const out = outwardAt(shape, from, this.#out);
     const dx = to.x - from.x;
     const dz = to.z - from.z;
-    const ox = from.x - near.x;
-    const oz = from.z - near.z;
 
-    return (dx * ox + dz * oz) * sign > -ALONG * hypot(dx, dz) * hypot(ox, oz);
+    return dx * out.x + dz * out.z > -ALONG * hypot(dx, dz);
   }
 
   /** The box a body of `radius` sweeps along a segment. */
@@ -193,6 +198,72 @@ export class StaticGeometry {
     return box;
   }
 }
+
+/**
+ * The unit direction out of a shape at `p`, into `out`: from its nearest point toward `p` (away from it for a point
+ * inside a polygon), or, for `p` on a polygon's edge, that edge's outward normal; none (0, 0) at a circle's centre.
+ */
+const outwardAt = (shape: StaticShape, p: Vec2, out: { x: number; z: number }): Vec2 => {
+  const near = shape.kind === 'circle' ? shape.at : nearestOnEdges(p, shape.points, NEAR);
+  const sign = shape.kind === 'polygon' && inPolygon(p, shape.points) ? -1 : 1;
+  const dx = (p.x - near.x) * sign;
+  const dz = (p.z - near.z) * sign;
+  const length = hypot(dx, dz);
+
+  if (length > 1e-12 || shape.kind === 'circle') {
+    out.x = length > 1e-12 ? dx / length : 0;
+    out.z = length > 1e-12 ? dz / length : 0;
+
+    return out;
+  }
+
+  return edgeNormal(p, shape.points, out);
+};
+
+/** The outward unit normal of the polygon edge nearest `p` (a point on it), into `out`. */
+const edgeNormal = (p: Vec2, points: readonly Vec2[], out: { x: number; z: number }): Vec2 => {
+  let best = Number.POSITIVE_INFINITY;
+  let a = points.at(-1);
+
+  out.x = 0;
+  out.z = 0;
+
+  for (let i = 0; i < points.length; i++) {
+    const b = points[i];
+    const d = a === undefined || b === undefined ? Number.POSITIVE_INFINITY : edgeDistance(p, a, b);
+
+    if (a !== undefined && b !== undefined && d < best) {
+      const length = hypot(b.x - a.x, b.z - a.z);
+
+      best = d;
+      out.x = (b.z - a.z) / length;
+      out.z = -(b.x - a.x) / length;
+    }
+
+    a = b;
+  }
+
+  // Either side of an edge is its outward one: the side a step from `p` does not land inside the polygon.
+  STEP.x = p.x + out.x * 1e-6;
+  STEP.z = p.z + out.z * 1e-6;
+
+  if (inPolygon(STEP, points)) {
+    out.x = -out.x;
+    out.z = -out.z;
+  }
+
+  return out;
+};
+
+/** The squared distance from `p` to the segment `a`–`b`. */
+const edgeDistance = (p: Vec2, a: Vec2, b: Vec2): number => {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const length2 = dx * dx + dz * dz;
+  const t = length2 > 1e-12 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / length2)) : 0;
+
+  return (a.x + dx * t - p.x) ** 2 + (a.z + dz * t - p.z) ** 2;
+};
 
 /** The point of a closed polygon's edges nearest `p`, into `out`. */
 const nearestOnEdges = (p: Vec2, points: readonly Vec2[], out: { x: number; z: number }): Vec2 => {

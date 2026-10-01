@@ -56,6 +56,36 @@ describe('moveBody: a body swept against static geometry', () => {
     close(pillar.normal?.z ?? Number.NaN, 1);
   });
 
+  it('slides along two walls lying flush, past their seam, and gives a body of no radius a real normal', () => {
+    const box = (x0: number, x1: number): ReturnType<typeof polygon> =>
+      polygon([vec2(x0, 1), vec2(x1, 1), vec2(x1, 2), vec2(x0, 2)]);
+
+    const flush = createMemoryWorld<object>({
+      bounds: { minX: -50, minZ: -50, maxX: 50, maxZ: 50 },
+      statics: [box(-40, 0), box(0, 40)]
+    });
+
+    let at: Vec2 = vec2(-30, 0);
+
+    // Pressed up into the walls while moving right, sliding along the normal each hit gives.
+    for (let i = 0; i < 400; i++) {
+      const to = vec2(at.x + 0.13, at.z + 0.05);
+      const move = flush.moveBody([at, to], 0.5);
+      const normal = move.normal ?? vec2(0, 0);
+      const into = (to.x - move.position.x) * normal.x + (to.z - move.position.z) * normal.z;
+
+      at = move.hit
+        ? flush.moveBody([move.position, vec2(to.x - into * normal.x, to.z - into * normal.z)], 0.5).position
+        : move.position;
+    }
+
+    assert.ok(at.x > 20, `the body stuck at x = ${at.x}`);
+
+    const point = flush.moveBody([vec2(0.5, 0), vec2(0.5, 3)], 0);
+
+    assert.deepEqual([point.hit, point.normal], [true, { x: 0, z: -1 }]);
+  });
+
   it('stops at the bounds, inset by its radius, with the bound’s normal', () => {
     const move = world.moveBody([vec2(0, 12), vec2(0, 32)], 1);
 

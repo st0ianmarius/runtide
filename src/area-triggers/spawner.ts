@@ -108,6 +108,20 @@ const fill = <G extends AreaTriggerTypes>(
 };
 
 /**
+ * How many of the owner's area triggers of a kind are not ending: one whose end runs its hooks still counts in
+ * `countOf` until it is gone, but leaves room for one its `onEnd` spawns.
+ */
+const liveOf = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): number => {
+  let live = 0;
+
+  for (let walk = engine.ownerOf(area.owner)?.heads[area.kind]; walk !== undefined; walk = walk.ownerNext) {
+    live += walk.isEnding ? 0 : 1;
+  }
+
+  return live;
+};
+
+/**
  * Whether the limit lets it in: under it, yes; at it, the owner's oldest of the kind ends as `replaced`, or
  * the new one is refused (`refuse`).
  */
@@ -124,7 +138,7 @@ const admitLimit = <G extends AreaTriggerTypes>(
 
   const perOwner = typeof limit.perOwner === 'function' ? limit.perOwner(area) : limit.perOwner;
 
-  if (engine.countOf(area.owner, area.kind) < perOwner) {
+  if (engine.countOf(area.owner, area.kind) < perOwner || liveOf(engine, area) < perOwner) {
     return true;
   }
 
