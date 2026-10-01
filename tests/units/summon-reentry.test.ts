@@ -114,3 +114,20 @@ test('an outer replacement keeps its slot when a callback spawns directly and su
   assert.equal(outer.status, 'landed');
   assert.equal(g.units.summonsOf(owner).length, 1);
 });
+
+test('every bound summon despawns with its owner when one summon’s despawn listener throws', () => {
+  const g = makeUnitGame({ owner: {}, pet: {} });
+  const owner = g.units.spawn(g.id.owner, { side: 1 });
+  g.procs.apply(summon<UnitGame>('pet', { count: 3 }), { self: owner });
+  const pets = g.units.summonsOf(owner).slice();
+  g.on('despawned', (e) => {
+    if (e.unit === pets[0]) {
+      throw new Error('first pet');
+    }
+  });
+  assert.throws(() => g.units.despawn(owner), /first pet/);
+  assert.deepEqual(
+    pets.map((pet) => pet.lifecycle),
+    ['despawned', 'despawned', 'despawned']
+  );
+});

@@ -112,9 +112,24 @@ export const despawnBound = <G extends UnitTypes>(engine: UnitEngine<G>, bearer:
     return;
   }
 
-  for (const summon of owned.slice()) {
-    if (unitOf<G>(summon).isBound) {
+  despawnFrom(engine, owned.slice(), 0);
+};
+
+/** Despawns the bound summons of a list from `start`: one whose hook throws still has the rest go, then it throws. */
+const despawnFrom = <G extends UnitTypes>(engine: UnitEngine<G>, summons: readonly G['bearer'][], start: number) => {
+  for (let i = start; i < summons.length; i++) {
+    const summon = summons[i];
+
+    if (summon === undefined || !unitOf<G>(summon).isBound) {
+      continue;
+    }
+
+    try {
       moveTo(engine, summon, 'despawned', undefined, 'owner');
+    } catch (error) {
+      despawnFrom(engine, summons, i + 1);
+
+      throw error;
     }
   }
 };
