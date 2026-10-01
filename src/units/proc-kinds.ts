@@ -138,28 +138,11 @@ const admitSummon = <G extends UnitTypes>(
     return true;
   }
 
-  const { summons } = unitOf<G>(owner);
-  const { admittingOwners, admittingTemplates } = parts.engine;
-  let count = 0;
-
-  for (let i = 0; i < admittingOwners.length; i++) {
-    if (admittingOwners[i] === owner && admittingTemplates[i] === template) {
-      count += 1;
-    }
-  }
-
-  let oldest: G['bearer'] | undefined = undefined;
-
-  for (const summon of summons) {
-    if (unitOf<G>(summon).template === template) {
-      oldest ??= summon;
-      count += 1;
-    }
-  }
-
-  if (count < limit.perOwner) {
+  if (occupied(parts.engine, owner, template) < limit.perOwner) {
     return true;
   }
+
+  const oldest = oldestOf<G>(owner, template);
 
   if (limit.replace === 'refuse' || oldest === undefined) {
     return false;
@@ -168,7 +151,41 @@ const admitSummon = <G extends UnitTypes>(
   return replaceSummon(parts, owner, oldest, template, limit.perOwner);
 };
 
-/** Reserves the replacement slot across callbacks, then checks direct spawns did not fill it. */
+/**
+ * The slots of a template an owner fills: its summons of it, and the replacements reserved for it while their
+ * callbacks run, so a nested summon cannot take a slot an outer one is freeing.
+ */
+const occupied = <G extends UnitTypes>(engine: UnitEngine<G>, owner: G['bearer'], template: UnitId): number => {
+  const { admittingOwners, admittingTemplates } = engine;
+  let count = 0;
+
+  for (let i = 0; i < admittingOwners.length; i++) {
+    if (admittingOwners[i] === owner && admittingTemplates[i] === template) {
+      count += 1;
+    }
+  }
+
+  for (const summon of unitOf<G>(owner).summons) {
+    if (unitOf<G>(summon).template === template) {
+      count += 1;
+    }
+  }
+
+  return count;
+};
+
+/** An owner's oldest summon of a template, if it has one. */
+const oldestOf = <G extends UnitTypes>(owner: G['bearer'], template: UnitId): G['bearer'] | undefined => {
+  for (const summon of unitOf<G>(owner).summons) {
+    if (unitOf<G>(summon).template === template) {
+      return summon;
+    }
+  }
+
+  return undefined;
+};
+
+/** Reserves the replacement slot across callbacks, then checks nothing else filled it. */
 const replaceSummon = <G extends UnitTypes>(
   parts: UnitKindParts<G>,
   owner: G['bearer'],
@@ -177,7 +194,6 @@ const replaceSummon = <G extends UnitTypes>(
   limit: number
 ): boolean => {
   const { admittingOwners, admittingTemplates } = parts.engine;
-  const { summons } = unitOf<G>(owner);
   admittingOwners.push(owner);
   admittingTemplates.push(template);
 
@@ -186,16 +202,8 @@ const replaceSummon = <G extends UnitTypes>(
       return false;
     }
 
-    // A callback may bypass this proc and spawn directly; recheck the actual population.
-    let remaining = 0;
-
-    for (const summon of summons) {
-      if (unitOf<G>(summon).template === template) {
-        remaining += 1;
-      }
-    }
-
-    return remaining < limit;
+    // A callback may spawn directly, bypassing this proc: recount, every reservation but this one included.
+    return occupied(parts.engine, owner, template) - 1 < limit;
   } finally {
     admittingOwners.pop();
     admittingTemplates.pop();

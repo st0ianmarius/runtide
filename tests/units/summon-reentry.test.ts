@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import type { ProcOutcome } from '../../src/procs/index.ts';
 import { summon } from '../../src/units/index.ts';
 import { makeUnitGame, type UnitGame } from '../helpers/unit-game.ts';
 
@@ -92,5 +93,24 @@ test('replacement reservations are released after a throwing callback', () => {
   assert.throws(() => g.procs.apply(proc, { self: owner }), /replacement/);
   shouldThrow = false;
   g.procs.apply(proc, { self: owner });
+  assert.equal(g.units.summonsOf(owner).length, 1);
+});
+
+test('an outer replacement keeps its slot when a callback spawns directly and summons again', () => {
+  const g = makeUnitGame({ owner: {}, pet: {} });
+  const owner = g.units.spawn(g.id.owner, { side: 1 });
+  const proc = summon<UnitGame>('pet', { limit: { perOwner: 1 } });
+  g.procs.apply(proc, { self: owner });
+  const first = g.units.summonsOf(owner)[0];
+  const inner: ProcOutcome[] = [];
+  g.on('despawned', (e) => {
+    if (e.reason === 'replaced' && e.unit === first) {
+      g.units.spawn(g.id.pet, { side: 1, owner });
+      inner.push(g.procs.apply(proc, { self: owner }));
+    }
+  });
+  const outer = g.procs.apply(proc, { self: owner });
+  assert.equal(inner[0]?.status, 'skipped');
+  assert.equal(outer.status, 'landed');
   assert.equal(g.units.summonsOf(owner).length, 1);
 });
