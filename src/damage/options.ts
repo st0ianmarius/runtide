@@ -201,15 +201,16 @@ export interface DamageSystemOptions<G extends DamageTypes> {
   readonly isDead?: (health: number) => boolean;
 
   /**
-   * How many blows, heals and forces may nest (a blow whose trigger deals a blow…); deeper ones are skipped. A death
+   * How many blows, heals, forces and lethal `setHealth`s may nest (a blow whose trigger deals a blow…); deeper ones
+   * are skipped. A death
    * starts the count again for what it sets off, so a chain of kills is held by `maxKillChain` instead. 8 by default.
    */
   readonly maxDepth?: number;
 
   /**
    * How many deaths may nest, each set off by the one before (a corpse explosion killing the next): what the deepest
-   * one sets off is skipped. Each death takes a unit, so a chain ends anyway; this keeps the call stack small. 64 by
-   * default.
+   * one sets off is skipped, a lethal `setHealth` as much as a blow. Each death takes a unit, so a chain ends anyway;
+   * this keeps the call stack small. 64 by default.
    */
   readonly maxKillChain?: number;
 }

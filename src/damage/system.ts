@@ -56,7 +56,10 @@ export interface DamageSystem<G extends DamageTypes> {
   /** The game's own stages (`damage.name`, `heal.name`, `force.name`), in declaration order, for the escape report. */
   readonly gameStages: readonly string[];
 
-  /** How many blows, heals and forces were skipped so far for nesting too deep (`maxDepth`, `maxKillChain`). */
+  /**
+   * How many blows, heals, forces and lethal `setHealth`s were skipped so far for nesting too deep (`maxDepth`,
+   * `maxKillChain`).
+   */
   readonly dropped: number;
 
   /** The proc kinds `damage`, `heal` and `setHealth`: `createProcRegistry({ ...CORE_PROCS, ...damage.procKinds })`. */
@@ -142,19 +145,30 @@ const setHealthWith =
       return PROC_SKIPPED;
     }
 
-    engine.host.setHealth(unit, health);
-
     if (!engine.isDead(health)) {
+      engine.host.setHealth(unit, health);
+
       return PROC_LANDED;
     }
 
-    runDeath(engine, {
-      unit,
-      killer: credit.attacker,
-      source: engine.sourceOf(credit.source, credit.attacker),
-      spell: credit.spell,
-      blow: undefined
-    });
+    // A lethal change is a nesting level like a blow: refused (health untouched, counted dropped) past the depth or
+    // the kill chain, so a death that sets health on the next unit cannot chain past `maxKillChain`.
+    if (!engine.enter()) {
+      return PROC_SKIPPED;
+    }
+
+    try {
+      engine.host.setHealth(unit, health);
+      runDeath(engine, {
+        unit,
+        killer: credit.attacker,
+        source: engine.sourceOf(credit.source, credit.attacker),
+        spell: credit.spell,
+        blow: undefined
+      });
+    } finally {
+      engine.leave();
+    }
 
     return SET_KILLED;
   };

@@ -339,7 +339,7 @@ describe('the death pipeline', () => {
   });
 
   it('lets a chain of kills run past maxDepth, each death nesting afresh, up to maxKillChain', () => {
-    const chain = (maxKillChain?: number) => {
+    const chain = (maxKillChain?: number, how: 'hit' | 'setHealth' = 'hit') => {
       const game = makeDamageGame(
         {},
         {
@@ -350,8 +350,10 @@ describe('the death pipeline', () => {
               (death, system) => {
                 const next = game.units.get(death.unit.id + 1);
 
-                if (next !== undefined) {
+                if (next !== undefined && how === 'hit') {
                   system.hit({ target: next, amount: 1000 });
+                } else if (next !== undefined) {
+                  system.setHealth(next, 0);
                 }
               }
             ]
@@ -370,5 +372,10 @@ describe('the death pipeline', () => {
 
     assert.deepEqual(chain(), { dead: 12, dropped: 0 });
     assert.deepEqual(chain(3), { dead: 4, dropped: 1 });
+
+    // A lethal setHealth is held by the same limit as a blow.
+    assert.deepEqual(chain(undefined, 'setHealth'), { dead: 12, dropped: 0 });
+    assert.deepEqual(chain(1, 'setHealth'), chain(1));
+    assert.deepEqual(chain(1, 'setHealth'), { dead: 2, dropped: 1 });
   });
 });

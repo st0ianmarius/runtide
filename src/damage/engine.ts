@@ -125,7 +125,7 @@ export class DamageEngine<G extends DamageTypes> {
   /** How many deaths are running, each inside the one before. */
   chain = 0;
 
-  /** How many blows, heals and forces were skipped for nesting too deep. */
+  /** How many blows, heals, forces and lethal `setHealth`s were skipped for nesting too deep. */
   dropped = 0;
   #system: DamageSystem<G> | undefined = undefined;
 
