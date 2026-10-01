@@ -306,6 +306,39 @@ describe('hooks that throw', () => {
     assert.deepEqual([auras.list(u).length, auras.pool.live], [0, 0]);
   });
 
+  it('still raise applied for an aura whose onLand throws, so its setup pairs with its teardown', () => {
+    const { auras, id, unit, log } = makeGame({
+      brand: aura({
+        duration: 5,
+        tags: ['stun'],
+        ...logged('brand'),
+
+        onLand: () => {
+          throw new Error('brand');
+        }
+      })
+    });
+
+    const u = unit();
+
+    assert.throws(() => auras.apply(u, id.brand), /brand/);
+    assert.deepEqual([auras.has(u, id.brand), auras.hasTag(u, TAGS.id.stun)], [true, true]);
+    auras.remove(u, id.brand);
+    assert.deepEqual(log, ['applied:brand@1', 'removed:brand@1']);
+  });
+
+  it('refuse a first live period that is not above 0, as every later one, the aura landed and applied raised', () => {
+    const { auras, id, unit, log } = makeGame({
+      dot: aura({ duration: 5, ...logged('dot'), periodic: { every: () => Number.NaN, onBeat: () => ['beat'] } })
+    });
+
+    const u = unit();
+
+    assert.throws(() => auras.apply(u, id.dot), /dot: a live period must be more than 0; got NaN/);
+    assert.deepEqual(log, ['applied:dot@1']);
+    assert.equal(auras.has(u, id.dot), true);
+  });
+
   it('still have every aura hear a state and the state’s auras go, then throw', () => {
     const { auras, id, unit, log } = makeGame({
       bomb: aura({

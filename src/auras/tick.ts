@@ -7,8 +7,12 @@ import type { AuraEngine } from './engine.ts';
 import { expireAt } from './remove.ts';
 import { type AuraSet, setOf } from './state.ts';
 
-/** The period of an aura's beat, read live when it is a function; it must be more than 0. */
-const periodOf = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], item: AuraItem<G>): number => {
+/** The period of an aura's beat (its first one too), read live when it is a function; it must be more than 0. */
+export const periodOf = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  item: AuraItem<G>
+): number => {
   const every = engine.registry.defs[item.id]?.periodic?.every ?? 0;
 
   if (typeof every !== 'function') {

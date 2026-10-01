@@ -9,6 +9,7 @@ import type { AuraEngine } from './engine.ts';
 import { cleanse, evictFor } from './remove.ts';
 import { addedStacks, restack, stackingOf } from './restack.ts';
 import { type AuraSet, setOf } from './state.ts';
+import { periodOf } from './tick.ts';
 
 /** The change code of `applied`. */
 const APPLIED = CHANGES.indexOf('applied');
@@ -87,23 +88,6 @@ const land = <G extends AuraTypes>(
   }
 };
 
-/** The seconds until an aura's first beat, read from its period. */
-const firstBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], item: AuraItem<G>): number => {
-  const every = engine.registry.defs[item.id]?.periodic?.every;
-
-  if (typeof every !== 'function') {
-    return every ?? 0;
-  }
-
-  const context = engine.events.take(bearer, item);
-
-  try {
-    return every(context);
-  } finally {
-    engine.events.give();
-  }
-};
-
 /** Lands a fresh instance: evicts at the cap, fills it, inserts it in order and queues `applied`. */
 const fresh = <G extends AuraTypes>(
   engine: AuraEngine<G>,
@@ -132,13 +116,19 @@ const fresh = <G extends AuraTypes>(
   engine.insert(set, item);
   engine.refreshTags(set);
   set.changes += 1;
-  item.nextBeat = firstBeat(engine, bearer, item);
+  item.nextBeat = 0;
 
-  if (engine.registry.has.onLand.has(id)) {
-    land(engine, bearer, item, application);
+  // On its bearer now: `applied` goes out even when its first period or `onLand` throws, so its setup pairs with the
+  // teardown its removal runs; then it throws.
+  try {
+    item.nextBeat = periodOf(engine, bearer, item);
+
+    if (engine.registry.has.onLand.has(id)) {
+      land(engine, bearer, item, application);
+    }
+  } finally {
+    engine.events.raise(APPLIED, bearer, item);
   }
-
-  engine.events.raise(APPLIED, bearer, item);
 
   return item;
 };
