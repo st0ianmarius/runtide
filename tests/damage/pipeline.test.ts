@@ -88,6 +88,21 @@ describe('the damage pipeline order', () => {
     assert.deepEqual(damage.stages.slice(3, 8), ['early', 'mitigation.armor', 'between', 'mitigation.taken', 'late']);
   });
 
+  it('puts a stage placed after an anchor past one placed before a stage that hangs from it', () => {
+    const { damage } = makeDamageGame(
+      {},
+      {
+        stages: {
+          shelter: { after: 'ignore', run: () => undefined },
+          brace: { before: 'shelter', run: () => undefined },
+          horde: { after: 'ignore', run: () => undefined }
+        }
+      }
+    );
+
+    assert.deepEqual(damage.stages.slice(0, 5), ['ignore', 'brace', 'shelter', 'horde', 'outgoing']);
+  });
+
   it('records every stage of a traced blow, with the amount and status after it', () => {
     const { damage, unit } = makeDamageGame({});
     const trace: BlowStep[] = [];

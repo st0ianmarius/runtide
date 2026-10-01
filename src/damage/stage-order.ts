@@ -57,6 +57,14 @@ const hangsFrom = (order: Building, [name, anchor]: readonly [string | undefined
 /** The index a stage goes to, from its anchor: before it, or after it and everything already hanging from it. */
 const slotFor = (order: Building, [name, at]: readonly [string, StagePosition]): number => {
   if (at.before !== undefined) {
+    // Placed before a stage that hangs from an anchor, it hangs from that anchor too: a later `after` that anchor goes
+    // past it.
+    const anchor = order.hangsFrom.get(at.before);
+
+    if (anchor !== undefined) {
+      order.hangsFrom.set(name, anchor);
+    }
+
     return order.names.indexOf(at.before);
   }
 

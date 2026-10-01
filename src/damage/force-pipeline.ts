@@ -59,6 +59,14 @@ const runForceStages = <G extends DamageTypes>(
   let i = 0;
 
   for (; i < afterFrom; i++) {
+    // A game stage's blow killed the target: the rest of this force never happened, as with a blow or a heal.
+    if (i > 0 && engine.isDeadNow(force.target)) {
+      force.status = 'skipped';
+      force.amount = 0;
+
+      return;
+    }
+
     const stop = runs[i]?.(force);
 
     if (stop !== undefined) {

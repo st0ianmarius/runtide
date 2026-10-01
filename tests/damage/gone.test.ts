@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { damage, setHealth } from '../../src/damage/index.ts';
-import { aura, type DamageGame, makeDamageGame } from '../helpers/damage-game.ts';
+import { aura, type DamageGame, KINDS, makeDamageGame } from '../helpers/damage-game.ts';
 
 describe('units out of play', () => {
   it('take no blow, heal or death once the host says they are gone, whatever their health', () => {
@@ -146,5 +146,45 @@ describe('units out of play', () => {
     game.damage.hit({ target: game.units.get(1) ?? game.unit(1), amount: 1000 });
     assert.equal([...game.units.values()].filter((each) => each.hp <= 0).length, 12);
     assert.equal(game.procs.dropped, 0);
+  });
+});
+
+describe('pipelines that cannot turn a sign or move the dead', () => {
+  it('takes a whole blow, and no more, when a damage-taken multiplier goes below 0', () => {
+    const { damage: system, unit, set } = makeDamageGame({});
+    const [attacker, target] = [unit(1), unit(2)];
+
+    set(target, 'taken', -0.5);
+
+    const blow = system.hit({ target, attacker, amount: 40, kind: KINDS.id.fire });
+
+    assert.deepEqual([blow.amount, target.hp], [0, 100]);
+  });
+
+  it('moves no unit a force stage’s blow killed', () => {
+    const game = makeDamageGame(
+      {},
+      {
+        forceStages: {
+          spike: {
+            before: 'apply',
+
+            run: (force, system) => {
+              system.hit({ target: force.target, amount: 500, kind: KINDS.id.pure });
+
+              return undefined;
+            }
+          }
+        }
+      }
+    );
+
+    const force = game.damage.force({ target: game.unit(2), strength: 3 });
+
+    assert.deepEqual([force.status, force.amount], ['skipped', 0]);
+    assert.equal(
+      game.log.some((line) => line.startsWith('force')),
+      false
+    );
   });
 });

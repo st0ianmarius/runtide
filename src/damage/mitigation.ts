@@ -224,14 +224,18 @@ export const penetrated = (row: CompiledRow, ctx: RowContext): number => {
 export const isAmplifyingAt = (row: CompiledRow, rating: number): boolean =>
   rating < 0 && row.curve?.kind === 'hyperbolic' && row.curve.isAmplifying;
 
-/** The factor one row multiplies the amount by: `1 − reduction`, the amplifying multiplier, or its stat. */
+/**
+ * The factor one row multiplies the amount by: `1 − reduction`, the amplifying multiplier, or its stat; never below 0,
+ * so a reduction past 100% (a linear or rating curve, a negative multiplier stat) takes it all, and no row turns a
+ * blow's sign.
+ */
 export const rowFactor = (row: CompiledRow, ctx: RowContext): number => {
   if (row.curve === undefined) {
-    return row.multiplier === undefined ? 1 : ctx.target.total(row.multiplier);
+    return row.multiplier === undefined ? 1 : Math.max(0, ctx.target.total(row.multiplier));
   }
 
   const rating = penetrated(row, ctx);
   const value = evaluateCurve(row.curve, rating, ctx);
 
-  return isAmplifyingAt(row, rating) ? value : 1 - value;
+  return Math.max(0, isAmplifyingAt(row, rating) ? value : 1 - value);
 };
