@@ -1,3 +1,6 @@
 {
-  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json"
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // The public entry points (the package's exports, from src), and the docs' examples: standalone programs the
+  // typecheck covers, which nothing imports.
+  "entry": ["src/index.ts", "src/*/index.ts", "docs/examples/*.ts"]
 }

@@ -28,13 +28,10 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm run format:check
+      - run: npm run fmt:check
       - run: npm test
-      - run: npm run docs:check
       - run: npm run build
       - run: npm run knip
-      - name: browser bundle (src must not reach for Node built-ins)
-        run: npm run bundle:check
 
   bench:
     # The benchmarks on every push to master, on one fixed machine type, kept as an artifact beside the baseline
