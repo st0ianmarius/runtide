@@ -37,6 +37,9 @@ const COUNTED: readonly ProcOutcome[] = Array.from({ length: 17 }, (_unused, amo
 const counted = (count: number): ProcOutcome =>
   count === 0 ? PROC_SKIPPED : (COUNTED[count] ?? procOutcome('landed', { amount: count }));
 
+/** Whether a unit is in play: summoning stops the moment a callback takes its owner out. */
+const isAlive = (unit: UnitTypes['bearer']): boolean => unitOf(unit).lifecycle === 'alive';
+
 /** A template's id from its name or id. Throws for one the registry does not have. */
 const templateOf = <G extends UnitTypes>(engine: UnitEngine<G>, unit: G['unitName'] | UnitId): UnitId => {
   const ids: Readonly<Record<string, UnitId | undefined>> = engine.registry.id;
@@ -115,7 +118,7 @@ const spawnSummon = <G extends UnitTypes>(
   const cast = spells.castFor(ctx);
 
   // A summon its own `spawned` listeners despawned holds nothing.
-  if (cast !== NO_CAST && unitOf<G>(unit).lifecycle === 'alive' && spells.retain(cast)) {
+  if (cast !== NO_CAST && isAlive(unit) && spells.retain(cast)) {
     unitOf<G>(unit).cast = cast;
   }
 };
@@ -209,7 +212,7 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
 
   apply: (proc, ctx, owner) => {
     // A late list (an `after` from a caster gone since) summons nothing for an owner out of play.
-    if (owner === undefined || unitOf<G>(owner).lifecycle !== 'alive') {
+    if (owner === undefined || !isAlive(owner)) {
       return PROC_SKIPPED;
     }
 
@@ -220,18 +223,11 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
 
     let summoned = 0;
 
-    for (let i = 0; i < count; i++) {
-      if (unitOf<G>(owner).lifecycle !== 'alive') {
-        break;
-      }
-
+    // `atOf`, a replaced summon's despawn and the spawn's listeners are callbacks: each may take the owner out.
+    for (let i = 0; i < count && isAlive(owner); i++) {
       const at = proc.atOf?.(ctx) ?? proc.at;
 
-      if (
-        unitOf<G>(owner).lifecycle !== 'alive' ||
-        !admitSummon(parts, [proc, owner], template) ||
-        unitOf<G>(owner).lifecycle !== 'alive'
-      ) {
+      if (!isAlive(owner) || !admitSummon(parts, [proc, owner], template) || !isAlive(owner)) {
         break;
       }
 
