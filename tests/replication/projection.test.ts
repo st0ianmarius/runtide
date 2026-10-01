@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { defineValues } from '../../src/conditions/index.ts';
 import { createModifierSystem, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
 import { defineProjection } from '../../src/replication/index.ts';
 
@@ -34,6 +35,39 @@ describe('stat projections', () => {
     assert.deepEqual(full.names, ['speed', 'armor']);
     assert.equal(base.sources, 1);
     assert.equal(full.sources, undefined);
+  });
+
+  it('keeps the outer host when a value reader writes the projection for another bearer', () => {
+    interface Unit {
+      readonly power: number;
+      readonly ally?: Unit;
+    }
+
+    const late: { write?: (host: Unit) => void } = {};
+
+    const values = defineValues({
+      power: (host: Unit) => {
+        if (host.ally !== undefined) {
+          late.write?.(host.ally);
+        }
+
+        return host.power;
+      }
+    });
+
+    const stats = defineStats({ speed: { base: 0, kind: 'flat' }, armor: { base: 0, kind: 'flat' } });
+    const sources = defineSources(['gear']);
+    const modifiers = createModifierSystem({ stats, sources, values });
+    const sheet = modifiers.createSheet();
+    const power = { kind: 'host', value: 'power', arg: 0 } as const;
+    const projection = defineProjection(modifiers, { stats: ['speed', 'armor'] });
+
+    modifiers.setSource(sheet, sources.id.gear, [modifiers.compile([plus('speed', power), plus('armor', power)])]);
+    late.write = (host) => {
+      projection.write(sheet, [0, 0], host);
+    };
+
+    assert.deepEqual(projection.write(sheet, [0, 0], { power: 10, ally: { power: 3 } }), [10, 10]);
   });
 
   it('refuses a stat the table does not have', () => {

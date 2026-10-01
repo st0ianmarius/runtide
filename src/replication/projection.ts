@@ -68,16 +68,21 @@ export const defineProjection = <Host, S extends string, C extends string, V ext
     sources,
 
     write: <Out extends Record<number, number>>(sheet: StatSheet, out: Out, host?: Host): Out => {
+      // A value reader may write this projection for another bearer: the outer host comes back after it.
+      const outer = read.host;
+
       read.host = host;
 
-      // Indexed, as a projection is written per bearer per snapshot.
-      for (let i = 0; i < stats.length; i++) {
-        const stat = stats[i];
+      try {
+        // Indexed, as a projection is written per bearer per snapshot.
+        for (let i = 0; i < stats.length; i++) {
+          const stat = stats[i];
 
-        out[i] = stat === undefined ? 0 : modifiers.resolve(sheet, stat, read);
+          out[i] = stat === undefined ? 0 : modifiers.resolve(sheet, stat, read);
+        }
+      } finally {
+        read.host = outer;
       }
-
-      read.host = undefined;
 
       return out;
     }
