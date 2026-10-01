@@ -21,14 +21,16 @@ import type { SpellTypes } from './spell-types.ts';
 const NO_PROCS: readonly never[] = Object.freeze([]);
 
 /**
- * One delayed list of procs (the lightest area trigger), pooled: the origin captured when it was scheduled
- * (self, target, event unit, credit), the procs, the cast it belongs to (held alive until it lands), and its
- * due time as an anchor tick plus seconds, so a chained delay is due from its parent's due time.
+ * One delayed list of procs (the lightest area trigger), pooled: the origin captured when it was scheduled (self,
+ * target, event unit, other unit, credit; not its aura, whose slot may be another's by the time it lands), the procs,
+ * the cast it belongs to (held alive until it lands), and its due time as an anchor tick plus seconds, so a chained
+ * delay is due from its parent's due time.
  */
 class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
   self: G['bearer'];
   target: G['bearer'];
   eventUnit: G['bearer'] | undefined = undefined;
+  other: G['bearer'] | undefined = undefined;
   source = NO_SOURCE;
   procs: readonly Proc<G>[] = NO_PROCS;
   cast: Cast<G> | undefined = undefined;
@@ -134,6 +136,7 @@ export class DelayedProcs<G extends SpellTypes> {
     record.self = ctx.self;
     record.target = ctx.target;
     record.eventUnit = ctx.eventUnit;
+    record.other = ctx.other;
     record.source = ctx.source;
     record.procs = spec.procs;
     record.bound = spec.bound;
@@ -307,6 +310,7 @@ export class DelayedProcs<G extends SpellTypes> {
     record.bound = undefined;
     record.procs = NO_PROCS;
     record.eventUnit = undefined;
+    record.other = undefined;
     this.#pool.release(record.handle);
 
     if (cast !== undefined) {

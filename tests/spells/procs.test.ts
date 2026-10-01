@@ -350,6 +350,17 @@ describe('delayed procs', () => {
     assert.deepEqual(game.log.slice(-3), ['late one@1', 'early one@1', 'early two@1']);
   });
 
+  it('keeps the event’s other unit for a list it delays, as for one it runs at once', () => {
+    const seen: (number | undefined)[] = [];
+    const game = makeSpellGame({});
+    const probe = run<Game>('other', (ctx) => void seen.push(ctx.other?.id));
+
+    game.procs.run([probe, after<Game>(0.5, [probe])], { self: game.unit(1), other: game.unit(100) });
+    game.step(2);
+    game.spells.stepDelayed();
+    assert.deepEqual(seen, [100, 100]);
+  });
+
   it('refuses seconds below 0 and a slot the system does not have, at load and when it applies', () => {
     const game = makeSpellGame({
       bolt: spell({ activation: { kind: 'trigger' }, release: () => undefined })
