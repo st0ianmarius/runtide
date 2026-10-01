@@ -1,5 +1,5 @@
 import { isAuto } from './activation.ts';
-import { type Cast, NO_SCALED, NO_STATS } from './cast.ts';
+import { type Cast, NO_SCALED, NO_STATS, StatsCall } from './cast.ts';
 import { LIVE, STATS_FUNCTION, STATS_TABLE } from './define-spells.ts';
 import type { SpellEngine } from './engine.ts';
 import type { AnySpellDef } from './spell-def.ts';
@@ -37,15 +37,23 @@ export const takeStats = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Ca
   }
 
   const { stats } = def;
-  const call = engine.statsCall;
+
+  // A stats function may check another spell, taking its stats with a context of its own.
+  const depth = engine.statsDepth++;
+  const call = (engine.statsCalls[depth] ??= new StatsCall<G>());
 
   call.caster = cast.caster;
   call.spell = cast.spell;
   call.rank = cast.rank;
   call.view = view;
-  cast.stats = typeof stats === 'function' ? stats(call) : NO_STATS;
-  cast.scaled = NO_SCALED;
-  call.caster = undefined;
+
+  try {
+    cast.stats = typeof stats === 'function' ? stats(call) : NO_STATS;
+    cast.scaled = NO_SCALED;
+  } finally {
+    call.caster = undefined;
+    engine.statsDepth = depth;
+  }
 };
 
 /** Takes a `live` spell's stats again, before a hook; nothing for a snapshot spell. */

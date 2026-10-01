@@ -10,9 +10,20 @@ import {
   CORE_ACTIVATIONS,
   defineActivationKind,
   defineActivations,
-  NO_CAST
+  NO_CAST,
+  type StatsContext
 } from '../../src/spells/index.ts';
-import { aura, type Charged, CUES, type Game, makeSpellGame, mark, spell, STATS } from '../helpers/spell-game.ts';
+import {
+  aura,
+  type Charged,
+  CUES,
+  type Game,
+  makeSpellGame,
+  mark,
+  spell,
+  type SpellGame,
+  STATS
+} from '../helpers/spell-game.ts';
 
 /** A spell that goes out at once and marks its moments. */
 const bolt = spell({
@@ -79,6 +90,41 @@ describe('the cast order', () => {
     assert.deepEqual(order, ['canAct', 'stats', 'canCast', 'target', 'begin', 'release']);
     assert.equal(report.status, 'ended');
     assert.equal(report.refusal, undefined);
+  });
+
+  it('hands a stats function its own caster, spell and rank after it checks another spell', () => {
+    const late: { game?: SpellGame<'outer' | 'inner', never> } = {};
+    const seen: unknown[] = [];
+
+    const game = makeSpellGame({
+      outer: spell({
+        activation: { kind: 'trigger' },
+
+        stats: (ctx: StatsContext<Game>) => {
+          if (ctx.caster !== undefined) {
+            late.game?.spells.check(ctx.caster, late.game.id.inner, { rank: 2 });
+          }
+
+          return { rank: ctx.rank, caster: ctx.caster?.id ?? 0, spell: ctx.spell };
+        },
+
+        release: (ctx) => {
+          seen.push(ctx.stats);
+
+          return undefined;
+        }
+      }),
+      inner: spell({
+        activation: { kind: 'trigger' },
+        stats: (ctx: StatsContext<Game>) => ({ rank: ctx.rank }),
+        release: () => undefined
+      })
+    });
+
+    late.game = game;
+
+    game.spells.cast(game.unit(1), game.id.outer);
+    assert.deepEqual(seen, [{ rank: 1, caster: 1, spell: game.id.outer }]);
   });
 
   it('refuses at the gate before the stats, at canCast after them, and with no target after both', () => {

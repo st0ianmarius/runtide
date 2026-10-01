@@ -6,7 +6,7 @@ import { fireCue } from '../cues/index.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { Proc, ProcOutcome, ProcSystem } from '../procs/index.ts';
 import type { CastPlan } from './cast-plan.ts';
-import { Cast, type CastServices, NO_SCALED, NO_STATS, StatsCall } from './cast.ts';
+import { Cast, type CastServices, NO_SCALED, NO_STATS, type StatsCall } from './cast.ts';
 import type { Cooldowns } from './cooldowns.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import { DelayedProcs } from './delayed.ts';
@@ -116,8 +116,11 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   readonly baseView: StatView;
   readonly pool: Pool<Cast<G>>;
 
-  /** What `stats` functions are called with, reused. */
-  readonly statsCall = new StatsCall<G>();
+  /** What `stats` functions are called with, reused: one per nesting level, as one may check another spell. */
+  readonly statsCalls: StatsCall<G>[] = [];
+
+  /** How many `stats` functions are running, one inside another. */
+  statsDepth = 0;
 
   /** The pause bit of every interrupt a spell's timeline names, from bit 1 up, by name. */
   readonly interruptBits: ReadonlyMap<string, number>;
