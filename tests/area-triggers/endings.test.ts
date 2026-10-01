@@ -697,3 +697,53 @@ describe('procs and keys', () => {
     assert.equal(game.areaTriggers.pool.live, 0);
   });
 });
+
+describe('a hook that throws', () => {
+  it('still ends an area trigger whose end hook throws: unlinked, uncounted and back in the pool', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          pool: ending({
+            onEnd: () => {
+              throw new Error('end hook');
+            }
+          })
+        }
+      }
+    );
+
+    const owner = game.unit(1);
+    const handle = game.areaTriggers.spawn(game.areaId.pool, { owner, at: vec2(0, 0) });
+
+    assert.throws(() => game.areaTriggers.despawn(handle), /end hook/);
+    assert.equal(game.areaTriggers.isLive(handle), false);
+    assert.equal(game.areaTriggers.countOf(owner, game.areaId.pool), 0);
+    assert.equal(game.areaTriggers.pool.live, 0);
+  });
+
+  it('frees a spawn whose lifetime throws, and ends one whose init throws', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          empty: ending({ lifetime: () => 0 }),
+
+          broken: ending({
+            init: () => {
+              throw new Error('init hook');
+            }
+          })
+        }
+      }
+    );
+
+    const owner = game.unit(1);
+
+    assert.throws(() => game.areaTriggers.spawn(game.areaId.empty, { owner, at: vec2(0, 0) }), /lifetime/);
+    assert.equal(game.areaTriggers.pool.live, 0);
+    assert.throws(() => game.areaTriggers.spawn(game.areaId.broken, { owner, at: vec2(0, 0) }), /init hook/);
+    assert.equal(game.areaTriggers.countOf(owner, game.areaId.broken), 0);
+    assert.equal(game.areaTriggers.pool.live, 0);
+  });
+});

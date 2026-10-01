@@ -156,14 +156,13 @@ const admitLimit = <G extends AreaTriggerTypes>(
   return true;
 };
 
-/** Makes it live: its id, lifetime, place in the orders, owner aura, `init`, cue and event. */
-const enter = <G extends AreaTriggerTypes>(
+/** Gives it its id and lifetime, and puts an owner-anchored one on its owner: nothing links it anywhere yet. */
+const settle = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
   def: AnyAreaTriggerDef<G>
 ): void => {
   const { registry } = engine;
-  const flags = registry.columns.flags[area.kind] ?? 0;
 
   area.id = engine.allocateId();
 
@@ -171,31 +170,78 @@ const enter = <G extends AreaTriggerTypes>(
   area.remaining = secondsOf(registry.name(area.kind), lifetime);
   area.isOwnerLifetime = lifetime === 'owner';
 
-  if ((flags & ANCHOR_OWNER) !== 0) {
+  if (((registry.columns.flags[area.kind] ?? 0) & ANCHOR_OWNER) !== 0) {
     area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner, engine.point));
   }
+};
 
+/**
+ * Fills it, asks its limit and settles it; whether it may enter. One the limit refuses, or whose filling throws (a
+ * lifetime of 0), is let go with its cast before anything links it.
+ */
+const admit = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  area: AreaTrigger<G>,
+  [spec, parent, def]: readonly [SpawnSpec<G>, AreaTrigger<G> | undefined, AnyAreaTriggerDef<G>]
+): boolean => {
+  let isAdmitted = false;
+
+  try {
+    bindCredit(engine, area, spec);
+    fill(engine, area, [spec, parent]);
+
+    if (admitLimit(engine, area, def)) {
+      settle(engine, area, def);
+      isAdmitted = true;
+    }
+  } finally {
+    if (!isAdmitted) {
+      engine.spells.unretain(area.castHandle);
+      engine.free(area);
+    }
+  }
+
+  return isAdmitted;
+};
+
+/**
+ * Makes it live: its place in the orders, owner aura, `init`, pulses, cue and event. One whose owner aura or `init`
+ * throws is ended, so nothing is left linked, counted or holding its cast.
+ */
+const enter = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  area: AreaTrigger<G>,
+  def: AnyAreaTriggerDef<G>
+): void => {
   openLedgers(engine, area);
   linkKind(engine, area);
   engine.count(area.owner, [area.kind, 1]);
-  engine.holdOwnerAura(area, true);
-  placeShape(engine, area);
 
-  const init = registry.hooks.init[area.kind];
+  try {
+    engine.holdOwnerAura(area, true);
+    placeShape(engine, area);
 
-  if (init !== undefined) {
-    init(area, area.input);
+    const init = engine.registry.hooks.init[area.kind];
 
-    // Its `init` ended it (a withdrawal that caught itself): it ended before it was ever announced.
-    if (area.isEnding) {
-      return;
+    if (init !== undefined) {
+      init(area, area.input);
+
+      // Its `init` ended it (a withdrawal that caught itself): it ended before it was ever announced.
+      if (area.isEnding) {
+        return;
+      }
+
+      // `init` may have moved or turned it.
+      placeShape(engine, area);
     }
 
-    // `init` may have moved or turned it.
-    placeShape(engine, area);
+    joinPulses(engine, area);
+  } catch (error) {
+    endArea(engine, area, 'self');
+
+    throw error;
   }
 
-  joinPulses(engine, area);
   engine.fire(area, def.cues?.spawn?.(area));
   engine.raise('spawned', area);
 };
@@ -217,16 +263,11 @@ export const spawnArea = <G extends AreaTriggerTypes>(
 
   area.kind = kind;
   bindCast(engine, area, spec);
-  bindCredit(engine, area, spec);
-  fill(engine, area, [spec, parent]);
 
   // Read before the limit, whose replaced trigger's `onEnd` may spawn again with the same reused spec.
   const { now } = spec;
 
-  if (!admitLimit(engine, area, def)) {
-    engine.spells.unretain(area.castHandle);
-    engine.free(area);
-
+  if (!admit(engine, area, [spec, parent, def])) {
     return NO_AREA_TRIGGER;
   }
 

@@ -75,17 +75,26 @@ export const endArea = <G extends AreaTriggerTypes>(
   area.isEnding = true;
   engine.hold();
 
+  // Each step that runs game code is followed by the rest in a `finally`: a hook or listener that throws still leaves
+  // the trigger ended, out of its lists, its auras off and its record freed, since a second end would do nothing.
   try {
     runEndHook(engine, area, reason);
-    dropAreaAuras(engine, area);
-    closeLedgers(engine, area);
-    unlinkKind(engine, area);
-    engine.count(area.owner, [area.kind, -1]);
-    engine.holdOwnerAura(area, false);
-    engine.raise('ended', area, reason);
-    engine.spells.unretain(area.castHandle);
-    engine.free(area);
   } finally {
-    engine.unhold();
+    try {
+      dropAreaAuras(engine, area);
+    } finally {
+      closeLedgers(engine, area);
+      unlinkKind(engine, area);
+      engine.count(area.owner, [area.kind, -1]);
+
+      try {
+        engine.holdOwnerAura(area, false);
+        engine.raise('ended', area, reason);
+      } finally {
+        engine.spells.unretain(area.castHandle);
+        engine.free(area);
+        engine.unhold();
+      }
+    }
   }
 };
