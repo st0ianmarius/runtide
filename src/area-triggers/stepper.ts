@@ -110,6 +110,8 @@ export const stepSlot = <G extends AreaTriggerTypes>(
   slot: number,
   owner: G['bearer'] | undefined
 ): number => {
+  engine.ledgers.sweep();
+
   const kinds = engine.slotKinds[slot] ?? [];
   const owned = owner === undefined ? undefined : engine.ownerOf(owner);
 

@@ -55,7 +55,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   readonly queries: AreaQueryApi<G>;
 
   /** The hit ledgers. */
-  readonly ledgers = new LedgerBook();
+  readonly ledgers = new LedgerBook((cast) => this.spells.get(cast) !== undefined);
 
   /** How many enter-exit area auras hold each unit's aura. */
   readonly auraHolds = new AuraHolds<G['bearer']>();

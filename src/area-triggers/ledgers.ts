@@ -1,5 +1,6 @@
 import { toHandle } from '../core/ids.ts';
 import { createPool, type Handle, type Pool, stepsUntil } from '../core/index.ts';
+import type { CastHandle } from '../spells/index.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaLedger, AreaLedgerSpec } from './delivery-def.ts';
@@ -9,7 +10,8 @@ import type { AreaEngine } from './engine.ts';
 const PRUNE_FROM = 64;
 
 /**
- * One hit ledger, pooled: the tick each unit (by entity id) was last hit, and its counts; shared by as many area triggers as its scope joins, and back to the pool when the last lets go.
+ * One hit ledger, pooled: the tick each unit (by entity id) was last hit, and its counts; shared by as many area
+ * triggers as its scope joins, and back to the pool when the last lets go (a cast's, once its cast is gone too).
  */
 export class Ledger {
   /** The tick each unit was last hit on, by entity id. */
@@ -41,10 +43,22 @@ export class Ledger {
   }
 }
 
-/** The ledgers of one engine: the pool, and the cast-scoped ones by cast and name. */
+/**
+ * The ledgers of one engine: the pool, and the cast-scoped ones by cast and name. A cast's ledger outlives the area
+ * triggers that held it while its cast lives, so a later delivery of the same cast reads the same history; `sweep`
+ * puts it back once the cast is gone.
+ */
 export class LedgerBook {
   readonly #pool: Pool<Ledger> = createPool({ create: () => new Ledger() });
-  readonly #byCast = new Map<number, Map<string, Ledger>>();
+  readonly #byCast = new Map<CastHandle, Map<string, Ledger>>();
+  readonly #isLive: (cast: CastHandle) => boolean;
+
+  /** The casts with a ledger no area trigger holds, kept while the cast lives. */
+  readonly #parked = new Set<CastHandle>();
+
+  constructor(isLive: (cast: CastHandle) => boolean) {
+    this.#isLive = isLive;
+  }
 
   /** How many ledgers are live. */
   get live(): number {
@@ -64,7 +78,7 @@ export class LedgerBook {
   }
 
   /** The ledger a cast shares under a name, opened on first use, held once more. */
-  ofCast(cast: number, name: string, spec: AreaLedgerSpec): Ledger {
+  ofCast(cast: CastHandle, name: string, spec: AreaLedgerSpec): Ledger {
     let byName = this.#byCast.get(cast);
 
     if (byName === undefined) {
@@ -87,14 +101,50 @@ export class LedgerBook {
     return ledger;
   }
 
-  /** Lets go of one hold; the last hold puts it back in the pool. */
-  close(ledger: Ledger, cast: number): void {
+  /** Lets go of one hold; the last hold puts it back in the pool, or parks a cast's ledger while its cast lives. */
+  close(ledger: Ledger, cast: CastHandle): void {
     ledger.refs -= 1;
 
     if (ledger.refs > 0) {
       return;
     }
 
+    const byName = this.#byCast.get(cast);
+
+    if (byName === undefined || !this.#isLive(cast)) {
+      this.#drop(ledger, cast);
+    } else if (isNamedIn(byName, ledger)) {
+      this.#parked.add(cast);
+    } else {
+      this.#release(ledger);
+    }
+  }
+
+  /** Puts back the ledgers no area trigger holds of every parked cast that is gone. */
+  sweep(): void {
+    if (this.#parked.size === 0) {
+      return;
+    }
+
+    for (const cast of this.#parked) {
+      if (!this.#isLive(cast)) {
+        this.#parked.delete(cast);
+        this.#dropIdle(cast);
+      }
+    }
+  }
+
+  /** Puts back every ledger of a cast that no area trigger holds. */
+  #dropIdle(cast: CastHandle): void {
+    for (const ledger of this.#byCast.get(cast)?.values() ?? []) {
+      if (ledger.refs <= 0) {
+        this.#drop(ledger, cast);
+      }
+    }
+  }
+
+  /** Takes a ledger out of its cast's names, then back to the pool. */
+  #drop(ledger: Ledger, cast: CastHandle): void {
     const byName = this.#byCast.get(cast);
 
     for (const [name, shared] of byName ?? []) {
@@ -107,6 +157,11 @@ export class LedgerBook {
       this.#byCast.delete(cast);
     }
 
+    this.#release(ledger);
+  }
+
+  /** Clears a ledger and gives it to the pool. */
+  #release(ledger: Ledger): void {
     ledger.last.clear();
     ledger.distinct = 0;
     ledger.hits = 0;
@@ -114,6 +169,17 @@ export class LedgerBook {
     this.#pool.release(ledger.handle);
   }
 }
+
+/** Whether a ledger is one of a cast's named ledgers, not an area trigger's own. */
+const isNamedIn = (byName: ReadonlyMap<string, Ledger>, ledger: Ledger): boolean => {
+  for (const shared of byName.values()) {
+    if (shared === ledger) {
+      return true;
+    }
+  }
+
+  return false;
+};
 
 /** Whether a unit last hit on tick `last` may be hit again under `rehit`: its cooldown has run since. */
 const isCool = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, cooldown: number, last: number): boolean => {

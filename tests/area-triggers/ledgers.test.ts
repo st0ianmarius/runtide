@@ -79,6 +79,37 @@ describe('hit policies', () => {
     assert.deepEqual(hits(game.log), ['hit 1 0.25: 100x1', 'hit 3 0.25: 100x1']);
   });
 
+  it('keeps a cast’s once-per-cast history between its deliveries while the cast runs, and lets it go after', () => {
+    const game = makeSpellGame(
+      {
+        storm: spell({
+          activation: { kind: 'trigger' },
+          release: () => [],
+          timeline: { channel: { seconds: 2, every: 1, tick: () => [spawn<Game>('pool', { at: vec2(0, 0) })] } }
+        })
+      },
+      { areaTriggers: { pool: pool({ policy: 'once', scope: 'cast' }, { lifetime: 0.5 }) } }
+    );
+
+    const caster = game.unit(1);
+
+    game.place(game.unit(100), vec2(0, 0));
+    game.spells.cast(caster, game.id.storm);
+
+    for (let i = 0; i < 12; i++) {
+      game.step();
+      game.spells.step(caster);
+      game.areaTriggers.step();
+    }
+
+    // Two deliveries, the first ended before the second spawned: the unit is hit by the first alone.
+    assert.deepEqual(
+      game.log.filter((line) => /^(spawned|ended|hit)/.test(line)).map((line) => line.split(':')[0]),
+      ['spawned pool@1', 'hit 1 0.25', 'ended pool@1 expired', 'spawned pool@1', 'ended pool@1 expired']
+    );
+    assert.deepEqual([game.areaTriggers.pool.live, game.areaTriggers.pool.ledgers], [0, 0]);
+  });
+
   it('lets a repeat through at its share', () => {
     const game = makeSpellGame({}, { areaTriggers: { pool: pool({ policy: 'repeat', share: 0.25 }) } });
 
