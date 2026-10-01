@@ -61,7 +61,7 @@ const CASTER = MOBS[0] ?? { x: 0, z: 0 };
 const FOES = { side: 'foes', of: CASTER } as const;
 const NEAR = { ...FOES, range: 10, limit: 1 } as const;
 const SWEEP = { ...FOES, radius: 0.5 } as const;
-const SEGMENT = [vec2(-20, 0), vec2(20, 0)] as const;
+const [SWEEP_FROM, SWEEP_TO] = [vec2(-20, 0), vec2(20, 0)];
 const CIRCLE = circle(6, vec2(10, 10));
 
 /** The crossing bench's intervals, reused. */
@@ -106,7 +106,7 @@ export const WORLD_TASKS: readonly (readonly [string, () => void])[] = [
   [
     'world: sweep 40 m, body 0.5 (grid)',
     () => {
-      worldCounter.found += GRID.sweep(SEGMENT, SWEEP, OUT);
+      worldCounter.found += GRID.sweep(SWEEP_FROM, SWEEP_TO, SWEEP, OUT);
     }
   ],
   [

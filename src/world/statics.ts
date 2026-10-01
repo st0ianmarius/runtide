@@ -10,8 +10,10 @@ import {
   emptyBox,
   hypot,
   inPolygon,
+  ORIGIN,
   pathIntervals,
   type Polygon,
+  type TickPath,
   type Vec2
 } from '../math/index.ts';
 
@@ -50,6 +52,9 @@ export class StaticGeometry {
   readonly #contact: Contact = { share: 1, index: -1 };
   readonly #out = { x: 0, z: 0 };
   readonly #grazes: number[] = [];
+
+  /** The path a contact asks `pathIntervals` about, written before each ask: no user code runs in between. */
+  readonly #path = { from: ORIGIN, to: ORIGIN, t0: 0, t1: 1, radius: 0 };
 
   constructor(shapes: readonly StaticShape[]) {
     this.set(shapes);
@@ -103,7 +108,7 @@ export class StaticGeometry {
    * touches none. A body that starts overlapping a shape and moves away from it is let go (a knocked body leaving a
    * wall); one that moves further in stops at once (share 0). The shape met is noted for `normalOf`.
    */
-  contact(segment: readonly [Vec2, Vec2], radius: number): number | undefined {
+  contact(from: Vec2, to: Vec2, radius: number): number | undefined {
     const tree = this.#tree;
     const found = this.#contact;
 
@@ -114,12 +119,12 @@ export class StaticGeometry {
       return undefined;
     }
 
-    const box = this.#sweptBox(segment, radius);
+    const box = this.#sweptBox(from, to, radius);
     const hits = tree.search(box.minX, box.minZ, box.maxX, box.maxZ);
 
     for (let i = 0; i < hits.length; i++) {
       const index = hits[i] ?? -1;
-      const share = this.#shareOf(index, [segment, radius]);
+      const share = this.#shareOf(index, from, to, radius);
 
       if (share !== undefined && (found.index < 0 || share < found.share)) {
         found.share = share;
@@ -148,11 +153,9 @@ export class StaticGeometry {
    * When a body first touches one shape along the move, or `undefined`: a body starting inside a shape and heading
    * out is let go until it touches the shape again, if it does.
    */
-  #shareOf(index: number, [segment, radius]: readonly [readonly [Vec2, Vec2], number]): number | undefined {
+  #shareOf(index: number, from: Vec2, to: Vec2, radius: number): number | undefined {
     const shape = this.#shapes[index];
-    const [from, to] = segment;
-
-    const count = shape === undefined ? 0 : pathIntervals(shape, { from, to, t0: 0, t1: 1, radius }, this.#times);
+    const count = shape === undefined ? 0 : pathIntervals(shape, this.#pathOf(from, to, radius), this.#times);
 
     if (shape === undefined || count === 0) {
       return undefined;
@@ -160,7 +163,7 @@ export class StaticGeometry {
 
     const share = this.#times[0] ?? 1;
 
-    if (share > 0 || !(this.#isLeaving(shape, [from, to]) || this.#isGrazing(shape, [segment, radius]))) {
+    if (share > 0 || !(this.#isLeaving(shape, from, to) || this.#isGrazing(shape, from, to, radius))) {
       return share;
     }
 
@@ -168,17 +171,28 @@ export class StaticGeometry {
   }
 
   /** Whether a body touching a shape only grazes it along the move: a body a hair smaller would not touch it at all. */
-  #isGrazing(shape: StaticShape, [[from, to], radius]: readonly [readonly [Vec2, Vec2], number]): boolean {
+  #isGrazing(shape: StaticShape, from: Vec2, to: Vec2, radius: number): boolean {
     const smaller = radius - GRAZE * Math.max(1, radius);
 
-    return smaller > 0 && pathIntervals(shape, { from, to, t0: 0, t1: 1, radius: smaller }, this.#grazes) === 0;
+    return smaller > 0 && pathIntervals(shape, this.#pathOf(from, to, smaller), this.#grazes) === 0;
+  }
+
+  /** The tick-long path of a body of `radius` from `from` to `to`, in the reused record. */
+  #pathOf(from: Vec2, to: Vec2, radius: number): TickPath {
+    const path = this.#path;
+
+    path.from = from;
+    path.to = to;
+    path.radius = radius;
+
+    return path;
   }
 
   /**
    * Whether a move from touching a shape heads away from it or along it: its step along the way out from the shape's
    * nearest point, a rounding short of 0 counting as along (a slide on the normal `moveBody` returned).
    */
-  #isLeaving(shape: StaticShape, [from, to]: readonly [Vec2, Vec2]): boolean {
+  #isLeaving(shape: StaticShape, from: Vec2, to: Vec2): boolean {
     const out = outwardAt(shape, from, this.#out);
     const dx = to.x - from.x;
     const dz = to.z - from.z;
@@ -187,7 +201,7 @@ export class StaticGeometry {
   }
 
   /** The box a body of `radius` sweeps along a segment. */
-  #sweptBox([from, to]: readonly [Vec2, Vec2], radius: number): Box {
+  #sweptBox(from: Vec2, to: Vec2, radius: number): Box {
     const box = this.#box;
 
     box.minX = Math.min(from.x, to.x) - radius;

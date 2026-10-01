@@ -114,7 +114,7 @@ export const despawnBound = <G extends UnitTypes>(engine: UnitEngine<G>, bearer:
 
   for (const summon of owned.slice()) {
     if (unitOf<G>(summon).isBound) {
-      moveTo(engine, summon, ['despawned', undefined, 'owner']);
+      moveTo(engine, summon, 'despawned', undefined, 'owner');
     }
   }
 };

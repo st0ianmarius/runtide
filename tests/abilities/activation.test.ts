@@ -68,7 +68,7 @@ const roll = button(
         z: bearer.at.z + bearer.heading.z * 4 * dt
       };
 
-      bearer.at = world.moveBody([bearer.at, to], 0.5).position;
+      bearer.at = world.moveBody(bearer.at, to, 0.5).position;
     }
   },
   { aura: 'dodgeCooldown', seconds: 2 }
@@ -209,7 +209,7 @@ describe('a press', () => {
       lineClear: () => false,
       isPositionClear: () => false,
       clamp: (p) => p,
-      moveBody: ([from]) => ({ position: from, hit: true, share: 0 })
+      moveBody: (from) => ({ position: from, hit: true, share: 0 })
     };
 
     const { game, hero } = setUp(wall);

@@ -119,7 +119,7 @@ describe('snapshots (decision 2)', () => {
 
     const totals = { attackDamage: 100, damage: 1.35 };
     const caster = unit(totals);
-    const snapshot = snapshotScaled(value, { caster, rank: 1 });
+    const snapshot = snapshotScaled(value, caster, 1);
 
     totals.attackDamage = 999;
 
@@ -132,7 +132,7 @@ describe('snapshots (decision 2)', () => {
     );
     assert.equal(finishScaled(snapshot, second), 193.90000000000003);
     assert.equal(finishScaled(snapshot), 152.35000000000002);
-    assert.equal(snapshotScaled(value, { caster }, snapshot), snapshot, 'a snapshot of the same value is reused');
+    assert.equal(snapshotScaled(value, caster, 1, snapshot), snapshot, 'a snapshot of the same value is reused');
   });
 
   it('freeze the caster stats curve parameters read too', () => {
@@ -147,7 +147,7 @@ describe('snapshots (decision 2)', () => {
     assert.deepEqual(value.casterStats, [id.level]);
 
     const totals = { level: 60 };
-    const snapshot = snapshotScaled(value, { caster: unit(totals) });
+    const snapshot = snapshotScaled(value, unit(totals));
 
     totals.level = 1;
 

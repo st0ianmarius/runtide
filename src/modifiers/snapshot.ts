@@ -52,17 +52,18 @@ class Snapshot implements ScaledSnapshot, ScaledContext {
 }
 
 /**
- * Takes the caster part of a scaled value: the rank and every caster stat it reads, curve parameters included.
- * Passing a snapshot of the same value as `into` reuses it (for pooled casts); otherwise a new one is made.
+ * Takes the caster part of a scaled value: the rank (1 by default) and every caster stat it reads, curve parameters
+ * included. Passing a snapshot of the same value as `into` reuses it (for pooled casts); otherwise a new one is made.
  */
 export const snapshotScaled = (
   value: CompiledScaled,
-  ctx: Pick<ScaledContext, 'caster' | 'rank'>,
+  caster: StatView,
+  rank = 1,
   into?: ScaledSnapshot
 ): ScaledSnapshot => {
   const snapshot = into instanceof Snapshot && into.value === value ? into : new Snapshot(value);
 
-  snapshot.rank = ctx.rank ?? 1;
+  snapshot.rank = rank;
 
   // An indexed loop: every cast start takes this, and an iterator over the frozen list allocates.
   // oxlint-disable-next-line typescript/prefer-for-of
@@ -70,8 +71,8 @@ export const snapshotScaled = (
     const stat = value.casterStats[i];
 
     if (stat !== undefined) {
-      snapshot.caster.totals[stat] = ctx.caster.total(stat);
-      snapshot.caster.bases[stat] = ctx.caster.base(stat);
+      snapshot.caster.totals[stat] = caster.total(stat);
+      snapshot.caster.bases[stat] = caster.base(stat);
     }
   }
 

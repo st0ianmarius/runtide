@@ -43,14 +43,14 @@ describe('static geometry: clearance and lines of sight', () => {
 
 describe('moveBody: a body swept against static geometry', () => {
   it('stops where it first touches a wall, with the wall’s normal toward it', () => {
-    const move = world.moveBody([vec2(0, 0), vec2(10, 0)], 1);
+    const move = world.moveBody(vec2(0, 0), vec2(10, 0), 1);
 
     assert.equal(move.hit, true);
     close(move.share, 0.4);
     close(move.position.x, 4);
     assert.deepEqual(move.normal, { x: -1, z: 0 });
 
-    const pillar = world.moveBody([vec2(-5, 5), vec2(-5, -5)], 1);
+    const pillar = world.moveBody(vec2(-5, 5), vec2(-5, -5), 1);
 
     close(pillar.normal?.x ?? Number.NaN, 0);
     close(pillar.normal?.z ?? Number.NaN, 1);
@@ -70,24 +70,24 @@ describe('moveBody: a body swept against static geometry', () => {
     // Pressed up into the walls while moving right, sliding along the normal each hit gives.
     for (let i = 0; i < 400; i++) {
       const to = vec2(at.x + 0.13, at.z + 0.05);
-      const move = flush.moveBody([at, to], 0.5);
+      const move = flush.moveBody(at, to, 0.5);
       const normal = move.normal ?? vec2(0, 0);
       const into = (to.x - move.position.x) * normal.x + (to.z - move.position.z) * normal.z;
 
       at = move.hit
-        ? flush.moveBody([move.position, vec2(to.x - into * normal.x, to.z - into * normal.z)], 0.5).position
+        ? flush.moveBody(move.position, vec2(to.x - into * normal.x, to.z - into * normal.z), 0.5).position
         : move.position;
     }
 
     assert.ok(at.x > 20, `the body stuck at x = ${at.x}`);
 
-    const point = flush.moveBody([vec2(0.5, 0), vec2(0.5, 3)], 0);
+    const point = flush.moveBody(vec2(0.5, 0), vec2(0.5, 3), 0);
 
     assert.deepEqual([point.hit, point.normal], [true, { x: 0, z: -1 }]);
   });
 
   it('stops at the bounds, inset by its radius, with the bound’s normal', () => {
-    const move = world.moveBody([vec2(0, 12), vec2(0, 32)], 1);
+    const move = world.moveBody(vec2(0, 12), vec2(0, 32), 1);
 
     assert.equal(move.hit, true);
     close(move.position.z, 19);
@@ -95,8 +95,8 @@ describe('moveBody: a body swept against static geometry', () => {
   });
 
   it('lets a body that starts in a wall leave it, and stops one that heads further in', () => {
-    const out = world.moveBody([vec2(4.5, 0), vec2(0, 0)], 1);
-    const deeper = world.moveBody([vec2(4.5, 0), vec2(8, 0)], 1);
+    const out = world.moveBody(vec2(4.5, 0), vec2(0, 0), 1);
+    const deeper = world.moveBody(vec2(4.5, 0), vec2(8, 0), 1);
 
     assert.deepEqual([out.hit, out.share], [false, 1]);
     assert.deepEqual([deeper.hit, deeper.share], [true, 0]);
@@ -114,23 +114,24 @@ describe('moveBody: a body swept against static geometry', () => {
       const radius = 0.37 + (i % 7) * 0.1;
 
       const stop = boxed.moveBody(
-        [vec2(Math.max(0.1 + ((i * 0.00731) % 9), radius), 5), vec2(10.3 + ((i * 0.0137) % 5), 5.1)],
+        vec2(Math.max(0.1 + ((i * 0.00731) % 9), radius), 5),
+        vec2(10.3 + ((i * 0.0137) % 5), 5.1),
         radius
       );
 
-      assert.ok(boxed.moveBody([stop.position, vec2(stop.position.x, 6)], radius).share > 0);
+      assert.ok(boxed.moveBody(stop.position, vec2(stop.position.x, 6), radius).share > 0);
 
       const angle = (i / 500) * Math.PI * 2;
-      const pillar = walled.moveBody([vec2(Math.sin(angle) * 8, Math.cos(angle) * 8), vec2(0, 0)], 0.5);
+      const pillar = walled.moveBody(vec2(Math.sin(angle) * 8, Math.cos(angle) * 8), vec2(0, 0), 0.5);
       const normal = pillar.normal ?? vec2(0, 0);
       const along = vec2(pillar.position.x - normal.z, pillar.position.z + normal.x);
 
-      assert.ok(walled.moveBody([pillar.position, along], 0.5).share > 0.01);
+      assert.ok(walled.moveBody(pillar.position, along, 0.5).share > 0.01);
 
       const from = vec2(-5 + i * 0.013, 16.7 - i * 0.0017);
-      const wall = walled.moveBody([from, vec2(from.x + 0.3, 23)], 0.5);
+      const wall = walled.moveBody(from, vec2(from.x + 0.3, 23), 0.5);
 
-      assert.ok(walled.moveBody([wall.position, vec2(wall.position.x + 1, wall.position.z)], 0.5).share > 0.01);
+      assert.ok(walled.moveBody(wall.position, vec2(wall.position.x + 1, wall.position.z), 0.5).share > 0.01);
     }
   });
 
@@ -145,7 +146,7 @@ describe('moveBody: a body swept against static geometry', () => {
   });
 
   it('goes the whole way when nothing is in the way', () => {
-    assert.deepEqual(world.moveBody([vec2(0, 0), vec2(0, 10)], 1), {
+    assert.deepEqual(world.moveBody(vec2(0, 0), vec2(0, 10), 1), {
       position: { x: 0, z: 10 },
       hit: false,
       share: 1

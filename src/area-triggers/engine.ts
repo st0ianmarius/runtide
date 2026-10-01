@@ -207,7 +207,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
    * Counts one more (or one fewer) of a kind for an owner. An owner left with none is forgotten, and its record kept
    * for the next owner, so a caster whose telegraph ends before its next cast allocates nothing.
    */
-  count(owner: G['bearer'], [kind, by]: readonly [number, number]): void {
+  count(owner: G['bearer'], kind: number, by: number): void {
     const owned = this.ownerFor(owner);
 
     owned.counts[kind] = (owned.counts[kind] ?? 0) + by;

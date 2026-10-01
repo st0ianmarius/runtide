@@ -73,23 +73,14 @@ export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operat
   removeByTag: (bearer: G['bearer'], tag: AuraTagId) => removeByTag(engine, bearer, tag),
   dispel: (bearer: G['bearer'], spec: Dispel<G>) => dispel(engine, bearer, spec),
 
-  refresh: (bearer: G['bearer'], id: AuraId, seconds?: number) => refreshAura(engine, bearer, { id, seconds }),
+  refresh: (bearer: G['bearer'], id: AuraId, seconds?: number) => refreshAura(engine, bearer, id, seconds),
 
-  spendStacks: (bearer: G['bearer'], id: AuraId, count: number) => spendStacks(engine, bearer, { id, count }),
+  spendStacks: (bearer: G['bearer'], id: AuraId, count: number) => spendStacks(engine, bearer, id, count),
 
-  spendValue: (bearer: G['bearer'], aura: AuraId | ActiveAura, amount: number) => {
-    const spend = engine.spending;
-
-    spend.id = typeof aura === 'number' ? aura : aura.id;
-    spend.only = typeof aura === 'number' ? undefined : aura;
-    spend.amount = amount;
-
-    const spent = spendValue(engine, bearer, spend);
-
-    spend.only = undefined;
-
-    return spent;
-  },
+  spendValue: (bearer: G['bearer'], aura: AuraId | ActiveAura, amount: number) =>
+    typeof aura === 'number'
+      ? spendValue(engine, bearer, aura, amount)
+      : spendValue(engine, bearer, aura.id, amount, aura),
 
   enterState: (bearer: G['bearer'], state: G['state']) => enterState(engine, bearer, state),
   hasState: (state: string): state is G['state'] => engine.tables.stateNames.includes(state),
@@ -159,15 +150,15 @@ export const queriesOf = <G extends AuraTypes>(engine: AuraEngine<G>): Queries<G
     engine.events.give();
   },
 
-  view: (bearer: G['bearer'], out: AuraView[], options?: ViewOptions) => viewAuras(engine, [bearer, out], options),
+  view: (bearer: G['bearer'], out: AuraView[], options?: ViewOptions) => viewAuras(engine, bearer, out, options),
 
   isPredicted: (aura: AuraId) => ((engine.flags[aura] ?? 0) & PREDICTED) !== 0,
 
   scaleTimeLeft: (bearer: G['bearer'], tag: AuraTagId, factor: number) =>
-    changeTimeLeft(engine, [bearer, tag], { factor, cap: Infinity }),
+    changeTimeLeft(engine, bearer, tag, factor, Infinity),
 
   clampTimeLeft: (bearer: G['bearer'], tag: AuraTagId, seconds: number) =>
-    changeTimeLeft(engine, [bearer, tag], { factor: 1, cap: seconds }),
+    changeTimeLeft(engine, bearer, tag, 1, seconds),
 
   seed: (bearer: G['bearer'], seed: AuraSeed<G>) => seedAuras(engine, bearer, seed),
   matchesSeed: (bearer: G['bearer'], seed: AuraSeed<G>) => matchesSeed(engine, bearer, seed)

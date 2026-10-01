@@ -6,18 +6,6 @@ import { CUSTOM_MERGE, CUSTOM_STACKING, MERGES, STACKINGS } from './define-auras
 import type { AuraEngine } from './engine.ts';
 import { type AuraSet, setOf } from './state.ts';
 
-/** What a re-application lands on. */
-export interface Again<G extends AuraTypes> {
-  /** The instance already there. */
-  readonly item: AuraItem<G>;
-
-  /** The application. */
-  readonly application: AuraApplication<G>;
-
-  /** Its length in seconds. */
-  readonly seconds: number;
-}
-
 /** The code of `refresh`. */
 const REFRESH = STACKINGS.indexOf('refresh');
 
@@ -45,13 +33,13 @@ export const stackingOf = <G extends AuraTypes>(engine: AuraEngine<G>, applicati
     ? (engine.stacking[application.aura] ?? 0)
     : STACKINGS.indexOf(application.stacking);
 
-/** The code of the stacking rule a re-application follows. */
-const codeOf = <G extends AuraTypes>(engine: AuraEngine<G>, at: Again<G>): number => stackingOf(engine, at.application);
-
 /** `extend`: the new length's ticks added to the end; the duration becomes the new time left. */
-const extend = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): void => {
-  const { item, seconds } = at;
-
+const extend = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  set: AuraSet<G>,
+  item: AuraItem<G>,
+  seconds: number
+): void => {
   if (item.end === Infinity || !Number.isFinite(seconds)) {
     engine.setClock(set, item, engine.remainingOf(set, item) + seconds);
 
@@ -63,9 +51,12 @@ const extend = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at:
 };
 
 /** `highest`: whether the new length outlasts what is left, in ticks. */
-const isLonger = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): boolean => {
-  const { item, seconds } = at;
-
+const isLonger = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  set: AuraSet<G>,
+  item: AuraItem<G>,
+  seconds: number
+): boolean => {
   if (!Number.isFinite(seconds)) {
     return seconds > engine.remainingOf(set, item);
   }
@@ -77,18 +68,23 @@ const isLonger = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, a
  * A built-in rule on the instance already there; true when the clock or the stacks changed. It compares and adds in
  * whole ticks.
  */
-const builtIn = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at: Again<G>): boolean => {
-  const { item, seconds } = at;
-  const code = codeOf(engine, at);
+const builtIn = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  set: AuraSet<G>,
+  item: AuraItem<G>,
+  application: AuraApplication<G>,
+  seconds: number
+): boolean => {
+  const code = stackingOf(engine, application);
 
   if (code === REFRESH) {
     engine.setClock(set, item, seconds);
   } else if (code === EXTEND) {
-    extend(engine, set, at);
+    extend(engine, set, item, seconds);
   } else if (code === STACK) {
-    item.stacks = Math.min(engine.maxStacks[item.id] ?? 1, item.stacks + addedStacks(at.application));
+    item.stacks = Math.min(engine.maxStacks[item.id] ?? 1, item.stacks + addedStacks(application));
     engine.setClock(set, item, seconds);
-  } else if (code === HIGHEST && isLonger(engine, set, at)) {
+  } else if (code === HIGHEST && isLonger(engine, set, item, seconds)) {
     engine.setClock(set, item, seconds);
   } else {
     return false;
@@ -98,8 +94,13 @@ const builtIn = <G extends AuraTypes>(engine: AuraEngine<G>, set: AuraSet<G>, at
 };
 
 /** The game's own stacking rule on the instance already there; true when the clock or the stacks changed. */
-const custom = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], at: Again<G>): boolean => {
-  const { item, seconds } = at;
+const custom = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  item: AuraItem<G>,
+  application: AuraApplication<G>,
+  seconds: number
+): boolean => {
   const rule = engine.registry.get(item.id).stacking;
   const set = setOf<G>(bearer);
 
@@ -111,7 +112,7 @@ const custom = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'],
 
   const incoming = {
     seconds,
-    stacks: addedStacks(at.application),
+    stacks: addedStacks(application),
     remaining: engine.remainingOf(set, item),
     maxStacks
   };
@@ -142,8 +143,11 @@ const custom = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'],
 };
 
 /** Merges an application's value into the instance's; true when the value changed. */
-const mergeValue = <G extends AuraTypes>(engine: AuraEngine<G>, at: Again<G>): boolean => {
-  const { item, application } = at;
+const mergeValue = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  item: AuraItem<G>,
+  application: AuraApplication<G>
+): boolean => {
   const def = engine.registry.get(item.id);
   const incoming = application.value ?? def.value;
 
@@ -172,9 +176,17 @@ const mergeValue = <G extends AuraTypes>(engine: AuraEngine<G>, at: Again<G>): b
  * Lands a re-application on the instance already there by its stacking rule (the application's own built-in rule,
  * the definition's, or the game's function), then merges its value. True when anything changed.
  */
-export const restack = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], at: Again<G>): boolean => {
+export const restack = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  item: AuraItem<G>,
+  application: AuraApplication<G>,
+  seconds: number
+): boolean => {
   const isRestacked =
-    codeOf(engine, at) === CUSTOM_STACKING ? custom(engine, bearer, at) : builtIn(engine, setOf<G>(bearer), at);
+    stackingOf(engine, application) === CUSTOM_STACKING
+      ? custom(engine, bearer, item, application, seconds)
+      : builtIn(engine, setOf<G>(bearer), item, application, seconds);
 
-  return mergeValue(engine, at) || isRestacked;
+  return mergeValue(engine, item, application) || isRestacked;
 };

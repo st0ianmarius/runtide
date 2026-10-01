@@ -936,7 +936,7 @@ base vectors through this helper.
 
 ### 14.2 `snapshotScaled` freezes a formula's caster inputs
 
-`snapshotScaled(compiledValue, { caster, rank? }, into?)` captures the rank and every caster stat the formula reads,
+`snapshotScaled(compiledValue, caster, rank?, into?)` captures the rank and every caster stat the formula reads,
 including stats used by curve parameters. `finishScaled(snapshot, target?)` evaluates the full formula in the normal
 order with frozen caster values and the target's current stats. Finishing without a target omits normal target terms.
 
@@ -956,7 +956,7 @@ for as long as later hits may read it.
 <!-- example: modifiers-values.ts#snapshots -->
 
 ```ts
-const snapshot = snapshotScaled(damage, { caster, rank: 2 });
+const snapshot = snapshotScaled(damage, caster, 2);
 const frozen = freezeStats(caster, [stats.id.damage, stats.id.attackDamage]);
 
 modifiers.setSource(sheet, sources.id.talents, [modifiers.compile([plus('attackDamage', 100)])]);

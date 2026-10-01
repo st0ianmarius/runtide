@@ -311,7 +311,7 @@ describe('sweep: what a moving body touches', () => {
     const out: (Mob | undefined)[] = [];
     const shares: number[] = [];
 
-    assert.deepEqual(names(out, world.sweep([vec2(0, 0), vec2(10, 0)], { radius: 0.5, shares }, out)), ['m2', 'm1']);
+    assert.deepEqual(names(out, world.sweep(vec2(0, 0), vec2(10, 0), { radius: 0.5, shares }, out)), ['m2', 'm1']);
     assert.ok(Math.abs((shares[1] ?? 0) - 0.65) < 1e-12);
   });
 
@@ -321,8 +321,8 @@ describe('sweep: what a moving body touches', () => {
 
     world.tick();
     world.place(mob(1), vec2(5, 5));
-    assert.equal(world.sweep([vec2(0, 0), vec2(10, 0)], {}, out), 0);
-    assert.equal(world.sweep([vec2(0, 0), vec2(10, 0)], { relative: true }, out), 1);
+    assert.equal(world.sweep(vec2(0, 0), vec2(10, 0), {}, out), 0);
+    assert.equal(world.sweep(vec2(0, 0), vec2(10, 0), { relative: true }, out), 1);
   });
 });
 

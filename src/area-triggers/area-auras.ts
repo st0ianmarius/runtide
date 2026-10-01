@@ -97,7 +97,8 @@ export class AuraHolds<Unit> {
   applicationFor(
     aura: AuraId,
     spec: Pick<AreaAura<AreaTriggerTypes>, 'stacks' | 'value'>,
-    [source, duration]: readonly [number, number | undefined]
+    source: number,
+    duration: number | undefined
   ): AreaAuraApplication {
     const application = (this.#application ??= new AreaAuraApplication(aura));
 
@@ -155,7 +156,7 @@ const enter = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraIn
   const aura = engine.areaAuras[area.kind]?.[index];
 
   if (spec !== undefined && aura !== undefined && engine.auraHolds.take(unit, aura)) {
-    engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, [area.source, undefined]));
+    engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, area.source, undefined));
   }
 };
 
@@ -176,7 +177,7 @@ const leave = <G extends AreaTriggerTypes>(
   if (spec.linger === undefined) {
     engine.auras.remove(unit, aura);
   } else if (engine.auras.has(unit, aura)) {
-    engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, [area.source, spec.linger]));
+    engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, area.source, spec.linger));
   }
 };
 
@@ -274,10 +275,7 @@ const walkTo = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraI
 const CATCH_EPSILON = 1e-9;
 
 /** Counts a periodic aura's wait down by a frame; true when it catches now, its next catch `every` on. */
-const isDue = <G extends AreaTriggerTypes>(
-  inside: AuraInside<G>,
-  [every, frameTime]: readonly [number, number]
-): boolean => {
+const isDue = <G extends AreaTriggerTypes>(inside: AuraInside<G>, every: number, frameTime: number): boolean => {
   const isDueNow = inside.wait <= CATCH_EPSILON;
 
   if (isDueNow) {
@@ -293,7 +291,7 @@ const isDue = <G extends AreaTriggerTypes>(
 const stepAura = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
   const spec = engine.registry.get(area.kind).auras?.[index];
 
-  if (spec?.every !== undefined && !isDue(area.insideOf(index), [spec.every, area.frameTime])) {
+  if (spec?.every !== undefined && !isDue(area.insideOf(index), spec.every, area.frameTime)) {
     return;
   }
 

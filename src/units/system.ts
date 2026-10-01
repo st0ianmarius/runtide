@@ -125,7 +125,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
   const isAlive = (unit: G['bearer']): boolean => unitOf<G>(unit).lifecycle === 'alive';
 
-  const reviveUnit = (unit: G['bearer'], health?: number): boolean => moveTo(engine, unit, ['alive', health]);
+  const reviveUnit = (unit: G['bearer'], health?: number): boolean => moveTo(engine, unit, 'alive', health);
 
   const spawnUnit = (template: UnitId, spawn: SpawnUnit<G>): G['bearer'] => {
     registry.get(template);
@@ -144,7 +144,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
   };
 
   const despawnUnit = (unit: G['bearer'], reason = 'despawn'): boolean =>
-    moveTo(engine, unit, ['despawned', undefined, reason]);
+    moveTo(engine, unit, 'despawned', undefined, reason);
 
   const system: UnitSystem<G> = {
     registry,
@@ -174,7 +174,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
     revive: reviveUnit,
 
-    kill: (unit) => moveTo(engine, unit, ['dead', undefined]),
+    kill: (unit) => moveTo(engine, unit, 'dead'),
 
     is: (unit, state) => {
       const bits = states?.tags[state];

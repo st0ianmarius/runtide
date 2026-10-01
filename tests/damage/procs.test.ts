@@ -96,7 +96,7 @@ describe('the damage proc', () => {
     const game = makeDamageGame({});
     const [target, caster] = [game.unit(1), game.unit(2)];
     const value = compileScaled(STATS, scaled(10, add('maxHealth', 0.1, { from: 'target' })));
-    const snapshot = snapshotScaled(value, { caster: { total: () => 0, base: () => 0 } });
+    const snapshot = snapshotScaled(value, { total: () => 0, base: () => 0 });
 
     game.set(target, 'maxHealth', 200);
     game.procs.run([damage<Game>(snapshot, { damageKind: 'fire' })], { self: caster, target });

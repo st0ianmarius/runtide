@@ -64,7 +64,7 @@ export class LedgerBook {
   }
 
   /** The ledger a cast shares under a name, opened on first use, held once more. */
-  ofCast(cast: number, [name, spec]: readonly [string, AreaLedgerSpec]): Ledger {
+  ofCast(cast: number, name: string, spec: AreaLedgerSpec): Ledger {
     let byName = this.#byCast.get(cast);
 
     if (byName === undefined) {
@@ -203,7 +203,7 @@ export const openLedgers = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, a
 
   for (const [name, spec] of Object.entries(specs)) {
     if (spec.scope === 'cast' && area.cast !== undefined) {
-      area.ledgers.set(name, engine.ledgers.ofCast(area.castHandle, [name, spec]));
+      area.ledgers.set(name, engine.ledgers.ofCast(area.castHandle, name, spec));
     } else {
       area.ledgers.set(name, engine.ledgers.open(spec));
     }

@@ -132,7 +132,7 @@ const DAMAGE = compileScaled(
 
 const COOLDOWN = compileScaled(STATS, scaled(12, curveOf('haste', 0.5)));
 const EVALUATION = { caster: CASTER, target: TARGET, rank: 2 };
-const SNAPSHOT = snapshotScaled(DAMAGE, { caster: CASTER, rank: 2 });
+const SNAPSHOT = snapshotScaled(DAMAGE, CASTER, 2);
 
 /** An aura game: three stats, a tag table and six auras, two of them folding modifiers. */
 const AURA_STATS = defineStats({

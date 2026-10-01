@@ -192,7 +192,7 @@ export interface WorldQuery<Unit> {
   readonly nearest: (from: Vec2, options: RangeOptions<Unit>, out: (Unit | undefined)[]) => number;
 
   /** The units a body moving `from → to` touches, in the order it reaches them (lower id on ties). */
-  readonly sweep: (segment: readonly [Vec2, Vec2], options: SweepOptions<Unit>, out: (Unit | undefined)[]) => number;
+  readonly sweep: (from: Vec2, to: Vec2, options: SweepOptions<Unit>, out: (Unit | undefined)[]) => number;
 
   /** Whether nothing static stands between two points (for a body of `radius`, 0 by default). */
   readonly lineClear: (from: Vec2, to: Vec2, radius?: number) => boolean;
@@ -204,7 +204,7 @@ export interface WorldQuery<Unit> {
   readonly clamp: (p: Vec2, radius?: number) => Vec2;
 
   /** Moves a body of `radius` from `from` toward `to` until it touches static geometry or the bounds. */
-  readonly moveBody: (segment: readonly [Vec2, Vec2], radius: number) => BodyMove;
+  readonly moveBody: (from: Vec2, to: Vec2, radius: number) => BodyMove;
 
   /** Picks a point from the game's samples, clear, filtered and scored; `undefined` when none passed. */
   readonly pickPoint: (pick: PointPick) => Vec2 | undefined;

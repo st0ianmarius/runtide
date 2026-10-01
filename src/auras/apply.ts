@@ -5,7 +5,7 @@ import type { ApplyResult, AuraApplication } from './application.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 import { CHANGES } from './compile.ts';
 import { CREDIT_FIRST, CUSTOM_STACKING, PER_SOURCE, STACKINGS } from './define-auras.ts';
-import type { AuraEngine, Landing } from './engine.ts';
+import type { AuraEngine } from './engine.ts';
 import { cleanse, evictFor } from './remove.ts';
 import { addedStacks, restack, stackingOf } from './restack.ts';
 import { type AuraSet, setOf } from './state.ts';
@@ -61,9 +61,13 @@ const existingFor = <G extends AuraTypes>(
   return undefined;
 };
 
-/** Runs the aura's `onLand` hook for the instance a landing landed on. */
-const land = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], landing: Landing<G>): void => {
-  const { item, application } = landing;
+/** Runs the aura's `onLand` hook for the instance an application landed on. */
+const land = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  item: AuraItem<G>,
+  application: AuraApplication<G>
+): void => {
   const onLand = engine.registry.hooks.onLand[item.id];
 
   if (onLand === undefined) {
@@ -101,8 +105,12 @@ const firstBeat = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer
 };
 
 /** Lands a fresh instance: evicts at the cap, fills it, inserts it in order and queues `applied`. */
-const fresh = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], landing: Landing<G>): AuraItem<G> => {
-  const { application, seconds } = landing;
+const fresh = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  application: AuraApplication<G>,
+  seconds: number
+): AuraItem<G> => {
   const set = setOf<G>(bearer);
   const id = application.aura;
   const item = engine.acquire(id);
@@ -127,8 +135,7 @@ const fresh = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], 
   item.nextBeat = firstBeat(engine, bearer, item);
 
   if (engine.registry.has.onLand.has(id)) {
-    landing.item = item;
-    land(engine, bearer, landing);
+    land(engine, bearer, item, application);
   }
 
   engine.events.raise(APPLIED, bearer, item);
@@ -136,10 +143,15 @@ const fresh = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], 
   return item;
 };
 
-/** Lands a re-application on the instance already there (the landing's item); true when it changed anything. */
-const again = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], landing: Landing<G>): boolean => {
-  const { item, application } = landing;
-  const isChanged = restack(engine, bearer, landing);
+/** Lands a re-application on the instance already there; true when it changed anything. */
+const again = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  item: AuraItem<G>,
+  application: AuraApplication<G>,
+  seconds: number
+): boolean => {
+  const isChanged = restack(engine, bearer, item, application, seconds);
 
   if (
     application.source !== undefined &&
@@ -152,7 +164,7 @@ const again = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], 
   }
 
   if (engine.registry.has.onLand.has(item.id)) {
-    land(engine, bearer, landing);
+    land(engine, bearer, item, application);
   }
 
   if (isChanged) {
@@ -193,7 +205,6 @@ const landAura = <G extends AuraTypes>(
   checkSeconds(engine, id, seconds);
 
   const from = engine.events.open('cleanse');
-  const landing = engine.takeLanding(application, seconds);
   let result = FRESH;
 
   try {
@@ -203,13 +214,11 @@ const landAura = <G extends AuraTypes>(
     const existing = existingFor(engine, set, application);
 
     if (existing === undefined) {
-      fresh(engine, bearer, landing);
+      fresh(engine, bearer, application, seconds);
     } else {
-      landing.item = existing;
-      result = again(engine, bearer, landing) ? CHANGED : UNCHANGED;
+      result = again(engine, bearer, existing, application, seconds) ? CHANGED : UNCHANGED;
     }
   } finally {
-    engine.giveLanding();
     engine.events.close(from);
   }
 

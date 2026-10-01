@@ -121,7 +121,7 @@ const targetPoint = <G extends SpellTypes>(engine: SpellEngine<G>, plan: ReachPl
 };
 
 /** The squared distance from `from` to `to`. */
-const distanceSq = ([from, to]: readonly [Vec2, Vec2]): number => {
+const distanceSq = (from: Vec2, to: Vec2): number => {
   const dx = to.x - from.x;
   const dz = to.z - from.z;
 
@@ -147,7 +147,7 @@ const placedRefusal = <G extends SpellTypes>(
 
   const to = targetPoint(engine, plan, cast);
   const from = (engine.host.positionOf ?? noPosition)(cast.caster, FROM);
-  const gap = distanceSq([from, to]);
+  const gap = distanceSq(from, to);
 
   if (plan.range !== undefined && gap > distanceOf(plan.range, cast) ** 2) {
     return 'range';

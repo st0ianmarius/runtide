@@ -88,7 +88,8 @@ const bindCredit = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
 const fill = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  [spec, parent]: readonly [SpawnSpec<G>, AreaTrigger<G> | undefined]
+  spec: SpawnSpec<G>,
+  parent: AreaTrigger<G> | undefined
 ): void => {
   const { registry } = engine;
 
@@ -182,13 +183,15 @@ const settle = <G extends AreaTriggerTypes>(
 const admit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
-  [spec, parent, def]: readonly [SpawnSpec<G>, AreaTrigger<G> | undefined, AnyAreaTriggerDef<G>]
+  spec: SpawnSpec<G>,
+  parent: AreaTrigger<G> | undefined,
+  def: AnyAreaTriggerDef<G>
 ): boolean => {
   let isAdmitted = false;
 
   try {
     bindCredit(engine, area, spec);
-    fill(engine, area, [spec, parent]);
+    fill(engine, area, spec, parent);
 
     if (admitLimit(engine, area, def)) {
       settle(engine, area, def);
@@ -215,7 +218,7 @@ const enter = <G extends AreaTriggerTypes>(
 ): void => {
   openLedgers(engine, area);
   linkKind(engine, area);
-  engine.count(area.owner, [area.kind, 1]);
+  engine.count(area.owner, area.kind, 1);
 
   try {
     engine.holdOwnerAura(area, true);
@@ -267,7 +270,7 @@ export const spawnArea = <G extends AreaTriggerTypes>(
   // Read before the limit, whose replaced trigger's `onEnd` may spawn again with the same reused spec.
   const { now } = spec;
 
-  if (!admit(engine, area, [spec, parent, def])) {
+  if (!admit(engine, area, spec, parent, def)) {
     return NO_AREA_TRIGGER;
   }
 

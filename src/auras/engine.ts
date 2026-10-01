@@ -1,6 +1,5 @@
 // Hot path: list walks run every tick, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
-import { toId } from '../core/ids.ts';
 import { createPool, type Pool, stepsUntil } from '../core/index.ts';
 import { type ActiveAura, AuraItem } from './active-aura.ts';
 import type { AuraApplication, AuraHost } from './application.ts';
@@ -20,21 +19,6 @@ export interface EngineParts<G extends AuraTypes> extends Omit<EventParts<G>, 'r
 }
 
 /**
- * One landing of an application, reused: its application and length, and the instance it lands on (once there is one).
- * One per nesting level, as a hook during a landing (a custom stacking rule, `onLand`) may land another.
- */
-export class Landing<G extends AuraTypes> {
-  item: AuraItem<G>;
-  application: AuraApplication<G>;
-  seconds = 0;
-
-  constructor(item: AuraItem<G>, application: AuraApplication<G>) {
-    this.item = item;
-    this.application = application;
-  }
-}
-
-/**
  * The aura machinery's shared state: the registry, its compiled tables, the pool of aura slots, the event queue and
  * the host. The operations (`apply.ts`, `remove.ts`, `tick.ts`) are functions over it.
  */
@@ -50,22 +34,9 @@ export class AuraEngine<G extends AuraTypes> {
   readonly flags: ArrayLike<number>;
   readonly #applications: AuraApplication<G>[] = [];
 
-  /** The spec `auras.spendValue` spends from, reused: a spend reads it at once, before any hook can write over it. */
-  readonly spending: { id: AuraId; amount: number; only: ActiveAura | undefined } = {
-    id: toId<'auras'>(0),
-    amount: 0,
-    only: undefined
-  };
-
   /** Whether the instance a spend just took from is now empty and goes: what `spendOne` reads. */
   isSpentEmpty = false;
 
-  /** The landings by nesting level, and how many are taken. */
-  readonly #landings: Landing<G>[] = [];
-  #landingDepth = 0;
-
-  /** What a landing points at between uses: an instance never live, and its aura's plain application. */
-  readonly #blank: AuraItem<G>;
   readonly #resetExt: ((ext: G['ext']) => void) | undefined;
 
   constructor(parts: EngineParts<G>) {
@@ -76,7 +47,6 @@ export class AuraEngine<G extends AuraTypes> {
     this.host = parts.host;
     this.#resetExt = parts.resetExt;
     this.pool = createPool({ create: () => new AuraItem<G>(parts.createExt()) });
-    this.#blank = new AuraItem<G>(parts.createExt());
     this.events = new AuraEvents<G>({
       ...parts,
 
@@ -205,30 +175,6 @@ export class AuraEngine<G extends AuraTypes> {
     }
 
     items[at] = item;
-  }
-
-  /** Takes the landing of this nesting level for an application and its length. */
-  takeLanding(application: AuraApplication<G>, seconds: number): Landing<G> {
-    const landing = (this.#landings[this.#landingDepth] ??= new Landing<G>(this.#blank, application));
-
-    landing.application = application;
-    landing.seconds = seconds;
-    landing.item = this.#blank;
-    this.#landingDepth += 1;
-
-    return landing;
-  }
-
-  /** Gives back the innermost landing, letting go of what it pointed at. */
-  giveLanding(): void {
-    this.#landingDepth -= 1;
-
-    const landing = this.#landings[this.#landingDepth];
-
-    if (landing !== undefined) {
-      landing.item = this.#blank;
-      landing.application = this.applicationOf(landing.application.aura);
-    }
   }
 
   /** Gives an aura's slot back to the pool, clearing the game's fields. */

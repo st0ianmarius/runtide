@@ -45,7 +45,7 @@ const sortShares = (shares: number[], count: number): void => {
 };
 
 /** Appends an interval to `out` (pairs from index 0, `count` intervals so far), joining one that meets the last. */
-const push = (out: number[], count: number, [start, end]: readonly [number, number]): number => {
+const push = (out: number[], count: number, start: number, end: number): number => {
   if (count > 0 && Math.abs((out[count * 2 - 1] ?? 0) - start) <= SAME_SHARE) {
     out[count * 2 - 1] = end;
 
@@ -74,7 +74,7 @@ export const pathIntervals = (shape: Shape, path: TickPath, out: number[]): numb
   const { from, to, t0, t1 } = path;
   const radius = path.radius ?? 0;
 
-  candidates.gather(shape, [from, to], radius);
+  candidates.gather(shape, from, to, radius);
 
   const { shares } = candidates;
 
@@ -87,7 +87,7 @@ export const pathIntervals = (shape: Shape, path: TickPath, out: number[]): numb
     const next = i < candidates.count ? (shares[i] ?? 1) : 1;
 
     if (next - previous > SAME_SHARE && covers(shape, along(from, to, (previous + next) / 2), radius)) {
-      count = push(out, count, [t0 + (t1 - t0) * previous, t0 + (t1 - t0) * next]);
+      count = push(out, count, t0 + (t1 - t0) * previous, t0 + (t1 - t0) * next);
     }
 
     previous = Math.max(previous, next);

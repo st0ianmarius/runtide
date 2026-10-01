@@ -107,9 +107,10 @@ class CatchOptions<G extends AreaTriggerTypes> implements QueryOptions<G['bearer
 export class Catcher<G extends AreaTriggerTypes> {
   readonly #hits: Hit<G>[] = [];
   readonly #options: CatchOptions<G>[] = [];
-  readonly #from = { x: 0, z: 0 };
-  readonly #to = { x: 0, z: 0 };
-  readonly #segment: readonly [Vec2, Vec2] = [this.#from, this.#to];
+
+  /** The reused ends of the segment `aim` sets: where an area trigger was at the start of its frame, and is now. */
+  readonly from = { x: 0, z: 0 };
+  readonly to = { x: 0, z: 0 };
 
   #depth = 0;
 
@@ -155,14 +156,12 @@ export class Catcher<G extends AreaTriggerTypes> {
     return options;
   }
 
-  /** The reused segment from where an area trigger was at the start of its frame to where it is. */
-  segmentOf(area: AreaTrigger<G>): readonly [Vec2, Vec2] {
-    this.#from.x = area.previous.x;
-    this.#from.z = area.previous.z;
-    this.#to.x = area.position.x;
-    this.#to.z = area.position.z;
-
-    return this.#segment;
+  /** Sets `from` and `to` to where an area trigger was at the start of its frame and where it is. */
+  aim(area: AreaTrigger<G>): void {
+    this.from.x = area.previous.x;
+    this.from.z = area.previous.z;
+    this.to.x = area.position.x;
+    this.to.z = area.position.z;
   }
 
   /** Lets go of the hit the options of the current level point at. */
@@ -207,7 +206,9 @@ export const catchAlong = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, hi
   options.until = area.sweepUntil;
   options.isOpen = area.hasAdvanced;
 
-  const count = engine.world.sweep(engine.catcher.segmentOf(area), options, hit.units);
+  engine.catcher.aim(area);
+
+  const count = engine.world.sweep(engine.catcher.from, engine.catcher.to, options, hit.units);
 
   engine.catcher.release();
   hit.fill(count);

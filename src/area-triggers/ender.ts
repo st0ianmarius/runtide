@@ -85,7 +85,7 @@ export const endArea = <G extends AreaTriggerTypes>(
     } finally {
       closeLedgers(engine, area);
       unlinkKind(engine, area);
-      engine.count(area.owner, [area.kind, -1]);
+      engine.count(area.owner, area.kind, -1);
 
       try {
         engine.holdOwnerAura(area, false);

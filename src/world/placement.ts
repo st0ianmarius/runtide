@@ -31,7 +31,7 @@ export class Placement {
 
   /** Whether a body of `radius` (0 by default) passes from one point to the other without touching static shapes. */
   readonly lineClear = (from: Vec2, to: Vec2, radius = 0): boolean =>
-    this.#statics.contact([from, to], radius) === undefined;
+    this.#statics.contact(from, to, radius) === undefined;
 
   /** `p` moved inside the bounds, inset by `radius` (0 by default), as a new vector. */
   readonly clamp = (p: Vec2, radius = 0): Vec2 => {
@@ -44,20 +44,19 @@ export class Placement {
   };
 
   /**
-   * Moves a body of `radius` along a segment until it touches static geometry or would leave the bounds (inset by its
+   * Moves a body of `radius` from `from` toward `to` until it touches static geometry or would leave the bounds (inset by its
    * radius), and says where it stopped and the normal of what it touched (for a slide along a wall, a ricochet). A
    * body that starts overlapping a shape, or outside the bounds, and moves away or along goes free, so a slide along
    * the returned normal never sticks.
    */
-  readonly moveBody = (segment: readonly [Vec2, Vec2], radius: number): BodyMove => {
-    const [from, to] = segment;
-    const contact = this.#statics.contact(segment, radius);
-    const exit = this.#boundsExit(segment, radius);
+  readonly moveBody = (from: Vec2, to: Vec2, radius: number): BodyMove => {
+    const contact = this.#statics.contact(from, to, radius);
+    const exit = this.#boundsExit(from, to, radius);
     const share = Math.min(contact ?? 1, exit);
     const position = { x: from.x + (to.x - from.x) * share, z: from.z + (to.z - from.z) * share };
 
     if (exit < 1 && exit <= (contact ?? 1)) {
-      this.#keepIn(position, [from, radius]);
+      this.#keepIn(position, from, radius);
     }
 
     if (contact === undefined && exit >= 1) {
@@ -79,7 +78,7 @@ export class Placement {
    * Keeps a body stopped by the bounds inside them (inset by its radius), on each axis it started inside on: the stop's
    * share can round a hair past the bound, which the next move would find it outside of.
    */
-  #keepIn(position: { x: number; z: number }, [from, radius]: readonly [Vec2, number]): void {
+  #keepIn(position: { x: number; z: number }, from: Vec2, radius: number): void {
     const { bounds } = this;
     const minX = bounds.minX + radius;
     const maxX = bounds.maxX - radius;
@@ -156,12 +155,12 @@ export class Placement {
   };
 
   /** The share at which a body's centre leaves the bounds inset by its radius (0 when it starts outside, 1 if never). */
-  #boundsExit([from, to]: readonly [Vec2, Vec2], radius: number): number {
+  #boundsExit(from: Vec2, to: Vec2, radius: number): number {
     const { bounds } = this;
 
     return Math.min(
-      axisExit([from.x, to.x], [bounds.minX + radius, bounds.maxX - radius]),
-      axisExit([from.z, to.z], [bounds.minZ + radius, bounds.maxZ - radius])
+      axisExit(from.x, to.x, bounds.minX + radius, bounds.maxX - radius),
+      axisExit(from.z, to.z, bounds.minZ + radius, bounds.maxZ - radius)
     );
   }
 }
@@ -170,7 +169,7 @@ export class Placement {
  * The share at which a move along one axis leaves `[low, high]`, 1 if never. One that starts outside (a rounding past a
  * stop, a spawn off the map) goes free while it heads back in or along, and stops at once heading further out.
  */
-const axisExit = ([p, q]: readonly [number, number], [low, high]: readonly [number, number]): number => {
+const axisExit = (p: number, q: number, low: number, high: number): number => {
   if (p < low) {
     return q < p ? 0 : 1;
   }

@@ -47,7 +47,7 @@ export const OPEN_WORLD: StaticWorld = Object.freeze({
   lineClear: () => true,
   isPositionClear: () => true,
   clamp: (p: Vec2) => p,
-  moveBody: ([, to]: readonly [Vec2, Vec2]) => ({ position: to, hit: false, share: 1 })
+  moveBody: (_from: Vec2, to: Vec2) => ({ position: to, hit: false, share: 1 })
 });
 
 /** A mirror context a system reuses for every mirror-safe hook it runs (they never nest); set it, then hand it over. */

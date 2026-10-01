@@ -115,7 +115,7 @@ export const stepAutoClocks = <G extends SpellTypes>(
 };
 
 /** The seconds left on a caster's `auto` clock for a spell; 0 for a spell it has not armed. */
-export const autoClockOf = (caster: SpellCaster, [spell, dt]: readonly [SpellId, number]): number => {
+export const autoClockOf = (caster: SpellCaster, spell: SpellId, dt: number): number => {
   const record = recordOf(caster);
   const index = record.autoAt(spell);
 
@@ -126,10 +126,7 @@ export const autoClockOf = (caster: SpellCaster, [spell, dt]: readonly [SpellId,
  * Sets the seconds left on a caster's armed `auto` clock for a spell (a creature's swing reset as its other cast
  * ends); false for a spell it has not armed. Throws for seconds that are not finite from 0.
  */
-export const setAutoClock = (
-  caster: SpellCaster,
-  [spell, seconds, dt]: readonly [SpellId, number, number]
-): boolean => {
+export const setAutoClock = (caster: SpellCaster, spell: SpellId, seconds: number, dt: number): boolean => {
   if (!(seconds >= 0) || !Number.isFinite(seconds)) {
     throw new RangeError(`An auto clock is set to finite seconds from 0; got ${seconds}.`);
   }
@@ -182,7 +179,8 @@ const inScope = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId, s
 const rescaleAuto = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   caster: G['bearer'],
-  [factor, scope]: readonly [number, number]
+  factor: number,
+  scope: number
 ): number => {
   const record = recordOf(caster);
   const { autos } = record;
@@ -220,5 +218,5 @@ export const rescaleClocks = <G extends SpellTypes>(
     throw new RangeError(`A clock rescale takes a finite factor from 0; got ${factor}.`);
   }
 
-  return rescaleAuto(engine, caster, [factor, rescale.tag ?? -1]);
+  return rescaleAuto(engine, caster, factor, rescale.tag ?? -1);
 };

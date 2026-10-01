@@ -1,5 +1,5 @@
 import { ownValue } from '../core/records.ts';
-import { covers, pathIntervals, type Vec2 } from '../math/index.ts';
+import { covers, ORIGIN, pathIntervals, type Vec2 } from '../math/index.ts';
 import type { AreaTriggerContext, EndReason } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
@@ -58,7 +58,7 @@ export interface AreaQueries<G extends AreaTriggerTypes> {
   readonly coveredBy: (point: Vec2, query: CoverQuery<G>) => AreaTriggerHandle;
 
   /** Where a path from `from` to `to` first meets an area trigger a query keeps, written into `out`. */
-  readonly intercept: (segment: readonly [Vec2, Vec2], query: CoverQuery<G>, out: AreaInterception) => AreaInterception;
+  readonly intercept: (from: Vec2, to: Vec2, query: CoverQuery<G>, out: AreaInterception) => AreaInterception;
 }
 
 /** A tag's id from its name, throwing for an unknown one. */
@@ -76,7 +76,9 @@ const tagIdOf = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, tag: G['area
 /** Whether one kind passes a query's kind and tag. */
 const isKindKept = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
-  [query, kind, tag]: readonly [AreaQuery<G>, number, number]
+  query: AreaQuery<G>,
+  kind: number,
+  tag: number
 ): boolean =>
   (query.kind === undefined || query.kind === kind) && (tag < 0 || engine.registry.tagSets[kind]?.has(tag) === true);
 
@@ -103,7 +105,7 @@ const collect = <G extends AreaTriggerTypes>(
   }
 
   for (const kind of engine.registry.ids) {
-    if (!isKindKept(engine, [query, kind, tag])) {
+    if (!isKindKept(engine, query, kind, tag)) {
       continue;
     }
 
@@ -164,6 +166,7 @@ export const despawnWhere = <G extends AreaTriggerTypes>(
 export class AreaQueryApi<G extends AreaTriggerTypes> implements AreaQueries<G> {
   readonly #engine: AreaEngine<G>;
   readonly #times: number[] = [];
+  readonly #path = { from: ORIGIN, to: ORIGIN, t0: 0, t1: 1, radius: 0 };
 
   constructor(engine: AreaEngine<G>) {
     this.#engine = engine;
@@ -208,14 +211,15 @@ export class AreaQueryApi<G extends AreaTriggerTypes> implements AreaQueries<G> 
     return handle;
   };
 
-  readonly intercept = (
-    [from, to]: readonly [Vec2, Vec2],
-    query: CoverQuery<G>,
-    out: AreaInterception
-  ): AreaInterception => {
+  readonly intercept = (from: Vec2, to: Vec2, query: CoverQuery<G>, out: AreaInterception): AreaInterception => {
     const found = this.#engine.records.take();
     const count = collect(this.#engine, query, found);
-    const path = { from, to, t0: 0, t1: 1, radius: query.radius ?? 0 };
+    const path = this.#path;
+
+    // Written after `collect`, whose filters are the game's code: nothing else runs until the walk below is done.
+    path.from = from;
+    path.to = to;
+    path.radius = query.radius ?? 0;
 
     out.handle = NO_AREA_TRIGGER;
     out.share = 1;

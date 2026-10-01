@@ -89,7 +89,7 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly isPositionClear: (p: Vec2, radius: number) => boolean;
   readonly lineClear: (from: Vec2, to: Vec2, radius?: number) => boolean;
   readonly clamp: (p: Vec2, radius?: number) => Vec2;
-  readonly moveBody: (segment: readonly [Vec2, Vec2], radius: number) => BodyMove;
+  readonly moveBody: (from: Vec2, to: Vec2, radius: number) => BodyMove;
   readonly pickPoint: (pick: PointPick) => Vec2 | undefined;
   readonly #table: UnitTable<Unit>;
   readonly #index: PointIndex;
@@ -248,11 +248,11 @@ class World<Unit> implements MemoryWorld<Unit> {
     }
   };
 
-  readonly sweep = (segment: readonly [Vec2, Vec2], options: SweepOptions<Unit>, out: (Unit | undefined)[]): number => {
+  readonly sweep = (from: Vec2, to: Vec2, options: SweepOptions<Unit>, out: (Unit | undefined)[]): number => {
     const parts = this.#enter();
 
     try {
-      parts.selection.along(segment, options);
+      parts.selection.along(from, to, options);
 
       return sweep(parts, options, out);
     } finally {

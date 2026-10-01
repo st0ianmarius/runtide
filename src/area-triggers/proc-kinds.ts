@@ -66,7 +66,9 @@ const kindIdOf = <G extends AreaTriggerTypes>(
 /** Where a `spawn` proc spawns: its point, or the unit it landed on (read into `point`). */
 const pointOf = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
-  [proc, ctx, unit]: readonly [SpawnProc<G>, ProcContext<G>, G['bearer']],
+  proc: SpawnProc<G>,
+  ctx: ProcContext<G>,
+  unit: G['bearer'],
   point: MutableVec2
 ): Vec2 => proc.atOf?.(ctx) ?? proc.at ?? (engine.host.positionOf ?? engine.world.positionOf)(unit, point);
 
@@ -85,7 +87,7 @@ const spawnKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindD
       const request = (spec ??= new ProcSpawnSpec<G>(ctx.self));
 
       request.owner = ctx.self;
-      request.at = pointOf(engine, [proc, ctx, unit], request.point);
+      request.at = pointOf(engine, proc, ctx, unit, request.point);
       request.heading = proc.headingOf?.(ctx) ?? proc.heading ?? engine.current?.heading ?? 0;
       request.input = proc.inputOf === undefined ? proc.input : proc.inputOf(ctx);
       request.source = ctx.source;

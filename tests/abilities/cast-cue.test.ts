@@ -66,7 +66,7 @@ const WALLED: StaticWorld = {
   lineClear: () => true,
   isPositionClear: (p, radius) => p.x + radius < 5,
   clamp: (p) => p,
-  moveBody: ([, to]) => ({ position: to, hit: false, share: 1 })
+  moveBody: (_from, to) => ({ position: to, hit: false, share: 1 })
 };
 
 /** The cue ids and keys of a buffer's events, in firing order. */

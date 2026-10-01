@@ -253,7 +253,7 @@ export class DamageEngine<G extends DamageTypes> {
     const count = this.auras.collect(unit, walk.hook, list);
 
     if (walk.order !== undefined && count > 1) {
-      orderBy(list, [walk.order, count]);
+      orderBy(list, walk.order, count);
     }
 
     this.auras.hold();
@@ -380,7 +380,8 @@ export interface HookWalk<G extends DamageTypes, S> {
 /** Sorts the first `count` auras of a walk's list by their place, stably (insertion: the lists are short). */
 const orderBy = <G extends DamageTypes>(
   list: (ActiveAura<G> | undefined)[],
-  [order, count]: readonly [ArrayLike<number>, number]
+  order: ArrayLike<number>,
+  count: number
 ): void => {
   for (let i = 1; i < count; i++) {
     const aura = list[i];

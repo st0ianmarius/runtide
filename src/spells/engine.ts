@@ -119,9 +119,6 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   /** What `stats` functions are called with, reused. */
   readonly statsCall = new StatsCall<G>();
 
-  /** What a stats table is taken with, reused: the caster's view and the rank. */
-  readonly tableCall: { caster: StatView; rank: number };
-
   /** The pause bit of every interrupt a spell's timeline names, from bit 1 up, by name. */
   readonly interruptBits: ReadonlyMap<string, number>;
 
@@ -161,7 +158,6 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     this.plans = parts.plans;
     this.boxes = parts.boxes;
     this.baseView = parts.baseView;
-    this.tableCall = { caster: this.baseView, rank: 1 };
     this.interruptBits = parts.interruptBits;
     this.pauseMasks = parts.pauseMasks;
     this.#procs = parts.procs;

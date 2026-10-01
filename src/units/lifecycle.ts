@@ -73,7 +73,8 @@ export const changeSide = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
 const leaveFor = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
-  [from, to]: readonly [Lifecycle, Exclude<Lifecycle, 'alive'>]
+  from: Lifecycle,
+  to: Exclude<Lifecycle, 'alive'>
 ): void => {
   const { auras } = engine.options;
 
@@ -99,7 +100,8 @@ const leaveFor = <G extends UnitTypes>(
 const despawned = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
-  [from, reason]: readonly [Lifecycle, string]
+  from: Lifecycle,
+  reason: string
 ): void => {
   const unit = unitOf<G>(bearer);
 
@@ -134,7 +136,9 @@ const despawned = <G extends UnitTypes>(
 export const moveTo = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
-  [to, health, reason]: readonly [Lifecycle, number | undefined, (string | undefined)?]
+  to: Lifecycle,
+  health?: number,
+  reason?: string
 ): boolean => {
   const unit = unitOf<G>(bearer);
   const from = unit.lifecycle;
@@ -157,7 +161,7 @@ export const moveTo = <G extends UnitTypes>(
   unit.lifecycle = to;
 
   try {
-    enter(engine, bearer, [from, to, health, reason]);
+    enter(engine, bearer, from, health, reason);
   } catch (error) {
     // A hook threw: the move stops where it is, and the moves it asked for are dropped, not left for the next one.
     unit.nextMoves.length = 0;
@@ -172,7 +176,7 @@ export const moveTo = <G extends UnitTypes>(
     const next = unit.nextMoves.shift();
 
     if (next !== undefined) {
-      moveTo(engine, bearer, next);
+      moveTo(engine, bearer, next[0], next[1], next[2]);
     }
   }
 
@@ -186,13 +190,16 @@ const checkHealth = (health: number | undefined): void => {
   }
 };
 
-/** Runs a move's work and events: what joining life, or leaving it, does. */
+/** Runs a move's work and events, the unit in its new state already: what joining life, or leaving it, does. */
 const enter = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
-  [from, to, health, reason]: readonly [Lifecycle, Lifecycle, number | undefined, string | undefined]
+  from: Lifecycle,
+  health: number | undefined,
+  reason: string | undefined
 ): void => {
   const unit = unitOf<G>(bearer);
+  const to = unit.lifecycle;
 
   if (to === 'alive') {
     unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
@@ -200,14 +207,14 @@ const enter = <G extends UnitTypes>(
   } else if (to === 'despawned') {
     // A despawn cannot be asked again: a hook that throws while it leaves still has it forgotten and released.
     try {
-      leaveFor(engine, bearer, [from, to]);
+      leaveFor(engine, bearer, from, to);
     } finally {
-      despawned(engine, bearer, [from, reason ?? 'despawn']);
+      despawned(engine, bearer, from, reason ?? 'despawn');
     }
 
     return;
   } else {
-    leaveFor(engine, bearer, [from, to]);
+    leaveFor(engine, bearer, from, to);
   }
 
   raise(engine, engine.options.events?.changed, [bearer, from, to, undefined, '']);

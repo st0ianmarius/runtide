@@ -70,7 +70,7 @@ export class Selection<Unit> {
   }
 
   /** Sets up a sweep of a body along a segment, in the order it reaches units unless the options say otherwise. */
-  along([from, to]: readonly [Vec2, Vec2], options: SweepOptions<Unit>): this {
+  along(from: Vec2, to: Vec2, options: SweepOptions<Unit>): this {
     this.#reset(options, 'contact');
     this.isSweep = true;
     this.isRelative = options.relative === true;

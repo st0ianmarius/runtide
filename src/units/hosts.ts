@@ -51,6 +51,6 @@ export const damageHostOf = <G extends UnitTypes>(
   unitOf: (id) => engine.byId.get(id),
 
   remove: (unit) => {
-    moveTo(engine, unit, ['dead', undefined]);
+    moveTo(engine, unit, 'dead');
   }
 });

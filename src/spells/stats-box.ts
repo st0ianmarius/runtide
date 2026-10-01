@@ -57,17 +57,7 @@ export class StatsBoxes {
  * `rank` into the box's reused snapshot, its number is that part (target terms left out), and its proc amount is the
  * snapshot when it has target terms, else the number. Allocates nothing once the box has been used.
  */
-export const takeTable = (
-  box: StatsBox,
-  compiled: CompiledStats,
-  ctx: {
-    /** The caster's stats. */
-    readonly caster: StatView;
-
-    /** The rank. */
-    readonly rank: number;
-  }
-): void => {
+export const takeTable = (box: StatsBox, compiled: CompiledStats, caster: StatView, rank: number): void => {
   const { keys, values } = compiled;
 
   for (let i = 0; i < keys.length; i++) {
@@ -78,7 +68,7 @@ export const takeTable = (
       continue;
     }
 
-    const snapshot = snapshotScaled(value, ctx, box.snapshots[i]);
+    const snapshot = snapshotScaled(value, caster, rank, box.snapshots[i]);
     const number = finishScaled(snapshot);
 
     box.snapshots[i] = snapshot;

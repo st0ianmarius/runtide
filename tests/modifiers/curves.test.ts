@@ -119,7 +119,7 @@ describe('custom curves', () => {
   it('let snapshots see the stats their parameters read, and refuse a target read where there is none', () => {
     const k = customCurve((x, { k }) => x / (x + k), { k: scaled(0, add('level', 10)) });
     const value = compileScaled(STATS, scaled(100, curveOf(k, 1, { stat: 'armor' })));
-    const snapshot = snapshotScaled(value, { caster: unit([10, 100]) });
+    const snapshot = snapshotScaled(value, unit([10, 100]));
 
     assert.deepEqual(value.casterStats, [STATS.id.armor, STATS.id.level]);
     assert.equal(evaluateScaled(value, { caster: unit([10, 100]) }), 50);

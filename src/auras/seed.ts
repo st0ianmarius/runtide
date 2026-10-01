@@ -42,7 +42,9 @@ export interface AuraSeed<G extends AuraTypes = AuraTypes> {
  * from the mirror's own count of the clock.
  */
 const setSeededClock = <G extends AuraTypes>(
-  [set, item, view]: readonly [AuraSet<G>, AuraItem<G>, AuraView],
+  set: AuraSet<G>,
+  item: AuraItem<G>,
+  view: AuraView,
   serverNow: number
 ): void => {
   item.duration = view.duration;
@@ -53,7 +55,9 @@ const setSeededClock = <G extends AuraTypes>(
 /** Puts one predicted aura back on a mirror from its view: a silent state dispatches no beats, so none is due. */
 const seedOne = <G extends AuraTypes>(
   engine: AuraEngine<G>,
-  [set, view, index]: readonly [AuraSet<G>, AuraView, number],
+  set: AuraSet<G>,
+  view: AuraView,
+  index: number,
   seed: AuraSeed<G>
 ): void => {
   const item = engine.acquire(view.aura);
@@ -63,7 +67,7 @@ const seedOne = <G extends AuraTypes>(
   item.value = view.value;
   item.source = view.source;
   item.nextBeat = Number.POSITIVE_INFINITY;
-  setSeededClock([set, item, view], seed.clocks[item.clock] ?? 0);
+  setSeededClock(set, item, view, seed.clocks[item.clock] ?? 0);
   engine.insert(set, item);
   seed.restore?.(item, index);
 };
@@ -101,7 +105,7 @@ export const seedAuras = <G extends AuraTypes>(
       const view = seed.views[i];
 
       if (view !== undefined && ((engine.flags[view.aura] ?? 0) & PREDICTED) !== 0) {
-        seedOne(engine, [set, view, i], seed);
+        seedOne(engine, set, view, i, seed);
         seeded += 1;
       }
     }
@@ -121,7 +125,9 @@ export const seedAuras = <G extends AuraTypes>(
  * and end.
  */
 const isSeededAs = <G extends AuraTypes>(
-  [set, item, view]: readonly [AuraSet<G>, AuraItem<G>, AuraView],
+  set: AuraSet<G>,
+  item: AuraItem<G>,
+  view: AuraView,
   serverNow: number
 ): boolean => {
   const end = Number.isFinite(view.end) ? (set.clocks[item.clock] ?? 0) + Math.max(0, view.end - serverNow) : Infinity;
@@ -173,7 +179,7 @@ export const matchesSeed = <G extends AuraTypes>(
 
       if (
         view === undefined ||
-        !isSeededAs([set, item, view], seed.clocks[item.clock] ?? 0) ||
+        !isSeededAs(set, item, view, seed.clocks[item.clock] ?? 0) ||
         seed.isRestored?.(item, at) === false
       ) {
         return false;

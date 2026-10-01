@@ -17,7 +17,7 @@ export class PathCandidates {
   #to: Vec2 = { x: 0, z: 0 };
 
   /** Gathers the candidates of `shape` for a body reaching `margin` along a segment, forgetting the last ones. */
-  gather(shape: Shape, [from, to]: readonly [Vec2, Vec2], margin: number): void {
+  gather(shape: Shape, from: Vec2, to: Vec2, margin: number): void {
     this.count = 0;
     this.#from = from;
     this.#to = to;
@@ -73,7 +73,7 @@ export class PathCandidates {
   }
 
   /** A line and its two offsets by `reach`, one on each side. */
-  #band(nx: number, nz: number, [c, reach]: readonly [number, number]): void {
+  #band(nx: number, nz: number, c: number, reach: number): void {
     this.#line(nx, nz, c);
 
     if (reach !== 0) {
@@ -95,7 +95,7 @@ export class PathCandidates {
       const nx = Math.cos(heading);
       const nz = -Math.sin(heading);
 
-      this.#band(nx, nz, [nx * at.x + nz * at.z, margin]);
+      this.#band(nx, nz, nx * at.x + nz * at.z, margin);
     }
   }
 
@@ -135,7 +135,7 @@ export class PathCandidates {
           const nx = -(b.z - a.z) / length;
           const nz = (b.x - a.x) / length;
 
-          this.#band(nx, nz, [nx * a.x + nz * a.z, reach]);
+          this.#band(nx, nz, nx * a.x + nz * a.z, reach);
         }
       }
 

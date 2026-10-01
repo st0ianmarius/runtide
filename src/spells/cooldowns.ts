@@ -210,7 +210,7 @@ export class Cooldowns<G extends SpellTypes> {
       if (cooldown !== undefined && (moment === 'all' || cooldown.onRelease === (moment === 'release'))) {
         const { seconds } = cooldown;
 
-        this.#land(cast.caster, cooldown, [typeof seconds === 'function' ? seconds(cast) : seconds, releaseAfter]);
+        this.#land(cast.caster, cooldown, typeof seconds === 'function' ? seconds(cast) : seconds, releaseAfter);
       }
     }
   }
@@ -226,7 +226,7 @@ export class Cooldowns<G extends SpellTypes> {
       const cooldown = list[i];
 
       if (cooldown !== undefined && typeof cooldown.seconds !== 'function') {
-        this.#land(caster, cooldown, [cooldown.seconds, releaseAfter]);
+        this.#land(caster, cooldown, cooldown.seconds, releaseAfter);
       }
     }
   }
@@ -242,11 +242,7 @@ export class Cooldowns<G extends SpellTypes> {
    * Lands one cooldown aura for some seconds, or its own duration; none for 0 seconds or less (a cooldown reduced to
    * nothing), which would hold the spell until the next step.
    */
-  #land(
-    caster: G['bearer'],
-    cooldown: CompiledCooldown<G>,
-    [read, releaseAfter]: readonly [number | undefined, number]
-  ): void {
+  #land(caster: G['bearer'], cooldown: CompiledCooldown<G>, read: number | undefined, releaseAfter: number): void {
     // A cooldown read as nothing lands nothing, before its release as after it.
     if (read !== undefined && read <= 0) {
       return;

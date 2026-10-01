@@ -56,6 +56,9 @@ const isSeen = (flags: number, viewer: 'owner' | 'party' | 'other'): boolean => 
   return (flags & OWNER_ONLY) === 0 && (viewer === 'party' || (flags & PARTY_ONLY) === 0);
 };
 
+/** No view options: the view anyone else sees. */
+const NO_VIEW_OPTIONS: ViewOptions = Object.freeze({});
+
 /** A new view record, which `viewAuras` fills. */
 const newView = (): AuraView => ({
   aura: toId<'auras'>(0),
@@ -75,8 +78,9 @@ const newView = (): AuraView => ({
  */
 export const viewAuras = <G extends AuraTypes>(
   engine: AuraEngine<G>,
-  [bearer, out]: readonly [G['bearer'], AuraView[]],
-  options: ViewOptions = {}
+  bearer: G['bearer'],
+  out: AuraView[],
+  options: ViewOptions = NO_VIEW_OPTIONS
 ): number => {
   const set = setOf<G>(bearer);
   let count = 0;

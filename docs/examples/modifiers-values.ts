@@ -133,7 +133,7 @@ assert.equal(shareOf(0.3, 1), 0.3); // Avoids the different last bit of 1 + (0.3
 // #endregion scaled-values
 
 // #region snapshots
-const snapshot = snapshotScaled(damage, { caster, rank: 2 });
+const snapshot = snapshotScaled(damage, caster, 2);
 const frozen = freezeStats(caster, [stats.id.damage, stats.id.attackDamage]);
 
 modifiers.setSource(sheet, sources.id.talents, [modifiers.compile([plus('attackDamage', 100)])]);

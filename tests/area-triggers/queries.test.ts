@@ -116,13 +116,13 @@ describe('coveredBy and interceptors', () => {
     const far = game.areaTriggers.spawn(game.areaId.dome, { owner, at: vec2(8, 0) });
     const near = game.areaTriggers.spawn(game.areaId.dome, { owner, at: vec2(4, 0) });
 
-    game.areaTriggers.intercept([vec2(0, 0), vec2(10, 0)], { tag: 'dome' }, out);
+    game.areaTriggers.intercept(vec2(0, 0), vec2(10, 0), { tag: 'dome' }, out);
     assert.equal(out.handle, near);
     assert.equal(out.share, 0.2);
-    game.areaTriggers.intercept([vec2(0, 5), vec2(10, 5)], { tag: 'dome' }, out);
+    game.areaTriggers.intercept(vec2(0, 5), vec2(10, 5), { tag: 'dome' }, out);
     assert.deepEqual(out, { handle: NO_AREA_TRIGGER, share: 1 });
     game.areaTriggers.despawn(near);
-    game.areaTriggers.intercept([vec2(0, 0), vec2(10, 0)], { kind: game.areaId.dome }, out);
+    game.areaTriggers.intercept(vec2(0, 0), vec2(10, 0), { kind: game.areaId.dome }, out);
     assert.equal(out.handle, far);
   });
 
