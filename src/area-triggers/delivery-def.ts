@@ -33,9 +33,10 @@ export interface AreaLedger<Unit> {
  * A hit ledger's rules: `once` (each unit once: once-per-cast in the cast's scope),
  * `repeat` (every hit, a repeat taking `share`: repeat-share), or `rehit` (again after `cooldown` seconds:
  * rehit-cooldown); with an optional
- * `pierce` (different units) and `budget` (hits) after which it is spent.
+ * `pierce` (different units) and `budget` (hits) after which it is spent, each a number or read from the area trigger
+ * that opens the ledger (a stat's "+1 pierce"): its cast's first, for a ledger its cast shares.
  */
-export interface AreaLedgerSpec {
+export interface AreaLedgerSpec<G extends AreaTriggerTypes = AreaTriggerTypes> {
   /** Which hits it lets through. */
   readonly policy: 'once' | 'repeat' | 'rehit';
 
@@ -48,11 +49,11 @@ export interface AreaLedgerSpec {
   /** The seconds before a unit can be hit again under `rehit`. */
   readonly cooldown?: number;
 
-  /** The most different units it lets through; it is spent after them. */
-  readonly pierce?: number;
+  /** The most different units it lets through, a whole number from 1; it is spent after them. */
+  readonly pierce?: number | AreaFn<G, unknown, number>;
 
-  /** The most hits it lets through, repeats included; it is spent after them. */
-  readonly budget?: number;
+  /** The most hits it lets through, repeats included, a whole number from 1; it is spent after them. */
+  readonly budget?: number | AreaFn<G, unknown, number>;
 }
 
 /**

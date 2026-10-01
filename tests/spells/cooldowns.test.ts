@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { timeLeft } from '../../src/procs/index.ts';
-import { rescaleClocks } from '../../src/spells/index.ts';
+import { explainSpell, rescaleClocks } from '../../src/spells/index.ts';
 import { type AbilityGame, auraNamed, makeAbilityGame } from '../helpers/ability-game.ts';
 import { aura, type Game, makeSpellGame, mark, spell, SPELL_TAGS } from '../helpers/spell-game.ts';
 
@@ -133,6 +133,33 @@ describe('a spell’s cooldowns', () => {
         ),
       /charges are a whole number from 1/
     );
+  });
+
+  it('read a caster’s charges at each check, so an item’s extra charge counts at once', () => {
+    const extra = new Map<number, number>();
+
+    const game = makeSpellGame(
+      {
+        dash: spell({
+          activation: { kind: 'trigger' },
+          cooldown: { aura: 'dashCharge', seconds: 1, charges: (caster) => 1 + (extra.get(caster.id) ?? 0) },
+          release: () => undefined
+        })
+      },
+      { auras: { dashCharge: aura({ duration: 9, stacking: 'independent', maxStacks: 3 }) } }
+    );
+
+    const hero = game.unit(1);
+
+    game.spells.cast(hero, game.id.dash);
+    assert.equal(game.spells.check(hero, game.id.dash), 'cooldown');
+    extra.set(hero.id, 1);
+    assert.equal(game.spells.check(hero, game.id.dash), undefined);
+    game.spells.cast(hero, game.id.dash);
+    assert.equal(game.spells.check(hero, game.id.dash), 'cooldown');
+    assert.equal(explainSpell(game.spells.registry, game.id.dash).cooldowns[0]?.charges, 'caster');
+    extra.set(hero.id, -1);
+    assert.throws(() => game.spells.check(hero, game.id.dash), /charges are a whole number from 1; got 0/);
   });
 
   it('land none for a cooldown reduced to nothing', () => {

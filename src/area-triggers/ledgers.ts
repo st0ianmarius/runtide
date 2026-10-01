@@ -1,10 +1,15 @@
 import { toHandle } from '../core/ids.ts';
 import { createPool, type Handle, type Pool, stepsUntil } from '../core/index.ts';
 import type { CastHandle } from '../spells/index.ts';
+import { isLimit } from './area-checks.ts';
+import type { AreaFn } from './area-def.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import type { AreaLedger, AreaLedgerSpec } from './delivery-def.ts';
 import type { AreaEngine } from './engine.ts';
+
+/** A ledger's rules as it keeps them: its spec without the pierce and budget, which it reads as it opens. */
+type LedgerRules = Pick<AreaLedgerSpec, 'policy' | 'scope' | 'share' | 'cooldown'>;
 
 /** The fewest units a `rehit` ledger holds before it forgets the cool ones. */
 const PRUNE_FROM = 64;
@@ -18,7 +23,7 @@ export class Ledger {
   readonly last = new Map<number, number>();
 
   /** Its rules. */
-  spec: AreaLedgerSpec = { policy: 'once' };
+  spec: LedgerRules = { policy: 'once' };
 
   /** How many different units it recorded. */
   distinct = 0;
@@ -29,6 +34,10 @@ export class Ledger {
   /** How many area triggers share it. */
   refs = 0;
 
+  /** Its pierce and budget, read as it opened. */
+  pierce: number | undefined = undefined;
+  budget: number | undefined = undefined;
+
   /** How many units a `rehit` ledger holds before it forgets the ones whose cooldown ran. */
   watermark = PRUNE_FROM;
 
@@ -37,7 +46,7 @@ export class Ledger {
 
   /** Whether its pierce or budget ran out. */
   get isSpent(): boolean {
-    const { pierce, budget } = this.spec;
+    const { pierce, budget } = this;
 
     return (pierce !== undefined && this.distinct >= pierce) || (budget !== undefined && this.hits >= budget);
   }
@@ -65,20 +74,28 @@ export class LedgerBook {
     return this.#pool.live;
   }
 
-  /** A new ledger under a spec, held once. */
-  open(spec: AreaLedgerSpec): Ledger {
+  /** A new ledger under a spec and its pierce and budget as read, held once. */
+  open(spec: LedgerRules, pierce: number | undefined, budget: number | undefined): Ledger {
     const handle = this.#pool.acquire();
     const ledger = this.#pool.get(handle) ?? new Ledger();
 
     ledger.handle = handle;
     ledger.spec = spec;
+    ledger.pierce = pierce;
+    ledger.budget = budget;
     ledger.refs = 1;
 
     return ledger;
   }
 
-  /** The ledger a cast shares under a name, opened on first use, held once more. */
-  ofCast(cast: CastHandle, name: string, spec: AreaLedgerSpec): Ledger {
+  /** The ledger a cast shares under a name, opened on first use (with the pierce and budget read then), held once more. */
+  ofCast(
+    cast: CastHandle,
+    name: string,
+    spec: LedgerRules,
+    pierce: number | undefined,
+    budget: number | undefined
+  ): Ledger {
     let byName = this.#byCast.get(cast);
 
     if (byName === undefined) {
@@ -94,7 +111,7 @@ export class LedgerBook {
       return shared;
     }
 
-    const ledger = this.open(spec);
+    const ledger = this.open(spec, pierce, budget);
 
     byName.set(name, ledger);
 
@@ -166,6 +183,8 @@ export class LedgerBook {
     ledger.distinct = 0;
     ledger.hits = 0;
     ledger.watermark = PRUNE_FROM;
+    ledger.pierce = undefined;
+    ledger.budget = undefined;
     this.#pool.release(ledger.handle);
   }
 }
@@ -211,7 +230,7 @@ const policyShare = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: 
  * The share a hit on a unit takes now, 0 when its policy refuses it or it is spent.
  */
 const shareIn = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: Ledger, unit: number): number => {
-  const { pierce } = ledger.spec;
+  const { pierce } = ledger;
 
   if (ledger.isSpent || (pierce !== undefined && ledger.distinct >= pierce && !ledger.last.has(unit))) {
     return 0;
@@ -229,7 +248,7 @@ const shareIn = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: Ledg
 const prune = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ledger: Ledger): void => {
   const { spec } = ledger;
 
-  if (spec.policy !== 'rehit' || spec.pierce !== undefined || ledger.last.size < ledger.watermark) {
+  if (spec.policy !== 'rehit' || ledger.pierce !== undefined || ledger.last.size < ledger.watermark) {
     return;
   }
 
@@ -268,12 +287,30 @@ export const openLedgers = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, a
   const specs = engine.registry.get(area.kind).ledgers ?? {};
 
   for (const [name, spec] of Object.entries(specs)) {
+    const pierce = limitOf(area, spec.pierce, name);
+    const budget = limitOf(area, spec.budget, name);
+
     if (spec.scope === 'cast' && area.cast !== undefined) {
-      area.ledgers.set(name, engine.ledgers.ofCast(area.castHandle, name, spec));
+      area.ledgers.set(name, engine.ledgers.ofCast(area.castHandle, name, spec, pierce, budget));
     } else {
-      area.ledgers.set(name, engine.ledgers.open(spec));
+      area.ledgers.set(name, engine.ledgers.open(spec, pierce, budget));
     }
   }
+};
+
+/** A ledger's pierce or budget for an area trigger opening it: its number, or what its function reads, checked. */
+const limitOf = <G extends AreaTriggerTypes>(
+  area: AreaTrigger<G>,
+  limit: number | AreaFn<G, unknown, number> | undefined,
+  name: string
+): number | undefined => {
+  const read = typeof limit === 'function' ? limit(area) : limit;
+
+  if (read !== undefined && !isLimit(read)) {
+    throw new RangeError(`An area trigger's ledger ${name} read a pierce or budget of ${read}: a whole number from 1.`);
+  }
+
+  return read;
 };
 
 /** Lets go of every ledger an area trigger holds. */

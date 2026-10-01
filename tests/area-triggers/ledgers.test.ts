@@ -21,7 +21,7 @@ const ticks = (game: ReturnType<typeof makeSpellGame>, count: number): void => {
 };
 
 /** A pool pulsing every step, recording in a ledger, logging each beat as `hit <id> <age>: <unit>x<share>`. */
-const pool = (ledger: AreaLedgerSpec, def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<Game> => ({
+const pool = (ledger: AreaLedgerSpec<Game>, def: Partial<AnyAreaTriggerDef<Game>> = {}): AnyAreaTriggerDef<Game> => ({
   shape: circle(2),
   lifetime: 10,
   ledgers: { hits: ledger },
@@ -211,6 +211,56 @@ describe('pierce', () => {
     ticks(game, 1);
     assert.deepEqual(hits(game.log), ['hit 101,100']);
     assert.ok(game.log.includes('ended missile@1 spent'));
+  });
+
+  it('reads its pierce from the area trigger that opens it, a "+1 pierce" counting from the next spawn', () => {
+    const pierce = { extra: 0 };
+
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          missile: {
+            shape: circle(0.5),
+            lifetime: 3,
+            ledgers: { pierced: { policy: 'once', pierce: () => 1 + pierce.extra } },
+            contact: { radius: 0.5, ledger: 'pierced' },
+
+            move: (c, dt) => {
+              c.position.x += 20 * dt;
+            },
+
+            onContact: (c, hit) => {
+              c.host.log.push(`hit ${hit.targets.map((unit) => unit.id).join(',')}`);
+
+              return undefined;
+            }
+          }
+        }
+      }
+    );
+
+    for (const [id, x] of [
+      [100, 3],
+      [101, 2],
+      [102, 4]
+    ] as const) {
+      game.place(game.unit(id), vec2(x, 0));
+    }
+
+    for (const extra of [0, 2]) {
+      pierce.extra = extra;
+      game.areaTriggers.spawn(game.areaId.missile, { owner: game.unit(1), at: vec2(0, 0) });
+      ticks(game, 1);
+    }
+
+    assert.deepEqual(hits(game.log), ['hit 101', 'hit 101,100,102']);
+    pierce.extra = -1;
+    assert.throws(
+      () => game.areaTriggers.spawn(game.areaId.missile, { owner: game.unit(1), at: vec2(0, 0) }),
+      /read a pierce or budget of 0/
+    );
+    assert.equal(game.areaTriggers.pool.live, 0);
   });
 });
 

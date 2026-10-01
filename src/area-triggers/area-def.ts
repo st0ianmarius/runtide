@@ -273,7 +273,7 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   readonly order?: readonly AreaPhase[];
 
   /** Its hit ledgers by name, which its catches name and its hooks read with `c.ledger`. */
-  readonly ledgers?: Readonly<Record<string, AreaLedgerSpec>>;
+  readonly ledgers?: Readonly<Record<string, AreaLedgerSpec<G>>>;
 
   /** Its swept contacts, which `onContact` receives. */
   readonly contact?: AreaContact<G, State>;

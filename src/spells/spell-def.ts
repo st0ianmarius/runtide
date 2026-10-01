@@ -245,9 +245,10 @@ export interface SpellCooldown<G extends SpellTypes, Source extends StatsSource<
    * How many casts it holds before it blocks the spell (charges), a whole number from 1; 1 when absent. Each cast
    * lands the aura once, and the spell is held while the aura's stacks (summed over its instances) reach the charges:
    * an `independent` aura with `maxStacks` at the charges gives each spent charge its own recharge, a `stack` aura
-   * recharges them all at once.
+   * recharges them all at once. A function of the caster reads them at each check (an item's "+1 charge"); its aura's
+   * `maxStacks` must allow the most it can answer.
    */
-  readonly charges?: number;
+  readonly charges?: number | ((caster: G['bearer']) => number);
 }
 
 /**

@@ -105,8 +105,8 @@ export interface SpellExplanation {
     /** When it lands. */
     readonly startsOn: 'start' | 'release';
 
-    /** How many casts it holds before it blocks the spell. */
-    readonly charges: number;
+    /** How many casts it holds before it blocks the spell: a constant, or `'caster'` for charges read per caster. */
+    readonly charges: number | 'caster';
   }[];
 
   /** Its reach rules: each distance a constant, `'cast'` for one read per cast, `undefined` for none. */
@@ -253,7 +253,7 @@ const cooldownsOf = <G extends SpellTypes>(def: AnySpellDef<G>): SpellExplanatio
     aura: one.aura,
     seconds: secondsOf(one.seconds) ?? 'aura',
     startsOn: one.startsOn ?? 'start',
-    charges: one.charges ?? 1
+    charges: typeof one.charges === 'function' ? 'caster' : (one.charges ?? 1)
   }));
 
 /** A spell's reach rules as data. */

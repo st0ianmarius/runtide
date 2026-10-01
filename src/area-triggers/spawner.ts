@@ -8,7 +8,7 @@ import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
 import { placeShape } from './frame.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
-import { openLedgers } from './ledgers.ts';
+import { closeLedgers, openLedgers } from './ledgers.ts';
 import { linkKind } from './order.ts';
 import { joinPulses } from './pulses.ts';
 import { stepArea } from './stepper.ts';
@@ -185,7 +185,10 @@ const admitLimit = <G extends AreaTriggerTypes>(
   return liveOf(engine, area) < perOwner;
 };
 
-/** Gives it its id and lifetime, and puts an owner-anchored one on its owner: nothing links it anywhere yet. */
+/**
+ * Gives it its id and lifetime, puts an owner-anchored one on its owner and opens its ledgers: nothing links it
+ * anywhere yet.
+ */
 const settle = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   area: AreaTrigger<G>,
@@ -202,11 +205,14 @@ const settle = <G extends AreaTriggerTypes>(
   if (((registry.columns.flags[area.kind] ?? 0) & ANCHOR_OWNER) !== 0) {
     area.moveTo((engine.host.positionOf ?? engine.world.positionOf)(area.owner, engine.point));
   }
+
+  openLedgers(engine, area);
 };
 
 /**
  * Fills it, asks its limit and settles it; whether it may enter. One the limit refuses, or whose filling throws (a
- * lifetime of 0), is let go with its cast before anything links it.
+ * lifetime of 0, a ledger's pierce read as 0), is let go with its cast and the ledgers it opened before anything links
+ * it.
  */
 const admit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -227,6 +233,7 @@ const admit = <G extends AreaTriggerTypes>(
     }
   } finally {
     if (!isAdmitted) {
+      closeLedgers(engine, area);
       engine.spells.unretain(area.castHandle);
       engine.free(area);
     }
@@ -244,7 +251,6 @@ const enter = <G extends AreaTriggerTypes>(
   area: AreaTrigger<G>,
   def: AnyAreaTriggerDef<G>
 ): void => {
-  openLedgers(engine, area);
   linkKind(engine, area);
   engine.count(area.owner, area.kind, 1);
 

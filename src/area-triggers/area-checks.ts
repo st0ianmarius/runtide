@@ -1,6 +1,7 @@
 import { ownValue } from '../core/records.ts';
 import type { AnyAreaTriggerDef } from './area-def.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
+import type { AreaLedgerSpec } from './delivery-def.ts';
 import type { AreaTagTable } from './tags.ts';
 
 /** The hooks a definition may carry, each a function when present. */
@@ -151,9 +152,7 @@ const checkPulse = <G extends AreaTriggerTypes>(name: string, pulses: AnyAreaTri
 };
 
 /** The problem with one ledger's spec, or `undefined`. */
-const ledgerProblem = (
-  spec: NonNullable<AnyAreaTriggerDef<AreaTriggerTypes>['ledgers']>[string]
-): string | undefined => {
+const ledgerProblem = <G extends AreaTriggerTypes>(spec: AreaLedgerSpec<G>): string | undefined => {
   if (!isOneOf(spec.policy, ['once', 'repeat', 'rehit']) || !isOneOf(spec.scope, ['self', 'cast'])) {
     return 'has an unknown policy or scope.';
   }
@@ -168,10 +167,13 @@ const ledgerProblem = (
 
   const limits = [spec.pierce, spec.budget];
 
-  return limits.every((limit) => limit === undefined || (Number.isInteger(limit) && limit >= 1))
+  return limits.every((limit) => limit === undefined || typeof limit === 'function' || isLimit(limit))
     ? undefined
     : 'pierces and budgets a whole number from 1.';
 };
+
+/** Whether a pierce or budget is a whole number from 1. */
+export const isLimit = (limit: number): boolean => Number.isInteger(limit) && limit >= 1;
 
 /** Checks the ledgers, and that every catch names one the kind declares. */
 const checkLedgers = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTriggerDef<G>): void => {
