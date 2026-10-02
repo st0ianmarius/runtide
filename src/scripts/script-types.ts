@@ -49,7 +49,9 @@ type Handler<G extends ScriptTypes, State, Args extends unknown[]> = {
  * A behaviour: a few optional handlers and its own state on each unit. A script is a list of
  * them, and the framework decides nothing about what they do: phases, picking, reactions, sensors and summon lists are
  * the game's behaviours. The framework calls `spawn` once, `tick` in the unit's step, `timer` as the unit's timers come
- * due (delivered in its step), and `on[event]` as a bound game event reaches the unit.
+ * due (delivered in its step), and `on[event]` as a bound game event reaches the unit; `died` and `revived` as it dies
+ * and comes back. While the unit is dead its script stops: no step, no bound events, and its brain's timers held, so a
+ * revive goes on where it left off (a behaviour that starts over says so in its `revived`).
  */
 export interface Behaviour<G extends ScriptTypes, State = unknown> {
   /** Makes its state on a unit, as the unit spawns. */
@@ -57,6 +59,12 @@ export interface Behaviour<G extends ScriptTypes, State = unknown> {
 
   /** The unit spawned (after its `spawned` event). */
   spawn?(this: void, ctx: ScriptCtx<G, State>): ScriptReturn<G>;
+
+  /** The unit died (after its auras heard it): its script stops until a revive. */
+  died?(this: void, ctx: ScriptCtx<G, State>): ScriptReturn<G>;
+
+  /** The unit was revived: its script goes on with the state it had, which this may set over. */
+  revived?(this: void, ctx: ScriptCtx<G, State>): ScriptReturn<G>;
 
   /** The unit's step (`scripts.step`): only behaviours that need per-tick work declare it. */
   tick?(this: void, ctx: ScriptCtx<G, State>): ScriptReturn<G>;

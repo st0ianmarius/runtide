@@ -104,6 +104,12 @@ export interface UnitScripts<G extends UnitTypes> {
 
   /** Detaches a despawned unit: its record is freed. */
   readonly detach: (unit: G['bearer']) => void;
+
+  /** An attached unit died: its script stops (no step, no bound events) and runs its `died` handlers. */
+  readonly died: (unit: G['bearer']) => void;
+
+  /** An attached unit was revived: its script runs its `revived` handlers and goes on as it was. */
+  readonly revived: (unit: G['bearer']) => void;
 }
 
 /** How a unit is spawned. */

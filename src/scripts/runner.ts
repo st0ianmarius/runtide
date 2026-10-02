@@ -11,7 +11,7 @@ export interface DueTimers<G extends ScriptTypes> {
 }
 
 /** A moment every behaviour may handle with no argument. */
-export type Moment = 'spawn' | 'tick';
+export type Moment = 'spawn' | 'tick' | 'died' | 'revived';
 
 /** What a runner is built from: the scripts, the proc system and the host. */
 export interface RunnerParts<G extends ScriptTypes> {

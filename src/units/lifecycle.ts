@@ -1,3 +1,4 @@
+import { DEAD_HOLD } from '../ai/index.ts';
 import type { EventKind } from '../core/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import { lateOf, type UnitEngine, unitOf } from './engine.ts';
@@ -204,6 +205,7 @@ const enter = <G extends UnitTypes>(
   if (to === 'alive') {
     unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
     rejoinOwner(bearer);
+    lifeChanged(engine, bearer, true);
   } else if (to === 'despawned') {
     // A despawn cannot be asked again: a hook that throws while it leaves still has it forgotten and released.
     try {
@@ -214,8 +216,33 @@ const enter = <G extends UnitTypes>(
 
     return;
   } else {
-    leaveFor(engine, bearer, from, to);
+    // Its brain and script stop even when a cast's or an aura's hook throws as it leaves life.
+    try {
+      leaveFor(engine, bearer, from, to);
+    } finally {
+      lifeChanged(engine, bearer, false);
+    }
   }
 
   raise(engine, engine.options.events?.changed, [bearer, from, to, undefined, '']);
+};
+
+/**
+ * A unit died or was revived: its brain is held by `DEAD_HOLD` while it is dead, its timers keeping what they had
+ * left, and its script stops and goes on with them (`died` and `revived` handlers).
+ */
+const lifeChanged = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer'], isAlive: boolean): void => {
+  const { ai, scripts } = engine.options;
+
+  ai?.hold(bearer, DEAD_HOLD, !isAlive);
+
+  if (unitOf<G>(bearer).scriptSlot >= 0 && scripts !== undefined) {
+    const side = lateOf(scripts);
+
+    if (isAlive) {
+      side.revived(bearer);
+    } else {
+      side.died(bearer);
+    }
+  }
 };

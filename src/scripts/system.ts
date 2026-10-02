@@ -128,7 +128,13 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
         return records.length;
       }
     };
-    this.forUnits = { attach: this.#attach, start: this.#start, detach: this.#detach };
+    this.forUnits = {
+      attach: this.#attach,
+      start: this.#start,
+      detach: this.#detach,
+      died: this.#died,
+      revived: this.#revived
+    };
     this.#bind(options);
   }
 
@@ -151,7 +157,8 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
 
     const record = this.#records[slot];
 
-    if (record === undefined) {
+    // A dead unit's script waits for its revive.
+    if (record === undefined || record.isDead) {
       return;
     }
 
@@ -246,6 +253,34 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     }
   };
 
+  /**
+   * A unit died: its script stops, and the timers due for its next step are dropped (its brain, held, gives them again
+   * after a revive), then its `died` handlers run.
+   */
+  readonly #died = (unit: G['bearer']): void => {
+    const record = unit.scriptSlot < 0 ? undefined : this.#records[unit.scriptSlot];
+
+    if (record === undefined || !record.isLive) {
+      return;
+    }
+
+    record.isDead = true;
+    record.dueCount = 0;
+    this.#runner.moment(record, 'died');
+  };
+
+  /** A unit was revived: its script goes on, after its `revived` handlers. */
+  readonly #revived = (unit: G['bearer']): void => {
+    const record = unit.scriptSlot < 0 ? undefined : this.#records[unit.scriptSlot];
+
+    if (record === undefined || !record.isLive) {
+      return;
+    }
+
+    record.isDead = false;
+    this.#runner.moment(record, 'revived');
+  };
+
   /** Frees a unit's record. */
   readonly #detach = (unit: G['bearer']): void => {
     const slot = unit.scriptSlot;
@@ -256,6 +291,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     }
 
     record.isLive = false;
+    record.isDead = false;
     record.serial += 1;
     record.dueCount = 0;
     record.states.fill(undefined);
@@ -286,7 +322,8 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
   #dispatch(event: string, unit: G['bearer'] | undefined, payload: unknown): void {
     const record = unit === undefined || unit.scriptSlot < 0 ? undefined : this.#records[unit.scriptSlot];
 
-    if (record?.isLive === true) {
+    // A dead unit's script hears no events until its revive.
+    if (record?.isLive === true && !record.isDead) {
       this.#runner.dispatch(record, event, payload);
     }
   }

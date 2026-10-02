@@ -7,6 +7,12 @@ import type { AiProcKinds } from './procs.ts';
 import { Scheduler } from './scheduler.ts';
 import type { TimerTable } from './timers.ts';
 
+/**
+ * The hold reason every AI system has, beside the game's: the unit system holds a dead unit's brain by it, so its
+ * timers stop counting until a revive lets go of them.
+ */
+export const DEAD_HOLD = 'dead';
+
 /** The most hold reasons a system takes: each is one bit of a brain's holds. */
 const MAX_HOLDS = 31;
 
@@ -23,7 +29,8 @@ export interface AiSystemOptions<G extends AiTypes> {
 
   /**
    * The reasons that hold a brain's timers (`ai.hold`), the game's own: an intro or a blink, and the unit states'
-   * interrupts its creatures wait out (a freeze, which the unit system passes on). None when absent; at most 31.
+   * interrupts its creatures wait out (a freeze, which the unit system passes on). None when absent; at most 31, with
+   * `DEAD_HOLD`, which every system has, listed here or not.
    */
   readonly holds?: readonly string[];
 }
@@ -111,7 +118,8 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
   const { spells, timers } = options;
   const scheduler = new Scheduler<G>(options.clock, timers.names.length);
   const picker = new Picker<G>(spells);
-  const holds = options.holds ?? [];
+  const given = options.holds ?? [];
+  const holds = given.includes(DEAD_HOLD) ? given : [...given, DEAD_HOLD];
 
   if (holds.length > MAX_HOLDS || new Set(holds).size !== holds.length) {
     throw new RangeError(`An AI system takes at most ${MAX_HOLDS} hold reasons, each once.`);

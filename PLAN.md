@@ -54,7 +54,7 @@ The framework has **no dependency on swarm** or any of its packages (not `@swarm
 | world query **interface** (what a spell may ask) + an in-memory reference implementation                                  | the real query implementation over `Game.enemies` / heroes                                                          |
 | damage pipeline: blow → mitigation → aura hooks (shelter, absorbs, lethal) → health                                       | the mitigation stats' meaning, hit windows, knockback physics                                                       |
 | abilities: button activation, loadouts, cooldowns as auras, costs, `requires` / `blockedBy` / `resets`                    | dodge travel, `stepPlayerInput`, class loadouts                                                                     |
-| creature scripts: behaviours with spawn, tick, timer and bound-event hooks, in the unit's own step                        | every creature's and boss's script and its numbers; steering, pathfinding and the flow field                        |
+| creature scripts: behaviours with spawn, tick, timer, bound-event, died and revived hooks, in the unit’s own step         | every creature's and boss's script and its numbers; steering, pathfinding and the flow field                        |
 | units: templates, traits, lifecycle (down, revive, despawn), spawning, the damage, heal, force and death pipelines        | every template and its numbers; the hit window's length                                                             |
 | the caster's own rank (`rankOf`) from the game's host, and its armed `auto` clocks (`arm`)                                | every card and its ranks; the draft, rerolls, levels, loot and pickups (game systems on the escape hatches, §I.5.6) |
 | world scripts (creature scripts on bodiless units); swept path tests and shape algebra                                    | every map event, the event director, formations, blockers and reserved sites, the arena's geometry                  |
@@ -95,7 +95,7 @@ framework/                # a sibling of the swarm checkout, its own git reposit
     abilities/            # button activation data compiled per spell, slots, loadouts, tryActivate / trigger, previews
     combat-log/           # entries recorded from the systems' events into a ring, subscribers, the damage meter
     ai/                   # the AI toolkit: named timers on a wheel, the weighted anti-repeat picker, focus, movement intents
-    scripts/              # behaviours and scripts, for creatures and the world: spawn, tick, timer and bound-event hooks
+    scripts/              # behaviours and scripts, for creatures and the world: spawn, tick, timer, bound-event, died and revived hooks
     units/                # UnitDef templates, traits, lifecycle and derived states, spawn and despawn, health, unit hosts
     prediction/           # the cosmetic world, the "predicted" rule (checkPredicted); MirrorCtx lives in spells/
     replication/          # wire tables, aura lifecycle from views, stat projections (transport-agnostic)

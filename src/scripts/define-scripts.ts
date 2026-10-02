@@ -16,6 +16,12 @@ export interface CompiledScript<G extends ScriptTypes> {
   /** The behaviours with a `tick` handler, by index. */
   readonly tick: readonly number[];
 
+  /** The behaviours with a `died` handler, by index. */
+  readonly died: readonly number[];
+
+  /** The behaviours with a `revived` handler, by index. */
+  readonly revived: readonly number[];
+
   /** The behaviours with a `timer` handler, by index. */
   readonly timer: readonly number[];
 
@@ -52,7 +58,7 @@ const having = <G extends ScriptTypes>(
 
 /** Throws unless every handler a behaviour declares is a function. */
 const checkBehaviour = <G extends ScriptTypes>(behaviour: AnyBehaviour<G>, where: string): void => {
-  for (const key of ['state', 'spawn', 'tick', 'timer'] as const) {
+  for (const key of ['state', 'spawn', 'tick', 'timer', 'died', 'revived'] as const) {
     if (behaviour[key] !== undefined && typeof behaviour[key] !== 'function') {
       throw new TypeError(`${where}: its ${key} is not a function.`);
     }
@@ -86,6 +92,8 @@ const compile = <G extends ScriptTypes>(
     behaviours: Object.freeze([...behaviours]),
     spawn: having(behaviours, (behaviour) => behaviour.spawn !== undefined),
     tick: having(behaviours, (behaviour) => behaviour.tick !== undefined),
+    died: having(behaviours, (behaviour) => behaviour.died !== undefined),
+    revived: having(behaviours, (behaviour) => behaviour.revived !== undefined),
     timer: having(behaviours, (behaviour) => behaviour.timer !== undefined),
     on: new Map(
       [...events].map((event) => [event, having(behaviours, (behaviour) => Object.hasOwn(behaviour.on ?? {}, event))])

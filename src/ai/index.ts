@@ -20,5 +20,5 @@ export {
   type SetTimerProc
 } from './procs.ts';
 
-export { type AiSystem, type AiSystemOptions, createAiSystem } from './system.ts';
+export { type AiSystem, type AiSystemOptions, createAiSystem, DEAD_HOLD } from './system.ts';
 export { defineTimers, type TimerTable } from './timers.ts';

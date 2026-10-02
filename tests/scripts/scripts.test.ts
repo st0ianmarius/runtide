@@ -138,6 +138,83 @@ describe('scripts', () => {
     assert.deepEqual(unscripted, ['raise@0.5']);
   });
 
+  it('stop a dead unit’s script and hold its timers, then go on where they were after a revive', () => {
+    const log: string[] = [];
+
+    const life = behaviour({
+      state: () => ({ phase: 1, ticks: 0 }),
+      spawn: () => [setTimer<UnitGame>('pick', 1)],
+
+      tick: (ctx) => {
+        ctx.state.ticks += 1;
+
+        return undefined;
+      },
+
+      timer: (ctx) => {
+        log.push(`timer phase ${ctx.state.phase} at ${game.clock.time}`);
+
+        return undefined;
+      },
+
+      died: (ctx) => {
+        log.push(`died phase ${ctx.state.phase}`);
+        ctx.state.phase = 2;
+
+        return undefined;
+      },
+
+      revived: (ctx) => {
+        log.push(`revived phase ${ctx.state.phase}`);
+
+        return undefined;
+      },
+
+      on: {
+        changed: (_ctx, event) => {
+          log.push(`heard ${event.unit?.id ?? '?'} ${event.to}`);
+
+          return undefined;
+        }
+      }
+    });
+
+    const game = makeUnitGame(
+      { boss: { script: 'boss' }, add: {} },
+      { scripts: defineScripts<UnitGame, 'boss'>({ boss: [life] }) }
+    );
+
+    // The fixture delivers `changed` to the unit's owner: the boss hears its adds die.
+    const boss = game.units.spawn(game.id.boss, { side: 1 });
+    const [early, late] = [1, 2].map(() => game.units.spawn(game.id.add, { side: 1, owner: boss }));
+
+    const step = (count: number): void => {
+      for (let i = 0; i < count; i++) {
+        game.clock.step();
+        game.scripts.collect();
+        game.scripts.step(boss);
+      }
+    };
+
+    step(2);
+    game.units.kill(boss);
+
+    const left = game.ai.remaining(boss, TIMERS.id.pick);
+
+    step(8);
+
+    if (early !== undefined && late !== undefined) {
+      game.units.kill(early);
+      assert.equal(game.ai.remaining(boss, TIMERS.id.pick), left, 'its timer held while it is dead');
+      assert.equal(game.scripts.stateOf(boss, life)?.ticks, 2, 'no step while dead');
+      game.units.revive(boss);
+      game.units.kill(late);
+    }
+
+    step(2);
+    assert.deepEqual(log, ['died phase 1', 'revived phase 2', `heard ${late?.id ?? 0} dead`, 'timer phase 2 at 3']);
+  });
+
   it('run tick handlers only for scripted units, and do nothing for the rest', () => {
     const game = scripted();
     const caster = game.units.spawn(game.id.caster, { side: 1 });

@@ -29,6 +29,9 @@ export class ScriptRecord<G extends ScriptTypes> {
   /** Whether its script has any `tick` handler. */
   hasTick = false;
 
+  /** Whether its unit is dead: its step and bound events are skipped until a revive. */
+  isDead = false;
+
   constructor(unit: G['bearer']) {
     this.unit = unit;
   }
