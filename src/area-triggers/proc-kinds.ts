@@ -14,7 +14,7 @@ import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import type { AreaEngine } from './engine.ts';
 import { NO_AREA_TRIGGER } from './ids.ts';
 import type { AreaTriggerProcKinds, DespawnOwnedProc, SpawnProc } from './procs.ts';
-import { checkReason, despawnWhere } from './queries.ts';
+import { type AreaQuery, checkReason, despawnWhere } from './queries.ts';
 import { spawnArea, type SpawnSpec } from './spawner.ts';
 
 /** The spec a `spawn` proc spawns with, reused: the spawn reads it before any hook runs. */
@@ -121,7 +121,18 @@ const checkTag = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, tag: G['are
   }
 };
 
-/** The `despawnOwned` kind: a unit's area triggers (with a tag) ended, and its delayed lists withdrawn. */
+/** The query a `despawnOwned` proc ends: its unit's area triggers, with its tag and its filter when it has them. */
+const ownedQuery = <G extends AreaTriggerTypes>(proc: DespawnOwnedProc<G>, owner: G['bearer']): AreaQuery<G> => {
+  const { tag, filter } = proc;
+
+  if (tag === undefined) {
+    return filter === undefined ? { owner } : { owner, filter };
+  }
+
+  return filter === undefined ? { owner, tag } : { owner, tag, filter };
+};
+
+/** The `despawnOwned` kind: a unit's area triggers (those its query keeps) ended, and its delayed lists withdrawn. */
 const despawnOwnedKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): ProcKindDef<DespawnOwnedProc<G>, G> => ({
   targetOf: (proc) => proc.to ?? 'self',
 
@@ -130,8 +141,7 @@ const despawnOwnedKind = <G extends AreaTriggerTypes>(engine: AreaEngine<G>): Pr
       return PROC_SKIPPED;
     }
 
-    const query = proc.tag === undefined ? { owner: unit } : { owner: unit, tag: proc.tag };
-    const areas = despawnWhere(engine, query, proc.reason ?? 'self');
+    const areas = despawnWhere(engine, ownedQuery(proc, unit), proc.reason ?? 'self');
     const count = areas + (proc.delayed === 'keep' ? 0 : engine.spells.withdrawDelayed(unit));
 
     return count === 0 ? PROC_SKIPPED : (WITHDRAWN[count] ?? procOutcome('landed', { amount: count }));

@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { type AreaTriggerHandle, despawnOwned, NO_AREA_TRIGGER, spawn } from '../../src/area-triggers/index.ts';
+import {
+  type AreaTriggerHandle,
+  defineAreaTrigger,
+  despawnOwned,
+  NO_AREA_TRIGGER,
+  spawn
+} from '../../src/area-triggers/index.ts';
 import { circle } from '../../src/math/index.ts';
 import { after, castSpell } from '../../src/spells/index.ts';
 import { type Game, makeSpellGame, mark, spell, type Unit } from '../helpers/spell-game.ts';
@@ -100,6 +106,45 @@ describe('withdrawing what a unit owns', () => {
 
     Reflect.set(forged, 'tag', 'wall');
     assert.throws(() => game.procs.prepare([forged], 'Test'), /unknown area trigger tag wall/);
+  });
+
+  it('spares the area triggers its filter refuses: the fired markers an enrage leaves while it withdraws the rest', () => {
+    const marker = defineAreaTrigger<Game>();
+
+    const isFired = (state: unknown): boolean =>
+      typeof state === 'object' && state !== null && Reflect.get(state, 'fired') === true;
+
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          telegraph: marker({
+            shape: circle(1),
+            lifetime: 2,
+            state: (): { fired: boolean } => ({ fired: false }),
+
+            init: (c, input) => {
+              c.state.fired = input === 1;
+            }
+          })
+        }
+      }
+    );
+
+    const elite = game.unit(1);
+
+    assert.equal(game.procs.apply(spawn<Game>('telegraph', { input: 1 }), { self: elite }).status, 'landed');
+    assert.equal(game.procs.apply(spawn<Game>('telegraph', { input: 0 }), { self: elite }).status, 'landed');
+
+    const outcome = game.procs.apply(despawnOwned<Game>({ delayed: 'keep', filter: (c) => !isFired(c.state) }), {
+      self: elite
+    });
+
+    const out: AreaTriggerHandle[] = [];
+
+    assert.deepEqual([outcome.status, outcome.amount], ['landed', 1]);
+    assert.equal(game.areaTriggers.query({ owner: elite }, out), 1);
+    assert.equal(isFired(game.areaTriggers.get(out[0] ?? NO_AREA_TRIGGER)?.state), true);
   });
 
   it("ends them for the game's own reasons, the registry's after the framework's, and refuses unknown ones", () => {

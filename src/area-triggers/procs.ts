@@ -1,6 +1,6 @@
 import type { Vec2 } from '../math/index.ts';
 import type { ChanceOption, ProcContext, ProcKindDef, ProcShape, ProcTarget } from '../procs/index.ts';
-import type { EndReason } from './area-def.ts';
+import type { AreaTriggerContext, EndReason } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 
 /**
@@ -57,6 +57,12 @@ export interface DespawnOwnedProc<G extends AreaTriggerTypes> extends ProcShape 
 
   /** Only area triggers with this tag (`telegraph`); every one the unit owns when absent. */
   readonly tag?: G['areaTag'];
+
+  /**
+   * Only area triggers it keeps: the unfired ones, read from their state (Swarm's telegraphs linger as fired markers);
+   * every one the tag keeps when absent.
+   */
+  readonly filter?: (c: AreaTriggerContext<G>) => boolean;
 
   /** Whether its delayed lists are withdrawn too (`withdraw`, the default) or kept (`keep`). */
   readonly delayed?: 'withdraw' | 'keep';
