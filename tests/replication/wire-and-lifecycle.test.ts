@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
 import { type CueDef, defineCue, defineCues } from '../../src/cues/index.ts';
 import { auraChanges, auraLifecycle, checkWireTable, wireTableOf } from '../../src/replication/index.ts';
-import { aura, makeGame } from '../helpers/aura-game.ts';
+import { aura, makeGame, TAGS } from '../helpers/aura-game.ts';
 
 /** A bearer's aura views, in a fresh array. */
 const viewsOf = <Bearer>(
@@ -45,6 +45,7 @@ describe('wire tables', () => {
     const plain: CueDef = defineCue({ anchor: 'self', params: { amount: { kind: 'uint8' } } });
 
     assert.equal(auraSum({ duration: 1 }), auraSum({ duration: 2 }));
+    assert.equal(auraSum({ duration: 1 }), auraSum({ duration: 1, quiet: true }));
     assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 1, predicted: true }));
     assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 1, stacking: 'stack', maxStacks: 3 }));
     assert.equal(cueSum(plain), cueSum(defineCue({ anchor: 'self', params: { amount: { kind: 'uint8' } } })));
@@ -124,7 +125,7 @@ describe('aura lifecycle from views', () => {
     ]);
   });
 
-  it('reads stacks and value changes when the clock was not set again', () => {
+  it('reads stacks first, then value, then a later end or a new duration, and an earlier end as nothing', () => {
     const u = unit();
 
     auras.apply(u, id.shield);
@@ -133,8 +134,75 @@ describe('aura lifecycle from views', () => {
 
     assert.ok(base !== undefined);
     assert.equal(auraLifecycle(base, { ...base, stacks: 2 }, []), 'stacked');
+    assert.equal(auraLifecycle(base, { ...base, stacks: 2, value: 1, end: base.end + 4 }, []), 'stacked');
     assert.equal(auraLifecycle(base, { ...base, value: 1 }, []), 'changed');
+    assert.equal(auraLifecycle(base, { ...base, value: 1, end: base.end + 4 }, []), 'changed');
+    assert.equal(auraLifecycle(base, { ...base, end: base.end + 4 }, []), 'refreshed');
+    assert.equal(auraLifecycle(base, { ...base, duration: 2 }, []), 'refreshed');
+    assert.equal(auraLifecycle(base, { ...base, duration: 2, end: base.end - 4 }, []), 'refreshed');
+    assert.equal(auraLifecycle(base, { ...base, end: base.end - 4 }, []), undefined);
     assert.equal(auraLifecycle(base, base, []), undefined);
     assert.equal(auraLifecycle(undefined, undefined, []), undefined);
+  });
+});
+
+describe('aura lifecycle from views, against the server’s events', () => {
+  const { auras, id, unit, run, log } = makeGame({
+    shield: aura({ duration: 1, stacking: 'stack', maxStacks: 3, onRefreshed: () => ['refreshed'] }),
+    barrier: aura({ duration: 4, value: 5, onRefreshed: () => ['refreshed'] }),
+    cooldown: aura({ duration: 4, tags: ['magic'], onRefreshed: () => ['refreshed'] })
+  });
+
+  /** The bearer's changes across `operate`, and the procs the server ran for it. */
+  const across = (u: ReturnType<typeof unit>, operate: () => void): [unknown[], string[]] => {
+    const before = viewsOf(auras, u, { for: 'owner' }).map((view) => ({ ...view }));
+    const from = log.length;
+
+    operate();
+
+    const after = viewsOf(auras, u, { for: 'owner' }).map((view) => ({ ...view }));
+
+    return [auraChanges(before, after, u.auras.clocks), log.slice(from)];
+  };
+
+  it('derives a stack gain under the stack rule, which also sets the clock again, as stacked', () => {
+    const u = unit();
+
+    auras.apply(u, id.shield);
+    run(u, 2);
+    assert.deepEqual(
+      across(u, () => auras.apply(u, id.shield)),
+      [[{ aura: id.shield, serial: 0, change: 'stacked' }], ['refreshed@1']]
+    );
+  });
+
+  it('derives a partial spend of a value, which the server raises as a refresh, as changed', () => {
+    const u = unit();
+
+    auras.apply(u, id.barrier);
+    run(u, 2);
+    assert.deepEqual(
+      across(u, () => auras.spendValue(u, id.barrier, 2)),
+      [[{ aura: id.barrier, serial: 0, change: 'changed' }], ['refreshed@1']]
+    );
+  });
+
+  it('derives nothing for a shortened time left, which the server raises nothing for', () => {
+    const u = unit();
+
+    auras.apply(u, id.cooldown);
+    run(u, 2);
+    assert.deepEqual(
+      across(u, () => auras.scaleTimeLeft(u, TAGS.id.magic, 0.5)),
+      [[], []]
+    );
+    assert.deepEqual(
+      across(u, () => auras.clampTimeLeft(u, TAGS.id.magic, 1)),
+      [[], []]
+    );
+    assert.deepEqual(
+      across(u, () => auras.refresh(u, id.cooldown)),
+      [[{ aura: id.cooldown, serial: 0, change: 'refreshed' }], ['refreshed@1']]
+    );
   });
 });

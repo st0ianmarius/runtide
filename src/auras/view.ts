@@ -8,7 +8,8 @@ import { setOf } from './state.ts';
 
 /**
  * One aura as the wire carries it: ids and numbers only. The client draws the tile from its own
- * table keyed by `aura`, and tells an expiry from a removal by whether its `end` had come. It
+ * table keyed by `aura`, and reads what happened between two views with `auraLifecycle` (an expiry from a removal by
+ * whether its `end` had come; a stack, value or clock change from the fields that moved). It
  * carries no seconds left, which change every tick: they are `(end − the bearer's clock) × dt`. `auras.view` fills the
  * caller's records, reused from one call to the next: read them at once, or copy what you keep.
  */

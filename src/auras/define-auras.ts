@@ -111,7 +111,8 @@ export interface AuraRegistry<G extends AuraTypes = AuraTypes, Name extends stri
 
   /**
    * What of an aura a server and a prediction mirror must agree on, as a string (`wireTableOf` folds it into the
-   * checksum): its stacking, stack cap, value merge and flags (audience, prediction, credit). Empty for a retired aura.
+   * checksum): its stacking, stack cap, value merge and flags (audience, prediction, credit), less `quiet`, which only
+   * silences the server's bus and changes nothing on the wire. Empty for a retired aura.
    */
   readonly signature: (aura: number) => string;
 }
@@ -349,7 +350,12 @@ export const defineAuras = <G extends AuraTypes, const Name extends string>(
     signature: (aura: number): string =>
       slots[aura] === undefined
         ? ''
-        : [columns.stacking[aura], columns.maxStacks[aura], columns.merge[aura], columns.flags[aura]].join(' '),
+        : [
+            columns.stacking[aura],
+            columns.maxStacks[aura],
+            columns.merge[aura],
+            (columns.flags[aura] ?? 0) & ~QUIET
+          ].join(' '),
 
     hooks: buildHooks(slots),
     has: buildHas(slots),

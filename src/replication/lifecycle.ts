@@ -1,9 +1,22 @@
+/**
+ * An aura's lifecycle as a client derives it from two views of its bearer, at zero bytes. An instance that stays is
+ * read in this order: its stacks differ, `stacked`; else its value differs, `changed`; else its end moved earlier with
+ * its duration the same, nothing (a time-left change, `scaleTimeLeft` or `clampTimeLeft`, which the server raises
+ * nothing for: a refresh of the same length only ever moves the end later or leaves it); else its end or its duration
+ * differ, `refreshed`. The server raises one `refreshed` for all three (`onRefreshed`: its clock set again, its stacks
+ * or its value changed), so a client with one refresh cue plays it for `stacked`, `changed` and `refreshed` alike, and
+ * a client that wants finer cues keys on them. A time left lengthened (a factor above 1) reads as `refreshed`: two
+ * views cannot tell it from a refresh of the same length.
+ */
 import type { AuraView } from '../auras/index.ts';
 
 /**
  * What happened to one aura between two views of its bearer, as a client derives it at zero bytes:
- * `applied`, `refreshed` (its clock was set again), `stacked` (its stacks changed), `changed` (its value changed),
- * `expired` (it left when its end stamp had come) or `removed` (it left before).
+ * `applied`, `stacked` (its stacks changed), `changed` (its value changed, its stacks the same), `refreshed` (its clock
+ * was set again, its stacks and value the same), `expired` (it left when its end stamp had come) or `removed` (it left
+ * before). The server's one `refreshed` event covers `stacked`, `changed` and `refreshed` here: play one refresh cue for
+ * all three, or key finer cues on them. An end moved earlier with the same duration is a time-left change, which the
+ * server raises nothing for, and derives nothing.
  */
 export type AuraLifecycle = 'applied' | 'refreshed' | 'stacked' | 'changed' | 'expired' | 'removed';
 
@@ -21,8 +34,9 @@ export interface AuraViewChange {
 
 /**
  * What happened to one aura instance between two views (`undefined` for none): gone with its end stamp reached on
- * `clocks` (the bearer's steps per clock at the later view) is an expiry, gone before it a removal; a new end stamp or
- * duration is a refresh, then stacks, then value.
+ * `clocks` (the bearer's steps per clock at the later view) is an expiry, gone before it a removal; then new stacks,
+ * then a new value, then an end moved earlier with the same duration is nothing (a time-left change), then a new end
+ * stamp or duration is a refresh.
  */
 export const auraLifecycle = (
   before: AuraView | undefined,
@@ -37,15 +51,19 @@ export const auraLifecycle = (
     return Number.isFinite(before.end) && (clocks[before.clock] ?? 0) >= before.end ? 'expired' : 'removed';
   }
 
-  if (after.end !== before.end || after.duration !== before.duration) {
-    return 'refreshed';
-  }
-
   if (after.stacks !== before.stacks) {
     return 'stacked';
   }
 
-  return after.value === before.value ? undefined : 'changed';
+  if (after.value !== before.value) {
+    return 'changed';
+  }
+
+  if (after.duration === before.duration) {
+    return after.end > before.end ? 'refreshed' : undefined;
+  }
+
+  return 'refreshed';
 };
 
 /** The key of an aura instance in a view list. */
