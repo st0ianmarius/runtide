@@ -24,7 +24,7 @@ export interface BlowSpec<G extends DamageTypes> {
   /** Who takes it. */
   readonly target: G['bearer'];
 
-  /** How much, before any stage; a blow of 0, less or NaN is `skipped`. */
+  /** How much, before any stage; a blow of 0, less, NaN or infinite is `skipped`. */
   readonly amount: number;
 
   /** Who deals it: its outgoing multipliers and crit apply, its `onDealt` hooks run; none for the world. */
@@ -204,6 +204,12 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
   /** Where steps are recorded, if the blow is traced. */
   trace: BlowStep[] | undefined = undefined;
 
+  /**
+   * Whether the lethal stage found the blow not lethal and walked no `onLethal` hook: a game stage after it that makes
+   * the blow lethal has the health stage walk them.
+   */
+  isLethalPending = false;
+
   constructor(target: G['bearer'], kind: DamageKindId) {
     this.target = target;
     this.kind = kind;
@@ -246,5 +252,6 @@ export class BlowRecord<G extends DamageTypes> implements Blow<G> {
     this.overkill = 0;
     this.hasKilled = false;
     this.isDeathPrevented = false;
+    this.isLethalPending = false;
   }
 }

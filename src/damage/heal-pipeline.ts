@@ -2,6 +2,7 @@ import type { DamageTypes } from './damage-types.ts';
 import type { DamageEngine } from './engine.ts';
 import { createHealWalks, type HealWalks } from './heal-hooks.ts';
 import type { Heal, HealRecord, HealSpec } from './heal.ts';
+import { nonNegative } from './mitigation.ts';
 
 /** One stage of the heal pipeline, built in or the game's. */
 type HealRun<G extends DamageTypes> = (heal: HealRecord<G>) => 'blocked' | undefined;
@@ -61,7 +62,7 @@ const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, [name, walks]: 
     case 'done': {
       return (heal: HealRecord<G>) => {
         if (healDone !== undefined && heal.healer !== undefined) {
-          heal.amount *= Math.max(0, engine.viewOf(heal.healer, heal, heal.target).total(healDone));
+          heal.amount *= nonNegative(engine.viewOf(heal.healer, heal, heal.target).total(healDone));
         }
 
         return undefined;
@@ -71,7 +72,7 @@ const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, [name, walks]: 
     case 'received': {
       return (heal: HealRecord<G>) => {
         if (healReceived !== undefined) {
-          heal.amount *= Math.max(0, engine.viewOf(heal.target, heal, heal.healer).total(healReceived));
+          heal.amount *= nonNegative(engine.viewOf(heal.target, heal, heal.healer).total(healReceived));
         }
 
         return undefined;

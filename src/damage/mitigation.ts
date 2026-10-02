@@ -224,18 +224,23 @@ export const penetrated = (row: CompiledRow, ctx: RowContext): number => {
 export const isAmplifyingAt = (row: CompiledRow, rating: number): boolean =>
   rating < 0 && row.curve?.kind === 'hyperbolic' && row.curve.isAmplifying;
 
+/** A factor or a scale as one: below 0 or NaN (a broken stat, a hook's bad answer) counts as 0, never turning a sign. */
+export const nonNegative = (value: number): number =>
+  // oxlint-disable-next-line unicorn/prefer-math-min-max -- `Math.max(value, 0)` keeps NaN, which this turns into 0
+  value > 0 ? value : 0;
+
 /**
- * The factor one row multiplies the amount by: `1 − reduction`, the amplifying multiplier, or its stat; never below 0,
+ * The factor one row multiplies the amount by: `1 − reduction`, the amplifying multiplier, or its stat; never below 0 (NaN is 0),
  * so a reduction past 100% (a linear or rating curve, a negative multiplier stat) takes it all, and no row turns a
  * blow's sign.
  */
 export const rowFactor = (row: CompiledRow, ctx: RowContext): number => {
   if (row.curve === undefined) {
-    return row.multiplier === undefined ? 1 : Math.max(0, ctx.target.total(row.multiplier));
+    return row.multiplier === undefined ? 1 : nonNegative(ctx.target.total(row.multiplier));
   }
 
   const rating = penetrated(row, ctx);
   const value = evaluateCurve(row.curve, rating, ctx);
 
-  return Math.max(0, isAmplifyingAt(row, rating) ? value : 1 - value);
+  return nonNegative(isAmplifyingAt(row, rating) ? value : 1 - value);
 };

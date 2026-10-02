@@ -3,7 +3,8 @@ import {
   type BlowWalks,
   type BuiltInStage,
   createBlowWalks,
-  healthStage,
+  healthStageOf,
+  lethalStage,
   mitigationStage,
   outgoingStage,
   rollStage
@@ -122,17 +123,8 @@ const builtInStages = <G extends DamageTypes>(
       return undefined;
     },
 
-    lethal: (_engine, blow) => {
-      const health = engine.host.health(blow.target);
-
-      if (blow.amount > 0 && !engine.isDead(health, blow.target) && engine.isDead(health - blow.amount, blow.target)) {
-        engine.eachHook(walks.lethal, blow);
-      }
-
-      return undefined;
-    },
-
-    health: healthStage,
+    lethal: lethalStage(walks),
+    health: healthStageOf(engine, walks),
 
     dealt: (_engine, blow) => {
       after.dealt(blow);
@@ -279,7 +271,7 @@ export const createDamagePipeline = <G extends DamageTypes>(engine: DamageEngine
     blow.reset(spec, engine.sourceOf(spec.source, spec.attacker), engine.defaultKind);
     blow.depth = engine.depth;
 
-    if (!(spec.amount > 0) || engine.isDeadNow(spec.target) || !engine.enter()) {
+    if (!(spec.amount > 0) || !Number.isFinite(spec.amount) || engine.isDeadNow(spec.target) || !engine.enter()) {
       blow.status = 'skipped';
       blow.amount = 0;
 

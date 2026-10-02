@@ -48,6 +48,25 @@ const checkWhole = (name: string, value: number): void => {
   }
 };
 
+/**
+ * Each kind's unrolled effects, as bits over `ROLL_EFFECTS`; throws for an effect that is not one, which would
+ * otherwise fold to no bit and roll the row anyway.
+ */
+const unrolledOf = (kinds: DamageKindTable): Uint8Array =>
+  Uint8Array.from(kinds.ids, (kind) =>
+    (kinds.get(kind).unrolled ?? []).reduce((bits, effect) => {
+      const at = ROLL_EFFECTS.indexOf(effect);
+
+      if (at < 0) {
+        throw new RangeError(
+          `Damage system: damage kind ${kinds.name(kind)} cannot leave ${effect} unrolled: the roll effects are ${ROLL_EFFECTS.join(', ')}.`
+        );
+      }
+
+      return bits | (1 << at);
+    }, 0)
+  );
+
 /** Throws: something a stage needs is missing from the host. */
 export const missing = (what: string): never => {
   throw new TypeError(`The damage system needs ${what}, which its host does not have.`);
@@ -148,9 +167,7 @@ export class DamageEngine<G extends DamageTypes> {
     this.bypass = compileBypass(options.kinds, this.order);
     this.rows = rowsOf(options, { bypass: this.bypass, order: this.order });
     this.rolls = options.rolls;
-    this.unrolled = Uint8Array.from(options.kinds.ids, (kind) =>
-      (options.kinds.get(kind).unrolled ?? []).reduce((bits, effect) => bits | (1 << ROLL_EFFECTS.indexOf(effect)), 0)
-    );
+    this.unrolled = unrolledOf(options.kinds);
     this.isDead = options.isDead ?? isAtOrBelowZero;
     this.maxDepth = options.maxDepth ?? 8;
 

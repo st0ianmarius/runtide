@@ -23,7 +23,8 @@ const compileForceRuns = <G extends DamageTypes>(engine: DamageEngine<G>): reado
       }
 
       if (change?.scale !== undefined) {
-        force.amount *= Math.max(0, change.scale);
+        // A scale of 0, below or NaN stops the force: it is never handed to the host as NaN.
+        force.amount *= change.scale > 0 ? change.scale : 0;
       }
 
       return false;
@@ -94,7 +95,7 @@ export const createForcePipeline = <G extends DamageTypes>(engine: DamageEngine<
 
     force.reset(spec, engine.sourceOf(spec.source, spec.attacker));
 
-    if (!(spec.strength > 0) || engine.isDeadNow(spec.target) || !engine.enter()) {
+    if (!(spec.strength > 0) || !Number.isFinite(spec.strength) || engine.isDeadNow(spec.target) || !engine.enter()) {
       force.status = 'skipped';
       force.amount = 0;
 

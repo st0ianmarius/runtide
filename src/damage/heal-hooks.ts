@@ -1,7 +1,9 @@
 import type { ActiveAura, HealChange } from '../auras/index.ts';
+import { absorbFrom } from './blow-stages.ts';
 import type { DamageTypes } from './damage-types.ts';
 import type { DamageEngine, HookWalk } from './engine.ts';
 import type { HealRecord } from './heal.ts';
+import { nonNegative } from './mitigation.ts';
 
 /** The heal pipeline's two hook walks: the healer's `onOutgoingHeal`, the target's `onIncomingHeal`. */
 export interface HealWalks<G extends DamageTypes> {
@@ -14,7 +16,8 @@ export interface HealWalks<G extends DamageTypes> {
 
 /**
  * Applies one heal hook's change: absorb (spending the value of the instance whose hook it was, on its bearer: the
- * healer for an outgoing hook), then scale. A heal brought to nothing stops the walk.
+ * healer for an outgoing hook, and no more than that value when it holds one), then scale. A heal brought to nothing
+ * stops the walk.
  */
 const applyChange = <G extends DamageTypes>(
   engine: DamageEngine<G>,
@@ -23,16 +26,15 @@ const applyChange = <G extends DamageTypes>(
   bearer: G['bearer'],
   change: HealChange | undefined
 ): boolean => {
-  const absorbed = Math.min(Math.max(0, change?.absorb ?? 0), heal.amount);
+  const absorbed = absorbFrom(engine, [bearer, aura], Math.min(change?.absorb ?? 0, heal.amount));
 
   if (absorbed > 0) {
     heal.amount -= absorbed;
     heal.absorbed += absorbed;
-    engine.auras.spendValue(bearer, aura, absorbed);
   }
 
   if (change?.scale !== undefined) {
-    heal.amount *= Math.max(0, change.scale);
+    heal.amount *= nonNegative(change.scale);
   }
 
   return heal.amount <= 0;

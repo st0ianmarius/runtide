@@ -1,5 +1,6 @@
 import { toId } from '../core/ids.ts';
 import { type CompiledScaled, compileScaled, evaluateScaled, type Scaled, type StatTable } from '../modifiers/index.ts';
+import { nonNegative } from './mitigation.ts';
 
 /**
  * What an outcome row does to a blow: `avoid` (a miss, a dodge, a parry: the blow ends `avoided`), `block`
@@ -25,7 +26,8 @@ export type RollValue<S extends string = string> = S | RollStat<S> | Scaled<S>;
 /**
  * One outcome row: what it does, its chance, and for a `scale` row the multiplier. Both are
  * scaled values read with the attacker as the caster and the defender as the target (`from: 'target'` terms), the
- * attacker's stats by the blow's spell's shares, as an outgoing multiplier is. A chance is clamped to [0, 1].
+ * attacker's stats by the blow's spell's shares, as an outgoing multiplier is. A chance is clamped to [0, 1], a
+ * multiplier to 0 or above.
  */
 export interface RollRow<S extends string = string> {
   /** What it does. */
@@ -37,7 +39,10 @@ export interface RollRow<S extends string = string> {
    */
   readonly chance: RollValue<S>;
 
-  /** The multiplier of a `scale` row, in the same forms (`'critDamage'`, 0.7). */
+  /**
+   * The multiplier of a `scale` row, in the same forms (`'critDamage'`, 0.7). Read below 0 or as NaN, it is 0: the
+   * blow goes on at no damage rather than turning negative.
+   */
   readonly multiplier?: RollValue<S>;
 
   /** Whether it makes the blow critical (`isCrit`, which triggers and cues read). */
@@ -180,6 +185,13 @@ export const valueOf = (value: CompiledRollValue, views: RollViewPair): number =
   return view === undefined ? 0 : view.total(toId<'stats'>(value.stat));
 };
 
-/** A row's chance for a pair of views, clamped to [0, 1]. */
-export const chanceOf = (row: CompiledRollRow, views: RollViewPair): number =>
-  Math.min(1, Math.max(0, valueOf(row.chance, views)));
+/** A row's chance for a pair of views, clamped to [0, 1] (NaN is 0). */
+export const chanceOf = (row: CompiledRollRow, views: RollViewPair): number => {
+  const chance = valueOf(row.chance, views);
+
+  return chance > 0 ? Math.min(1, chance) : 0;
+};
+
+/** A scale row's multiplier for a pair of views, never below 0 (NaN is 0): a row scales a blow, never turns its sign. */
+export const multiplierOf = (multiplier: CompiledRollValue, views: RollViewPair): number =>
+  nonNegative(valueOf(multiplier, views));

@@ -4,8 +4,8 @@ import type { ActiveAura, AuraContext, BlowChange } from '../auras/index.ts';
 import type { BlowRecord } from './blow.ts';
 import type { BlowStop, DamageTypes } from './damage-types.ts';
 import { type DamageEngine, type HookWalk, missing } from './engine.ts';
-import { type CompiledRow, rowFactor } from './mitigation.ts';
-import { chanceOf, type CompiledRollRow, ROLL_EFFECTS, valueOf } from './rolls.ts';
+import { type CompiledRow, nonNegative, rowFactor } from './mitigation.ts';
+import { chanceOf, type CompiledRollRow, multiplierOf, ROLL_EFFECTS } from './rolls.ts';
 
 /** A built-in stage of the damage pipeline. */
 export type BuiltInStage<G extends DamageTypes> = (
@@ -32,23 +32,37 @@ export interface BlowWalks<G extends DamageTypes> {
 }
 
 /**
+ * What an absorb hook takes, asked for `asked` (at most what is left): an instance that holds a value takes what its
+ * value paid, spent from it, so a shield never absorbs more than it holds; one without a value takes all it asked.
+ */
+export const absorbFrom = <G extends DamageTypes>(
+  engine: DamageEngine<G>,
+  [bearer, aura]: readonly [G['bearer'], ActiveAura<G>],
+  asked: number
+): number => {
+  if (!(asked > 0)) {
+    return 0;
+  }
+
+  return aura.value > 0 ? engine.auras.spendValue(bearer, aura, asked) : asked;
+};
+
+/**
  * Applies one absorb hook's change: absorb (spending the value of the instance whose hook it was), then scale. Made
  * once per system, so applying a change allocates nothing.
  */
 const changeApplier =
   <G extends DamageTypes>(engine: DamageEngine<G>) =>
   (blow: BlowRecord<G>, aura: ActiveAura<G>, change: BlowChange): void => {
-    const wanted = change.absorb ?? 0;
-    const absorbed = wanted > 0 ? Math.min(wanted, blow.amount) : 0;
+    const absorbed = absorbFrom(engine, [blow.target, aura], Math.min(change.absorb ?? 0, blow.amount));
 
     if (absorbed > 0) {
       blow.amount -= absorbed;
       blow.absorbed += absorbed;
-      engine.auras.spendValue(blow.target, aura, absorbed);
     }
 
     if (change.scale !== undefined) {
-      blow.amount *= Math.max(0, change.scale);
+      blow.amount *= nonNegative(change.scale);
     }
   };
 
@@ -99,7 +113,7 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
         const scale = hooks.onOutgoingDamage[aura.id]?.(ctx, blow)?.scale;
 
         if (scale !== undefined) {
-          blow.amount *= Math.max(0, scale);
+          blow.amount *= nonNegative(scale);
         }
 
         return false;
@@ -201,7 +215,7 @@ const applyRow = <G extends DamageTypes>(
   }
 
   if (row.multiplier !== undefined) {
-    blow.amount *= valueOf(row.multiplier, engine.rollViews);
+    blow.amount *= multiplierOf(row.multiplier, engine.rollViews);
   }
 
   blow.isCrit ||= row.isCrit;
@@ -313,8 +327,52 @@ export const mitigationStage =
     return undefined;
   };
 
+/** Whether a blow would take its living target to death with what it carries now. */
+const isLethal = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): boolean => {
+  const health = engine.host.health(blow.target);
+
+  return blow.amount > 0 && !engine.isDead(health, blow.target) && engine.isDead(health - blow.amount, blow.target);
+};
+
+/** The lethal stage: a blow that would kill its target has the target's `onLethal` hooks walk, until one prevents it. */
+export const lethalStage =
+  <G extends DamageTypes>(walks: BlowWalks<G>): BuiltInStage<G> =>
+  (engine, blow) => {
+    blow.isLethalPending = !isLethal(engine, blow);
+
+    if (!blow.isLethalPending) {
+      engine.eachHook(walks.lethal, blow);
+    }
+
+    return undefined;
+  };
+
+/**
+ * The health stage of a system. A game stage between `lethal` and `health` may raise a blow that was not lethal into
+ * one that is: the health stage then walks the `onLethal` hooks the lethal stage did not, so no death passes them by.
+ * Without such a stage it is `healthStage` alone.
+ */
+export const healthStageOf = <G extends DamageTypes>(engine: DamageEngine<G>, walks: BlowWalks<G>): BuiltInStage<G> => {
+  const { names } = engine.order;
+
+  if (names.indexOf('health') - names.indexOf('lethal') <= 1) {
+    return healthStage;
+  }
+
+  return (_engine, blow) => {
+    if (blow.isLethalPending && isLethal(engine, blow)) {
+      blow.isLethalPending = false;
+      engine.eachHook(walks.lethal, blow);
+    }
+
+    healthStage(engine, blow);
+
+    return undefined;
+  };
+};
+
 /** Health: the damage left is taken off, and whether it killed is decided by the system's death rule. */
-export const healthStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
+const healthStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRecord<G>): undefined => {
   const before = engine.host.health(blow.target);
 
   blow.healthBefore = before;

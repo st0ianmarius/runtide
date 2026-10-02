@@ -83,6 +83,29 @@ describe('independent rolls (LoL and swarm)', () => {
   });
 });
 
+describe('a scale row read out of range', () => {
+  it('reads a negative or NaN multiplier as 0, and a NaN chance as none, never turning a blow negative', () => {
+    const { damage, unit, set, rolls } = makeDamageGame({}, { rolls: INDEPENDENT });
+    const [attacker, target] = [unit(1), unit(2)];
+    const hit = () => damage.hit({ target, attacker, amount: 10, kind: KINDS.id.pure });
+
+    set(attacker, 'critChance', 1);
+
+    for (const critDamage of [-2, Number.NaN]) {
+      set(attacker, 'critDamage', critDamage);
+      rolls.push(0.5);
+
+      const blow = hit();
+
+      assert.deepEqual([blow.status, blow.isCrit, blow.amount, blow.dealt], ['landed', true, 0, 0]);
+    }
+
+    set(attacker, 'critChance', Number.NaN);
+    rolls.push(0.5, 0);
+    assert.deepEqual([hit().isCrit, target.hp], [false, 90]);
+  });
+});
+
 describe('the roll table as data', () => {
   it('explains each row’s chance and multiplier for a pair, by a spell’s shares', () => {
     const { damage, unit, set, shares } = makeDamageGame({}, { rolls: SINGLE });

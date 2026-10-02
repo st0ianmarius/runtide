@@ -145,6 +145,30 @@ describe('absorbs (onIncomingDamage)', () => {
     assert.equal(target.hp, 95);
   });
 
+  it('take no more than the value their instance holds, however much the hook asks; one with no value takes it all', () => {
+    const { damage, auras, id, unit } = makeDamageGame({
+      greedy: aura({ duration: 10, value: 20, onIncomingDamage: () => ({ absorb: 50 }) }),
+      plating: aura({ duration: 10, onIncomingDamage: () => ({ absorb: 5 }) }),
+      sink: aura({ duration: 10, value: 10, onIncomingHeal: () => ({ absorb: 50 }) })
+    });
+
+    const [target, plated, healed] = [unit(1), unit(2), unit(3)];
+
+    auras.apply(target, id.greedy);
+
+    const blow = damage.hit({ target, amount: 60 });
+
+    assert.deepEqual([blow.absorbed, blow.amount, target.hp, auras.has(target, id.greedy)], [20, 40, 60, false]);
+
+    auras.apply(plated, id.plating);
+    damage.hit({ target: plated, amount: 30 });
+    assert.deepEqual([damage.hit({ target: plated, amount: 30 }).absorbed, plated.hp], [5, 50]);
+
+    healed.hp = 50;
+    auras.apply(healed, id.sink);
+    assert.deepEqual([damage.heal({ target: healed, amount: 30 }).absorbed, healed.hp], [10, 70]);
+  });
+
   it('scale what is left', () => {
     const { damage, auras, id, unit } = makeDamageGame(AURAS);
     const target = unit(1);

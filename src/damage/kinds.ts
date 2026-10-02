@@ -15,7 +15,10 @@ export interface DamageKindDef {
    */
   readonly bypass?: readonly string[];
 
-  /** The outcome rows a blow of this kind never rolls, by effect: `avoid`, `block`, `scale`. */
+  /**
+   * The outcome rows a blow of this kind never rolls, by effect: `avoid`, `block`, `scale`. Checked when the damage
+   * system is built.
+   */
   readonly unrolled?: readonly RollEffect[];
 }
 

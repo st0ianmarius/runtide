@@ -9,7 +9,7 @@ export interface ForceSpec<G extends DamageTypes> {
   /** Who is moved. */
   readonly target: G['bearer'];
 
-  /** How hard, before any stage; 0, less or NaN is `skipped`. */
+  /** How hard, before any stage; 0, less, NaN or infinite is `skipped`. */
   readonly strength: number;
 
   /** What it is; `knock` when absent. */
