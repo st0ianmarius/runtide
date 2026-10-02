@@ -87,6 +87,9 @@ export interface EngineParts<G extends SpellTypes> {
   /** By spell, the bits of the interrupts its timeline answers by pausing: a cast started under one starts paused. */
   readonly pauseMasks: Int32Array;
 
+  /** By spell, the bits of the interrupts its timeline answers by cancelling: a cast under one is refused. */
+  readonly cancelMasks: Int32Array;
+
   /** How many tick slots delayed procs land in (the game's tick slots); 1 when it declares none. */
   readonly slots: number;
 
@@ -128,6 +131,9 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   /** By spell, the bits of the interrupts its timeline answers by pausing: a cast started under one starts paused. */
   readonly pauseMasks: Int32Array;
 
+  /** By spell, the bits of the interrupts its timeline answers by cancelling: a cast under one is refused. */
+  readonly cancelMasks: Int32Array;
+
   /** The delayed procs, on a timing wheel per tick slot. */
   readonly delayed: DelayedProcs<G>;
 
@@ -168,6 +174,7 @@ export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
     this.baseView = parts.baseView;
     this.interruptBits = parts.interruptBits;
     this.pauseMasks = parts.pauseMasks;
+    this.cancelMasks = parts.cancelMasks;
     this.#procs = parts.procs;
     this.#random = parts.random;
     this.#streams = parts.streams;

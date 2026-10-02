@@ -45,6 +45,9 @@ export class CasterRecord implements CasterState {
   /** The bits of the interrupts the caster holds now (`spells.interrupt` until `endInterrupt`). */
   interrupts = 0;
 
+  /** How many times the caster holds each interrupt, by its bit's position: it ends as the last of them does. */
+  readonly interruptCounts: number[] = [];
+
   /** The tick its last cast started on, and how many started on it: each cast's ordinal among the tick's. */
   lastTick = Number.NaN;
   started = 0;

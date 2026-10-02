@@ -333,9 +333,10 @@ const answer = <G extends SpellTypes>(
 };
 
 /**
- * Raises (or ends) an interrupt on a caster: the caster holds it until it ends (`isInterrupted`), and
- * each running cast answers it as its timeline says, `pause` (its stage stops counting until the interrupt ends) or
- * `cancel`; a cast whose timeline does not name it runs on. Returns how many casts answered.
+ * Raises (or ends) an interrupt on a caster: the caster holds it until as many ends as raises (`isInterrupted`), so two
+ * overlapping stuns hold it until both end; an end with none held does nothing. As it is first raised and as its last
+ * hold ends, each running cast answers it as its timeline says, `pause` (its stage stops counting until the interrupt
+ * ends) or `cancel`; a cast whose timeline does not name it runs on. Returns how many casts answered.
  */
 export const interruptCaster = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -346,9 +347,24 @@ export const interruptCaster = <G extends SpellTypes>(
   const { count } = record;
   const bits = engine.interruptBits.get(change.reason) ?? 0;
 
-  record.interrupts = change.isOn ? record.interrupts | bits : record.interrupts & ~bits;
+  if (bits === 0) {
+    return 0;
+  }
 
-  if (count === 0 || bits === 0) {
+  const position = 31 - Math.clz32(bits);
+  const held = record.interruptCounts[position] ?? 0;
+  const holds = change.isOn ? held + 1 : Math.max(0, held - 1);
+
+  record.interruptCounts[position] = holds;
+
+  // Only its first raise and its last end change anything: one more stun, or the end of one of two, answers nothing.
+  if (holds > 0 === ((record.interrupts & bits) !== 0)) {
+    return 0;
+  }
+
+  record.interrupts ^= bits;
+
+  if (count === 0) {
     return 0;
   }
 

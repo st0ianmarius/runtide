@@ -87,15 +87,16 @@ const interruptBitsOf = <G extends SpellTypes>(
   return new Map([...names].map((name, index) => [name, 2 ** (index + 1)]));
 };
 
-/** A spell's pause mask: the bits of the interrupts its timeline answers by pausing. */
-const pauseMaskOf = <G extends SpellTypes>(
+/** A spell's mask for one answer: the bits of the interrupts its timeline answers by pausing, or by cancelling. */
+const answerMaskOf = <G extends SpellTypes>(
   def: AnySpellDef<G> | undefined,
-  bits: ReadonlyMap<string, number>
+  bits: ReadonlyMap<string, number>,
+  answered: 'pause' | 'cancel'
 ): number => {
   let mask = 0;
 
   for (const [reason, answer] of Object.entries(def?.timeline?.interrupts ?? {})) {
-    mask |= answer === 'pause' ? (bits.get(reason) ?? 0) : 0;
+    mask |= answer === answered ? (bits.get(reason) ?? 0) : 0;
   }
 
   return mask;
@@ -131,7 +132,8 @@ export const engineOf = <G extends SpellTypes>(options: SpellSystemOptions<G>): 
     boxes: new StatsBoxes(registry.compiled),
     baseView: baseView(registry.stats),
     interruptBits,
-    pauseMasks: Int32Array.from(registry.defs, (def) => pauseMaskOf(def, interruptBits)),
+    pauseMasks: Int32Array.from(registry.defs, (def) => answerMaskOf(def, interruptBits, 'pause')),
+    cancelMasks: Int32Array.from(registry.defs, (def) => answerMaskOf(def, interruptBits, 'cancel')),
     slots: options.slots?.size ?? 1,
     createExt: extFactory(options),
     resetExt: options.resetExt

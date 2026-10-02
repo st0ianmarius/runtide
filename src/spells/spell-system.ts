@@ -162,18 +162,23 @@ export interface SpellSystem<G extends SpellTypes> {
   readonly delay: (cast: CastHandle, seconds: number) => boolean;
 
   /**
-   * An interrupt hits a caster (a stun, a freeze): the caster holds it until `endInterrupt`, and each
-   * running cast answers it as its timeline says, pausing until it ends or cancelling; returns how many answered. A
+   * An interrupt hits a caster (a stun, a freeze): the caster holds it until as many `endInterrupt` calls as raises, so
+   * two overlapping stuns hold it until both end. As it is first raised, each running cast answers it as its timeline
+   * says, pausing until it ends or cancelling; returns how many answered (0 for a raise while it is held already). A
    * unit system raises its states' interrupts itself (`units.syncStates`).
    */
   readonly interrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
 
-  /** An interrupt on a caster ends: the casts it paused count down again (unless something else pauses them). */
+  /**
+   * One raise of an interrupt on a caster ends; as its last does, the casts it paused count down again (unless
+   * something else pauses them). An end with none held does nothing.
+   */
   readonly endInterrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
 
   /**
-   * Whether a caster holds an interrupt now (between `interrupt` and `endInterrupt`); false for one the game did not
-   * declare (`interrupts`) and no timeline names. A cast started while it holds does not answer it.
+   * Whether a caster holds an interrupt now (more raises than ends); false for one the game did not declare
+   * (`interrupts`) and no timeline names. A cast started while it holds one answers it at once: one that pauses starts
+   * paused, and one that cancels is refused (`'interrupted'`).
    */
   readonly isInterrupted: (caster: G['bearer'], reason: G['interrupt']) => boolean;
 

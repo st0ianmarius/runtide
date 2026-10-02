@@ -95,7 +95,20 @@ const passGates = <G extends SpellTypes>(
   return refusalOf(kind?.gate?.(def.activation, cast), 'gate');
 };
 
-/** The cast order up to `begin`: gates, cooldown, stats, `canCast`, target, reach. The refusal, or `undefined`. */
+/**
+ * Whether the caster holds an interrupt the spell answers by cancelling (a stun, a death): such a cast never starts,
+ * so it takes no cooldown either.
+ */
+const isCancelledNow = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): boolean => {
+  const cancels = engine.cancelMasks[cast.spell] ?? 0;
+
+  return cancels !== 0 && (recordOf(cast.caster).interrupts & cancels) !== 0;
+};
+
+/**
+ * The cast order up to `begin`: gates, an interrupt the caster holds that the spell answers by cancelling, cooldown,
+ * stats, `canCast`, target, reach. The refusal, or `undefined`.
+ */
 const admit = <G extends SpellTypes>(
   engine: SpellEngine<G>,
   cast: Cast<G>,
@@ -105,6 +118,10 @@ const admit = <G extends SpellTypes>(
 
   if (gated !== undefined) {
     return gated;
+  }
+
+  if (isCancelledNow(engine, cast)) {
+    return 'interrupted';
   }
 
   if (!cast.isCommitted && engine.cooldowns.isCooling(cast.caster, cast.spell)) {

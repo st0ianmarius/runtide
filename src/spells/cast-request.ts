@@ -10,6 +10,7 @@ import type { SpellId, SpellTypes } from './spell-types.ts';
 export type CastRefusal<G extends SpellTypes = SpellTypes> =
   | 'gate'
   | 'canCast'
+  | 'interrupted'
   | 'cooldown'
   | 'target'
   | ReachRefusal

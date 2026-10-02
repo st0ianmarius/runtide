@@ -427,6 +427,47 @@ describe('hooks for the cast rules (F16)', () => {
     assert.deepEqual(game.log.slice(-2), ['end aimed@1 cancelled', 'end aimed@1 cancelled']);
   });
 
+  it('holds an interrupt until as many ends as raises, so overlapping stuns pause a cast until both end', () => {
+    const game = timeline({ aimed });
+    const handle = game.spells.cast(game.a, game.id.aimed).handle;
+
+    assert.deepEqual([game.spells.interrupt(game.a, 'stun'), game.spells.interrupt(game.a, 'stun')], [1, 0]);
+    assert.equal(game.spells.endInterrupt(game.a, 'stun'), 0);
+    assert.equal(game.spells.isInterrupted(game.a, 'stun'), true);
+    game.advance(2);
+    assert.equal(game.spells.get(handle)?.remaining, 1, 'still paused by the other stun');
+    assert.equal(game.spells.endInterrupt(game.a, 'stun'), 1);
+    assert.equal(game.spells.endInterrupt(game.a, 'stun'), 0, 'an end with none held does nothing');
+    assert.equal(game.spells.isInterrupted(game.a, 'stun'), false);
+    assert.equal(game.spells.interrupt(game.a, 'stun'), 1, 'and leaves nothing owed');
+  });
+
+  it('refuses a cast its caster’s held interrupt would cancel, one its cancelled cast starts from onEnd too', () => {
+    const again: { status?: string; refusal?: string } = {};
+
+    const game = timeline({
+      aimed,
+      chain: spell({
+        activation: { kind: 'trigger' },
+        timeline: { windup: { seconds: 1 }, interrupts: { death: 'cancel' } },
+        release: () => undefined,
+
+        onEnd: () => [
+          run('again', () => {
+            Object.assign(again, game.spells.cast(game.a, game.id.aimed));
+          })
+        ]
+      })
+    });
+
+    game.spells.cast(game.a, game.id.chain);
+    game.spells.interrupt(game.a, 'death');
+    assert.deepEqual([again.status, again.refusal], ['refused', 'interrupted']);
+    assert.equal(game.spells.isCasting(game.a), false);
+    assert.equal(game.spells.check(game.a, game.id.aimed), 'interrupted');
+    assert.equal(game.spells.cast(game.a, game.id.aimed).refusal, 'interrupted');
+  });
+
   it('cancels a cast from outside, and stops the rest of a course its own procs ended', () => {
     let self: CastHandle | undefined;
 
