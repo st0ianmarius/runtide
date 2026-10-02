@@ -93,13 +93,19 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** What its spawn handed it. */
   readonly input: G['areaInput'] | undefined;
 
-  /** Where it is: its own to move (`move`, `frame`); an owner-anchored one is moved to its owner before each frame. */
+  /**
+   * Where it is: its own to move (`move`, `frame`), its frame's contact sweeping from `previous` to here (`teleport`
+   * moves it without a sweep); an owner-anchored one is moved to its owner before each frame.
+   */
   readonly position: Position;
 
   /** The heading it faces, as `atan2(x, z)`: its shape turns with it. Its own to change. */
   heading: number;
 
-  /** Where it was at the start of this frame, or where its last `advance` piece ended: what its frame's contact sweeps from. */
+  /**
+   * Where it was at the start of this frame, or where its last `advance` piece ended or its `teleport` put it: what its
+   * frame's contact sweeps from.
+   */
   readonly previous: Vec2;
 
   /** The share of this frame its last `advance` piece reached: 0 before any, where its next piece's share starts. */
@@ -162,21 +168,38 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
 
   /**
    * Moves it along one straight piece of its path to `to`, its contact sweeping that piece now, in order: a curve drawn
-   * as several pieces a frame (a chakram's arc), a bounce as two (a glaive off a wall), a teleport as none (move it
-   * with `position` instead, and nothing between is swept). `at` is the share of the frame it gets there by, from the
-   * last piece's to 1 (the default): each piece sweeps the units' own motion over its part of the frame (a bounce at
-   * a wall hit's share, an arc's i-th of n at i / n), so it meets a runner where both are at the same moment; pieces
-   * left at 1 sweep the units where they stand. A unit at a joint is reached once. For a `move` or `frame` hook; the
-   * frame's own contact sweeps only what is left after the last piece. Nothing is swept for a kind with no `contact`,
-   * nor for one asked to end. Its shape is placed at the new position before contact runs.
+   * as several pieces a frame (a chakram's arc), a bounce as two (a glaive off a wall), a teleport as none (`teleport`
+   * instead, since a move of `position` is still swept by the frame's contact). `at` is the share of the frame it gets
+   * there by, from the last piece's to 1 (the default): each piece sweeps the units' own motion over its part of the
+   * frame (a bounce at a wall hit's share, an arc's i-th of n at i / n), so it meets a runner where both are at the
+   * same moment; pieces left at 1 sweep the units where they stand. A unit at a joint is reached once. For a `move` or
+   * `frame` hook; the frame's own contact sweeps only what is left after the last piece. Nothing is swept for a kind
+   * with no `contact`, nor for one asked to end. Its shape is placed at the new position before contact runs.
    */
   readonly advance: (to: Vec2, at?: number) => void;
+
+  /**
+   * Moves it to `to` at once, its contact sweeping nothing between (a blink, a portal's exit): its `position` and
+   * `previous` both become `to`, and its shape is placed there. After an `advance` this frame, the frame's contact then
+   * has nothing left to sweep; without one, it sweeps no length at `to`, so a unit it lands on (or one walking into it
+   * this frame) is reached, as a still one reaches the units on it. One in a hook after the frame's contact lands for
+   * the next frame's. Throws for a point that is not finite.
+   */
+  readonly teleport: (to: Vec2) => void;
 
   /**
    * Sets the seconds left of its lifetime (a recast refreshing a pool, a kill extending it, a haste), counted from
    * after this frame: finite from 0 (0 expires it at this frame's end), or infinite. Throws for any other.
    */
   readonly setRemaining: (seconds: number) => void;
+
+  /**
+   * Sets one of its pulses' clocks again, by its index in its kind's `every` (a sentry retargeting starts its fire
+   * clock over): to `seconds`, finite from 0, or to the pulse's own seconds by default, which its next `pulses` part
+   * counts down from (this frame's, for a hook that runs before it), so 0 beats there. Throws for an index its kind
+   * does not have, or any other seconds.
+   */
+  readonly resetPulse: (index: number, seconds?: number) => void;
 
   /**
    * One of its kind's hit ledgers, by name, for a hook that records its own hits (a chain's links, a
@@ -250,6 +273,12 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   readonly tickIn?: TickSlotId;
 
   /**
+   * Kinds this one steps after within its tick slot (its parents' kinds, so a crescent follows the chakram that steers
+   * it); registry order otherwise. Each is a live kind of the same slot, and no kind steps after itself through them.
+   */
+  readonly after?: readonly G['areaTriggerName'][];
+
+  /**
    * Its shape, relative to itself: the origin is its position and headings turn with its heading (a lane running ahead
    * is `lane({ length, width, dir: 0 })`); a function of it is read whenever its shape is placed, including after
    * `move`, after the `frame` hook before its procs, and by `advance` before contact.
@@ -276,12 +305,6 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
 
   /** The cues it fires. */
   readonly cues?: AreaCues<G, State>;
-
-  /**
-   * Kinds this one steps after within its tick slot (its parents' kinds, so a crescent follows the chakram that steers
-   * it); registry order otherwise. Each is a live kind of the same slot, and no kind steps after itself through them.
-   */
-  readonly after?: readonly G['areaTriggerName'][];
 
   /**
    * The order of its frame's parts, each at most once: `move` (then its shape is placed again), `contact`

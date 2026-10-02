@@ -13,7 +13,7 @@ import { placeShape } from './frame.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import { closeLedgers, openLedgers } from './ledgers.ts';
 import { linkKind } from './order.ts';
-import { joinPulses } from './pulses.ts';
+import { beatOnEntry, joinPulses } from './pulses.ts';
 import { stepArea } from './stepper.ts';
 
 /** What a spawn is asked with: who owns it, where, and what it starts with. */
@@ -278,8 +278,8 @@ const admit = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Makes it live: its place in the orders, owner aura, `init`, pulses, cue and event. One whose owner aura or `init`
- * throws is ended, so nothing is left linked, counted or holding its cast.
+ * Makes it live: its place in the orders, owner aura, `init`, pulses, cue and event, then its `now` pulses' first
+ * beats. One whose owner aura or `init` throws is ended, so nothing is left linked, counted or holding its cast.
  */
 const enter = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -321,6 +321,7 @@ const enter = <G extends AreaTriggerTypes>(
 
   engine.fire(area, def.cues?.spawn?.(area));
   engine.raise('spawned', area);
+  beatOnEntry(engine, area);
 };
 
 /**

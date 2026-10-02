@@ -9,7 +9,7 @@ import { catchIn, deliver, type Hit, recordHit } from './hits.ts';
 const NO_PULSES: readonly never[] = Object.freeze([]);
 
 /** The seconds between a pulse's beats, read from its area trigger for a function. */
-const secondsOf = <G extends AreaTriggerTypes>(pulse: AreaPulse<G>, area: AreaTrigger<G>): number => {
+export const secondsOf = <G extends AreaTriggerTypes>(pulse: AreaPulse<G>, area: AreaTrigger<G>): number => {
   const seconds = typeof pulse.seconds === 'function' ? pulse.seconds(area) : pulse.seconds;
 
   if (!(Number.isFinite(seconds) && seconds > 0)) {
@@ -93,11 +93,22 @@ export const stepPulses = <G extends AreaTriggerTypes>(
   }
 };
 
-/** Sets an area trigger's pulse clocks to their first beat as it spawns. */
+/** Sets an area trigger's pulse clocks to their first beat as it spawns: a `now` pulse's to its seconds. */
 export const joinPulses = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const pulses = engine.registry.get(area.kind).every ?? [];
 
   for (const [index, pulse] of pulses.entries()) {
-    area.beats[index] = pulse.first ?? secondsOf(pulse, area);
+    area.beats[index] = pulse.first === undefined || pulse.first === 'now' ? secondsOf(pulse, area) : pulse.first;
+  }
+};
+
+/** Beats its `now` pulses once as it enters, in their order, while it still runs. */
+export const beatOnEntry = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
+  const pulses = engine.registry.get(area.kind).every ?? NO_PULSES;
+
+  for (let index = 0; index < pulses.length && isRunning(area); index++) {
+    if (pulses[index]?.first === 'now') {
+      beat(engine, area, index);
+    }
   }
 };

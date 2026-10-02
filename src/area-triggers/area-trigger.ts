@@ -14,6 +14,7 @@ import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import type { AreaLedger } from './delivery-def.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import type { Ledger } from './ledgers.ts';
+import { secondsOf } from './pulses.ts';
 import type { AreaQueries } from './queries.ts';
 import { ShapePlacer } from './shape-placer.ts';
 
@@ -54,6 +55,9 @@ export interface AreaServices<G extends AreaTriggerTypes> {
 
   /** Moves an area trigger along one piece of its path, its contact sweeping it (`advance`). */
   readonly advanceFor: (area: AreaTrigger<G>, to: Vec2, at?: number) => void;
+
+  /** Moves an area trigger to a point at once, sweeping nothing (`teleport`). */
+  readonly teleportFor: (area: AreaTrigger<G>, to: Vec2) => void;
 }
 
 /** Who an area trigger's procs run for: its owner, credited to its source. */
@@ -218,6 +222,10 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
     this.#services.advanceFor(this, to, at);
   };
 
+  readonly teleport = (to: Vec2): void => {
+    this.#services.teleportFor(this, to);
+  };
+
   readonly random = (stream?: G['stream'], targetId = 0, index = 0): Random =>
     this.#services.randomFor(stream, this.key(targetId, index));
 
@@ -248,6 +256,21 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
 
     this.remaining = seconds;
     this.isLifeSet = true;
+  };
+
+  readonly resetPulse = (index: number, seconds?: number): void => {
+    const { registry } = this.#services;
+    const pulse = registry.get(this.kind).every?.[index];
+
+    if (pulse === undefined || !Number.isInteger(index)) {
+      throw new RangeError(`Area trigger ${registry.name(this.kind)}: it has no pulse ${index}.`);
+    }
+
+    if (seconds !== undefined && !(Number.isFinite(seconds) && seconds >= 0)) {
+      throw new RangeError(`A pulse's clock is set to a finite number of seconds from 0; got ${seconds}.`);
+    }
+
+    this.beats[index] = seconds ?? secondsOf(pulse, this);
   };
 
   readonly ledger = (name: string): AreaLedger<G['bearer']> => this.#services.ledgerFor(this, name);

@@ -5,6 +5,7 @@ import {
   type AnyAreaTriggerDef,
   type AreaHit,
   type AreaPulse,
+  type AreaTriggerContext,
   type AreaTriggerHandle,
   NO_AREA_TRIGGER,
   spawn
@@ -119,6 +120,113 @@ describe('own pulses', () => {
       beats(game.log).map((line) => line.split(':')[0]),
       ['beat 1 0.25', 'beat 1 0.75', 'beat 1 1.75']
     );
+  });
+
+  it('beats a `now` pulse once as it enters, before any step, then every seconds; a first of 0 waits a frame', () => {
+    const ages = (pulse: Partial<AreaPulse<Game>>, steps: number): string[] => {
+      const game = makeSpellGame({}, { areaTriggers: { pool: pool([logging({ seconds: 1, ...pulse })]) } });
+
+      game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
+      ticks(game, steps);
+
+      return beats(game.log).map((line) => line.split(':')[0] ?? '');
+    };
+
+    assert.deepEqual(ages({ first: 'now' }, 0), ['beat 1 0']);
+    assert.deepEqual(ages({ first: 'now' }, 4), ['beat 1 0', 'beat 1 1']);
+    assert.deepEqual(ages({ first: 0 }, 0), []);
+    assert.deepEqual(ages({ first: 0 }, 1), ['beat 1 0.25']);
+  });
+
+  it('does not beat a `now` pulse for one its init asked to end', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          pool: pool([logging({ first: 'now' })], {
+            init: (c) => {
+              c.despawn();
+            }
+          })
+        }
+      }
+    );
+
+    game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
+    assert.deepEqual(beats(game.log), []);
+  });
+
+  it('resets a pulse’s clock from a hook: to 0, beating at once, to seconds of its own, or to its pulse’s', () => {
+    const ages = (reset: (c: AreaTriggerContext<Game>) => void): string[] => {
+      const game = makeSpellGame(
+        {},
+        {
+          areaTriggers: {
+            pool: pool([logging({ seconds: 1 })], {
+              frame: (c) => {
+                reset(c);
+
+                return undefined;
+              }
+            })
+          }
+        }
+      );
+
+      game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
+      ticks(game, 8);
+
+      return beats(game.log).map((line) => line.split(':')[0] ?? '');
+    };
+
+    const at = (age: number, index: number, seconds?: number) => (c: AreaTriggerContext<Game>) => {
+      if (c.age === age) {
+        c.resetPulse(index, seconds);
+      }
+    };
+
+    assert.deepEqual(
+      ages(() => undefined),
+      ['beat 1 1', 'beat 1 2']
+    );
+    assert.deepEqual(ages(at(0.5, 0, 0)), ['beat 1 0.5', 'beat 1 1.25']);
+    assert.deepEqual(ages(at(0.75, 0, 2)), []);
+    assert.deepEqual(ages(at(0.75, 0)), ['beat 1 1.5']);
+  });
+
+  it('refuses to reset a pulse its kind does not have, or to seconds that are not finite from 0', () => {
+    const errors: string[] = [];
+
+    const game = makeSpellGame(
+      {},
+      {
+        areaTriggers: {
+          pool: pool([logging()], {
+            frame: (c) => {
+              for (const [index, seconds] of [
+                [1, undefined],
+                [-1, undefined],
+                [0.5, undefined],
+                [0, -1],
+                [0, Number.NaN]
+              ] as const) {
+                try {
+                  c.resetPulse(index, seconds);
+                } catch (error) {
+                  errors.push(error instanceof RangeError ? 'range' : 'other');
+                }
+              }
+
+              return undefined;
+            }
+          })
+        }
+      }
+    );
+
+    game.areaTriggers.spawn(game.areaId.pool, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 1);
+    assert.deepEqual(errors, ['range', 'range', 'range', 'range', 'range']);
   });
 });
 
@@ -470,6 +578,64 @@ describe('contacts and landings', () => {
       ['contact 0.25: 100']
     );
     assert.deepEqual(shares, [0.5, -0.25, -1.5]);
+  });
+
+  it('teleports past the units between, reaching only one it lands on, where a move of its position sweeps them', () => {
+    const contacts = (jump: (c: AreaTriggerContext<Game>) => void): string[] => {
+      const game = makeSpellGame(
+        {},
+        {
+          areaTriggers: {
+            jump: missile({
+              contact: { radius: 0.5, side: 'all' },
+
+              move: (c) => {
+                if (c.position.x === 0) {
+                  jump(c);
+                }
+              }
+            })
+          }
+        }
+      );
+
+      const owner = game.unit(1);
+
+      game.place(owner, vec2(0, -10));
+      game.place(game.unit(100), vec2(20, 0));
+      game.place(game.unit(2), vec2(20, 0.2));
+      game.place(game.unit(101), vec2(40, 0));
+      game.world.tick();
+
+      const handle = game.areaTriggers.spawn(game.areaId.jump, { owner, at: vec2(0, 0) });
+
+      ticks(game, 2);
+      assert.equal(game.areaTriggers.coveredBy(vec2(40, 0), {}), handle);
+      assert.equal(game.areaTriggers.coveredBy(vec2(0, 0), {}), NO_AREA_TRIGGER);
+
+      return game.log.filter((line) => line.startsWith('contact'));
+    };
+
+    assert.deepEqual(
+      contacts((c) => {
+        c.position.x = 40;
+      }),
+      ['contact 0.25: 100,2,101', 'contact 0.5: 101']
+    );
+    assert.deepEqual(
+      contacts((c) => {
+        c.teleport(vec2(40, 0));
+      }),
+      ['contact 0.25: 101', 'contact 0.5: 101']
+    );
+    // After an advance, the frame's contact has nothing left to sweep: it reaches the unit it landed on the next frame.
+    assert.deepEqual(
+      contacts((c) => {
+        c.advance(vec2(10, 0));
+        c.teleport(vec2(40, 0));
+      }),
+      ['contact 0.5: 101']
+    );
   });
 
   it('sweeps an owner-anchored contact along its owner’s move (a charge’s hitbox)', () => {

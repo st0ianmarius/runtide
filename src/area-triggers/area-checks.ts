@@ -125,8 +125,8 @@ const checkFrame = <G extends AreaTriggerTypes>(name: string, def: AnyAreaTrigge
 const checkBeat = <G extends AreaTriggerTypes>(
   pulse: NonNullable<AnyAreaTriggerDef<G>['every']>[number]
 ): string | undefined => {
-  if (!isSoundSeconds(pulse.seconds) || !isSoundSeconds(pulse.first ?? 1, true)) {
-    return 'beats every finite number of seconds above 0, the first after seconds from 0.';
+  if (!isSoundSeconds(pulse.seconds) || !(pulse.first === 'now' || isSoundSeconds(pulse.first ?? 1, true))) {
+    return 'beats every finite number of seconds above 0, the first after seconds from 0, or now.';
   }
 
   if (!isOneOf(pulse.reschedule, ['cadence', 'restart'])) {

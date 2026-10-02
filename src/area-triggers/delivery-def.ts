@@ -132,8 +132,11 @@ export interface AreaPulse<G extends AreaTriggerTypes, State = unknown> extends 
   /** The seconds between beats: a number, or read from its stats at every reschedule. */
   readonly seconds: number | AreaFn<G, State, number>;
 
-  /** The seconds to its first beat; `seconds` by default. */
-  readonly first?: number;
+  /**
+   * The seconds to its first beat, from 0 (0 beats on its first frame after the spawn), or `now`: it beats once as it
+   * enters, after its `init`, its spawn cue and its `spawned` event, then every `seconds`; `seconds` by default.
+   */
+  readonly first?: number | 'now';
 
   /**
    * How the next beat is set: by cadence (the default: the previous beat plus the seconds, so the leftover carries), or

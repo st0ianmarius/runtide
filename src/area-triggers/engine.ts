@@ -16,7 +16,7 @@ import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import type { AreaLedger } from './delivery-def.ts';
 import { type AreaEngineParts, AreaPlace, missing, OwnerAuraApplication } from './engine-parts.ts';
 import type { AreaTriggerEvent, AreaTriggerEvents } from './events.ts';
-import { placeShape } from './frame.ts';
+import { placeShape, teleportArea } from './frame.ts';
 import { Catcher } from './hits.ts';
 import { type AreaTriggerHandle, toAreaTriggerHandle } from './ids.ts';
 import { type Ledger, LedgerBook, LedgerView } from './ledgers.ts';
@@ -326,6 +326,10 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.previous.z = z;
     area.advancedAt = at;
     area.hasAdvanced = true;
+  };
+
+  readonly teleportFor = (area: AreaTrigger<G>, to: Vec2): void => {
+    teleportArea(this, area, to);
   };
 
   readonly applyFor = (area: AreaTrigger<G>, proc: Proc<G>): ProcOutcome => {

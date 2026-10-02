@@ -1,3 +1,4 @@
+import type { Vec2 } from '../math/index.ts';
 import { stepAreaAuras } from './area-auras.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
@@ -16,6 +17,28 @@ export const placeShape = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, ar
   const { shape } = engine.registry.get(area.kind);
 
   area.placer.place(typeof shape === 'function' ? shape(area) : shape, area.position, area.heading);
+};
+
+/**
+ * Moves an area trigger to a point at once (`teleport`): its position and `previous` both there, so nothing between
+ * is swept, and its shape placed there.
+ */
+export const teleportArea = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  area: AreaTrigger<G>,
+  to: Vec2
+): void => {
+  const { x, z } = to;
+
+  if (!(Number.isFinite(x) && Number.isFinite(z))) {
+    throw new RangeError(`An area trigger teleports to a finite point; got ${x}, ${z}.`);
+  }
+
+  area.position.x = x;
+  area.position.z = z;
+  area.previous.x = x;
+  area.previous.z = z;
+  placeShape(engine, area);
 };
 
 /** Runs its `frame` hook with the reusable proc list. */
