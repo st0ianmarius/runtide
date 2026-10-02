@@ -1,5 +1,6 @@
 import type { Vec2 } from '../math/index.ts';
 import { type CastHandle, NO_CAST } from '../spells/index.ts';
+import { dropAreaAuras } from './area-auras.ts';
 import type { AnyAreaTriggerDef, Lifetime } from './area-def.ts';
 import { type AreaTrigger, NO_SCALED, NO_STATS } from './area-trigger.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
@@ -177,10 +178,12 @@ const admitLimit = <G extends AreaTriggerTypes>(
   }
 
   engine.admitting.push(area);
+  oldest.successor = area;
 
   try {
     endArea(engine, oldest, 'replaced');
   } finally {
+    oldest.successor = undefined;
     engine.admitting.pop();
   }
 
@@ -212,9 +215,23 @@ const settle = <G extends AreaTriggerTypes>(
 };
 
 /**
+ * Lets go of what a refused spawn took from the one it replaced: the units inside its area auras leave, and the owner
+ * aura comes off when none of its kind is left.
+ */
+const dropHanded = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
+  try {
+    dropAreaAuras(engine, area);
+  } finally {
+    if (area.keepsOwnerAura) {
+      engine.holdOwnerAura(area, false);
+    }
+  }
+};
+
+/**
  * Fills it, asks its limit and settles it; whether it may enter. One the limit refuses, or whose filling throws (a
- * lifetime of 0, a ledger's pierce read as 0), is let go with its cast and the ledgers it opened before anything links
- * it.
+ * lifetime of 0, a ledger's pierce read as 0), is let go with its cast, the ledgers it opened and what the one it
+ * replaced handed it, before anything links it.
  */
 const admit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -235,9 +252,13 @@ const admit = <G extends AreaTriggerTypes>(
     }
   } finally {
     if (!isAdmitted) {
-      closeLedgers(engine, area);
-      engine.spells.unretain(area.castHandle);
-      engine.free(area);
+      try {
+        dropHanded(engine, area);
+      } finally {
+        closeLedgers(engine, area);
+        engine.spells.unretain(area.castHandle);
+        engine.free(area);
+      }
     }
   }
 

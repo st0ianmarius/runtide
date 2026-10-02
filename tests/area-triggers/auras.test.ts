@@ -184,6 +184,48 @@ describe('area auras on enter and exit', () => {
     assert.equal(game.auras.has(foe, game.auraId.chilled), false);
   });
 
+  it('hands the units inside to the field replacing it under a limit, which drops the ones outside it next frame', () => {
+    const removed: number[] = [];
+
+    const game = makeSpellGame(
+      {},
+      {
+        auras: {
+          chilled: aura({
+            duration: 'infinite',
+
+            onRemoved: (ctx) => {
+              removed.push(ctx.bearer.id);
+
+              return undefined;
+            }
+          }),
+          soothed: aura({ duration: 5 })
+        },
+        areaTriggers: { field: { ...field({ aura: 'chilled' }), limit: { perOwner: 1, replace: 'oldest' } } }
+      }
+    );
+
+    const [stays, left] = [game.unit(100), game.unit(101)];
+    const owner = game.unit(1);
+
+    game.place(stays, vec2(1, 0));
+    game.place(left, vec2(-1.5, 0));
+    game.areaTriggers.spawn(game.areaId.field, { owner, at: vec2(0, 0) });
+    ticks(game, 1, []);
+    game.areaTriggers.spawn(game.areaId.field, { owner, at: vec2(2, 0) });
+    assert.deepEqual(
+      [stays, left].map((foe) => game.auras.has(foe, game.auraId.chilled)),
+      [true, true]
+    );
+    ticks(game, 1, []);
+    assert.deepEqual(
+      [stays, left].map((foe) => game.auras.has(foe, game.auraId.chilled)),
+      [true, false]
+    );
+    assert.deepEqual(removed, [101]);
+  });
+
   it('puts the aura back on a unit still inside whose aura something else took off, holding it once', () => {
     const game = fieldGame({ aura: 'chilled' });
     const foe = game.unit(100);

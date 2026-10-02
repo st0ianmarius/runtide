@@ -160,6 +160,8 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.id = -1;
     area.isEnding = false;
     area.pending = undefined;
+    area.successor = undefined;
+    area.keepsOwnerAura = false;
 
     return area;
   }
@@ -435,18 +437,32 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
 
   /**
    * Puts its kind's owner aura on its owner as the first of the kind arrives, and takes it off as the last
-   * leaves, so overlapping instances share one; call it after the count went up, or after it went down.
+   * leaves, so overlapping instances share one; call it after the count went up, or after it went down. The last one
+   * ending to make room for a spawn of its kind leaves the aura on for that spawn, whose entry then finds it on.
    */
   holdOwnerAura(area: AreaTrigger<G>, isOn: boolean): void {
     const aura = this.ownerAuras[area.kind];
+    const isKept = area.keepsOwnerAura;
+
+    area.keepsOwnerAura = false;
 
     if (aura === undefined || this.countOf(area.owner, area.kind) !== (isOn ? 1 : 0)) {
+      return;
+    }
+
+    if (!isOn && area.successor !== undefined) {
+      area.successor.keepsOwnerAura = true;
+
       return;
     }
 
     if (!isOn) {
       this.auras.remove(area.owner, aura);
 
+      return;
+    }
+
+    if (isKept && this.auras.has(area.owner, aura)) {
       return;
     }
 

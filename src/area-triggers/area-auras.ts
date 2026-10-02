@@ -65,6 +65,28 @@ export class AuraInside<G extends AreaTriggerTypes> {
     this.count = count;
   }
 
+  /**
+   * Hands its units inside to the same aura of the spawn replacing its area trigger, which holds them until its own
+   * first catch; true when it did (the spawn's is empty).
+   */
+  handTo(next: AuraInside<G>): boolean {
+    if (next.count > 0) {
+      return false;
+    }
+
+    const { units, ids } = next;
+
+    next.units = this.units;
+    next.ids = this.ids;
+    next.count = this.count;
+    this.units = units;
+    this.ids = ids;
+    this.count = 0;
+    this.wait = 0;
+
+    return true;
+  }
+
   /** Lets go of every unit as its area trigger ends, so its pooled record starts over. */
   clear(): void {
     this.swap(0);
@@ -432,15 +454,20 @@ export const stepAreaAuras = <G extends AreaTriggerTypes>(engine: AreaEngine<G>,
   }
 };
 
-/** Takes an area trigger's enter-exit auras off the units still inside as it ends. */
+/**
+ * Takes an area trigger's enter-exit auras off the units still inside as it ends; one ending to make room for a spawn
+ * of its kind hands them to it instead, so a recast field keeps its auras on the units in both without a blink, and
+ * the spawn's first catch takes them off the ones outside it.
+ */
 export const dropAreaAuras = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
   const count = engine.registry.get(area.kind).auras?.length ?? 0;
+  const { successor } = area;
 
   for (let index = 0; index < count; index++) {
     const inside = area.insideOf(index);
 
     // A walk comparing it drops its units itself once it sees the end.
-    if (inside.isComparing) {
+    if (inside.isComparing || (successor !== undefined && inside.handTo(successor.insideOf(index)))) {
       continue;
     }
 

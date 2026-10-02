@@ -424,6 +424,57 @@ describe('the owner aura, cues and events', () => {
     assert.equal(game.auras.has(owner, game.auraId.tending), false);
   });
 
+  it('keeps its owner aura on through a recast under a limit of one, and takes it off when the recast is refused', () => {
+    const log: string[] = [];
+
+    const game = makeSpellGame(
+      {},
+      {
+        auras: {
+          tending: aura({
+            duration: 'infinite',
+
+            onApplied: () => {
+              log.push('tending on');
+
+              return undefined;
+            },
+
+            onRemoved: () => {
+              log.push('tending off');
+
+              return undefined;
+            }
+          })
+        },
+        areaTriggers: {
+          grove: ending({ ownerAura: 'tending', limit: { perOwner: 1, replace: 'oldest' } }),
+          sentry: ending({
+            ownerAura: 'tending',
+            limit: { perOwner: 1, replace: 'oldest' },
+            lifetime: (c) => (c.id === 4 ? 0 : 1)
+          })
+        }
+      }
+    );
+
+    const owner = game.unit(1);
+
+    game.areaTriggers.spawn(game.areaId.grove, { owner, at: vec2(0, 0) });
+    game.areaTriggers.spawn(game.areaId.grove, { owner, at: vec2(0, 0) });
+    assert.deepEqual(log, ['tending on']);
+    assert.deepEqual(linesOf(game.log), ['end replaced', 'ended grove@1 replaced']);
+    assert.equal(game.auras.has(owner, game.auraId.tending), true);
+
+    const other = game.unit(2);
+
+    log.length = 0;
+    game.areaTriggers.spawn(game.areaId.sentry, { owner: other, at: vec2(0, 0) });
+    assert.throws(() => game.areaTriggers.spawn(game.areaId.sentry, { owner: other, at: vec2(0, 0) }), /lifetime/);
+    assert.deepEqual(log, ['tending on', 'tending off']);
+    assert.equal(game.auras.has(other, game.auraId.tending), false);
+  });
+
   it('refuses an owner aura that is not infinite, at load', () => {
     assert.throws(
       () =>
