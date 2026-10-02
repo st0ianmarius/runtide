@@ -236,6 +236,8 @@ const runBlowStages = <G extends DamageTypes>(
     }
   }
 
+  // The blow happened: it is known before anything its after-stages set off (a lifesteal heal, an on-hit proc).
+  raiseBlow(engine, engine.options.events?.resolved, blow);
   runAfter(engine, runs, blow, afterFrom);
 };
 

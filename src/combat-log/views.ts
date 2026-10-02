@@ -199,7 +199,13 @@ export interface DeathPayload<Unit, Spell> {
 
 /** The event kinds of a damage system the log records. */
 export interface DamageLogEvents<Unit, Spell> {
-  /** Every blow that was not skipped or ignored (`DamageEvents.taken`). */
+  /**
+   * Every blow that was not skipped, before anything it set off (`DamageEvents.resolved`): given, the log records blows
+   * from it alone, in the order things happened, and `taken` and `ignored` are not needed.
+   */
+  readonly resolved?: EventKind<BlowPayload<Unit, Spell>>;
+
+  /** Every blow that was not skipped or ignored (`DamageEvents.taken`), after what its `onDealt` hooks set off. */
   readonly taken?: EventKind<BlowPayload<Unit, Spell>>;
 
   /** Every blow the ignore stage ignored (`DamageEvents.ignored`). */

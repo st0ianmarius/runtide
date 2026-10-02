@@ -43,6 +43,13 @@ export interface DamageEvents<G extends DamageTypes> {
   /** The bus. */
   readonly bus: ProcBus;
 
+  /**
+   * A blow that was not skipped (ignored ones too), as its stages through health end and before any after-stage (its
+   * attacker's `onDealt` hooks, `dealt`, `taken`): what an observer records a blow at to keep the order things happened
+   * in, as the combat log does, the blow coming before what it set off.
+   */
+  readonly resolved?: EventKind<DamageEvent<G>>;
+
   /** A blow that was not skipped or ignored, about its attacker (on-hit triggers); raised before `taken`. */
   readonly dealt?: EventKind<DamageEvent<G>>;
 

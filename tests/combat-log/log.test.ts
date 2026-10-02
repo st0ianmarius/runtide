@@ -69,6 +69,28 @@ const linesOf = (log: CombatLog): string[] => {
 };
 
 describe('the combat log', () => {
+  it('records a blow before what its after-stages set off (a lifesteal, an on-hit blow), from the resolved event', () => {
+    const game = logGame();
+    const [hero, foe] = [game.unit(1), game.unit(100)];
+
+    const log = createCombatLog<Game['bearer'], Game['spell']>({
+      bus: game.bus,
+      clock: game.clock,
+      idOf: (unit) => unit.id,
+      damage: { resolved: game.bus.kind.resolved, healed: game.bus.kind.healed }
+    });
+
+    game.bus.handle(game.bus.kind.taken, (event) => {
+      if (event.blow?.amount === 30) {
+        game.damage.heal({ target: hero, healer: hero, source: 1, amount: 15 });
+        game.damage.hit({ target: foe, attacker: hero, source: 1, amount: 5 });
+      }
+    });
+    hero.hp = 50;
+    game.damage.hit({ target: foe, attacker: hero, source: 1, amount: 30 });
+    assert.deepEqual(linesOf(log), ['0 damage 1>100 30', '0 heal 1>1 15', '0 damage 1>100 5']);
+  });
+
   it('records every blow, immunity, heal, death, aura change, cast moment and area trigger, in order', () => {
     const game = logGame();
     const log = logOf(game);

@@ -119,12 +119,14 @@ const listen = <Unit, Spell>(
     }
   };
 
-  on(damage?.taken, (event) => {
-    recordBlow(recording, event.blow);
-  });
-  on(damage?.ignored, (event) => {
-    recordBlow(recording, event.blow);
-  });
+  // A blow is recorded once: as it resolves when the damage system raises that, else as it is taken or ignored.
+  const blowKinds = damage?.resolved === undefined ? [damage?.taken, damage?.ignored] : [damage.resolved];
+
+  for (const kind of blowKinds) {
+    on(kind, (event) => {
+      recordBlow(recording, event.blow);
+    });
+  }
   on(damage?.healed, (event) => {
     recordHeal(recording, event.heal);
   });

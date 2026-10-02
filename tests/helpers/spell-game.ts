@@ -301,6 +301,7 @@ const makeBus = () =>
     spellEnd: (): SpellEvent<Game> => createSpellEvent<Game>(),
     areaSpawned: (): AreaTriggerEvent<Game> => createAreaTriggerEvent<Game>(),
     areaEnded: (): AreaTriggerEvent<Game> => createAreaTriggerEvent<Game>(),
+    resolved: (): DamageEvent<Game> => createDamageEvent<Game>(),
     taken: (): DamageEvent<Game> => createDamageEvent<Game>(),
     ignored: (): DamageEvent<Game> => createDamageEvent<Game>(),
     healed: (): HealEvent<Game> => createHealEvent<Game>(),
@@ -514,6 +515,7 @@ export const makeSpellGame = <
     outgoing: ['damage'],
     events: {
       bus,
+      resolved: bus.kind.resolved,
       taken: bus.kind.taken,
       ignored: bus.kind.ignored,
       healed: bus.kind.healed,
