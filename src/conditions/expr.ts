@@ -39,8 +39,10 @@ export interface AgainstCondition<C extends string = string, V extends string = 
 }
 
 /**
- * How a comparison compares a value with its threshold: `<` and `>` are strict; `<=` and `>=` admit the
- * epsilon (`v ≤ than + ε`, `v ≥ than − ε`); `==` and `!=` compare within it (`|v − than| ≤ ε`).
+ * How a comparison compares a value with its threshold: `<` and `>` are strict and take no epsilon; `<=` and `>=` admit
+ * the epsilon (`v ≤ than + ε`, `v ≥ than − ε`); `==` compares within it (`|v − than| ≤ ε`) and `!=` is its negation
+ * (`not |v − than| ≤ ε`). A NaN read (a share over a zero maximum) compares as unequal and unordered: `!=` holds, every
+ * other op does not, so `!=` always agrees with `not` of `==`.
  */
 export type CompareOp = '<' | '<=' | '>' | '>=' | '==' | '!=';
 
@@ -58,7 +60,7 @@ export interface CompareCondition<V extends string = string> {
   /** The threshold. */
   readonly than: number;
 
-  /** The epsilon of `<=`, `>=`, `==` and `!=`, from 0; 0 when absent. */
+  /** The epsilon of `<=`, `>=`, `==` and `!=`, from 0; 0 when absent, and refused on `<` and `>`. */
   readonly epsilon?: number;
 }
 

@@ -56,6 +56,11 @@ const TABLES = { conditions: CONDITIONS, values: VALUES };
 /** The test tables with their names widened, for conditions a test forges on purpose. */
 const LOOSE: ConditionTables = TABLES;
 
+/** Compiles anything as a condition, unchecked, as a game's content file hands it over, for the refusals. */
+const bad = (expr: unknown) => () => {
+  Reflect.apply(compileCondition, undefined, [LOOSE, expr, 'spell nova']);
+};
+
 /** Compiles and binds a condition over the test tables. */
 const bound = (expr: ConditionExpr<keyof typeof CONDITIONS.id, keyof typeof VALUES.id>) =>
   bindCondition(TABLES, compileCondition(TABLES, expr));
@@ -91,12 +96,6 @@ describe('compiling a condition', () => {
   });
 
   it('refuses unknown names, empty lists, unknown ops and unsound numbers, naming what it compiles', () => {
-    const bad = (expr: object) => () => {
-      const forged: ConditionExpr = { is: 'hurt' };
-
-      compileCondition(LOOSE, Object.assign(forged, expr), 'spell nova');
-    };
-
     assert.throws(
       () => compileCondition(LOOSE, { is: 'asleep' }, 'spell nova'),
       /spell nova: there is no condition named asleep/
@@ -104,13 +103,79 @@ describe('compiling a condition', () => {
     assert.throws(() => compileCondition(LOOSE, { value: 'mana', op: '<', than: 1 }), /no value kind named mana/);
     assert.throws(() => compileCondition(TABLES, { all: [] }), /an all condition needs at least one part/);
     assert.throws(() => compileCondition(TABLES, { any: [] }), /an any condition needs at least one part/);
-    assert.throws(bad({ is: undefined, value: 'missing', op: '=<', than: 1 }), /op is one of/);
+    assert.throws(bad({ value: 'missing', op: '=<', than: 1 }), /spell nova: a comparison's op is one of/);
     assert.throws(
       () => compileCondition(TABLES, { value: 'missing', op: '<=', than: 1, epsilon: -1 }),
       /epsilon is from 0/
     );
     assert.throws(() => compileCondition(TABLES, { is: 'hurt', arg: Number.NaN }), /arg must be a finite number/);
     assert.throws(() => compileCondition({}, { is: 'hurt' }), /there is no condition named hurt/);
+  });
+
+  it('refuses a condition that is not one object of one shape, or carries a key its shape does not take', () => {
+    assert.throws(bad(null), /spell nova: a condition must be an object; got null/);
+    assert.throws(bad([{ is: 'hurt' }]), /spell nova: a condition must be an object; got a list/);
+    assert.throws(bad({ not: 3 }), /spell nova: a condition must be an object; got number/);
+    assert.throws(bad({}), /spell nova: a condition has exactly one of the keys .*; got none/);
+    assert.throws(
+      bad({ is: 'hurt', value: 'missing', op: '<', than: 1 }),
+      /spell nova: a condition has exactly one of the keys .*; got is value/
+    );
+    assert.throws(
+      bad({ all: [{ is: 'hurt' }], not: { is: 'plain' } }),
+      /spell nova: a condition has exactly one of the keys .*; got all not/
+    );
+    assert.throws(bad({ is: 'hurt', args: 1 }), /spell nova: a condition's keys with is are is arg; got also args/);
+    assert.throws(bad({ is: 7 }), /spell nova: a condition's is must be a name; got 7/);
+    assert.throws(bad({ all: { is: 'hurt' } }), /spell nova: an all condition's parts must be a list; got object/);
+    assert.throws(bad({ any: 'hurt' }), /spell nova: an any condition's parts must be a list; got string/);
+  });
+
+  it('takes an argument only as a finite number, and an epsilon only on an op that admits one', () => {
+    assert.throws(bad({ is: 'hurt', arg: null }), /spell nova: a condition's arg must be a finite number; got null/);
+    assert.throws(bad({ is: 'hurt', arg: '2' }), /spell nova: a condition's arg must be a finite number; got 2/);
+    assert.throws(
+      bad({ value: 'missing', op: '<', than: 1, epsilon: 0.1 }),
+      /spell nova: a comparison's epsilon is taken by <= >= == != only; got it with </
+    );
+    assert.throws(
+      bad({ value: 'missing', op: '>', than: 1, epsilon: 0 }),
+      /epsilon is taken by <= >= == != only; got it with >/
+    );
+    assert.deepEqual(compileCondition(TABLES, { value: 'missing', op: '!=', than: 1, epsilon: 0.5 }), {
+      kind: 'compare',
+      value: VALUES.id.missing,
+      arg: 0,
+      op: '!=',
+      than: 1,
+      epsilon: 0.5
+    });
+  });
+});
+
+describe('binding a condition', () => {
+  it('refuses tables other than the ones it was compiled over, whose ids name other tests', () => {
+    const first = defineConditions({ alive: () => true, elite: () => false });
+    const second = defineConditions({ elite: () => false, alive: () => true });
+    const values = defineValues({ one: () => 1 });
+    const compiled = compileCondition({ conditions: first, values }, { all: [{ is: 'alive' }, { is: 'elite' }] });
+    const compare = compileCondition({ values }, { value: 'one', op: '==', than: 1 });
+
+    assert.throws(
+      () => bindCondition({ conditions: second, values }, compiled),
+      /compiled over one conditions table is bound over another/
+    );
+    assert.throws(
+      () => conditionTest({ conditions: second }, compileCondition({ conditions: first }, { is: 'alive' })),
+      /compiled over one conditions table is bound over another/
+    );
+    assert.throws(
+      () => bindCondition({ values: defineValues({ one: () => 2 }) }, compare),
+      /compiled over one values table is bound over another/
+    );
+    // The same tables in another holder bind: the check is on the tables, not the object holding them.
+    assert.equal(bindCondition({ conditions: first, values }, compiled)(undefined), false);
+    assert.equal(bindCondition({ values }, compare)(undefined), true);
   });
 });
 
@@ -146,6 +211,55 @@ describe('evaluating a condition', () => {
     assert.equal(at(49.5, { value: 'healthShare', op: '>=', than: 0.5, epsilon: 0.01 }), true);
     assert.equal(at(70, { value: 'missing', arg: 2, op: '==', than: 60 }), true);
     assert.equal(at(70, { value: 'missing', arg: 2, op: '!=', than: 61, epsilon: 2 }), false);
+  });
+
+  it('reads a test answering a number by truthiness, once, so every reader sees the same boolean', () => {
+    const hasBit = { test: (host: Host, bit: number) => (host.stance & bit) !== 0 };
+
+    // A bitmask test as plain JavaScript writes it: it answers `stance & bit`, a number, past its declared boolean.
+    Reflect.set(hasBit, 'test', (host: Host, bit: number) => host.stance & bit);
+
+    const flags = defineConditions({ hasBit });
+    const tables = { conditions: flags };
+
+    const holds = (expr: ConditionExpr<'hasBit'>) =>
+      bindCondition(tables, compileCondition(tables, expr))(hostAt(0, 5));
+
+    const lone = conditionTest(tables, compileCondition(tables, { is: 'hasBit', arg: 1 }));
+
+    assert.equal(lone.test(hostAt(0, 5), lone.arg, undefined), true);
+    assert.equal(lone.test(hostAt(0, 4), lone.arg, undefined), false);
+    assert.equal(holds({ is: 'hasBit', arg: 4 }), true);
+    assert.equal(holds(all({ is: 'hasBit', arg: 1 }, { is: 'hasBit', arg: 4 })), true);
+    assert.equal(holds(any({ is: 'hasBit', arg: 2 }, { is: 'hasBit', arg: 4 })), true);
+    assert.equal(holds(not({ is: 'hasBit', arg: 1 })), false);
+    assert.equal(holds(not({ is: 'hasBit', arg: 2 })), true);
+
+    const stats = defineStats({ damage: { base: 1, kind: 'multiplier' } });
+    const sources = defineSources(['talents']);
+    const modifiers = createModifierSystem({ stats, sources, conditions: flags });
+    const sheet = modifiers.createSheet();
+
+    modifiers.setSource(sheet, sources.id.talents, [
+      modifiers.compile([mul('damage', 2, { when: { is: 'hasBit', arg: 4 } })])
+    ]);
+    assert.equal(modifiers.resolve(sheet, stats.id.damage, { host: hostAt(0, 5) }), 2);
+    assert.equal(modifiers.resolve(sheet, stats.id.damage, { host: hostAt(0, 2) }), 1);
+  });
+
+  it('compares a NaN read as unequal and unordered: only != holds, as not of == does', () => {
+    const shares = defineValues({ share: (host: Host) => host.hp / host.maxHp });
+    const tables = { values: shares };
+    const empty: Host = { hp: 0, maxHp: 0, stance: 0, asked: [] };
+    const at = (expr: ConditionExpr<never, 'share'>) => bindCondition(tables, compileCondition(tables, expr))(empty);
+
+    for (const op of ['<', '<=', '>', '>=', '=='] as const) {
+      assert.equal(at({ value: 'share', op, than: 0.5 }), false, op);
+    }
+
+    assert.equal(at({ value: 'share', op: '!=', than: 0.5 }), true);
+    assert.equal(at({ value: 'share', op: '!=', than: 0.5, epsilon: 1 }), true);
+    assert.equal(at(not({ value: 'share', op: '==', than: 0.5 })), true);
   });
 
   it('keeps a lone test as itself with its argument, and binds anything else to one call', () => {

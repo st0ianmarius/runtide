@@ -10,6 +10,11 @@ export type ConditionId = Id<'conditions'>;
  * has one: a blow's target when the attacker's stats are read, its attacker when the defender's are, a trigger
  * event's other unit. It must be deterministic; it may ask the world lazily, since it runs only when what waits on it
  * would otherwise count.
+ *
+ * It answers a boolean. An answer of another type (a bitmask test's `host.tags & bit`) is read once, where
+ * `defineConditions` registers the test, by JavaScript truthiness: `1` holds, `0`, `NaN` and `undefined` do not. So a
+ * registered test always answers `true` or `false`, and every reader (a lone test, `all`, `any`, `not`, a modifier, a
+ * trigger) sees the same answer.
  */
 export type ConditionTest<Host> = (host: Host, arg: number, against: Host | undefined) => boolean;
 
@@ -51,11 +56,17 @@ export type ConditionTable<Name extends string = string, Host = never> = Registr
   never
 >;
 
+/** A test whose answer is read as a boolean once, here, so no reader sees a number or `undefined` for one. */
+const answering =
+  <Host>(test: ConditionTest<Host>): ConditionTest<Host> =>
+  (host, arg, against) =>
+    Boolean(test(host, arg, against));
+
 /** A condition's definition from a bare test or a spec with flags. */
 const defOf = <Host>(spec: ConditionTest<Host> | ConditionSpec<Host>): ConditionDef<Host> =>
   typeof spec === 'function'
-    ? { test: spec, isMirrorSafe: false, isWorld: false }
-    : { test: spec.test, isMirrorSafe: spec.mirrorSafe === true, isWorld: spec.world === true };
+    ? { test: answering(spec), isMirrorSafe: false, isWorld: false }
+    : { test: answering(spec.test), isMirrorSafe: spec.mirrorSafe === true, isWorld: spec.world === true };
 
 /**
  * Registers the game's condition tests: `defineConditions({ healthBelow: (host, share) => host.hp < host.maxHp *
