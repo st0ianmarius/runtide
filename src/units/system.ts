@@ -28,6 +28,12 @@ export interface UnitSystem<G extends UnitTypes> {
   readonly spawn: (template: UnitId, spawn: SpawnUnit<G>) => G['bearer'];
 
   /**
+   * Spawns a unit as `spawn` does once the game's `admit` lets it; `undefined`, with nothing made, when it refuses (a
+   * crowd at its cap, a placement that failed).
+   */
+  readonly trySpawn: (template: UnitId, spawn: SpawnUnit<G>) => G['bearer'] | undefined;
+
+  /**
    * A variant of a template with base stats of its own, compiled once: spawn a wave's mobs or a level's elites with it
    * (`spawn(template, { side, variant })`) and they share its bases, where a spawn's own `stats` compile per unit.
    */
@@ -162,6 +168,12 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     live: () => engine.byId.size,
 
     spawn: spawnUnit,
+
+    trySpawn: (template, spawn) => {
+      registry.get(template);
+
+      return options.admit?.(template, spawn) === false ? undefined : spawnUnit(template, spawn);
+    },
 
     variant: (template, stats) => {
       registry.get(template);

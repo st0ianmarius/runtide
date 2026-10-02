@@ -42,8 +42,20 @@ export interface SummonProc<G extends UnitTypes> extends ProcShape {
   /** The point they stand at. */
   readonly at?: Vec2;
 
-  /** Reads the point when the proc applies, in place of `at`. */
+  /** Reads each summon's point when the proc applies, in place of `at`. */
   readonly atOf?: (ctx: ProcContext<G>) => Vec2 | undefined;
+
+  /**
+   * What a summon does when `atOf` finds no point: `skip` that one and go on to the next, or `stop` the summon there;
+   * `skip` when absent.
+   */
+  readonly onNoPoint?: 'skip' | 'stop';
+
+  /** The game's data each summon spawns with (`SpawnUnit.data`: a wave index, the summoner). */
+  readonly data?: G['spawnData'];
+
+  /** Reads the data when each summon spawns, in place of `data`. */
+  readonly dataOf?: (ctx: ProcContext<G>) => G['spawnData'];
 
   /** Their own base stats, over their template's (spawned at another wave's numbers). */
   readonly stats?: Readonly<Partial<Record<G['stat'], number>>>;

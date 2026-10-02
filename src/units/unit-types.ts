@@ -69,6 +69,12 @@ export interface UnitTypes extends AbilityTypes, AiTypes, DamageTypes {
   /** The game's own data on a unit template (`UnitDef.data`: rewards, a roster's rules). */
   readonly unitData: unknown;
 
+  /**
+   * The game's own data handed to one spawn (`SpawnUnit.data`, a summon's `data`): a wave index, a summoner, an elite
+   * variant. `createExt` and `admit` read it, before the unit's `spawned` event and its script's `spawn`.
+   */
+  readonly spawnData: unknown;
+
   /** The names of the game's scripts (`warden`, `hordeCaster`, `inferno`), which templates and spawns name. */
   readonly scriptName: string;
 }

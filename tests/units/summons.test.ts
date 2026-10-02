@@ -314,6 +314,83 @@ describe('summoning', () => {
   });
 });
 
+describe('spawn admission and spawn data', () => {
+  it('refuses a spawn the game does not admit in trySpawn, making nothing, while spawn never asks', () => {
+    const asked: number[] = [];
+
+    const game = makeUnitGame(TEMPLATES, {
+      admit: (_template, spawn): boolean => {
+        asked.push(spawn.side);
+
+        return asked.length <= 2;
+      }
+    });
+
+    const tries = [1, 1, 1].map((side) => game.units.trySpawn(game.id.add, { side }));
+
+    assert.deepEqual(
+      tries.map((unit) => unit !== undefined),
+      [true, true, false]
+    );
+    assert.equal(game.units.live(), 2, 'a refusal makes no unit');
+    game.units.spawn(game.id.add, { side: 2 });
+    assert.deepEqual([asked, game.units.live()], [[1, 1, 1], 3]);
+  });
+
+  it('stops a summon at the first spawn the game refuses, which ends no older summon for the limit', () => {
+    let room = 2;
+    let asked = 0;
+
+    const { procs, units, caster } = summoning({
+      admit: (): boolean => {
+        asked += 1;
+
+        if (room === 0) {
+          return false;
+        }
+
+        room -= 1;
+
+        return true;
+      }
+    });
+
+    assert.equal(procs.apply(summon<UnitGame>('add', { count: 5 }), { self: caster }).amount, 2);
+    assert.equal(asked, 3, 'asked until the first refusal');
+
+    const before = units.summonsOf(caster).slice();
+
+    assert.equal(
+      procs.apply(summon<UnitGame>('add', { count: 1, limit: { perOwner: 2 } }), { self: caster }).status,
+      'skipped'
+    );
+    assert.deepEqual(units.summonsOf(caster), before);
+  });
+
+  it('skips or stops at a point atOf does not find, and hands each summon the game’s data', () => {
+    const { procs, units, caster, id } = summoning();
+    const points = [{ x: 1, z: 0 }, undefined, { x: 2, z: 0 }];
+    let next = 0;
+    const atOf = () => points[next++ % points.length];
+
+    const skipped = procs.apply(summon<UnitGame>('add', { count: 3, atOf, data: { wave: 4 } }), { self: caster });
+
+    next = 0;
+
+    const stopped = procs.apply(
+      summon<UnitGame>('add', { count: 3, atOf, onNoPoint: 'stop', dataOf: () => ({ wave: next }) }),
+      { self: caster }
+    );
+
+    assert.deepEqual([skipped.amount, stopped.amount], [2, 1]);
+    assert.deepEqual(
+      units.summonsOf(caster).map((add) => add.ext.made.split(' ').slice(1).join(' ')),
+      ['wave 4', 'wave 4', 'wave 1']
+    );
+    assert.equal(units.spawn(id.add, { side: 1, data: { wave: 9 } }).ext.made.endsWith('wave 9'), true);
+  });
+});
+
 describe('the escape report over a unit game', () => {
   it('counts the unit and AI proc kinds as the framework’s own, not as hatches', () => {
     const { procs, spells, damage, units, ai } = summoning();

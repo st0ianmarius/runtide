@@ -29,6 +29,13 @@ export interface UnitSystemBase<G extends UnitTypes> {
   /** The aura system every unit bears auras through. */
   readonly auras: AuraSystem<G>;
 
+  /**
+   * Whether a spawn may happen (a crowd cap, a refused placement), asked by `units.trySpawn` and the `summon` proc
+   * before anything is made: false refuses it, making no unit, taking no id and raising nothing. `units.spawn` never
+   * asks (a hero, a boss, a group the cap does not count). Every spawn may when absent.
+   */
+  readonly admit?: (template: UnitId, spawn: SpawnUnit<G>) => boolean;
+
   /** The spell system every unit casts through. */
   readonly spells: SpellSystem<G>;
 
@@ -140,6 +147,9 @@ export interface SpawnUnit<G extends UnitTypes> {
 
   /** Whether it despawns (reason `owner`) as its owner dies or despawns; false when absent. */
   readonly isBound?: boolean;
+
+  /** The game's own data for this spawn (a wave index, a summoner), handed to `createExt` and `admit`. */
+  readonly data?: G['spawnData'];
 
   /**
    * The script it runs, in place of its template's: one bodiless template serves every world script,

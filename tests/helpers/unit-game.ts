@@ -56,6 +56,7 @@ import {
   defineUnitTags,
   type HealthPolicy,
   revive,
+  type SpawnUnit,
   type Unit,
   type UnitDef,
   type UnitEvent,
@@ -186,12 +187,18 @@ export interface UnitGame extends ScriptTypes {
   /** The test derived states. */
   readonly unitState: 'stunned' | 'rooted' | 'frozen' | 'hidden';
 
+  /** What a test spawn may carry: the wave it belongs to. */
+  readonly spawnData: {
+    /** The wave. */
+    readonly wave: number;
+  };
+
   /** A counter the tests write. */
   readonly unitExt: {
     /** How many times a test marked the unit. */
     marks: number;
 
-    /** The template id and side it was made from. */
+    /** The template id and side it was made from, and its spawn's wave when it had one. */
     readonly made: string;
   };
 }
@@ -303,6 +310,9 @@ export interface UnitGameOptions<Extra extends string = never> {
 
   /** The scripts templates and spawns name; none when absent. */
   readonly scripts?: ScriptRegistry<UnitGame>;
+
+  /** The unit system's spawn admission (a crowd cap); every spawn may when absent. */
+  readonly admit?: (template: UnitId, spawn: SpawnUnit<UnitGame>) => boolean;
 }
 
 /** A small unit test game. */
@@ -446,7 +456,13 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
       sideChanged: bus.kind.sideChanged
     },
     ...(options.allocateId === undefined ? {} : { allocateId: options.allocateId }),
-    createExt: (template, spawn) => ({ marks: 0, made: `${template}/${spawn.side}` })
+
+    createExt: (template, spawn) => ({
+      marks: 0,
+      made: `${template}/${spawn.side}${spawn.data === undefined ? '' : ` wave ${spawn.data.wave}`}`
+    }),
+
+    ...(options.admit === undefined ? {} : { admit: options.admit })
   });
 
   const damage: DamageSystem<UnitGame> = createDamageSystem<UnitGame>({

@@ -96,23 +96,31 @@ const summonStats = <G extends UnitTypes>(
   return stats;
 };
 
-/** Spawns one summon of a summon proc: at its point, on its side, owned by `owner`, held by the running cast. */
-const spawnSummon = <G extends UnitTypes>(
-  parts: UnitKindParts<G>,
+/** One summon's spawn: on its side, owned by `owner`, with its stats, point and the game's data. */
+const summonSpec = <G extends UnitTypes>(
   [proc, ctx, owner]: readonly [SummonProc<G>, ProcContext<G>, G['bearer']],
-  [template, stats, at]: readonly [UnitId, Readonly<Partial<Record<G['stat'], number>>> | undefined, Vec2 | undefined]
-): void => {
-  const spec: SpawnUnit<G> = {
+  stats: Readonly<Partial<Record<G['stat'], number>>> | undefined,
+  at: Vec2 | undefined
+): SpawnUnit<G> => {
+  const data = proc.dataOf === undefined ? proc.data : proc.dataOf(ctx);
+
+  return {
     side: proc.side ?? unitOf<G>(owner).side,
     owner,
-    isBound: proc.isBound !== false
-  };
-
-  const unit = parts.spawn(template, {
-    ...spec,
+    isBound: proc.isBound !== false,
     ...(stats === undefined ? {} : { stats }),
-    ...(at === undefined ? {} : { at })
-  });
+    ...(at === undefined ? {} : { at }),
+    ...(data === undefined ? {} : { data })
+  };
+};
+
+/** Spawns one summon of a summon proc as its spec says, held by the running cast. */
+const spawnSummon = <G extends UnitTypes>(
+  parts: UnitKindParts<G>,
+  ctx: ProcContext<G>,
+  [template, spec]: readonly [UnitId, SpawnUnit<G>]
+): void => {
+  const unit = parts.spawn(template, spec);
 
   const { spells } = parts.engine.options;
   const cast = spells.castFor(ctx);
@@ -214,6 +222,38 @@ const replaceSummon = <G extends UnitTypes>(
 const summonCount = <G extends UnitTypes>(proc: SummonProc<G>, ctx: ProcContext<G>): number =>
   Math.max(0, Math.floor(proc.countOf?.(ctx) ?? proc.count ?? 1));
 
+/**
+ * Makes one summon of a summon proc: `made`; `skipped` when `atOf` finds no point and the proc skips; `stop` when it
+ * stops there, the game does not admit it (a crowd cap, asked before the owner's limit so a refusal ends no older
+ * summon), the limit refuses it, or a callback took the owner out.
+ */
+const summonOne = <G extends UnitTypes>(
+  parts: UnitKindParts<G>,
+  [proc, ctx, owner]: readonly [SummonProc<G>, ProcContext<G>, G['bearer']],
+  [template, stats]: readonly [UnitId, Readonly<Partial<Record<G['stat'], number>>> | undefined]
+): 'made' | 'skipped' | 'stop' => {
+  const at = proc.atOf === undefined ? proc.at : proc.atOf(ctx);
+
+  if (proc.atOf !== undefined && at === undefined) {
+    return proc.onNoPoint === 'stop' ? 'stop' : 'skipped';
+  }
+
+  const spec = summonSpec([proc, ctx, owner], stats, at);
+
+  if (
+    !isAlive(owner) ||
+    parts.engine.options.admit?.(template, spec) === false ||
+    !admitSummon(parts, [proc, owner], template) ||
+    !isAlive(owner)
+  ) {
+    return 'stop';
+  }
+
+  spawnSummon(parts, ctx, [template, spec]);
+
+  return 'made';
+};
+
 /** The `summon` kind. */
 const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<SummonProc<G>, G> => ({
   targetOf: (proc) => proc.to ?? 'self',
@@ -231,16 +271,15 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
 
     let summoned = 0;
 
-    // `atOf`, a replaced summon's despawn and the spawn's listeners are callbacks: each may take the owner out.
+    // `atOf`, `admit`, a replaced summon's despawn and the spawn's listeners are callbacks: each may take the owner out.
     for (let i = 0; i < count && isAlive(owner); i++) {
-      const at = proc.atOf?.(ctx) ?? proc.at;
+      const made = summonOne(parts, [proc, ctx, owner], [template, stats]);
 
-      if (!isAlive(owner) || !admitSummon(parts, [proc, owner], template) || !isAlive(owner)) {
+      if (made === 'stop') {
         break;
       }
 
-      spawnSummon(parts, [proc, ctx, owner], [template, stats, at]);
-      summoned += 1;
+      summoned += made === 'made' ? 1 : 0;
     }
 
     return counted(summoned);
