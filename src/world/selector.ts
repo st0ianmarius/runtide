@@ -14,6 +14,12 @@ export const bySides: ReactionRule = (a, b) => (a === b ? 'friendly' : 'hostile'
 /** A game's targeting rule: whether `by` may pick `unit` at all (stealth, phasing, a spawn intro, a downed unit). */
 export type TargetRule<Unit> = (by: Unit, unit: Unit) => boolean;
 
+/**
+ * A game's targeting rule for a query by side alone (`ofSide`, no `of`): whether anything of `side` may pick `unit` (a
+ * world hazard against a phased or untargetable unit, a spawn intro).
+ */
+export type SideTargetRule<Unit> = (side: number, unit: Unit) => boolean;
+
 /** What the rules make of a query's side, and how. */
 export interface SelectorRules<Unit> {
   /** How sides regard each other. */
@@ -21,6 +27,9 @@ export interface SelectorRules<Unit> {
 
   /** Whether a unit may be picked by the one asking; every unit may when absent. */
   readonly canTarget: TargetRule<Unit> | undefined;
+
+  /** Whether a unit may be picked by a query by side alone; every unit may when absent. */
+  readonly canTargetSide: SideTargetRule<Unit> | undefined;
 }
 
 /** Orders two sort keys: less first, equal (infinities included) as ties, NaN after every number. */
@@ -57,6 +66,7 @@ export class Selector<Unit> {
   readonly #index: PointIndex;
   readonly #reaction: ReactionRule | undefined;
   readonly #canTarget: TargetRule<Unit> | undefined;
+  readonly #canTargetSide: SideTargetRule<Unit> | undefined;
   readonly #box: MutableBox = emptyBox();
   readonly #candidates: number[] = [];
   readonly #kept: number[] = [];
@@ -81,6 +91,7 @@ export class Selector<Unit> {
     this.#index = index;
     this.#reaction = rules.reaction === bySides ? undefined : rules.reaction;
     this.#canTarget = rules.canTarget;
+    this.#canTargetSide = rules.canTargetSide;
   }
 
   /** The slots the last `run` selected, in order, valid up to its count. */
@@ -225,9 +236,23 @@ export class Selector<Unit> {
     return (
       this.#isOnSide(options, slot) &&
       options.exclude?.has(unit) !== true &&
-      (this.#canTarget === undefined || options.of === undefined || this.#canTarget(options.of, unit)) &&
+      this.#mayTarget(options, unit) &&
       this.#isCaught(selection, slot) &&
       (options.filter?.(unit) ?? true)
+    );
+  }
+
+  /**
+   * Whether the game's targeting rules let the query pick a unit: the rule for the unit asking (`of`), or, for a query
+   * by side alone (`ofSide`), the rule for its side. A query with neither asks no rule.
+   */
+  #mayTarget(options: QueryOptions<Unit>, unit: Unit): boolean {
+    if (options.of !== undefined) {
+      return this.#canTarget === undefined || this.#canTarget(options.of, unit);
+    }
+
+    return (
+      options.ofSide === undefined || this.#canTargetSide === undefined || this.#canTargetSide(options.ofSide, unit)
     );
   }
 

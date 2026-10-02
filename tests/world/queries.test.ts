@@ -203,6 +203,33 @@ describe('inside: the units a shape covers', () => {
     assert.deepEqual(names(out, world.inside(circle(5), {}, out)), ['seer', 'grunt', 'shade']);
   });
 
+  it("asks the game's side rule of a query by side alone, and bypasses the targeting rule without one", () => {
+    const shade = { name: 'shade' };
+    const grunt = { name: 'grunt' };
+    const canTarget = (_by: Mob, unit: Mob): boolean => unit.name !== 'shade';
+
+    const ruled = createMemoryWorld<Mob>({
+      bounds: BOUNDS,
+      canTarget,
+      canTargetSide: (side, unit) => side === 9 || unit.name !== 'shade'
+    });
+
+    const open = createMemoryWorld<Mob>({ bounds: BOUNDS, canTarget });
+    const out: (Mob | undefined)[] = [];
+
+    for (const world of [ruled, open]) {
+      world.add(grunt, { id: 1, at: vec2(0, 0), side: 1 });
+      world.add(shade, { id: 2, at: vec2(1, 0), side: 1 });
+    }
+
+    assert.deepEqual(names(out, ruled.inside(circle(5), { side: 'foes', ofSide: 0 }, out)), ['grunt']);
+    assert.deepEqual(names(out, ruled.inside(circle(5), { side: 'foes', ofSide: 9 }, out)), ['grunt', 'shade']);
+    // With an asker, its rule alone is asked, whatever the side.
+    assert.deepEqual(names(out, ruled.inside(circle(5), { side: 'foes', of: grunt, ofSide: 9 }, out)), ['grunt']);
+    assert.deepEqual(names(out, ruled.inside(circle(5), {}, out)), ['grunt', 'shade']);
+    assert.deepEqual(names(out, open.inside(circle(5), { side: 'foes', ofSide: 0 }, out)), ['grunt', 'shade']);
+  });
+
   it('leaves out an exclude set and what fails the filter', () => {
     const { world, mob } = worldOf([
       [1, 0, 0],

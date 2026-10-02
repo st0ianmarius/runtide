@@ -143,8 +143,8 @@ export class Placement {
 
   /**
    * Picks a point: each attempt's candidate from the game's sampler, kept when it is clear by the clearance and passes
-   * the filter; the highest score wins, the first on ties, and without a score the first candidate that passes.
-   * `undefined` when none did.
+   * the filter; the highest score wins, the first on ties, and without a score the first candidate that passes. With
+   * `accept`, a candidate scoring at or above it wins at once, drawing no more. `undefined` when none did.
    */
   readonly pickPoint = (pick: PointPick): Vec2 | undefined => {
     let best: Vec2 | undefined = undefined;
@@ -153,11 +153,7 @@ export class Placement {
     for (let attempt = 0; attempt < pick.attempts; attempt++) {
       const sample = pick.sample(attempt);
 
-      if (
-        sample === undefined ||
-        !this.isPositionClear(sample, pick.clearance ?? 0) ||
-        pick.filter?.(sample) === false
-      ) {
+      if (sample === undefined || !this.#isCandidate(pick, sample)) {
         continue;
       }
 
@@ -171,10 +167,20 @@ export class Placement {
         best = sample;
         bestScore = score;
       }
+
+      // Good enough: taken at once, with no later attempt drawn.
+      if (pick.accept !== undefined && score >= pick.accept) {
+        return sample;
+      }
     }
 
     return best;
   };
+
+  /** Whether a pick's candidate is clear by its clearance and passes its filter. */
+  #isCandidate(pick: PointPick, sample: Vec2): boolean {
+    return this.isPositionClear(sample, pick.clearance ?? 0) && pick.filter?.(sample) !== false;
+  }
 
   /** The share at which a body's centre leaves the bounds inset by its radius (0 when it starts outside, 1 if never). */
   #boundsExit(from: Vec2, to: Vec2, radius: number): number {

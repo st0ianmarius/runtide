@@ -186,6 +186,28 @@ describe('moveBody: a body swept against static geometry', () => {
     assert.equal(doors.isPositionClear(vec2(-5, 0), 0), true);
   });
 
+  it('keeps each group of static geometry apart: one put in or taken out leaves the rest, the default group too', () => {
+    const arena = createMemoryWorld<object>({ bounds: BOUNDS, statics: [circle(1, vec2(-5, 0))] });
+    const walls = [polygon([vec2(5, -10), vec2(6, -10), vec2(6, 10), vec2(5, 10)])];
+
+    arena.setStatics(walls, 'prison');
+    assert.equal(arena.lineClear(vec2(0, 0), vec2(10, 0)), false);
+    assert.equal(arena.lineClear(vec2(0, 0), vec2(-10, 0)), false);
+
+    // The list was copied: emptying it changes nothing until it is put in again.
+    walls.length = 0;
+    assert.equal(arena.lineClear(vec2(0, 0), vec2(10, 0)), false);
+
+    arena.setStatics([], 'prison');
+    assert.equal(arena.lineClear(vec2(0, 0), vec2(10, 0)), true);
+    assert.equal(arena.lineClear(vec2(0, 0), vec2(-10, 0)), false);
+
+    arena.setStatics([circle(1, vec2(8, 0))], 'pillar');
+    arena.setStatics([]);
+    assert.equal(arena.lineClear(vec2(0, 0), vec2(-10, 0)), true);
+    assert.equal(arena.lineClear(vec2(0, 0), vec2(10, 0)), false);
+  });
+
   it('goes the whole way when nothing is in the way', () => {
     assert.deepEqual(world.moveBody(vec2(0, 0), vec2(0, 10), 1), {
       position: { x: 0, z: 10 },
@@ -233,6 +255,31 @@ describe('pickPoint: the game’s samples, cleared, filtered and scored', () => 
     assert.equal(seen.length, 6);
     assert.equal(picked?.x, Math.max(...seen.map((p) => p.x)));
     assert.equal(world.pickPoint({ attempts: 3, clearance: 1, sample: () => vec2(4.5, 0) }), undefined);
+  });
+
+  it('takes the first candidate scoring at or above accept at once, drawing no more', () => {
+    const candidates = [vec2(0, 0), vec2(1, 0), vec2(3, 0), vec2(2, 0), vec2(4, 0)];
+    const asked: number[] = [];
+
+    const pick = (accept?: number): Vec2 | undefined =>
+      world.pickPoint({
+        attempts: candidates.length,
+        score: (p) => p.x,
+        ...(accept === undefined ? {} : { accept }),
+
+        sample: (attempt) => {
+          asked.push(attempt);
+
+          return candidates[attempt];
+        }
+      });
+
+    assert.deepEqual(pick(2), vec2(3, 0));
+    assert.deepEqual(asked, [0, 1, 2]);
+    asked.length = 0;
+    assert.deepEqual(pick(10), vec2(4, 0));
+    assert.deepEqual(pick(), vec2(4, 0));
+    assert.equal(asked.length, 10);
   });
 });
 

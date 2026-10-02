@@ -4,7 +4,7 @@ import { GridIndex, KdIndex, type PointIndex } from './point-index.ts';
 import type { BodyMove, PointPick, QueryOptions, RangeOptions, Reaction, SweepOptions, WorldQuery } from './query.ts';
 import { type SearchParts, sweep } from './searches.ts';
 import { Selection } from './selection.ts';
-import { bySides, type ReactionRule, Selector, type TargetRule } from './selector.ts';
+import { bySides, type ReactionRule, Selector, type SideTargetRule, type TargetRule } from './selector.ts';
 import { StaticGeometry, type StaticShape } from './statics.ts';
 import { checkPosition, type UnitSpec, UnitTable, type WorldSlots } from './unit-table.ts';
 
@@ -22,7 +22,7 @@ export interface MemoryWorldOptions<Unit = unknown> {
   /** The tick's length in seconds, which velocities are measured over; 1 by default. */
   readonly dt?: number;
 
-  /** The static geometry (walls, pillars), indexed once in an R-tree. */
+  /** The static geometry (walls, pillars), indexed in an R-tree: the default group of `setStatics`. */
   readonly statics?: readonly StaticShape[];
 
   /**
@@ -36,6 +36,12 @@ export interface MemoryWorldOptions<Unit = unknown> {
    * (stealth against detection, a phased or untargetable unit, a spawn intro). Every unit may when absent.
    */
   readonly canTarget?: TargetRule<Unit>;
+
+  /**
+   * The game's targeting rule for a query by side alone (`ofSide` with no `of`: a world script's hazard), asked with
+   * that side. Every unit may when absent, so such a query then bypasses `canTarget`'s rule.
+   */
+  readonly canTargetSide?: SideTargetRule<Unit>;
 
   /**
    * A unit's entity id, the one it is added under (`unit.id`): with it the world finds a unit's slot by its id, in a
@@ -79,10 +85,12 @@ export interface MemoryWorld<Unit> extends WorldQuery<Unit> {
   readonly setSide: (unit: Unit, side: number) => void;
 
   /**
-   * Puts in new static geometry in place of the old (a door opened, a prison's walls raised), which every line of
-   * sight, placement and body move reads from here on. A prediction mirror's static world must follow it.
+   * Puts in a group's static geometry in place of its old (a door opened, a prison's walls raised), which every line
+   * of sight, placement and body move reads from here on, with every other group's. With no group it sets the default
+   * one, which holds the `statics` the world was created with; an empty list takes a group out. The list is copied,
+   * so changing it later changes nothing: put it in again. A prediction mirror's static world must follow it.
    */
-  readonly setStatics: (shapes: readonly StaticShape[]) => void;
+  readonly setStatics: (shapes: readonly StaticShape[], group?: string) => void;
 
   /** Starts a tick: every unit's previous position becomes its current one. */
   readonly tick: () => void;
@@ -100,6 +108,7 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly #table: UnitTable<Unit>;
   readonly #index: PointIndex;
   readonly #canTarget: TargetRule<Unit> | undefined;
+  readonly #canTargetSide: SideTargetRule<Unit> | undefined;
 
   /** A selector and a selection per nesting level: a filter or `canTarget` may query the world again. */
   readonly #levels: SearchParts<Unit>[] = [];
@@ -124,6 +133,7 @@ class World<Unit> implements MemoryWorld<Unit> {
         : new GridIndex(this.#table, { bounds: options.bounds, cell: options.cell ?? 4 });
     this.#reaction = options.reaction ?? bySides;
     this.#canTarget = options.canTarget;
+    this.#canTargetSide = options.canTargetSide;
     this.isPositionClear = placement.isPositionClear;
     this.lineClear = placement.lineClear;
     this.clamp = placement.clamp;
@@ -221,8 +231,8 @@ class World<Unit> implements MemoryWorld<Unit> {
   readonly sideOf = (unit: Unit): number => this.#table.side[this.#table.slotOf(unit)] ?? 0;
   readonly reactionOf = (a: Unit, b: Unit): Reaction => this.#reaction(this.sideOf(a), this.sideOf(b));
 
-  readonly setStatics = (shapes: readonly StaticShape[]): void => {
-    this.#statics.set(shapes);
+  readonly setStatics = (shapes: readonly StaticShape[], group = ''): void => {
+    this.#statics.set(shapes, group);
   };
 
   readonly setSide = (unit: Unit, side: number): void => {
@@ -286,7 +296,11 @@ class World<Unit> implements MemoryWorld<Unit> {
   #enter(): SearchParts<Unit> {
     const parts = (this.#levels[this.#depth] ??= {
       table: this.#table,
-      selector: new Selector(this.#table, this.#index, { reaction: this.#reaction, canTarget: this.#canTarget }),
+      selector: new Selector(this.#table, this.#index, {
+        reaction: this.#reaction,
+        canTarget: this.#canTarget,
+        canTargetSide: this.#canTargetSide
+      }),
       selection: new Selection<Unit>()
     });
 

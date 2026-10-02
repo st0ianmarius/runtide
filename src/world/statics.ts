@@ -42,10 +42,12 @@ interface Contact {
 /**
  * The static geometry of a memory world in a packed R-tree (`flatbush`), built for its shapes and built again when
  * they change (a door opening, a wall raised): what bodies are swept against and lines of sight are tested through.
- * Contact follows `covers`, so a body touches a pillar when their edges overlap.
+ * Contact follows `covers`, so a body touches a pillar when their edges overlap. Its shapes come in named groups (the
+ * arena, a prison's walls), each put in and taken out on its own; the tree covers them all.
  */
 export class StaticGeometry {
   #shapes: readonly StaticShape[] = [];
+  readonly #groups = new Map<string, readonly StaticShape[]>();
   #tree: Flatbush | undefined = undefined;
   readonly #box = emptyBox();
   readonly #times: number[] = [];
@@ -57,11 +59,26 @@ export class StaticGeometry {
   readonly #path = { from: ORIGIN, to: ORIGIN, t0: 0, t1: 1, radius: 0 };
 
   constructor(shapes: readonly StaticShape[]) {
-    this.set(shapes);
+    this.set(shapes, '');
   }
 
-  /** Puts in new shapes in place of the old, building the tree again. */
-  set(shapes: readonly StaticShape[]): void {
+  /**
+   * Puts in a group's shapes in place of its old ones (none takes the group out), building the tree again over every
+   * group. The list is copied, so a later change to it is not seen; the shapes themselves are kept and must not change.
+   * The groups are laid out by key, so the same groups give the same tree whatever order they were put in.
+   */
+  set(shapes: readonly StaticShape[], group: string): void {
+    if (shapes.length === 0) {
+      this.#groups.delete(group);
+    } else {
+      this.#groups.set(group, [...shapes]);
+    }
+
+    this.#build([...this.#groups.keys()].toSorted().flatMap((key) => this.#groups.get(key) ?? []));
+  }
+
+  /** Builds the tree for the shapes of every group. */
+  #build(shapes: readonly StaticShape[]): void {
     this.#shapes = shapes;
 
     if (shapes.length === 0) {

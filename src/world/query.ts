@@ -40,7 +40,9 @@ export interface QueryOptions<Unit> {
 
   /**
    * The side the query is relative to, in place of `of`'s: an area trigger's side, captured as it spawned, whose owner
-   * has no place in the world (a world script's hazard).
+   * has no place in the world (a world script's hazard). With no `of`, the world's targeting rule has no unit to ask
+   * for: the memory world asks its side rule (`canTargetSide`) instead, and a query by side alone bypasses the
+   * targeting rule when the game gives none. Pass `of` too where there is an asker.
    */
   readonly ofSide?: number;
 
@@ -142,6 +144,14 @@ export interface PointPick {
 
   /** A score, highest wins (the first highest on ties); without one, the first candidate that passes wins. */
   readonly score?: (point: Vec2) => number;
+
+  /**
+   * A score good enough to take at once: the first candidate scoring at or above it wins, and no later attempt is
+   * drawn (only with a score; every attempt is drawn when absent). It changes how many times the sampler is called,
+   * and so what a sampler drawing from the game's random stream leaves of it: a game picks one setting per pick and
+   * keeps it on both sides of a prediction.
+   */
+  readonly accept?: number;
 }
 
 /**
