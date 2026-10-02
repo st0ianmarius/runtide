@@ -109,7 +109,7 @@ export class DamageEngine<G extends DamageTypes> {
 
   /** The reused views a roll reads: the attacker's by the blow's spell's shares, and the defender's. */
   readonly rollViews = new RollViews<G>(this);
-  readonly isDead: (health: number) => boolean;
+  readonly isDead: (health: number, unit: G['bearer']) => boolean;
   readonly maxDepth: number;
   readonly maxKillChain: number;
   readonly lists: Scratch<ActiveAura<G>> = createScratch<ActiveAura<G>>();
@@ -181,7 +181,7 @@ export class DamageEngine<G extends DamageTypes> {
 
   /** Whether a unit is dead now, by the system's rule. */
   isDeadNow(unit: G['bearer']): boolean {
-    return this.host.isGone?.(unit) === true || this.isDead(this.host.health(unit));
+    return this.host.isGone?.(unit) === true || this.isDead(this.host.health(unit), unit);
   }
 
   /**

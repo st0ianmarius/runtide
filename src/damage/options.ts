@@ -200,8 +200,12 @@ export interface DamageSystemOptions<G extends DamageTypes> {
    */
   readonly rollChance?: (chance: number, slot: RollSlot, blow: Blow<G>) => boolean;
 
-  /** A game's own rule for when health means dead (`health <= 1e-8`); `health <= 0` by default. */
-  readonly isDead?: (health: number) => boolean;
+  /**
+   * A game's own rule for when health means dead; `health <= 0` by default. The unit lets the game distinguish a
+   * downable unit from one that dies at 0. Reads the supplied health, which may be a prospective value before a
+   * write, rather than the unit's stored health. Must have no side effects; `host.isGone` still overrides it.
+   */
+  readonly isDead?: (health: number, unit: G['bearer']) => boolean;
 
   /**
    * How many blows, heals, forces and lethal `setHealth`s may nest (a blow whose trigger deals a blow…); deeper ones

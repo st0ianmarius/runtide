@@ -125,7 +125,7 @@ const builtInStages = <G extends DamageTypes>(
     lethal: (_engine, blow) => {
       const health = engine.host.health(blow.target);
 
-      if (blow.amount > 0 && !engine.isDead(health) && engine.isDead(health - blow.amount)) {
+      if (blow.amount > 0 && !engine.isDead(health, blow.target) && engine.isDead(health - blow.amount, blow.target)) {
         engine.eachHook(walks.lethal, blow);
       }
 

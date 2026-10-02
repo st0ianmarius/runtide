@@ -327,7 +327,7 @@ export const healthStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow
     blow.healthAfter = after;
     blow.dealt = Math.min(blow.amount, Math.max(0, before));
     blow.overkill = blow.amount - blow.dealt;
-    blow.hasKilled = !engine.isDead(before) && engine.isDead(after);
+    blow.hasKilled = !engine.isDead(before, blow.target) && engine.isDead(after, blow.target);
   }
 
   if (blow.amount === 0 && blow.absorbed > 0 && !blow.isDeathPrevented) {

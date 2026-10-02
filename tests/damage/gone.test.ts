@@ -5,6 +5,49 @@ import { damage, setHealth } from '../../src/damage/index.ts';
 import { aura, type DamageGame, KINDS, makeDamageGame } from '../helpers/damage-game.ts';
 
 describe('units out of play', () => {
+  it('passes the target and prospective health to the death rule before lethal hooks and health writes', () => {
+    const lethal: number[] = [];
+
+    const {
+      damage: system,
+      unit,
+      auras,
+      id,
+      log
+    } = makeDamageGame(
+      {
+        watch: aura({
+          duration: 5,
+          onLethal: (ctx) => {
+            lethal.push(ctx.bearer.id);
+
+            return undefined;
+          }
+        })
+      },
+      { isDead: (health, target) => health <= 0 && target.id !== 1 }
+    );
+
+    const downable = unit(1);
+    const mortal = unit(2);
+
+    auras.apply(downable, id.watch);
+    auras.apply(mortal, id.watch);
+    assert.equal(system.hit({ target: downable, amount: 100 }).hasKilled, false);
+    assert.equal(system.hit({ target: mortal, amount: 100 }).hasKilled, true);
+    assert.deepEqual(lethal, [2]);
+    assert.deepEqual(log, ['remove@2']);
+    assert.equal(system.force({ target: downable, strength: 1 }).status, 'landed');
+  });
+
+  it('keeps health-only death rules working', () => {
+    const { damage: system, unit } = makeDamageGame({}, { isDead: (health) => health <= 1e-8 });
+    const target = unit(1);
+
+    assert.equal(system.setHealth(target, 1e-9).hasKilled, true);
+    assert.equal(system.heal({ target, amount: 10 }).status, 'skipped');
+  });
+
   it('take no blow, heal or death once the host says they are gone, whatever their health', () => {
     const gone = new Set<number>();
     const { damage: system, unit, log } = makeDamageGame({}, {}, { isGone: (target) => gone.has(target.id) });

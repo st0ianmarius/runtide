@@ -145,7 +145,7 @@ const setHealthWith =
       return PROC_SKIPPED;
     }
 
-    if (!engine.isDead(health)) {
+    if (!engine.isDead(health, unit)) {
       engine.host.setHealth(unit, health);
 
       return PROC_LANDED;

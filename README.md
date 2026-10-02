@@ -19,6 +19,30 @@ A game plugs in by defining its resources as plain objects and functions, regist
 
 Runtide is built for MMO-like games in general, not around any one game. Every behaviour it ships is a documented contract with a sensible default. Where a game needs a rule of its own (a countdown epsilon, a stacking or merge rule, how a derived stat measures its gain, a curve), it writes that rule in its own code on a declared escape hatch: hooks, pluggable rules and functions, custom curves, host interfaces and typed `ext` slots. The framework grows a hatch when a game needs one, never a mode for one game.
 
+## Downed units at zero health
+
+The default damage rule treats `health <= 0` as dead. A game that keeps a downed unit alive at 0 must configure `isDead(health, unit)` for that unit. The rule is used by blow, heal, force and `setHealth` guards, lethal hooks and death detection. Existing health-only callbacks still work. Read the supplied health: lethal checks also pass prospective values before the host writes them. Keep the rule free of side effects.
+
+For example, a game can let a downable template remain alive at any health, clamp its stored health at 0, and own the eventual death:
+
+```ts
+const damage = createDamageSystem<Game>({
+  auras,
+  kinds,
+  isDead: (health, unit) => health <= 0 && !unit.ext.canBeDowned,
+  host: {
+    ...units.damageHost,
+    setHealth: (unit, health) => {
+      units.damageHost.setHealth(unit, Math.max(0, health));
+    }
+  }
+});
+```
+
+Here `canBeDowned` is a game-owned capability, independent of the current downed state. The game enters its downed state after health reaches 0 (a damage stage after `health`, and the game's handling of direct health changes), calls `auras.enterState(unit, 'downed')` if that bearer state is registered, and applies its own restrictions on acting, movement and targeting. The unit's lifecycle remains `alive`. Further hits and forces are allowed by this rule; use game stages to block them if desired.
+
+Recover it with `damage.heal(...)` or `damage.setHealth(unit, positiveHealth)` and clear the game's downed state. `units.revive` only moves a `dead` unit to `alive`, so it deliberately refuses a downed unit that is still alive. For an eventual death, call `units.kill(unit)` and handle the game's rewards and credit there: a direct lifecycle kill does not run the damage death pipeline. `units.damageHost.isGone` makes dead or despawned units reject damage, healing, forces and health changes regardless of the custom health rule; an actual dead unit recovers through `units.revive`.
+
 ## Not published
 
 Runtide is `"private": true` and is never published to npm or any other registry. Consume it straight from this repository (a git dependency or a local folder); see §I.8 of the plan.
