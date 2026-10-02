@@ -10,7 +10,8 @@ import {
   rollStage
 } from './blow-stages.ts';
 import type { Blow, BlowRecord, BlowSpec } from './blow.ts';
-import { checkSkippable, isNamed } from './compile.ts';
+import { checkBlowSpec } from './check-blow.ts';
+import { isNamed } from './compile.ts';
 import type { BlowStop, DamageTypes } from './damage-types.ts';
 import type { DeathSpec } from './death.ts';
 import type { DamageEngine } from './engine.ts';
@@ -191,13 +192,6 @@ const skipsStage = <G extends DamageTypes>(engine: DamageEngine<G>, blow: BlowRe
   engine.bypass[blow.kind * engine.order.names.length + index] === 1 ||
   (blow.bypass.length > 0 && blowSkips(blow.bypass, engine.order.names[index] ?? ''));
 
-/** Throws for a stage a blow names to skip that is not one (or a group) before health. */
-const checkBypass = <G extends DamageTypes>(engine: DamageEngine<G>, bypass: readonly string[]): void => {
-  for (const stage of bypass) {
-    checkSkippable(engine.order, [stage, 'A blow']);
-  }
-};
-
 /**
  * Runs a blow's stages, skipping those its kind or itself bypasses, until one ends it; then every after-stage. A target
  * that died of something else while the blow ran (a nested blow) ends it `skipped`, with no after-stages.
@@ -208,10 +202,6 @@ const runBlowStages = <G extends DamageTypes>(
   blow: BlowRecord<G>
 ): void => {
   const { afterFrom } = engine.order;
-
-  if (blow.bypass.length > 0) {
-    checkBypass(engine, blow.bypass);
-  }
 
   for (let i = 0; i < afterFrom; i++) {
     // A hook's nested blow (or a game stage) killed the target: the rest of this blow never happened.
@@ -273,13 +263,16 @@ const runAfter = <G extends DamageTypes>(
 /**
  * Builds the damage pipeline: a blow on a living target with an amount above 0 runs the stages in their
  * documented order, with the game's at their positions and the ones its kind bypasses skipped, until a stage ends it
- * (`ignored`, `blocked`); then every after-stage runs. A blow of no amount, on a dead target, or nested too deep is
- * `skipped` and runs nothing.
+ * (`ignored`, `blocked`); then every after-stage runs. A blow of no amount, an infinite one, on a dead target, or
+ * nested too deep is `skipped` and runs nothing. A spec that skips an outcome row the roll table lacks, or bypasses a
+ * stage that is not one before `health`, throws before anything runs.
  */
 export const createDamagePipeline = <G extends DamageTypes>(engine: DamageEngine<G>, onward: Onward<G>) => {
   const runs = compileDamageRuns(engine, onward);
 
   return (spec: BlowSpec<G>): Blow<G> => {
+    checkBlowSpec(engine, spec);
+
     const blow = engine.blowRecord(spec.target);
 
     blow.reset(spec, engine.sourceOf(spec.source, spec.attacker), engine.defaultKind);

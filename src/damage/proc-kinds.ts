@@ -3,6 +3,7 @@ import type { Vec2 } from '../math/index.ts';
 import { finishScaled, type StatId, type StatView } from '../modifiers/index.ts';
 import { PROC_SKIPPED, type ProcContext, procOutcome, type ProcOutcome, type ProcResolver } from '../procs/index.ts';
 import type { Blow, BlowSpec } from './blow.ts';
+import { checkBlowSpec } from './check-blow.ts';
 import type { BlowStatus, DamageKindId, DamageTypes } from './damage-types.ts';
 import type { DamageEngine } from './engine.ts';
 import { forceKind } from './force-kind.ts';
@@ -158,11 +159,15 @@ const damageKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: P
     follow: (proc: DamageProc<G>, outcome: ProcOutcome) =>
       proc.andThen !== undefined && isAwaited(outcome.status, proc.on) ? proc.andThen : undefined,
 
-    prepare: (proc: DamageProc<G>, resolve: ProcResolver<G>): DamageProc<G> => ({
-      ...proc,
-      ...(proc.damageKind === undefined ? {} : { damageKind: names.kind(proc.damageKind) ?? proc.damageKind }),
-      ...(proc.andThen === undefined ? {} : { andThen: resolve.procs(proc.andThen) })
-    }),
+    prepare: (proc: DamageProc<G>, resolve: ProcResolver<G>): DamageProc<G> => {
+      checkBlowSpec(engine, proc);
+
+      return {
+        ...proc,
+        ...(proc.damageKind === undefined ? {} : { damageKind: names.kind(proc.damageKind) ?? proc.damageKind }),
+        ...(proc.andThen === undefined ? {} : { andThen: resolve.procs(proc.andThen) })
+      };
+    },
 
     explain: (proc: DamageProc<G>) => ({
       values: numbersOf({

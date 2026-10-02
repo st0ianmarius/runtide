@@ -82,6 +82,34 @@ export const compileStats = <G extends DamageTypes>(options: DamageSystemOptions
   };
 };
 
+/** Whether some aura of the game's registry has one of the damage hooks. */
+const hasHook = <G extends DamageTypes>(
+  options: DamageSystemOptions<G>,
+  names: readonly ('onIncomingDamage' | 'onLethal' | 'onDealt' | 'onIncomingForce')[]
+): boolean => {
+  const { hooks } = options.auras.registry;
+
+  return names.some((name) => hooks[name].some((hook) => hook !== undefined));
+};
+
+/**
+ * Checks that the host runs the procs the aura damage hooks return when an aura has one (`run`), and moves units when
+ * the game uses forces (`applyForce`: force stages, or an aura with `onIncomingForce`).
+ */
+const checkHostRuns = <G extends DamageTypes>(options: DamageSystemOptions<G>): void => {
+  const { host } = options;
+
+  if (host.run === undefined && hasHook(options, ['onIncomingDamage', 'onLethal', 'onDealt'])) {
+    refuse('auras with onIncomingDamage, onLethal or onDealt hooks need host.run.');
+  }
+
+  const usesForces = options.forceStages !== undefined || hasHook(options, ['onIncomingForce']);
+
+  if (host.applyForce === undefined && usesForces) {
+    refuse('force stages and onIncomingForce hooks need host.applyForce.');
+  }
+};
+
 /** Checks that the host has what the configured stages need. */
 export const checkHost = <G extends DamageTypes>(options: DamageSystemOptions<G>, stats: StageStats): void => {
   const { host } = options;
@@ -105,6 +133,8 @@ export const checkHost = <G extends DamageTypes>(options: DamageSystemOptions<G>
   if (rolls !== undefined && host.roll === undefined && (rolls.mode === 'single' || options.rollChance === undefined)) {
     refuse('outcome rows need host.roll (or rollChance, in independent mode).');
   }
+
+  checkHostRuns(options);
 };
 
 /**

@@ -39,10 +39,13 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
   /** The game's own fields on its blow (`blow.ext`: a crushing share, a hit window's key), which its stages read. */
   readonly ext?: G['blowExt'];
 
-  /** The outcome rows it cannot roll (`['block']`: unblockable), by name. */
+  /** The outcome rows it cannot roll (`['block']`: unblockable), by name; checked against the roll table at load. */
   readonly skips?: readonly string[];
 
-  /** The stages its blow skips beside its kind's (`['mitigation']`: ignores armor), by name. */
+  /**
+   * The stages its blow skips beside its kind's (`['mitigation']`: ignores armor), by name; checked at load to be
+   * stages before `health`.
+   */
   readonly bypass?: readonly string[];
 
   /**

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { createCueBuffer, defineCue, defineCues } from '../../src/cues/index.ts';
-import { aura, makeDamageGame } from '../helpers/damage-game.ts';
+import { aura, BLOCK, makeDamageGame } from '../helpers/damage-game.ts';
 
 /** A cue table the throwing mappings fire into (they never do). */
 const CUES = defineCues({ flash: defineCue({ anchor: 'entity' }) });
@@ -79,6 +79,39 @@ describe('a NaN scale or factor', () => {
     mended.hp = 50;
     set(mended, 'healing', Number.NaN);
     assert.deepEqual([damage.heal({ target: mended, amount: 20 }).amount, mended.hp], [0, 50]);
+  });
+});
+
+describe("a blow spec's names", () => {
+  it('are checked as the blow enters, before any stage runs, even for a blow that would be skipped', () => {
+    const calls: string[] = [];
+
+    const { damage, unit } = makeDamageGame(
+      {},
+      {
+        rolls: BLOCK,
+
+        stages: {
+          probe: {
+            before: 'ignore',
+
+            run: () => {
+              calls.push('probe');
+
+              return undefined;
+            }
+          }
+        }
+      }
+    );
+
+    const target = unit(1);
+
+    assert.throws(() => damage.hit({ target, amount: 10, bypass: ['health'] }), /cannot skip health/);
+    assert.throws(() => damage.hit({ target, amount: 0, bypass: ['nowhere'] }), RangeError);
+    assert.throws(() => damage.hit({ target, amount: 10, skips: ['blok'] }), /outcome row blok/);
+    assert.deepEqual([calls, target.hp, damage.depth], [[], 100, 0]);
+    assert.equal(damage.hit({ target, amount: 10, skips: ['block'], bypass: ['mitigation'] }).amount, 10);
   });
 });
 

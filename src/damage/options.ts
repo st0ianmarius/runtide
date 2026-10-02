@@ -116,10 +116,17 @@ export interface DamageHost<G extends DamageTypes> {
    */
   readonly procs?: Pick<ProcSystem<G>, 'rebase' | 'restoreBase'>;
 
-  /** Runs procs an aura damage hook returned (`onLethal`, `onDealt`): wire it to `procSystem.runAura`. */
+  /**
+   * Runs procs an aura damage hook returned (`onIncomingDamage`, `onLethal`, `onDealt`): wire it to
+   * `procSystem.runAura`. Checked when the system is built if any aura has one of those hooks.
+   */
   readonly run?: (procs: readonly G['proc'][], ctx: AuraContext<G>) => void;
 
-  /** Moves a unit by a force that went through the force pipeline: the physics are the game's. */
+  /**
+   * Moves a unit by a force that went through the force pipeline: the physics are the game's. Checked when the system
+   * is built if the game uses forces (force stages, or an aura with `onIncomingForce`); a game with neither may leave it
+   * out, and a force it pushes anyway fails then.
+   */
   readonly applyForce?: (force: Force<G>) => void;
 
   /** Takes a dead unit out of the world, last in the death pipeline. */
