@@ -69,19 +69,34 @@ export class Selection<Unit> {
     return this;
   }
 
-  /** Sets up a sweep of a body along a segment, in the order it reaches units unless the options say otherwise. */
+  /**
+   * Sets up a sweep of a body along a segment, in the order it reaches units unless the options say otherwise. Throws
+   * for a span of the tick outside `0 ≤ since ≤ until ≤ 1`, or a body radius that is not a finite number from 0.
+   */
   along(from: Vec2, to: Vec2, options: SweepOptions<Unit>): this {
+    const since = options.since ?? 0;
+    const until = options.until ?? 1;
+    const reach = options.radius ?? 0;
+
+    if (!(since >= 0 && since <= until && until <= 1)) {
+      throw new RangeError(`A sweep spans the shares of the tick 0 ≤ since ≤ until ≤ 1; got ${since} to ${until}.`);
+    }
+
+    if (!(Number.isFinite(reach) && reach >= 0)) {
+      throw new RangeError(`A sweep's body radius is a finite number from 0; got ${reach}.`);
+    }
+
     this.#reset(options, 'contact');
     this.isSweep = true;
     this.isRelative = options.relative === true;
-    this.since = options.since ?? 0;
-    this.until = options.until ?? 1;
+    this.since = since;
+    this.until = until;
     this.isOpen = options.isOpen === true;
     this.segment.ax = from.x;
     this.segment.az = from.z;
     this.segment.bx = to.x;
     this.segment.bz = to.z;
-    this.reach = options.radius ?? 0;
+    this.reach = reach;
 
     return this;
   }

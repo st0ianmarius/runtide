@@ -78,7 +78,7 @@ export interface RangeOptions<Unit> extends QueryOptions<Unit> {
 
 /** The options of `sweep`: the moving body's radius, and whether it sweeps against the units' own motion. */
 export interface SweepOptions<Unit> extends QueryOptions<Unit> {
-  /** The moving body's radius; 0 by default. */
+  /** The moving body's radius, a finite number from 0; 0 by default. */
   readonly radius?: number;
 
   /**
@@ -90,10 +90,12 @@ export interface SweepOptions<Unit> extends QueryOptions<Unit> {
   /**
    * The shares of the tick a relative sweep's segment spans, 0 and 1 by default: a move drawn as several pieces sweeps
    * each against the units' motion over its own part of the tick, so a piece and a runner meet at the same moment.
+   * Both lie in `[0, 1]`, `since` at most `until` (equal for a piece of no time, a catch in place); the sweep throws
+   * otherwise.
    */
   readonly since?: number;
 
-  /** Where the span of `since` ends. */
+  /** Where the span of `since` ends, from `since` to 1. */
   readonly until?: number;
 
   /**
@@ -194,16 +196,28 @@ export interface WorldQuery<Unit> {
   /** The units a body moving `from → to` touches, in the order it reaches them (lower id on ties). */
   readonly sweep: (from: Vec2, to: Vec2, options: SweepOptions<Unit>, out: (Unit | undefined)[]) => number;
 
-  /** Whether nothing static stands between two points (for a body of `radius`, 0 by default). */
+  /**
+   * Whether nothing static stands between two points (for a body of `radius`, 0 by default). Throws for a point that
+   * is not finite or a radius that is not a finite number from 0.
+   */
   readonly lineClear: (from: Vec2, to: Vec2, radius?: number) => boolean;
 
-  /** Whether a body of `radius` at `p` is clear of static geometry and inside the bounds. */
+  /**
+   * Whether a body of `radius` at `p` is clear of static geometry and inside the bounds. Throws for a point that is not
+   * finite or a radius that is not a finite number from 0.
+   */
   readonly isPositionClear: (p: Vec2, radius: number) => boolean;
 
-  /** `p` moved inside the bounds, inset by `radius` (0 by default), as a new vector. */
+  /**
+   * `p` moved inside the bounds, inset by `radius` (0 by default), as a new vector: to the bounds' middle on an axis
+   * the body is wider than. Throws for a point that is not finite or a radius that is not a finite number from 0.
+   */
   readonly clamp: (p: Vec2, radius?: number) => Vec2;
 
-  /** Moves a body of `radius` from `from` toward `to` until it touches static geometry or the bounds. */
+  /**
+   * Moves a body of `radius` from `from` toward `to` until it touches static geometry or the bounds. Throws for a
+   * point that is not finite or a radius that is not a finite number from 0.
+   */
   readonly moveBody: (from: Vec2, to: Vec2, radius: number) => BodyMove;
 
   /** Picks a point from the game's samples, clear, filtered and scored; `undefined` when none passed. */

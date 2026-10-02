@@ -316,7 +316,6 @@ export class Selector<Unit> {
     this.#contacts[0] = this.#contacts[best] ?? 0;
   }
 
-  /** Orders the kept entries into `#order` (their slots) and `#contacts` by the selection's keys. */
   /** Keeps the gathered entries in the world's own order: each entry becomes its slot; returns how many. */
   #unordered(kept: number, limit: number | undefined): number {
     const count = Math.min(kept, limit ?? kept);
@@ -328,6 +327,7 @@ export class Selector<Unit> {
     return count;
   }
 
+  /** Orders the kept entries into `#order` (their slots) and `#contacts` by the selection's keys. */
   #sort(selection: Selection<Unit>, kept: number): void {
     const keys = this.#readKeys(selection, kept);
 

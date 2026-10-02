@@ -27,12 +27,18 @@ export class Trail {
     return this.#count;
   }
 
-  /** Records where the unit stands on a tick, later than the last recorded; the oldest goes past the capacity. */
+  /**
+   * Records where the unit stands on a tick, finite and later than the last recorded (any tick, negative ones included,
+   * when it is empty); the oldest goes past the capacity.
+   */
   record(tick: number, at: Vec2): void {
-    const last =
-      this.#count === 0 ? -1 : (this.#ticks[(this.#next - 1 + this.#ticks.length) % this.#ticks.length] ?? -1);
+    if (!Number.isFinite(tick)) {
+      throw new RangeError(`A trail records finite ticks; got ${tick}.`);
+    }
 
-    if (!(tick > last)) {
+    const last = this.newest;
+
+    if (this.#count > 0 && !(tick > last)) {
       throw new RangeError(`A trail records ticks in order; got ${tick} after ${last}.`);
     }
 
@@ -56,10 +62,14 @@ export class Trail {
   /**
    * Where the unit stood at a tick, into `out`: between two records (a fractional render time, or a tick with no
    * record), on the straight line between them; past the newest, the newest; before the oldest, the oldest (check
-   * `oldest` first to refuse it). `undefined` for an empty trail.
+   * `oldest` first to refuse it). `undefined` for an empty trail. Throws for a NaN tick, which has no place on it.
    */
   at(tick: number, out: MutableVec2): Vec2 | undefined {
     let newer = -1;
+
+    if (Number.isNaN(tick)) {
+      throw new RangeError('A trail is read at a tick; got NaN.');
+    }
 
     for (let i = 1; i <= this.#count; i++) {
       const slot = this.#slot(i);

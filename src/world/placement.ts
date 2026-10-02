@@ -16,9 +16,15 @@ export class Placement {
     this.#statics = statics;
   }
 
-  /** Whether a body of `radius` at `p` lies inside the bounds (touching them is inside) and clear of static shapes. */
+  /**
+   * Whether a body of `radius` at `p` lies inside the bounds (touching them is inside) and clear of static shapes.
+   * Throws for a point that is not finite or a radius that is not a finite number from 0.
+   */
   readonly isPositionClear = (p: Vec2, radius: number): boolean => {
     const { bounds } = this;
+
+    checkPoint(p, 'A position');
+    checkRadius(radius);
 
     return (
       p.x - radius >= bounds.minX &&
@@ -29,17 +35,30 @@ export class Placement {
     );
   };
 
-  /** Whether a body of `radius` (0 by default) passes from one point to the other without touching static shapes. */
-  readonly lineClear = (from: Vec2, to: Vec2, radius = 0): boolean =>
-    this.#statics.contact(from, to, radius) === undefined;
+  /**
+   * Whether a body of `radius` (0 by default) passes from one point to the other without touching static shapes.
+   * Throws for a point that is not finite or a radius that is not a finite number from 0.
+   */
+  readonly lineClear = (from: Vec2, to: Vec2, radius = 0): boolean => {
+    checkSegment(from, to, radius);
 
-  /** `p` moved inside the bounds, inset by `radius` (0 by default), as a new vector. */
+    return this.#statics.contact(from, to, radius) === undefined;
+  };
+
+  /**
+   * `p` moved inside the bounds, inset by `radius` (0 by default), as a new vector. On an axis the body is wider than
+   * (a radius over half the bounds' extent), no inset place exists: it goes to the bounds' middle on that axis, where it
+   * overhangs both sides alike. Throws for a point that is not finite or a radius that is not a finite number from 0.
+   */
   readonly clamp = (p: Vec2, radius = 0): Vec2 => {
     const { bounds } = this;
 
+    checkPoint(p, 'A clamped point');
+    checkRadius(radius);
+
     return {
-      x: Math.min(bounds.maxX - radius, Math.max(bounds.minX + radius, p.x)),
-      z: Math.min(bounds.maxZ - radius, Math.max(bounds.minZ + radius, p.z))
+      x: clampAxis(p.x, bounds.minX + radius, bounds.maxX - radius),
+      z: clampAxis(p.z, bounds.minZ + radius, bounds.maxZ - radius)
     };
   };
 
@@ -47,9 +66,12 @@ export class Placement {
    * Moves a body of `radius` from `from` toward `to` until it touches static geometry or would leave the bounds (inset by its
    * radius), and says where it stopped and the normal of what it touched (for a slide along a wall, a ricochet). A
    * body that starts overlapping a shape, or outside the bounds, and moves away or along goes free, so a slide along
-   * the returned normal never sticks.
+   * the returned normal never sticks. Throws for a point that is not finite or a radius that is not a finite number
+   * from 0: a NaN would pass through every wall unseen.
    */
   readonly moveBody = (from: Vec2, to: Vec2, radius: number): BodyMove => {
+    checkSegment(from, to, radius);
+
     const contact = this.#statics.contact(from, to, radius);
     const exit = this.#boundsExit(from, to, radius);
     const share = Math.min(contact ?? 1, exit);
@@ -164,6 +186,31 @@ export class Placement {
     );
   }
 }
+
+/** `value` within `[low, high]`, or their middle when the range is empty (a body wider than the bounds). */
+const clampAxis = (value: number, low: number, high: number): number =>
+  low > high ? (low + high) / 2 : Math.min(high, Math.max(low, value));
+
+/** Throws for a point that is not finite: a NaN from upstream would pass every test unseen. */
+const checkPoint = (p: Vec2, what: string): void => {
+  if (!(Number.isFinite(p.x) && Number.isFinite(p.z))) {
+    throw new RangeError(`${what} is a finite point; got (${p.x}, ${p.z}).`);
+  }
+};
+
+/** Throws for a body radius that is not a finite number from 0. */
+const checkRadius = (radius: number): void => {
+  if (!(Number.isFinite(radius) && radius >= 0)) {
+    throw new RangeError(`A body radius is a finite number from 0; got ${radius}.`);
+  }
+};
+
+/** Throws for a move or a line whose ends are not finite, or whose body radius is not a finite number from 0. */
+const checkSegment = (from: Vec2, to: Vec2, radius: number): void => {
+  checkPoint(from, "A segment's start");
+  checkPoint(to, "A segment's end");
+  checkRadius(radius);
+};
 
 /**
  * The share at which a move along one axis leaves `[low, high]`, 1 if never. One that starts outside (a rounding past a

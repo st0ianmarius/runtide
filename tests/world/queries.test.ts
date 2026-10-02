@@ -341,6 +341,29 @@ describe('sweep: what a moving body touches', () => {
     assert.equal(world.sweep(vec2(0, 0), vec2(10, 0), { relative: true }, out), 1);
   });
 
+  it('refuses a span of the tick outside 0 ≤ since ≤ until ≤ 1, and a radius that is not a finite number from 0', () => {
+    const { world } = worldOf([[1, 5, 0, 0, 0.5]]);
+    const out: (Mob | undefined)[] = [];
+
+    const sweep = (options: { since?: number; until?: number; radius?: number }) => () =>
+      world.sweep(vec2(0, 0), vec2(10, 0), { relative: true, ...options }, out);
+
+    for (const options of [
+      { since: 0.8, until: 0.2 },
+      { since: Number.NaN },
+      { until: Number.NaN },
+      { since: -0.5 },
+      { until: 1.5 },
+      { radius: Number.NaN },
+      { radius: -1 }
+    ]) {
+      assert.throws(sweep(options), RangeError, JSON.stringify(options));
+    }
+
+    assert.equal(sweep({ since: 1, until: 1 })(), 1);
+    assert.equal(sweep({ since: 0.25, until: 0.75 })(), 1);
+  });
+
   it('refuses a position that is not finite, moving nothing, so relative sweeps still reach the rest', () => {
     const { world, mob } = worldOf([
       [1, 5, 0, 0, 0.5],

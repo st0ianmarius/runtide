@@ -39,6 +39,36 @@ describe('static geometry: clearance and lines of sight', () => {
     assert.deepEqual(world.clamp(vec2(30, -30)), { x: 20, z: -20 });
     assert.deepEqual(world.clamp(vec2(30, 0), 2), { x: 18, z: 0 });
   });
+
+  it('clamps a body wider than the bounds to their middle on that axis', () => {
+    const strip = createMemoryWorld<object>({ bounds: { minX: 0, minZ: 0, maxX: 4, maxZ: 40 } });
+
+    assert.deepEqual(strip.clamp(vec2(30, 30), 3), { x: 2, z: 30 });
+    assert.deepEqual(strip.clamp(vec2(-9, -9), 2), { x: 2, z: 2 });
+  });
+
+  it('refuses a point that is not finite or a radius that is not a finite number from 0, wherever a body is tested', () => {
+    const bad: [string, () => unknown][] = [
+      ['NaN radius move', () => world.moveBody(vec2(-10, 0), vec2(10, 0), Number.NaN)],
+      ['negative radius move', () => world.moveBody(vec2(0, 0), vec2(10, 0), -1)],
+      ['NaN start', () => world.moveBody(vec2(Number.NaN, 0), vec2(10, 0), 1)],
+      ['infinite end', () => world.moveBody(vec2(0, 0), vec2(Number.POSITIVE_INFINITY, 0), 1)],
+      ['NaN radius line', () => world.lineClear(vec2(0, 0), vec2(10, 0), Number.NaN)],
+      ['NaN line end', () => world.lineClear(vec2(0, 0), vec2(10, Number.NaN))],
+      ['negative radius line', () => world.lineClear(vec2(0, 0), vec2(10, 0), -0.5)],
+      ['NaN radius clear', () => world.isPositionClear(vec2(0, 0), Number.NaN)],
+      ['infinite radius clear', () => world.isPositionClear(vec2(0, 0), Number.POSITIVE_INFINITY)],
+      ['NaN position clear', () => world.isPositionClear(vec2(0, Number.NaN), 1)],
+      ['NaN clamp', () => world.clamp(vec2(Number.NaN, 0))],
+      ['negative clamp radius', () => world.clamp(vec2(0, 0), -1)]
+    ];
+
+    for (const [name, call] of bad) {
+      assert.throws(call, RangeError, name);
+    }
+
+    assert.throws(() => world.pickPoint({ attempts: 1, sample: () => vec2(Number.NaN, 0) }), RangeError);
+  });
 });
 
 describe('moveBody: a body swept against static geometry', () => {
