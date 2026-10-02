@@ -244,19 +244,19 @@ describe('a spell’s cooldowns', () => {
     }
   });
 
-  it('start all at once for a press that commits them, and a committed cast neither asks nor lands them', () => {
+  it('start all at once for a press that commits them, release ones a windup longer, and a committed cast neither asks nor lands them', () => {
     const game = cooldownGame();
     const hero = game.unit(1);
 
     game.spells.startCooldowns(hero, game.id.slam);
-    assert.equal(game.spells.cooldownLeft(hero, game.id.slam), 1);
+    assert.equal(game.spells.cooldownLeft(hero, game.id.slam), 1.5, 'ending as the cast’s own release cooldown would');
     assert.equal(game.spells.cast(hero, game.id.slam, { committed: true }).status, 'running');
     for (let i = 0; i < 2; i++) {
       game.step();
       game.spells.step(hero);
     }
 
-    assert.equal(game.spells.cooldownLeft(hero, game.id.slam), 1, 'not landed again at the release');
+    assert.equal(game.spells.cooldownLeft(hero, game.id.slam), 1.5, 'not landed again at the release');
     assert.deepEqual(
       game.log.filter((line) => line === 'slam@1'),
       ['slam@1']

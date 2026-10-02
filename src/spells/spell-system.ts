@@ -71,7 +71,8 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /**
    * Starts every cooldown of a spell on a caster now, each read from the caster's stats for the spell as a cast of it
-   * would read them: a press that commits at once, before its cast (which then goes with `committed`).
+   * would read them: a press that commits at once, before its cast (which then goes with `committed`). Those that start
+   * on the release run that much longer, by its windup, so they end when the cast's own would have.
    */
   readonly startCooldowns: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => void;
 

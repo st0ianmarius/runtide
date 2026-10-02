@@ -122,7 +122,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   };
 
   readonly predictCooldowns = (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>): void => {
-    startCooldowns(this.#engine, this.#requestOf(caster, spell, options), true);
+    startCooldowns(this.#engine, this.#requestOf(caster, spell, options));
   };
 
   readonly hit = (cast: CastHandle, hit: SpellHit<G>): number => hitCast(this.#engine, cast, hit);

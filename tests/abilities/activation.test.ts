@@ -111,6 +111,13 @@ const makeGame = (world?: StaticWorld) =>
         release: logRelease('sentry')
       }),
 
+      lunge: spell({
+        activation: { kind: 'button' },
+        timeline: { windup: { seconds: 1 } },
+        cooldown: { aura: 'ultimateCooldown', seconds: 2, startsOn: 'release' },
+        release: logRelease('lunge')
+      }),
+
       wall: spell({
         activation: { kind: 'button' },
         cooldown: { aura: 'ultimateCooldown', seconds: 4 },
@@ -148,6 +155,23 @@ describe('a press', () => {
     assert.equal(abilities.check(hero, dodge), undefined);
     assert.equal(abilities.tryActivate(hero, 0), 0);
     assert.equal(seen.lines.filter((line) => line.startsWith('roll')).length, 1);
+  });
+
+  it('starts a release cooldown a windup longer when it commits on the press, ending as the cast’s own would', () => {
+    const { game, hero } = setUp();
+    const { abilities } = game;
+    const { ultimate } = abilities.slots.id;
+
+    abilities.equip(hero, ultimate, game.id.lunge);
+    assert.equal(abilities.tryActivate(hero, abilities.bit(ultimate)), abilities.bit(ultimate));
+    assert.equal(abilities.cooldownLeft(hero, ultimate), 3);
+    game.step(4);
+    assert.equal(seen.lines.filter((line) => line.startsWith('lunge')).length, 1, 'released after its windup');
+    assert.equal(abilities.cooldownLeft(hero, ultimate), 2);
+    game.step(7);
+    assert.equal(abilities.check(hero, ultimate), 'cooldown');
+    game.step();
+    assert.equal(abilities.check(hero, ultimate), undefined);
   });
 
   it('reads a cooldown from the cast’s stats at the slot’s rank, or from the caster', () => {
