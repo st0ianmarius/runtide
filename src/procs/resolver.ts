@@ -20,6 +20,9 @@ export interface ResolverParts<G extends ProcTypes> {
   /** The cue registry of the system's buffer, if it has one. */
   readonly cues: CueRegistry | undefined;
 
+  /** Whether the host can resolve party targets. */
+  readonly hasParty: boolean;
+
   /** Notes a hatch name for the escape report. */
   readonly noteHatch: (name: string) => void;
 }
@@ -43,7 +46,14 @@ const prepareList = <G extends ProcTypes>(
         throw new RangeError(`a proc's chance must be in (0, 1]; got ${chance}.`);
       }
 
-      return parts.kinds.defs[parts.kinds.kindOf(proc)]?.prepare?.(proc, resolve) ?? proc;
+      const kind = parts.kinds.defs[parts.kinds.kindOf(proc)];
+      const prepared = kind?.prepare?.(proc, resolve) ?? proc;
+
+      if (!parts.hasParty && kind?.targetOf?.(prepared) === 'party') {
+        throw new RangeError('a party target needs the proc host to have a party service.');
+      }
+
+      return prepared;
     })
   );
 

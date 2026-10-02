@@ -337,6 +337,33 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
     assert.deepEqual(game.log, ['echo@1', 'echo@1']);
   });
 
+  it('rejects invalid cooldown rule results before applying a cooldown or running procs', () => {
+    for (const duration of [0, -1, Number.NaN, Infinity, -Infinity]) {
+      const rule = { duration };
+
+      const game = makeGame(
+        { storm: aura({ duration: 99, triggers: [{ on: 'hit', icd: 4, do: [mark('storm')] }] }) },
+        { triggers: { cooldownSeconds: () => rule.duration } }
+      );
+
+      const u = game.unit(5);
+      const cooldown = defined(game.triggers.cooldownOf(game.id.storm, 0));
+
+      game.auras.apply(u, game.id.storm);
+
+      assert.throws(() => {
+        game.hit(u);
+      }, /cooldownSeconds returned .*; expected positive, finite seconds/);
+      assert.equal(game.auras.has(u, cooldown), false);
+      assert.deepEqual(game.log, []);
+
+      rule.duration = 2;
+      game.hit(u);
+      assert.equal(game.auras.remaining(u, cooldown), 2);
+      assert.deepEqual(game.log, ['storm@5']);
+    }
+  });
+
   it('lets the game decide chance and cooldown length', () => {
     const seen: string[] = [];
 

@@ -288,6 +288,7 @@ const partsOf = <G extends ProcTypes>(options: ProcSystemOptions<G>, state: Runn
   kinds: options.kinds,
   resources: options.resources ?? [],
   cues: options.cues?.registry,
+  hasParty: options.host.party !== undefined,
 
   noteHatch: (name: string) => {
     if (!state.runs.has(name)) {

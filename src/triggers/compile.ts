@@ -136,11 +136,14 @@ const filterArg = <G extends TriggerTypes, Host>(
     readonly spec: TriggerFilterSpec<G>;
   }
 ): number => {
-  if (typeof at.arg !== 'string') {
-    return at.arg ?? 0;
-  }
+  const arg =
+    typeof at.arg === 'string'
+      ? (at.spec.resolve?.(at.arg, input.auras.registry) ?? refuse(`filter ${at.name} takes a number.`))
+      : (at.arg ?? 0);
 
-  return at.spec.resolve?.(at.arg, input.auras.registry) ?? refuse(`filter ${at.name} takes a number.`);
+  at.spec.validate?.(arg, input.auras.registry);
+
+  return arg;
 };
 
 /** The spec of a filter on any event, for resolving its argument when this event does not carry it. */
@@ -259,6 +262,10 @@ const compileOne = <G extends TriggerTypes, Host>(
     (slot < 0 ? undefined : input.events[def.on]) ?? refuse(`answers ${def.on}, which is not a trigger event.`);
 
   checkNumbers(def);
+
+  if (def.hears === 'party' && input.procs.host.party === undefined) {
+    refuse('hears party, but the proc host has no party service.');
+  }
 
   return {
     id: toId<'triggers'>(at.id),

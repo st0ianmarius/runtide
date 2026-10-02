@@ -47,7 +47,10 @@ export interface TriggerSystemOptions<G extends TriggerTypes, Host = never> {
    */
   readonly rollChance?: (chance: number, ctx: TriggerContext<G>) => boolean;
 
-  /** A game's own cooldown length (haste on a cooldown, a talent), from the trigger's `icd`; the `icd` when absent. */
+  /**
+   * A game's cooldown length from the trigger's `icd`; the `icd` when absent. Must return positive, finite seconds,
+   * checked when the trigger fires because the rule reads the live context.
+   */
   readonly cooldownSeconds?: (icd: number, ctx: TriggerContext<G>) => number;
 }
 

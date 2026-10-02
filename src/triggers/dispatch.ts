@@ -198,6 +198,23 @@ const isLucky = <G extends TriggerTypes, Host>(
   return chance >= 1 || (parts.rollChance?.(chance, frame) ?? roll(parts.random) < chance);
 };
 
+/** The cooldown rule's duration, checked when its live context is available. */
+const cooldownDuration = <G extends TriggerTypes, Host>(
+  parts: DispatchParts<G, Host>,
+  trigger: CompiledTrigger<G, Host>,
+  frame: DispatchFrame<G, Host>
+): number => {
+  const duration = parts.cooldownSeconds === undefined ? trigger.icd : parts.cooldownSeconds(trigger.icd, frame);
+
+  if (!(duration > 0 && Number.isFinite(duration))) {
+    throw new RangeError(
+      `Trigger ${trigger.id}: cooldownSeconds returned ${duration}; expected positive, finite seconds.`
+    );
+  }
+
+  return duration;
+};
+
 /**
  * Fires one gathered trigger whose aura is still on its owner: its conditions, then whether its cooldown is running,
  * then its chance (rolled only below 1), then its cooldown starts, then its procs run for the owner. One too deep for
@@ -232,7 +249,7 @@ const fire = <G extends TriggerTypes, Host>(
   if (cooldown !== undefined) {
     auras.apply(frame.owner, {
       aura: cooldown,
-      duration: parts.cooldownSeconds?.(trigger.icd, frame),
+      duration: cooldownDuration(parts, trigger, frame),
       source
     });
   }

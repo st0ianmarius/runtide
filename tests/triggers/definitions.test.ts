@@ -29,16 +29,25 @@ import {
 } from '../helpers/trigger-game.ts';
 
 /** A trigger system over `defs` registered as they are (no derived cooldown auras), with or without conditions. */
-const bare = (defs: Readonly<Record<string, AuraDef<Game>>>, hasConditions = true) => {
+const bare = (
+  defs: Readonly<Record<string, AuraDef<Game>>>,
+  hasConditions = true,
+  options: { readonly hasParty?: boolean; readonly order?: readonly string[] } = {}
+) => {
   const game = makeGame({});
 
   const auras = createAuraSystem<Game>({
-    registry: defineAuras<Game, string>(defs),
+    registry: defineAuras<Game, string>(defs, options),
     tags: TAGS,
     clocks: CLOCKS
   });
 
-  const procs = createProcSystem<Game>({ kinds: game.procs.kinds, auras, host: game.host });
+  const procs = createProcSystem<Game>({
+    kinds: game.procs.kinds,
+    auras,
+    host: options.hasParty === false ? { log: game.log } : game.host
+  });
+
   const base = { auras, procs, bus: game.bus, events: game.events };
 
   return hasConditions
@@ -50,6 +59,80 @@ const bare = (defs: Readonly<Record<string, AuraDef<Game>>>, hasConditions = tru
 };
 
 describe('validation at load', () => {
+  it('refuses party listeners and party proc targets when the host has no party service', () => {
+    assert.throws(
+      () =>
+        bare(
+          {
+            ears: aura({ duration: 1, triggers: [{ on: 'hit', hears: 'party', do: [mark('heard')] }] }),
+            targets: aura({
+              duration: 1,
+              triggers: [
+                { on: 'hit', do: [{ kind: 'strike', amount: 10, to: 'party' }] },
+                { on: 'hit', do: [{ kind: 'group', procs: [{ kind: 'applyAura', aura: 'ears', to: 'party' }] }] }
+              ]
+            })
+          },
+          true,
+          { hasParty: false }
+        ),
+      {
+        name: 'RangeError',
+        message: [
+          'Invalid triggers:',
+          'Trigger aura.ears.0: hears party, but the proc host has no party service.',
+          'Trigger aura.targets.0: a party target needs the proc host to have a party service.',
+          'Trigger aura.targets.1: a party target needs the proc host to have a party service.'
+        ].join('\n')
+      }
+    );
+
+    assert.doesNotThrow(() =>
+      bare({ self: aura({ duration: 1, triggers: [{ on: 'hit', do: [mark('x')] }] }) }, true, { hasParty: false })
+    );
+  });
+
+  it('validates numeric aura filter arguments even on events without that filter', () => {
+    for (const arg of [-1, 0.5, 1, Number.NaN, Infinity]) {
+      for (const on of ['aura', 'hit'] as const) {
+        assert.throws(
+          () =>
+            bare({
+              watched: aura({ duration: 1, triggers: [{ on, when: [{ filter: 'aura', arg }], do: [mark('x')] }] })
+            }),
+          /Trigger aura.watched.0: Registry auras: .* is not an id of this registry/
+        );
+      }
+    }
+
+    for (const arg of [1, 'retired']) {
+      assert.throws(
+        () =>
+          bare(
+            {
+              watched: aura({
+                duration: 1,
+                triggers: [{ on: 'aura', when: [{ filter: 'aura', arg }], do: [mark('x')] }]
+              })
+            },
+            true,
+            { order: ['watched', 'retired'] }
+          ),
+        typeof arg === 'number'
+          ? /Trigger aura.watched.0: Registry auras: retired is retired/
+          : /Trigger aura.watched.0: unknown aura retired/
+      );
+    }
+
+    for (const arg of [0, 'watched']) {
+      assert.doesNotThrow(() =>
+        bare({
+          watched: aura({ duration: 1, triggers: [{ on: 'aura', when: [{ filter: 'aura', arg }], do: [mark('x')] }] })
+        })
+      );
+    }
+  });
+
   it('refuses every invalid trigger at once, each named by its address', () => {
     const noop = mark('x');
 

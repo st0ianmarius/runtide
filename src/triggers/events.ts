@@ -1,4 +1,5 @@
 import type { AuraChange, AuraEvent, AuraRegistry } from '../auras/index.ts';
+import { toId } from '../core/ids.ts';
 import type { EventKind } from '../core/index.ts';
 import { ownValue } from '../core/records.ts';
 import type { TriggerTypes } from './trigger-types.ts';
@@ -10,6 +11,9 @@ export interface TriggerFilterSpec<G extends TriggerTypes> {
 
   /** Resolves a named argument (an aura's name) to its number at load; names are refused when absent. */
   resolve?(this: void, arg: string, auras: AuraRegistry<G>): number;
+
+  /** Validates a resolved argument at load, including numeric arguments. */
+  validate?(this: void, arg: number, auras: AuraRegistry<G>): void;
 }
 
 /**
@@ -42,6 +46,9 @@ export type TriggerFilterOf<Payload, G extends TriggerTypes> =
 
       /** Resolves a named argument at load. */
       readonly resolve?: (arg: string, auras: AuraRegistry<G>) => number;
+
+      /** Validates a resolved argument at load, including numeric arguments. */
+      readonly validate?: (arg: number, auras: AuraRegistry<G>) => void;
     };
 
 /** A trigger event as a game writes it, typed by the event kind's payload. */
@@ -120,7 +127,13 @@ export const auraTriggerEvent = <G extends TriggerTypes>(kind: EventKind<AuraEve
     unit: (event: AuraEvent<G>) => event.bearer,
 
     filters: Object.freeze({
-      aura: { test: (event: AuraEvent<G>, id: number) => event.aura?.id === id, resolve: auraCode },
+      aura: {
+        test: (event: AuraEvent<G>, id: number) => event.aura?.id === id,
+        resolve: auraCode,
+        validate: (id: number, auras: AuraRegistry<G>) => {
+          auras.get(toId<'auras'>(id));
+        }
+      },
       change: {
         test: (event: AuraEvent<G>, code: number) => CHANGES[code] === event.change,
         resolve: changeCode
