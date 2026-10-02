@@ -9,7 +9,9 @@ export type ProcAmount = number | ScaledSnapshot;
 /**
  * Deals a blow through the damage pipeline, credited to the list's source. Its attacker is the unit the list
  * is credited to: `self` when the list's source is `self`'s own id (a trigger, a spell), else the host's `unitOf`
- * the source (a periodic beat on its victim, credited to its caster); `attacker: 'none'` deals it as the world's.
+ * the source (a periodic beat on its victim, credited to its caster); `attacker: 'self'` deals it with the list's self
+ * (the bearer the hook runs on) and its stats, still credited to the source (an ally's `onDealt` aura whose extra blow
+ * is the bearer's); `attacker: 'none'` deals it as the world's.
  */
 export interface DamageProc<G extends DamageTypes> extends ProcShape {
   /** The discriminant. */
@@ -24,8 +26,11 @@ export interface DamageProc<G extends DamageTypes> extends ProcShape {
   /** Its damage kind: the name in data, the id in code; the table's first kind when absent. */
   readonly damageKind?: G['damageKind'] | DamageKindId;
 
-  /** Whether it has the credited attacker (the default) or none. */
-  readonly attacker?: 'credited' | 'none';
+  /**
+   * Its attacker, whose outgoing multipliers, crit and `onDealt` hooks apply: the credited unit (the default), the
+   * list's self, or none. The credit is the list's source either way.
+   */
+  readonly attacker?: 'self' | 'credited' | 'none';
 
   /** The spell it comes from, whose outgoing-multiplier shares apply. */
   readonly spell?: G['spell'];

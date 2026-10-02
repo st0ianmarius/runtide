@@ -26,6 +26,8 @@ export type { Death } from './death.ts';
 
 export {
   BLOW_STATUSES,
+  type BlowSnapshot,
+  copyBlow,
   createDamageEvent,
   createDeathEvent,
   createHealEvent,

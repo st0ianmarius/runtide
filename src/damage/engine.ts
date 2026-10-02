@@ -191,9 +191,26 @@ export class DamageEngine<G extends DamageTypes> {
     return this.kinds.ids[0] ?? missing('a damage kind');
   }
 
-  /** The source a spec credits: its own, else the host's id of `unit`, else none. */
+  /** The source a spec credits: its own, else the host's credit of `unit` (`creditOf`, else `idOf`), else none. */
   sourceOf(source: number | undefined, unit: G['bearer'] | undefined): number {
-    return source ?? (unit === undefined ? undefined : this.host.idOf?.(unit)) ?? NO_SOURCE;
+    if (source !== undefined) {
+      return source;
+    }
+
+    if (unit === undefined) {
+      return NO_SOURCE;
+    }
+
+    const { host } = this;
+
+    return (host.creditOf === undefined ? host.idOf?.(unit) : host.creditOf(unit)) ?? NO_SOURCE;
+  }
+
+  /** Whether a unit can die no more: the host's `isGone`, or by health alone for a host without one. */
+  isGoneNow(unit: G['bearer']): boolean {
+    const { isGone } = this.host;
+
+    return isGone === undefined ? this.isDead(this.host.health(unit), unit) : isGone(unit);
   }
 
   /** Whether a unit is dead now, by the system's rule. */

@@ -1,3 +1,4 @@
+import { NO_SOURCE } from '../auras/index.ts';
 import type { EventKind } from '../core/index.ts';
 import type { DamageTypes } from './damage-types.ts';
 import type { DeathRecord, DeathSpec } from './death.ts';
@@ -75,7 +76,7 @@ const DEATH_PHASES: readonly DeathPhase[] = [
     raiseDeath(engine, engine.options.events?.death, death);
   },
   (engine, death) => {
-    if (death.killer !== undefined) {
+    if (death.killer !== undefined || death.source !== NO_SOURCE) {
       raiseDeath(engine, engine.options.events?.kill, death);
     }
   },
@@ -107,10 +108,15 @@ const runPhases = <G extends DamageTypes>(engine: DamageEngine<G>, death: DeathR
 
 /**
  * The death pipeline: the rewards before the death event (souls), the `death` event about the unit and the
- * `kill` event about its killer, the rewards after them (a loot roll), and last the host takes the unit out: a unit
- * system kills it, whose auras hear the `dead` state then (a death burst is an aura's `onState`). Every unit dies
- * the same way: a game whose objective or wall gives no reward reads its class in its reward steps. A despawn is not a
- * death and never comes here. What a death sets off nests from it afresh (`maxDepth`), up to `maxKillChain` deaths.
+ * `kill` event about its killer (raised when the death has a killer or a credited source), the rewards after them (a
+ * loot roll), and last the host takes the unit out: a unit system kills it, whose auras hear the `dead` state then (a
+ * death burst is an aura's `onState`). Every unit dies the same way: a game whose objective or wall gives no reward
+ * reads its class in its reward steps, and a downed hero is a death too (lifecycle `dead`, revivable, every leave-life
+ * cleanup run), whose rewards the game's steps gate by the hero's class. A game that wants the unit in a state of its
+ * own before any reward (`dying`) enters it from a `death.before` step (`auras.enterState(unit, 'dying')`, a state the
+ * game declares); rewards and the `kill` event settle before the `dead` state's `onState` bursts, which is intended. A
+ * despawn is not a death and never comes here. What a death sets off nests from it afresh (`maxDepth`), up to
+ * `maxKillChain` deaths. `DamageSystem.kill` runs it for a unit outright, whatever its health.
  */
 export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: DeathSpec<G>): void => {
   const death = engine.deathRecord(spec.unit);

@@ -105,6 +105,12 @@ export interface DamageHost<G extends DamageTypes> {
   readonly idOf?: (unit: G['bearer']) => number;
 
   /**
+   * The entity id a unit's blows, heals, forces and kills are credited to when the spec names no `source` but names
+   * the unit (its attacker, healer or killer): a pet's or a totem's owner. `idOf` when absent.
+   */
+  readonly creditOf?: (unit: G['bearer']) => number;
+
+  /**
    * The unit an entity id names, if it is still there: the attacker of a damage proc credited to an aura's source (a
    * periodic beat on its victim, credited to its caster). Without it such a blow has no attacker.
    */
@@ -186,7 +192,11 @@ export interface DamageSystemOptions<G extends DamageTypes> {
   /** The game's own force stages. */
   readonly forceStages?: Readonly<Record<string, StageDef<ForceStage<G>>>>;
 
-  /** The death pipeline's reward slots: steps before the death event, and after it. */
+  /**
+   * The death pipeline's reward slots: steps before the death event, and after it. A `before` step may enter a state
+   * of the game's own (`auras.enterState(death.unit, 'dying')`) so the unit's auras react before any reward; the
+   * rewards and the `kill` event still settle before the `dead` state's `onState` bursts, which is intended.
+   */
   readonly death?: {
     /** Before the death event (souls). */
     readonly before?: readonly DeathStep<G>[];
@@ -208,9 +218,12 @@ export interface DamageSystemOptions<G extends DamageTypes> {
   readonly rollChance?: (chance: number, slot: RollSlot, blow: Blow<G>) => boolean;
 
   /**
-   * A game's own rule for when health means dead; `health <= 0` by default. The unit lets the game distinguish a
-   * downable unit from one that dies at 0. Reads the supplied health, which may be a prospective value before a
-   * write, rather than the unit's stored health. Must have no side effects; `host.isGone` still overrides it.
+   * A game's own rule for when health means dead; `health <= 0` by default. Reads the supplied health, which may be a
+   * prospective value before a write, rather than the unit's stored health, and the unit, for a rule by class. Must
+   * have no side effects; `host.isGone` still overrides it. It is not how a hero goes down: a downed hero is a death
+   * (lifecycle `dead`, revivable, every leave-life cleanup run), whose rewards the game's death steps gate by class, and
+   * a unit the rule keeps alive at 0 health can never die by a blow or a `setHealth` (only `DamageSystem.kill` takes it
+   * out). A game wanting a state before the rewards (`dying`) enters it from a `death.before` step.
    */
   readonly isDead?: (health: number, unit: G['bearer']) => boolean;
 

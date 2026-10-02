@@ -8,11 +8,63 @@ import type { Heal } from './heal.ts';
 import type { DamageKindTable } from './kinds.ts';
 import type { RollTable } from './rolls.ts';
 
-/** The payload of a damage event: the blow, reused between raises, read while the listener runs. */
+/**
+ * The payload of a damage event: the blow, reused between raises, read while the listener runs. The blow is the pooled
+ * record of its nesting level, overwritten by the next blow at that level: a listener that keeps it past the raise
+ * keeps `copyBlow(blow)` instead.
+ */
 export interface DamageEvent<G extends DamageTypes> {
   /** The blow; set on every raise. */
   blow: Blow<G> | undefined;
 }
+
+/** A blow's outcome, kept past the call or raise that handed the pooled blow over: `copyBlow`. */
+export type BlowSnapshot<G extends DamageTypes> = Readonly<
+  Pick<
+    Blow<G>,
+    | 'target'
+    | 'attacker'
+    | 'source'
+    | 'spell'
+    | 'aura'
+    | 'kind'
+    | 'base'
+    | 'amount'
+    | 'status'
+    | 'outcome'
+    | 'isCrit'
+    | 'dealt'
+    | 'overkill'
+    | 'absorbed'
+    | 'prevented'
+    | 'hasKilled'
+  >
+>;
+
+/**
+ * A frozen plain snapshot of a blow's outcome. `hit` returns, and the damage events hand over, the pooled record of a
+ * nesting level, which the next blow at that level overwrites in place (two top-level `hit`s in a row return the same
+ * object): copy it to keep it.
+ */
+export const copyBlow = <G extends DamageTypes>(blow: Blow<G>): BlowSnapshot<G> =>
+  Object.freeze({
+    target: blow.target,
+    attacker: blow.attacker,
+    source: blow.source,
+    spell: blow.spell,
+    aura: blow.aura,
+    kind: blow.kind,
+    base: blow.base,
+    amount: blow.amount,
+    status: blow.status,
+    outcome: blow.outcome,
+    isCrit: blow.isCrit,
+    dealt: blow.dealt,
+    overkill: blow.overkill,
+    absorbed: blow.absorbed,
+    prevented: blow.prevented,
+    hasKilled: blow.hasKilled
+  });
 
 /** The payload of a heal event: the heal, reused between raises. */
 export interface HealEvent<G extends DamageTypes> {
@@ -20,7 +72,10 @@ export interface HealEvent<G extends DamageTypes> {
   heal: Heal<G> | undefined;
 }
 
-/** The payload of a death or kill event: the death, reused between raises. */
+/**
+ * The payload of a death or kill event: the death, reused between raises. On a `kill` event the death's `killer` may be
+ * `undefined`: a death credited to a source with no unit behind it (a beat from a caster gone) raises `kill` too.
+ */
 export interface DeathEvent<G extends DamageTypes> {
   /** The death; set on every raise. */
   death: Death<G> | undefined;
@@ -68,7 +123,12 @@ export interface DamageEvents<G extends DamageTypes> {
   /** A death, about the unit that died, between the rewards before it and after it. */
   readonly death?: EventKind<DeathEvent<G>>;
 
-  /** The same death, about its killer, raised right after `death`; never without a killer. */
+  /**
+   * The same death, about its killer, raised right after `death` when the death has a killer or a credited source
+   * (`source` is not `NO_SOURCE`): `death.killer` is `undefined` when the source has no unit (a damage over time whose
+   * caster is gone), so a kill trigger about the killer does not answer then, while the log still credits the source.
+   * Never raised for a death credited to no one.
+   */
   readonly kill?: EventKind<DeathEvent<G>>;
 }
 

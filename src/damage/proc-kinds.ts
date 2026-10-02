@@ -53,6 +53,19 @@ const creditedUnit = <G extends DamageTypes>(engine: DamageEngine<G>, ctx: ProcC
   return own === undefined || own === ctx.source ? ctx.self : engine.host.unitOf?.(ctx.source);
 };
 
+/** A damage proc's attacker: the list's self, the credited unit (the default), or none. */
+const attackerOf = <G extends DamageTypes>(
+  engine: DamageEngine<G>,
+  proc: DamageProc<G>,
+  ctx: ProcContext<G>
+): G['bearer'] | undefined => {
+  if (proc.attacker === 'self') {
+    return ctx.self;
+  }
+
+  return proc.attacker === 'none' ? undefined : creditedUnit(engine, ctx);
+};
+
 /** The numbers of a record that are present, for an explanation. */
 const numbersOf = (values: Readonly<Record<string, number | undefined>>): Readonly<Record<string, number>> =>
   Object.fromEntries(Object.entries(values).filter((entry): entry is [string, number] => entry[1] !== undefined));
@@ -141,7 +154,7 @@ const damageKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: P
       spec ??= new ProcBlowSpec<G>(target);
       spec.target = target;
       spec.amount = amountAt(engine, proc.amount, target);
-      spec.attacker = proc.attacker === 'none' ? undefined : creditedUnit(engine, ctx);
+      spec.attacker = attackerOf(engine, proc, ctx);
       spec.source = ctx.source;
       spec.spell = proc.spell;
       spec.aura = ctx.aura?.id;

@@ -68,7 +68,11 @@ export interface DamageSystem<G extends DamageTypes> {
   /** How many blows, heals, forces and deaths are running right now: 0 outside any. */
   readonly depth: number;
 
-  /** Deals a blow through the damage pipeline and returns it, done. */
+  /**
+   * Deals a blow through the damage pipeline and returns it, done. The blow returned is the pooled record of its
+   * nesting level: the next blow at that level (two `hit`s in a row at the top level) overwrites it in place, so read it
+   * at once, or keep `copyBlow(blow)`, a frozen snapshot of its outcome.
+   */
   readonly hit: (spec: BlowSpec<G>) => Blow<G>;
 
   /** Heals through the heal pipeline and returns the heal, done. */
@@ -79,9 +83,18 @@ export interface DamageSystem<G extends DamageTypes> {
 
   /**
    * Sets a unit's health outright, bypassing the heal stages. A unit that was alive and is dead by the
-   * system's rule afterwards goes through the death pipeline, credited as given. A dead unit is `skipped`.
+   * system's rule afterwards goes through the death pipeline, credited as given. A dead unit is `skipped`, a unit the
+   * rule already counts dead at its health included: `kill` takes such a unit out.
    */
   readonly setHealth: (unit: G['bearer'], health: number, credit?: HealthCredit<G>) => ProcOutcome;
+
+  /**
+   * Kills a unit outright, whatever its health: sets its health to 0 through the host (which clamps it), then runs the
+   * death pipeline (its rewards, the `death` and `kill` events, the removal), credited as given. Returns whether it
+   * killed: `false` for a unit already gone (the host's `isGone`, or by health alone for a host without one), and for
+   * one nested too deep (counted in `dropped`, as a lethal `setHealth` is).
+   */
+  readonly kill: (unit: G['bearer'], credit?: HealthCredit<G>) => boolean;
 
   /** Whether a unit is dead by the system's rule. */
   readonly isDead: (unit: G['bearer']) => boolean;
@@ -173,6 +186,30 @@ const setHealthWith =
     return SET_KILLED;
   };
 
+/** Builds `kill` over the death pipeline: a nesting level like a lethal `setHealth`. */
+const killWith =
+  <G extends DamageTypes>(engine: DamageEngine<G>) =>
+  (unit: G['bearer'], credit: HealthCredit<G> = {}): boolean => {
+    if (engine.isGoneNow(unit) || !engine.enter()) {
+      return false;
+    }
+
+    try {
+      engine.host.setHealth(unit, 0);
+      runDeath(engine, {
+        unit,
+        killer: credit.attacker,
+        source: engine.sourceOf(credit.source, credit.attacker),
+        spell: credit.spell,
+        blow: undefined
+      });
+    } finally {
+      engine.leave();
+    }
+
+    return true;
+  };
+
 /** The names of the game's own stages, by pipeline. */
 const gameStagesOf = <G extends DamageTypes>(engine: DamageEngine<G>): readonly string[] =>
   Object.freeze([
@@ -195,6 +232,7 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
   readonly heal: (spec: HealSpec<G>) => Heal<G>;
   readonly force: (spec: ForceSpec<G>) => Force<G>;
   readonly setHealth: (unit: G['bearer'], health: number, credit?: HealthCredit<G>) => ProcOutcome;
+  readonly kill: (unit: G['bearer'], credit?: HealthCredit<G>) => boolean;
   readonly #engine: DamageEngine<G>;
 
   get dropped(): number {
@@ -221,6 +259,7 @@ class Damage<G extends DamageTypes> implements DamageSystem<G> {
     this.heal = heal;
     this.force = force;
     this.setHealth = setHealth;
+    this.kill = killWith(engine);
     this.#engine = engine;
 
     this.procKinds = createDamageProcKinds(engine, {
