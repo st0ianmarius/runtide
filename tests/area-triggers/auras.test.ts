@@ -230,6 +230,35 @@ describe('area auras on enter and exit', () => {
     assert.equal(game.auras.has(foe, game.auraId.chilled), true);
   });
 
+  it('retries an aura refused on entry while the unit stays inside', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        auras: {
+          chilled: aura({ duration: 'infinite', blockedBy: ['busy'] }),
+          soothed: aura({ duration: 'infinite', tags: ['busy'] })
+        },
+        areaTriggers: { field: field({ aura: 'chilled' }) }
+      }
+    );
+
+    const foe = game.unit(100);
+
+    game.auras.apply(foe, game.auraId.soothed);
+    game.place(foe, vec2(0, 0));
+    game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false, 'refused on entry while soothed');
+    ticks(game, 3, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false, 'still refused while soothed');
+    game.auras.remove(foe, game.auraId.soothed);
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), true, 'lands on the next catch without re-entering');
+    game.place(foe, vec2(10, 0));
+    ticks(game, 1, [foe]);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), false, 'leaving drops the hold after retries');
+  });
+
   it('asks again each catch for an aura refused as it was put back, until it lands', () => {
     const game = makeSpellGame(
       {},

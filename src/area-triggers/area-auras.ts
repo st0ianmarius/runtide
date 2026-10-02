@@ -205,7 +205,13 @@ const enter = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraIn
   const aura = engine.areaAuras[area.kind]?.[index];
 
   if (spec !== undefined && aura !== undefined && engine.auraHolds.take(unit, aura)) {
-    engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, area.source, undefined));
+    try {
+      engine.auras.apply(unit, engine.auraHolds.applicationFor(aura, spec, area.source, undefined));
+    } finally {
+      if (!engine.auras.has(unit, aura)) {
+        engine.auraHolds.noteRemoved(unit, aura);
+      }
+    }
   }
 };
 
