@@ -15,6 +15,7 @@ import type { BlowStop, DamageTypes } from './damage-types.ts';
 import type { DeathSpec } from './death.ts';
 import type { DamageEngine } from './engine.ts';
 import type { DamageEvent } from './events.ts';
+import { firstError, runBoth } from './stage-order.ts';
 
 /** What the damage pipeline's after-stages hand on to: the death pipeline. */
 export interface Onward<G extends DamageTypes> {
@@ -61,6 +62,21 @@ const afterStages = <G extends DamageTypes>(engine: DamageEngine<G>, walks: Blow
 
   const isDealt = (blow: BlowRecord<G>): boolean => blow.status === 'landed' || blow.status === 'absorbed';
 
+  const cue = (blow: BlowRecord<G>): void => {
+    const cues = engine.options.cues;
+
+    cues?.blow?.(blow, cues.out);
+  };
+
+  const raise = (blow: BlowRecord<G>): void => {
+    if (blow.status === 'ignored') {
+      raiseBlow(engine, events?.ignored, blow);
+    } else {
+      raiseBlow(engine, blow.attacker === undefined ? undefined : events?.dealt, blow);
+      raiseBlow(engine, events?.taken, blow);
+    }
+  };
+
   return {
     dealt: (blow: BlowRecord<G>) => {
       if (isDealt(blow)) {
@@ -70,17 +86,9 @@ const afterStages = <G extends DamageTypes>(engine: DamageEngine<G>, walks: Blow
       return undefined;
     },
 
+    // A cue that throws still has the blow's events raised.
     outcome: (blow: BlowRecord<G>) => {
-      const cues = engine.options.cues;
-
-      cues?.blow?.(blow, cues.out);
-
-      if (blow.status === 'ignored') {
-        raiseBlow(engine, events?.ignored, blow);
-      } else {
-        raiseBlow(engine, blow.attacker === undefined ? undefined : events?.dealt, blow);
-        raiseBlow(engine, events?.taken, blow);
-      }
+      runBoth(blow, cue, raise);
 
       return undefined;
     },
@@ -235,7 +243,8 @@ const runBlowStages = <G extends DamageTypes>(
 
 /**
  * Runs a blow's after-stages from `start`: one that throws (a hook, a listener) still has the rest run, so a blow that
- * killed always reaches the death pipeline and never leaves its target alive at no health, then it throws.
+ * killed always reaches the death pipeline and never leaves its target alive at no health; then the first error is
+ * thrown, any later ones suppressed into it (`firstError`).
  */
 const runAfter = <G extends DamageTypes>(
   engine: DamageEngine<G>,
@@ -243,16 +252,21 @@ const runAfter = <G extends DamageTypes>(
   blow: BlowRecord<G>,
   start: number
 ): void => {
+  let errors: unknown[] | undefined;
+
   for (let i = start; i < runs.length; i++) {
     try {
       runs[i]?.(engine, blow);
     } catch (error) {
-      runAfter(engine, runs, blow, i + 1);
-
-      throw error;
+      (errors ??= []).push(error);
+      continue;
     }
 
     traceStep(engine, blow, i);
+  }
+
+  if (errors !== undefined) {
+    throw firstError(errors);
   }
 };
 

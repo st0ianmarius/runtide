@@ -4,6 +4,7 @@ import type { DeathRecord, DeathSpec } from './death.ts';
 import type { DamageEngine } from './engine.ts';
 import type { DeathEvent } from './events.ts';
 import type { DeathStep } from './options.ts';
+import { firstError } from './stage-order.ts';
 
 /** Raises a death event of one kind, if it is heard, and lets go of the death once the listeners are done. */
 const raiseDeath = <G extends DamageTypes>(
@@ -24,26 +25,37 @@ const raiseDeath = <G extends DamageTypes>(
   payload.death = undefined;
 };
 
-/** Runs one reward slot's steps from `start`, in order: one that throws still has the rest run, then it throws. */
+/**
+ * Throws what a run of death parts collected: nothing for none, the error itself for one, and for more the first with
+ * the later ones suppressed into it (`firstError`), so a later one (a listener's) never masks it.
+ */
+const throwCollected = (errors: readonly unknown[] | undefined): void => {
+  if (errors !== undefined) {
+    throw firstError(errors);
+  }
+};
+
+/** Runs one reward slot's steps in order: one that throws still has the rest run, then the first error is thrown. */
 const runSteps = <G extends DamageTypes>(
   engine: DamageEngine<G>,
   steps: readonly DeathStep<G>[] | undefined,
-  death: DeathRecord<G>,
-  start = 0
+  death: DeathRecord<G>
 ): void => {
   if (steps === undefined) {
     return;
   }
 
-  for (let i = start; i < steps.length; i++) {
-    try {
-      steps[i]?.(death, engine.system);
-    } catch (error) {
-      runSteps(engine, steps, death, i + 1);
+  let errors: unknown[] | undefined;
 
-      throw error;
+  for (const step of steps) {
+    try {
+      step(death, engine.system);
+    } catch (error) {
+      (errors ??= []).push(error);
     }
   }
+
+  throwCollected(errors);
 };
 
 /** One part of a death, in the order a death runs them. */
@@ -76,19 +88,21 @@ const DEATH_PHASES: readonly DeathPhase[] = [
 ];
 
 /**
- * Runs a death's parts from `start`: one that throws (a reward step, a listener) still has the rest run, so the unit
- * is always taken out and never left alive at no health, then it throws.
+ * Runs a death's parts in order: one that throws (a reward step, a listener) still has the rest run, so the unit is
+ * always taken out and never left alive at no health; then the first error is thrown, later ones attached to it.
  */
-const runPhases = <G extends DamageTypes>(engine: DamageEngine<G>, death: DeathRecord<G>, start: number): void => {
-  for (let i = start; i < DEATH_PHASES.length; i++) {
-    try {
-      DEATH_PHASES[i]?.(engine, death);
-    } catch (error) {
-      runPhases(engine, death, i + 1);
+const runPhases = <G extends DamageTypes>(engine: DamageEngine<G>, death: DeathRecord<G>): void => {
+  let errors: unknown[] | undefined;
 
-      throw error;
+  for (const phase of DEATH_PHASES) {
+    try {
+      phase(engine, death);
+    } catch (error) {
+      (errors ??= []).push(error);
     }
   }
+
+  throwCollected(errors);
 };
 
 /**
@@ -110,7 +124,7 @@ export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: D
   engine.base = engine.depth;
 
   try {
-    runPhases(engine, death, 0);
+    runPhases(engine, death);
   } finally {
     procs?.restoreBase(procBase);
     engine.base = base;

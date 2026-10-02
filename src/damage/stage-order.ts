@@ -166,3 +166,37 @@ export const compileStageOrder = <Run>(spec: {
     game: Object.freeze(game.map(([name]) => name))
   });
 };
+
+/**
+ * The error after-stages that threw end with: the first one alone, or, when later ones threw too, a `SuppressedError`
+ * whose `error` is the first and whose `suppressed` holds the rest the same way, in the order they were thrown.
+ */
+export const firstError = (errors: readonly unknown[]): unknown => {
+  let error = errors.at(-1);
+
+  for (let i = errors.length - 2; i >= 0; i--) {
+    error = new SuppressedError(errors[i], error, 'An after-stage threw, and a later one threw too.');
+  }
+
+  return error;
+};
+
+/**
+ * Runs `first`, then `second` over one subject even when `first` throws (a cue that throws still has its outcome's
+ * event raised); the first error thrown wins, a later one suppressed into it.
+ */
+export const runBoth = <S>(subject: S, first: (subject: S) => void, second: (subject: S) => void): void => {
+  try {
+    first(subject);
+  } catch (error) {
+    try {
+      second(subject);
+    } catch (later) {
+      throw firstError([error, later]);
+    }
+
+    throw error;
+  }
+
+  second(subject);
+};

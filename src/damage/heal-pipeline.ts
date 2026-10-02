@@ -3,6 +3,7 @@ import type { DamageEngine } from './engine.ts';
 import { createHealWalks, type HealWalks } from './heal-hooks.ts';
 import type { Heal, HealRecord, HealSpec } from './heal.ts';
 import { nonNegative } from './mitigation.ts';
+import { firstError, runBoth } from './stage-order.ts';
 
 /** One stage of the heal pipeline, built in or the game's. */
 type HealRun<G extends DamageTypes> = (heal: HealRecord<G>) => 'blocked' | undefined;
@@ -88,11 +89,19 @@ const builtIn = <G extends DamageTypes>(engine: DamageEngine<G>, [name, walks]: 
     }
 
     default: {
-      return (heal: HealRecord<G>) => {
+      const cue = (heal: HealRecord<G>): void => {
         const cues = engine.options.cues;
 
         cues?.heal?.(heal, cues.out);
+      };
+
+      const raise = (heal: HealRecord<G>): void => {
         raiseHealed(engine, heal);
+      };
+
+      // A cue that throws still has the heal event raised.
+      return (heal: HealRecord<G>) => {
+        runBoth(heal, cue, raise);
 
         return undefined;
       };
@@ -109,6 +118,26 @@ const compileHealRuns = <G extends DamageTypes>(engine: DamageEngine<G>): readon
 
     return run === undefined ? builtIn(engine, [name, walks]) : (heal) => engine.healStage(run, heal);
   });
+};
+
+/**
+ * Runs a heal's after-stages: one that throws (a cue, a game stage) still has the rest run, so the heal event always
+ * fires; then the first error is thrown, any later ones suppressed into it, as a blow's after-stages do.
+ */
+const runHealAfter = <G extends DamageTypes>(runs: readonly HealRun<G>[], heal: HealRecord<G>, start: number): void => {
+  let errors: unknown[] | undefined;
+
+  for (let i = start; i < runs.length; i++) {
+    try {
+      runs[i]?.(heal);
+    } catch (error) {
+      (errors ??= []).push(error);
+    }
+  }
+
+  if (errors !== undefined) {
+    throw firstError(errors);
+  }
 };
 
 /**
@@ -141,9 +170,7 @@ const runHealStages = <G extends DamageTypes>(
     }
   }
 
-  for (i = afterFrom; i < runs.length; i++) {
-    runs[i]?.(heal);
-  }
+  runHealAfter(runs, heal, afterFrom);
 };
 
 /**

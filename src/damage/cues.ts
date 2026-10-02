@@ -10,7 +10,8 @@ import type { Heal } from './heal.ts';
  * cues, since which moments show (a damage number, an absorbed amount, a callout) and with which params is the
  * game's. Each mapping runs at a documented point, before the events of the same outcome, so a trigger's cue answering
  * the event follows it in firing order; it places its cues itself (`fireCue` with the units' positions). Nothing is
- * fired for an outcome the game maps nothing to.
+ * fired for an outcome the game maps nothing to. A mapping that throws still has its outcome's events raised, and the
+ * pipeline's other after-stages run; its error is thrown once they are done.
  */
 export interface DamageCues<G extends DamageTypes> {
   /** The buffer every mapping fires into. */
