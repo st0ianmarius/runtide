@@ -36,7 +36,7 @@ export interface AreaTriggerEvents<G extends AreaTriggerTypes> {
   /** An area trigger spawned, after its `init`. */
   readonly spawned?: EventKind<AreaTriggerEvent<G>>;
 
-  /** An area trigger ended, whatever the reason, after `onEnd` and after its owner aura came off. */
+  /** An area trigger ended, whatever the reason, after `onEnd` and before its owner aura comes off. */
   readonly ended?: EventKind<AreaTriggerEvent<G>>;
 }
 

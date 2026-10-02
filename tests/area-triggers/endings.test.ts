@@ -475,6 +475,58 @@ describe('the owner aura, cues and events', () => {
     assert.equal(game.auras.has(other, game.auraId.tending), false);
   });
 
+  it('lets its owner aura’s triggers hear its kind’s last end, and keeps the aura on for a spawn they make', () => {
+    const log: string[] = [];
+
+    const game = makeSpellGame(
+      {},
+      {
+        auras: {
+          tending: aura({
+            duration: 'infinite',
+
+            onApplied: () => {
+              log.push('tending on');
+
+              return undefined;
+            },
+
+            onRemoved: () => {
+              log.push('tending off');
+
+              return undefined;
+            },
+
+            triggers: [
+              { on: 'areaEnded', when: [{ filter: 'kind', arg: 'grove' }], do: [mark('heard')] },
+              {
+                on: 'areaEnded',
+                when: [
+                  { filter: 'kind', arg: 'grove' },
+                  { filter: 'reason', arg: 'bound' }
+                ],
+                do: [spawn<Game>('grove')]
+              }
+            ]
+          })
+        },
+        areaTriggers: { grove: ending({ ownerAura: 'tending' }) }
+      }
+    );
+
+    const owner = game.unit(1);
+
+    game.areaTriggers.despawn(game.areaTriggers.spawn(game.areaId.grove, { owner, at: vec2(0, 0) }));
+    assert.deepEqual(log, ['tending on', 'tending off']);
+    assert.equal(game.log.filter((line) => line === 'heard@1').length, 1);
+
+    log.length = 0;
+    game.areaTriggers.despawn(game.areaTriggers.spawn(game.areaId.grove, { owner, at: vec2(0, 0) }), 'bound');
+    assert.deepEqual(log, ['tending on']);
+    assert.equal(game.log.filter((line) => line === 'heard@1').length, 2);
+    assert.equal(game.auras.has(owner, game.auraId.tending), true);
+  });
+
   it('refuses an owner aura that is not infinite, at load', () => {
     assert.throws(
       () =>

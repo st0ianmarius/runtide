@@ -98,6 +98,9 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   #pending: G['bearer'] | undefined = undefined;
   #application: OwnerAuraApplication | undefined = undefined;
 
+  /** How many ends are raising their end event with their kind's owner aura still on (see `release`). */
+  #releasing = 0;
+
   /** A view per pooled ledger, so two views a hook holds stay apart. */
   readonly #views = new Map<Ledger, LedgerView<G>>();
 
@@ -436,9 +439,26 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   }
 
   /**
+   * Raises an ending area trigger's end event, then takes its kind's owner aura off when it was the last; call it
+   * after the count went down. The aura is still on as the event is raised, so its own triggers hear its kind's last
+   * end; a spawn of its kind from a listener finds the aura on and keeps it.
+   */
+  release(area: AreaTrigger<G>, reason: EndReason<G>): void {
+    this.#releasing++;
+
+    try {
+      this.raise('ended', area, reason);
+    } finally {
+      this.#releasing--;
+      this.holdOwnerAura(area, false);
+    }
+  }
+
+  /**
    * Puts its kind's owner aura on its owner as the first of the kind arrives, and takes it off as the last
    * leaves, so overlapping instances share one; call it after the count went up, or after it went down. The last one
-   * ending to make room for a spawn of its kind leaves the aura on for that spawn, whose entry then finds it on.
+   * ending to make room for a spawn of its kind leaves the aura on for that spawn, whose entry then finds it on; so
+   * does the last one ending as a listener of its end event spawns its kind.
    */
   holdOwnerAura(area: AreaTrigger<G>, isOn: boolean): void {
     const aura = this.ownerAuras[area.kind];
@@ -462,7 +482,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
       return;
     }
 
-    if (isKept && this.auras.has(area.owner, aura)) {
+    if ((isKept || this.#releasing > 0) && this.auras.has(area.owner, aura)) {
       return;
     }
 
