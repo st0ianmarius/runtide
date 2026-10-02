@@ -8,6 +8,7 @@ import type {
   ProcShape,
   ProcTarget
 } from '../procs/index.ts';
+import type { CastStages } from './cast-request.ts';
 import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 
 /**
@@ -36,6 +37,9 @@ export interface CastSpellProc<G extends SpellTypes> extends ProcShape {
 
   /** Skips checking and starting the spell's cooldowns, allowing a self-chain; other cast checks still apply. */
   readonly ignoreCooldown?: boolean;
+
+  /** Stage duration overrides for this cast; all stage hooks remain the spell's own. */
+  readonly stages?: CastStages;
 }
 
 /**

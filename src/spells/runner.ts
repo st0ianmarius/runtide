@@ -10,7 +10,7 @@ import { NO_CAST } from './ids.ts';
 import { checkReach } from './reach.ts';
 import type { AnySpellDef, CastOutcome } from './spell-def.ts';
 import type { ActivationShape, SpellId, SpellTypes } from './spell-types.ts';
-import { beatSeconds, enterStage } from './stage-seconds.ts';
+import { beatSeconds, checkStages, enterStage } from './stage-seconds.ts';
 import { autoIntervalOf, refreshLive, takeStats } from './take-stats.ts';
 
 /**
@@ -35,6 +35,9 @@ const initCast = <G extends SpellTypes>(
   parts: { readonly spell: SpellId; readonly options: CastOptions<G> }
 ): void => {
   const { options } = parts;
+
+  checkStages(options.stages);
+
   const casterId = engine.host.idOf?.(cast.caster) ?? NO_SOURCE;
 
   cast.spell = parts.spell;
@@ -48,6 +51,9 @@ const initCast = <G extends SpellTypes>(
   cast.cueKey = options.key ?? 0;
   cast.isCommitted = options.committed === true;
   cast.ignoresCooldown = options.ignoreCooldown === true;
+  cast.windupSeconds = options.stages?.windup;
+  cast.channelSeconds = options.stages?.channel;
+  cast.recoverSeconds = options.stages?.recover;
   cast.target = undefined;
   cast.state = undefined;
   cast.outcome = undefined;
@@ -241,7 +247,7 @@ export const afterPayload = <G extends SpellTypes>(
 
   cast.outcome = outcome;
 
-  const recover = engine.plans[cast.spell]?.recover;
+  const recover = cast.recoverSeconds ?? engine.plans[cast.spell]?.recover;
 
   if (recover !== undefined) {
     enterStage(cast, 'recover', recover);
@@ -252,6 +258,26 @@ export const afterPayload = <G extends SpellTypes>(
   }
 
   endCast(engine, cast, outcome);
+};
+
+/** Starts the channel after release, or moves straight to recovery when it has none or lasts zero seconds. */
+const afterRelease = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
+  const plan = engine.plans[cast.spell];
+  const channel = cast.channelSeconds ?? plan?.channel;
+
+  if (channel === undefined) {
+    afterPayload(engine, cast, 'released');
+
+    return;
+  }
+
+  enterStage(cast, 'channel', channel);
+  cast.every = beatSeconds(cast, plan?.every);
+  cast.beat = cast.every;
+
+  if (isRunOut(cast.remaining)) {
+    afterPayload(engine, cast, 'released');
+  }
 };
 
 /**
@@ -287,21 +313,7 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
     return;
   }
 
-  const plan = engine.plans[cast.spell];
-
-  if (plan?.channel === undefined) {
-    afterPayload(engine, cast, 'released');
-
-    return;
-  }
-
-  enterStage(cast, 'channel', plan.channel);
-  cast.every = beatSeconds(cast, plan.every);
-  cast.beat = cast.every;
-
-  if (isRunOut(cast.remaining)) {
-    afterPayload(engine, cast, 'released');
-  }
+  afterRelease(engine, cast);
 };
 
 /**
@@ -315,7 +327,7 @@ const enterCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>):
   record.add(cast.cast);
   cast.state = engine.registry.hooks.state[cast.spell]?.();
 
-  enterStage(cast, 'windup', engine.plans[cast.spell]?.windup);
+  enterStage(cast, 'windup', cast.windupSeconds ?? engine.plans[cast.spell]?.windup);
   cast.pauses = record.interrupts & (engine.pauseMasks[cast.spell] ?? 0);
   cast.isLocked = engine.plans[cast.spell]?.track === undefined;
 
@@ -458,7 +470,9 @@ export const checkCast = <G extends SpellTypes>(
  */
 export const startCooldowns = <G extends SpellTypes>(engine: SpellEngine<G>, request: CastRequest<G>): void => {
   const def = engine.registry.get(request.spell);
-  const { windup } = engine.plans[request.spell] ?? {};
+  checkStages(request.options.stages);
+
+  const windup = request.options.stages?.windup ?? engine.plans[request.spell]?.windup;
 
   if (!engine.cooldowns.readsCast(request.spell) && typeof windup !== 'function') {
     engine.cooldowns.startConstant(request.caster, request.spell, windup ?? 0);

@@ -46,6 +46,18 @@ export interface CastReport<G extends SpellTypes = SpellTypes> {
  */
 export type AutoOptions<G extends SpellTypes> = Pick<CastOptions<G>, 'input' | 'source'>;
 
+/** Stage durations for one cast, in finite seconds from 0; omitted stages keep the spell's authored duration. */
+export interface CastStages {
+  /** Seconds before release. */
+  readonly windup?: number | undefined;
+
+  /** Seconds spent channeling after release. */
+  readonly channel?: number | undefined;
+
+  /** Seconds spent recovering after the payload. */
+  readonly recover?: number | undefined;
+}
+
 /** How a cast is started, beyond the caster and the spell. */
 export interface CastOptions<G extends SpellTypes> {
   /** What the activation hands it: an aim, a unit (`ctx.input`, the `target` hook's argument). */
@@ -71,6 +83,9 @@ export interface CastOptions<G extends SpellTypes> {
 
   /** Skips checking and starting the spell's cooldowns; all other cast checks still apply. False when absent. */
   readonly ignoreCooldown?: boolean | undefined;
+
+  /** Duration overrides captured for this cast; stage hooks, tracking, beats and interrupts still use the spell. */
+  readonly stages?: CastStages | undefined;
 }
 
 /** No options: every default. */

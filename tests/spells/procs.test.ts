@@ -11,6 +11,89 @@ import { aura, type Charged, type Game, makeSpellGame, mark, spell } from '../he
 const SLOTS = defineTickSlots(['early', 'late']);
 
 describe('the castSpell proc', () => {
+  it('chains from onEnd with its own windup while bypassing its active cooldown', () => {
+    const began: number[][] = [];
+    const released: number[][] = [];
+
+    const game = makeSpellGame(
+      {
+        charge: spell({
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 1 } },
+          cooldown: { aura: 'icd', seconds: 4 },
+          begin: (ctx) => {
+            began.push([ctx.rank, ctx.stageSeconds]);
+          },
+          release: (ctx) => {
+            released.push([ctx.rank, ctx.tick]);
+          },
+          onEnd: (ctx) =>
+            ctx.rank === 1
+              ? [castSpell<Game>('charge', { rank: 2, ignoreCooldown: true, stages: { windup: 0.45 } })]
+              : undefined
+        })
+      },
+      { auras: { icd: aura({ duration: 4 }) } }
+    );
+
+    const hero = game.unit(1);
+
+    game.spells.cast(hero, game.id.charge);
+    for (let i = 0; i < 6; i++) {
+      game.step();
+      game.auras.tick(hero, 'world');
+      game.spells.step(hero);
+    }
+
+    assert.deepEqual(began, [
+      [1, 1],
+      [2, 0.45]
+    ]);
+    assert.deepEqual(released, [
+      [1, 4],
+      [2, 6]
+    ]);
+    assert.equal(game.spells.cooldownLeft(hero, game.id.charge), 2.5);
+    assert.equal(game.spells.pool.live, 0);
+    assert.deepEqual(explainProc(game.procs, castSpell<Game>('charge', { stages: { windup: 0.45 } })).values, {
+      spell: game.id.charge,
+      windup: 0.45
+    });
+  });
+
+  it('rejects invalid stage overrides before admission or starting any cooldown', () => {
+    const game = makeSpellGame(
+      {
+        charge: spell({
+          activation: { kind: 'trigger' },
+          cooldown: { aura: 'icd', seconds: 2 },
+          release: () => undefined
+        })
+      },
+      { auras: { icd: aura({ duration: 2 }) } }
+    );
+
+    const hero = game.unit(1);
+
+    for (const stage of ['windup', 'channel', 'recover'] as const) {
+      for (const seconds of [-1, Number.NaN, Infinity]) {
+        const options = { stages: { [stage]: seconds } };
+
+        assert.throws(() => game.spells.cast(hero, game.id.charge, options), /override must last a finite number/);
+        assert.throws(() => game.spells.check(hero, game.id.charge, options), /override must last a finite number/);
+        assert.throws(() => {
+          game.spells.startCooldowns(hero, game.id.charge, options);
+        }, /override must last a finite number/);
+        assert.throws(
+          () => game.procs.prepare([castSpell<Game>('charge', options)], 'charge'),
+          /override must last a finite number/
+        );
+        assert.equal(game.spells.isCooling(hero, game.id.charge), false);
+        assert.equal(game.spells.pool.live, 0);
+      }
+    }
+  });
+
   for (const startsOn of ['start', 'release'] as const) {
     it(`opts a delayed self-chain out of its ${startsOn} cooldown without refreshing it`, () => {
       const game = makeSpellGame(

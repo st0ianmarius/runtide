@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { POOL_MIN_FREE } from '../../src/core/index.ts';
 import { run } from '../../src/procs/index.ts';
 import { type AnySpellDef, type CastHandle, lockBefore, NO_CAST } from '../../src/spells/index.ts';
-import { type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
+import { aura, type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
 
 /**
  * A game over `defs` with one caster, and `advance(n)`: `n` steps, each logged as `t<tick>` before the caster's casts
@@ -26,6 +26,114 @@ const timeline = <const Spell extends string>(defs: Readonly<Record<Spell, AnySp
 };
 
 describe('stage order', () => {
+  it('captures independent stage durations per cast while retaining the authored hooks and defaults', () => {
+    const read: string[] = [];
+
+    const game = timeline({
+      beam: spell({
+        activation: { kind: 'trigger' },
+        timeline: {
+          windup: {
+            seconds: () => {
+              read.push('windup');
+              return 1;
+            }
+          },
+          channel: {
+            seconds: () => {
+              read.push('channel');
+              return 1;
+            },
+            every: 0.25,
+            tick: () => [mark('beat')]
+          },
+          recover: {
+            seconds: () => {
+              read.push('recover');
+              return 1;
+            }
+          }
+        },
+        release: () => [mark('release')]
+      })
+    });
+
+    const stages = { windup: 0.5, channel: 0.25, recover: 0.25 };
+    const shorter = game.spells.cast(game.a, game.id.beam, { stages }).handle;
+    const ordinary = game.spells.cast(game.a, game.id.beam).handle;
+
+    stages.channel = 9;
+    stages.recover = 9;
+    game.advance(2);
+    assert.equal(game.spells.get(shorter)?.stage, 'channel');
+    assert.equal(game.spells.get(shorter)?.stageSeconds, 0.25);
+    assert.equal(game.spells.get(ordinary)?.stage, 'windup');
+    game.advance();
+    assert.equal(game.spells.get(shorter)?.stage, 'recover');
+    assert.equal(game.spells.get(shorter)?.stageSeconds, 0.25);
+    assert.equal(game.log.filter((line) => line === 'beat@1').length, 1);
+    game.advance();
+    assert.equal(game.spells.isRunning(shorter), false);
+    assert.equal(game.spells.get(ordinary)?.stageSeconds, 1);
+    assert.deepEqual(read, ['windup', 'channel']);
+    game.advance(8);
+    assert.equal(game.spells.isRunning(ordinary), false);
+    assert.deepEqual(read, ['windup', 'channel', 'recover']);
+    assert.equal(game.registry.get(game.id.beam).timeline?.channel?.every, 0.25);
+  });
+
+  it('can add missing stages, skip authored durations with zero, and forget overrides on reuse', () => {
+    const game = timeline({
+      instant: spell({ activation: { kind: 'trigger' }, release: () => [mark('release')] }),
+      slow: spell({
+        activation: { kind: 'trigger' },
+        timeline: { windup: { seconds: 1 }, channel: { seconds: 1 }, recover: { seconds: 1 } },
+        release: () => [mark('release')]
+      })
+    });
+
+    const handle = game.spells.cast(game.a, game.id.instant, {
+      stages: { windup: 0.25, channel: 0.25, recover: 0.25 }
+    }).handle;
+
+    game.advance();
+    assert.equal(game.spells.get(handle)?.stage, 'channel');
+    game.advance();
+    assert.equal(game.spells.get(handle)?.stage, 'recover');
+    game.advance();
+    assert.equal(game.spells.isRunning(handle), false);
+    assert.equal(game.spells.cast(game.a, game.id.instant).status, 'ended');
+    assert.equal(
+      game.spells.cast(game.a, game.id.slow, { stages: { windup: 0, channel: 0, recover: 0 } }).status,
+      'ended'
+    );
+    const ordinary = game.spells.cast(game.a, game.id.slow).handle;
+
+    assert.equal(game.spells.get(ordinary)?.stageSeconds, 1);
+  });
+
+  it('uses an overridden windup when prestarting release cooldowns', () => {
+    const game = makeSpellGame(
+      {
+        slow: spell({
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 1 } },
+          cooldown: { aura: 'icd', seconds: 2, startsOn: 'release' },
+          release: () => undefined
+        })
+      },
+      { auras: { icd: aura({ duration: 2 }) } }
+    );
+
+    const caster = game.unit(1);
+
+    game.spells.startCooldowns(caster, game.id.slow, { stages: { windup: 0.5 } });
+    assert.equal(game.spells.cooldownLeft(caster, game.id.slow), 2.5);
+    const handle = game.spells.cast(caster, game.id.slow, { committed: true, stages: { windup: 0.5 } }).handle;
+
+    assert.equal(game.spells.get(handle)?.stageSeconds, 0.5);
+  });
+
   it('counts a windup down, releases on its last step, recovers, then ends', () => {
     const game = timeline({
       slow: spell({

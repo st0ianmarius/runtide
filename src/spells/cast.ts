@@ -89,6 +89,11 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
   /** Whether this cast skips checking and starting its spell's cooldowns. */
   ignoresCooldown = false;
 
+  /** Captured per-cast stage durations; undefined keeps the authored duration. */
+  windupSeconds: number | undefined = undefined;
+  channelSeconds: number | undefined = undefined;
+  recoverSeconds: number | undefined = undefined;
+
   /** The caster's entity id, the second part of every key. */
   casterId = NO_SOURCE;
 

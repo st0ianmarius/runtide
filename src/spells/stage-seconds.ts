@@ -1,7 +1,22 @@
 import type { CastSeconds } from './activation.ts';
+import type { CastStages } from './cast-request.ts';
 import type { Cast } from './cast.ts';
 import type { CastStage } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
+
+/** Checks one optional duration override before a cast is admitted. */
+const checkOverride = (stage: string, seconds: number | undefined): void => {
+  if (seconds !== undefined && !(seconds >= 0 && Number.isFinite(seconds))) {
+    throw new RangeError(`A cast's ${stage} override must last a finite number of seconds from 0; got ${seconds}.`);
+  }
+};
+
+/** Checks every supplied per-cast stage duration. */
+export const checkStages = (stages: CastStages | undefined): void => {
+  checkOverride('windup', stages?.windup);
+  checkOverride('channel', stages?.channel);
+  checkOverride('recover', stages?.recover);
+};
 
 /** Enters a stage: its seconds read now (a function reads the cast), its clock reset. Throws for bad seconds. */
 export const enterStage = <G extends SpellTypes>(

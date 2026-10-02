@@ -82,7 +82,7 @@ export {
 } from './spell-def.ts';
 
 export type { Reach, ReachRefusal } from './reach.ts';
-export type { AutoOptions, CastOptions, CastRefusal, CastReport, GateAnswer } from './cast-request.ts';
+export type { AutoOptions, CastOptions, CastRefusal, CastReport, CastStages, GateAnswer } from './cast-request.ts';
 export type { SpellHost } from './spell-host.ts';
 
 export type { ActivationKindId, ActivationShape, SpellCaster, SpellId, SpellTagId, SpellTypes } from './spell-types.ts';

@@ -1,11 +1,12 @@
 import { ownValue } from '../core/records.ts';
 import { PROC_LANDED, PROC_REFUSED, PROC_SKIPPED, type ProcKindDef } from '../procs/index.ts';
 import { rescaleClocks } from './auto.ts';
-import type { CastOptions, CastReport } from './cast-request.ts';
+import type { CastOptions, CastReport, CastStages } from './cast-request.ts';
 import type { SpellEngine } from './engine.ts';
 import { missing } from './missing.ts';
 import type { AfterProc, CastSpellProc, RescaleClocksProc, SpellProcKinds } from './procs.ts';
 import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
+import { checkStages } from './stage-seconds.ts';
 
 /** The options a `castSpell` proc casts with, reused: the cast order reads them before any hook runs. */
 class ProcCastOptions<G extends SpellTypes> implements CastOptions<G> {
@@ -13,6 +14,7 @@ class ProcCastOptions<G extends SpellTypes> implements CastOptions<G> {
   rank: number | undefined = undefined;
   source: number | undefined = undefined;
   ignoreCooldown: boolean | undefined = undefined;
+  stages: CastStages | undefined = undefined;
 }
 
 /** What the kinds reach: the engine, and the system's cast. */
@@ -69,6 +71,7 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
       options.rank = proc.rank ?? parent?.rank;
       options.source = ctx.source;
       options.ignoreCooldown = proc.ignoreCooldown;
+      options.stages = proc.stages;
 
       const { status } = parts.cast(caster, spellIdOf(engine, proc.spell, false), options);
 
@@ -77,13 +80,20 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
       return status === 'refused' ? PROC_REFUSED : PROC_LANDED;
     },
 
-    prepare: (proc) => ({ ...proc, spell: spellIdOf(engine, proc.spell, true) }),
+    prepare: (proc) => {
+      checkStages(proc.stages);
+
+      return { ...proc, spell: spellIdOf(engine, proc.spell, true) };
+    },
 
     explain: (proc) => ({
       values: {
         spell: spellIdOf(engine, proc.spell, false),
         ...(proc.rank === undefined ? {} : { rank: proc.rank }),
-        ...(proc.ignoreCooldown === undefined ? {} : { ignoreCooldown: Number(proc.ignoreCooldown) })
+        ...(proc.ignoreCooldown === undefined ? {} : { ignoreCooldown: Number(proc.ignoreCooldown) }),
+        ...(proc.stages?.windup === undefined ? {} : { windup: proc.stages.windup }),
+        ...(proc.stages?.channel === undefined ? {} : { channel: proc.stages.channel }),
+        ...(proc.stages?.recover === undefined ? {} : { recover: proc.stages.recover })
       }
     })
   };
