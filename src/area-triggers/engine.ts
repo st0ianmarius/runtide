@@ -16,6 +16,7 @@ import type { AreaTriggerRegistry } from './define-area-triggers.ts';
 import type { AreaLedger } from './delivery-def.ts';
 import { type AreaEngineParts, AreaPlace, missing, OwnerAuraApplication } from './engine-parts.ts';
 import type { AreaTriggerEvent, AreaTriggerEvents } from './events.ts';
+import { placeShape } from './frame.ts';
 import { Catcher } from './hits.ts';
 import { type AreaTriggerHandle, toAreaTriggerHandle } from './ids.ts';
 import { type Ledger, LedgerBook, LedgerView } from './ledgers.ts';
@@ -306,6 +307,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
     area.previous.z = area.position.z;
     area.position.x = x;
     area.position.z = z;
+    placeShape(this, area);
 
     // One asked to end moves on, and reaches no one.
     if (!area.isEnding && area.pending === undefined) {

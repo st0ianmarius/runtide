@@ -105,7 +105,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
   /** The share of this frame its last `advance` piece reached: 0 before any, where its next piece's share starts. */
   readonly advancedAt: number;
 
-  /** Its shape, placed at its position and turned to its heading once its own motion this frame is done. */
+  /** Its shape, refreshed after `move`, after the `frame` hook before its procs, and by `advance` before contact. */
   readonly shape: Shape;
 
   /** The tick it spawned on. */
@@ -168,7 +168,7 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
    * a wall hit's share, an arc's i-th of n at i / n), so it meets a runner where both are at the same moment; pieces
    * left at 1 sweep the units where they stand. A unit at a joint is reached once. For a `move` or `frame` hook; the
    * frame's own contact sweeps only what is left after the last piece. Nothing is swept for a kind with no `contact`,
-   * nor for one asked to end.
+   * nor for one asked to end. Its shape is placed at the new position before contact runs.
    */
   readonly advance: (to: Vec2, at?: number) => void;
 
@@ -243,7 +243,8 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
 
   /**
    * Its shape, relative to itself: the origin is its position and headings turn with its heading (a lane running ahead
-   * is `lane({ length, width, dir: 0 })`); a function of it is read again at every frame.
+   * is `lane({ length, width, dir: 0 })`); a function of it is read whenever its shape is placed, including after
+   * `move`, after the `frame` hook before its procs, and by `advance` before contact.
    */
   readonly shape: Shape | AreaFn<G, State, Shape>;
 
@@ -270,8 +271,8 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
 
   /**
    * The order of its frame's parts, each at most once: `move` (then its shape is placed again), `contact`
-   * (the sweep along this frame's move), `frame`, `pulses` and `auras`; `['move', 'contact', 'frame', 'pulses',
-   * 'auras']` by default.
+   * (the sweep along this frame's move), `frame` (then its shape is placed before its procs), `pulses` and `auras`;
+   * `['move', 'contact', 'frame', 'pulses', 'auras']` by default.
    */
   readonly order?: readonly AreaPhase[];
 

@@ -29,7 +29,10 @@ const runFrame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
   const list = engine.takeList();
 
   try {
-    engine.run(area, hook(area, dt, list), list);
+    const result = hook(area, dt, list);
+
+    placeShape(engine, area);
+    engine.run(area, result, list);
   } finally {
     engine.giveList(list);
   }
@@ -91,7 +94,8 @@ const runPhase = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
 /**
  * One frame over `dt`: it ages, notes where it was, an owner-anchored one moves onto its owner, and it
  * places its shape, then runs its parts in its kind's order: `move` (placing its shape again), `contact`,
- * `frame`, `pulses` and `auras`. A hook that asked it to end ends it once that part is done.
+ * `frame` (placing its shape before its returned procs), `pulses` and `auras`. An `advance` places its shape before
+ * sweeping contact. A hook that asked it to end ends it once that part is done.
  */
 export const frame = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): void => {
   const { registry } = engine;
