@@ -13,7 +13,7 @@ import {
   defineAuraTags
 } from '../../src/auras/index.ts';
 import { against, defineConditions, defineValues } from '../../src/conditions/index.ts';
-import { createBus, createClock, type SimClock, stream } from '../../src/core/index.ts';
+import { type Bitset, createBus, createClock, type SimClock, stream } from '../../src/core/index.ts';
 import {
   type Blow,
   createDamageSystem,
@@ -44,6 +44,7 @@ import {
   type AnySpellDef,
   createSpellSystem,
   defineSpells,
+  defineSpellTags,
   type SpellId,
   type SpellProcs,
   type SpellSystem
@@ -157,8 +158,8 @@ export interface UnitGame extends ScriptTypes {
   /** Open spell names. */
   readonly spellName: string;
 
-  /** No spell tags. */
-  readonly spellTag: never;
+  /** Tags used by scoped damage modifiers. */
+  readonly spellTag: 'attack';
 
   /** No input. */
   readonly input: undefined;
@@ -216,6 +217,9 @@ export const STATS = defineStats({
 
 const aura = defineAura<UnitGame>;
 
+/** The test spell scopes. */
+export const SPELL_TAGS = defineSpellTags(['attack']);
+
 /** The test aura tags. */
 export const AURA_TAGS = defineAuraTags(['stun', 'root', 'freeze', 'slow', 'freezeImmune', 'veil']);
 
@@ -239,6 +243,7 @@ const AURAS = defineAuras<UnitGame, string>({
   brand: aura({ duration: 'infinite', boundToSource: true }),
   slayer: aura({ duration: 'infinite', modifiers: [mul('might', 1.5, { when: against({ is: 'elite' }) })] }),
   executioner: aura({ duration: 'infinite', modifiers: [plus('might', againstValue('missingShare'))] }),
+  scopedMight: aura({ duration: 'infinite', modifiers: [mul('might', 2, { scope: SPELL_TAGS.id.attack })] }),
   lastStand: aura({
     duration: 'infinite',
     removedOn: ['dead'],
@@ -310,6 +315,9 @@ export interface UnitGameOptions<Extra extends string = never> {
 
   /** Whether units fold their stats through the modifier system; true when absent. */
   readonly folds?: boolean;
+
+  /** A custom mapping from damage spells to modifier scopes. */
+  readonly scopeOf?: (spell: UnitGame['spell']) => Bitset | undefined;
 
   /** More spells, beside the swing and the channel. */
   readonly spells?: Readonly<Record<Extra, AnySpellDef<UnitGame>>>;
@@ -413,15 +421,18 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     }
   });
 
-  const spellRegistry = defineSpells<UnitGame, 'swing' | 'channel' | Extra>({
-    ...(options.spells ?? spellTable<Extra>({})),
-    swing: { activation: { kind: 'auto', interval: 1 }, release: () => undefined },
-    channel: {
-      activation: { kind: 'trigger' },
-      timeline: { windup: { seconds: 1 }, interrupts: { stun: 'cancel', freeze: 'pause' } },
-      release: () => undefined
-    }
-  });
+  const spellRegistry = defineSpells<UnitGame, 'swing' | 'channel' | Extra>(
+    {
+      ...(options.spells ?? spellTable<Extra>({})),
+      swing: { tags: ['attack'], activation: { kind: 'auto', interval: 1 }, release: () => undefined },
+      channel: {
+        activation: { kind: 'trigger' },
+        timeline: { windup: { seconds: 1 }, interrupts: { stun: 'cancel', freeze: 'pause' } },
+        release: () => undefined
+      }
+    },
+    { tags: SPELL_TAGS }
+  );
 
   const holder: { procs?: ProcSystem<UnitGame> } = {};
 
@@ -448,7 +459,9 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     auras,
     ai,
     spells,
-    ...(options.folds === false ? {} : { modifiers: { system: modifiers } }),
+    ...(options.folds === false
+      ? {}
+      : { modifiers: { system: modifiers, ...(options.scopeOf === undefined ? {} : { scopeOf: options.scopeOf }) } }),
     ...(options.areaTriggers === undefined ? {} : { areaTriggers: options.areaTriggers }),
     health: {
       stat: 'maxHealth',

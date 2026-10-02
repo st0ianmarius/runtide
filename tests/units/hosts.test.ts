@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { createBitset } from '../../src/core/index.ts';
 import type { UnitDef } from '../../src/units/index.ts';
-import { auraId, makeUnitGame, STATS, type UnitGame } from '../helpers/unit-game.ts';
+import { auraId, makeUnitGame, SPELL_TAGS, STATS, type UnitGame } from '../helpers/unit-game.ts';
 
 const TEMPLATES = {
   hero: { stats: { maxHealth: 200 } },
@@ -67,6 +68,55 @@ describe('the resource policy', () => {
 });
 
 describe('the damage host', () => {
+  it('folds spell scopes with target conditions and clears them for subsequent reads', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const hero = game.units.spawn(game.id.hero, { side: 0 });
+    const elite = game.units.spawn(game.id.elite, { side: 1 });
+    const grunt = game.units.spawn(game.id.grunt, { side: 1 });
+
+    game.auras.apply(hero, auraId('scopedMight'));
+    game.auras.apply(hero, auraId('slayer'));
+
+    const statsOf = game.units.damageHost.statsOf;
+
+    assert.ok(statsOf !== undefined);
+
+    assert.equal(game.damage.hit({ attacker: hero, target: elite, amount: 10, spell: game.spellId.swing }).amount, 30);
+    assert.equal(game.damage.hit({ attacker: hero, target: grunt, amount: 10, spell: game.spellId.swing }).amount, 20);
+    assert.equal(
+      game.damage.hit({ attacker: hero, target: elite, amount: 10, spell: game.spellId.channel }).amount,
+      15
+    );
+    assert.equal(game.damage.hit({ attacker: hero, target: elite, amount: 10 }).amount, 15);
+    assert.equal(statsOf(hero, game.spellId.swing).total(STATS.id.might), 2);
+    assert.equal(statsOf(hero, undefined).total(STATS.id.might), 1);
+    assert.equal(game.units.statsOf(hero, elite).total(STATS.id.might), 1.5);
+    assert.equal(game.units.statsOf(hero).total(STATS.id.might), 1);
+  });
+
+  it('lets the game map damage spell references to scopes', () => {
+    const attack = createBitset([SPELL_TAGS.id.attack]);
+    const game = makeUnitGame(TEMPLATES, { scopeOf: () => attack });
+    const hero = game.units.spawn(game.id.hero, { side: 0 });
+    const grunt = game.units.spawn(game.id.grunt, { side: 1 });
+
+    game.auras.apply(hero, auraId('scopedMight'));
+
+    assert.equal(
+      game.damage.hit({ attacker: hero, target: grunt, amount: 10, spell: game.spellId.channel }).amount,
+      20
+    );
+    assert.equal(game.damage.hit({ attacker: hero, target: grunt, amount: 10 }).amount, 10);
+  });
+
+  it('reads base stats for a spell without a modifier system', () => {
+    const game = makeUnitGame(TEMPLATES, { folds: false });
+    const hero = game.units.spawn(game.id.hero, { side: 0, stats: { might: 2 } });
+    const grunt = game.units.spawn(game.id.grunt, { side: 1 });
+
+    assert.equal(game.damage.hit({ attacker: hero, target: grunt, amount: 10, spell: game.spellId.swing }).amount, 20);
+  });
+
   it('takes blows off health, and a lethal one leaves the unit dead with a death and a kill', () => {
     const game = makeUnitGame(TEMPLATES);
     const hero = game.units.spawn(game.id.hero, { side: 0 });

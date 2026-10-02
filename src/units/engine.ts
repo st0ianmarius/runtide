@@ -1,6 +1,7 @@
 import { type AbilitySystem, NO_LOADOUT } from '../abilities/index.ts';
 import { type AiSystem, NO_BRAIN } from '../ai/index.ts';
 import type { AuraSystem } from '../auras/index.ts';
+import type { Bitset } from '../core/index.ts';
 import { ownValue } from '../core/records.ts';
 import type { Vec2 } from '../math/index.ts';
 import { basesView, type ModifierSystem, type StatId, type StatView } from '../modifiers/index.ts';
@@ -68,6 +69,9 @@ export interface UnitSystemBase<G extends UnitTypes> {
   readonly modifiers?: {
     /** The modifier system, whose fold's host is the unit. */
     readonly system: ModifierSystem<G['bearer'], G['stat'], G['condition'], G['valueKind'], G['source']>;
+
+    /** A damage spell's modifier scopes; numeric spell ids use the spell registry's tags when absent. */
+    readonly scopeOf?: (spell: G['spell']) => Bitset | undefined;
   };
 
   /** Health: the stat that is a unit's maximum, and what health does when it moves (`scale`). */
@@ -293,22 +297,23 @@ export class UnitEngine<G extends UnitTypes> {
   }
 
   /**
-   * A unit's stats, against another unit when one is named (a blow's other side): the same view each time, the other
-   * unit set on its read, so it is read at once and not kept.
+   * A unit's stats, against another unit and within spell scopes when named: the same contextual view each time,
+   * with its target and scopes set on its read, so it is read at once and not kept.
    */
-  statsOf(bearer: G['bearer'], against?: G['bearer']): StatView {
+  statsOf(bearer: G['bearer'], against?: G['bearer'], scope?: Bitset): StatView {
     const unit = unitOf(bearer);
     const view = unit.view ?? missing('a unit lost its stat view');
     const { sheet } = unit;
     const system = this.options.modifiers?.system;
 
-    if (against === undefined || sheet === undefined || system === undefined) {
+    if ((against === undefined && scope === undefined) || sheet === undefined || system === undefined) {
       return view;
     }
 
-    const read = (unit.againstRead ??= { host: bearer, against });
+    const read = (unit.againstRead ??= { host: bearer, against, scope });
 
     read.against = against;
+    read.scope = scope;
 
     return (unit.againstView ??= system.view(sheet, read));
   }

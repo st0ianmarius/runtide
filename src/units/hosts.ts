@@ -46,7 +46,23 @@ export const damageHostOf = <G extends UnitTypes>(
   },
 
   maxHealth: (unit) => unitOf<G>(unit).maxHealth,
-  statsOf: (unit, _spell, against) => engine.statsOf(unit, against),
+  statsOf: (unit, spell, against) => {
+    if (spell === undefined) {
+      return engine.statsOf(unit, against);
+    }
+
+    const scopeOf = engine.options.modifiers?.scopeOf;
+
+    if (scopeOf !== undefined) {
+      return engine.statsOf(unit, against, scopeOf(spell));
+    }
+
+    return engine.statsOf(
+      unit,
+      against,
+      typeof spell === 'number' ? engine.options.spells.registry.tagSets[spell] : undefined
+    );
+  },
   idOf: (unit) => unitOf<G>(unit).id,
   unitOf: (id) => engine.byId.get(id),
 
