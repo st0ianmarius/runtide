@@ -17,9 +17,9 @@ import type {
 export const shareOf = (multiplier: number, share: number, neutral = 1): number =>
   share === 1 && neutral === 1 ? multiplier : 1 + share * (multiplier - neutral);
 
-/** The 0-based slot of a 1-based rank in lists of `rankCount` entries, clamped to the lists. */
+/** The 0-based slot of a 1-based rank, clamped to the lists; a missing or NaN rank reads the first slot. */
 export const rankSlot = (rankCount: number, rank: number | undefined): number => {
-  if (rank === undefined || rank <= 1) {
+  if (rank === undefined || Number.isNaN(rank) || rank <= 1) {
     return 0;
   }
 

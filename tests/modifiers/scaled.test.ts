@@ -50,6 +50,25 @@ const unit = (totals: Readonly<Record<string, number>>): StatView => ({
 });
 
 describe('scaled values', () => {
+  it('treat a NaN rank as rank 1 in evaluation, explanations, and snapshots', () => {
+    const value = compileScaled(
+      STATS,
+      scaled(
+        ranks(60, 95),
+        add('attackDamage', ranks(1.2, 1.5)),
+        amp('damage', ranks(1, 0.5)),
+        curveOf(linear(scaled(ranks(0.5, 1))), 1, { stat: 'level' })
+      )
+    );
+
+    const caster = unit({ attackDamage: 100, damage: 1.5, level: 2 });
+    const explanation = explainScaled(value, Number.NaN, { caster });
+
+    assert.equal(evaluateScaled(value, { caster, rank: Number.NaN }), 270);
+    assert.deepEqual(explanation, explainScaled(value, 1, { caster }));
+    assert.equal(finishScaled(snapshotScaled(value, caster, Number.NaN)), 270);
+  });
+
   it('evaluate a LoL-style ratio: base per rank + 120% AD + 50% AP + 8% of the target’s maximum health', () => {
     const damage = compileScaled(
       STATS,
