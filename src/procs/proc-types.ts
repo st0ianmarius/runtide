@@ -116,6 +116,9 @@ export interface ProcHost<G extends ProcTypes> {
   /** The entity id of a unit, which procs credit as their source; `NO_SOURCE` when absent. */
   readonly idOf?: (unit: G['bearer']) => number;
 
+  /** Resolves a credited entity id to its bearer; `undefined` when it no longer exists. */
+  readonly unitOf?: (id: number) => G['bearer'] | undefined;
+
   /** Hands out an amount of a resource (its id: its position in the system's `resources`) to a unit. */
   readonly grant?: (unit: G['bearer'], resource: number, amount: number) => void;
 

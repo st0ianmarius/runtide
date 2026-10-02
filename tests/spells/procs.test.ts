@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { defineTickSlots, POOL_MIN_FREE } from '../../src/core/index.ts';
 import { damage } from '../../src/damage/index.ts';
-import { applyAura, escapeReport, explainProc, run } from '../../src/procs/index.ts';
+import { applyAura, createProcSystem, escapeReport, explainProc, run } from '../../src/procs/index.ts';
 import { after, castSpell, CORE_ACTIVATIONS, defineActivationKind, defineActivations } from '../../src/spells/index.ts';
 import { aura, type Charged, type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
 
@@ -532,6 +532,119 @@ describe('the escape report', () => {
 });
 
 describe('the cast a proc list belongs to', () => {
+  it('owns a reusable death pop by its source and gives its bound the captured origin', () => {
+    const checked: number[][] = [];
+    const popped: number[][] = [];
+
+    const pop = after<Game>(
+      0.15,
+      [
+        run<Game>('pop', (ctx) => {
+          popped.push([ctx.self.id, ctx.target.id, ctx.source]);
+        })
+      ],
+      {
+        owner: 'source',
+        bound: (owner, origin) => {
+          checked.push([owner.id, origin.self.id, origin.target?.id ?? -1, origin.source ?? -1]);
+          assert.equal(origin.aura, undefined);
+          assert.equal(origin.payload, undefined);
+
+          return owner.hp > 0;
+        }
+      }
+    );
+
+    const game = makeSpellGame(
+      {},
+      {
+        auras: {
+          hex: aura({ duration: 'infinite', removedOn: ['dead'], onState: () => [pop] })
+        }
+      }
+    );
+
+    const hero = game.unit(1);
+    const other = game.unit(2);
+    const foe = game.unit(100);
+
+    foe.hp = 0;
+    game.auras.apply(foe, { aura: game.auraId.hex, source: hero.id });
+    game.auras.enterState(foe, 'dead');
+    assert.equal(game.spells.withdrawDelayed(foe), 0);
+    game.step(1);
+    assert.equal(game.spells.stepDelayed(), 1);
+    assert.deepEqual(checked, [[1, 100, 100, 1]]);
+    assert.deepEqual(popped, [[100, 100, 1]]);
+
+    other.hp = 0;
+    game.auras.apply(foe, { aura: game.auraId.hex, source: other.id });
+    game.auras.enterState(foe, 'dead');
+    game.step(1);
+    assert.equal(game.spells.stepDelayed(), 0);
+    assert.deepEqual(checked, [
+      [1, 100, 100, 1],
+      [2, 100, 100, 2]
+    ]);
+    assert.equal(popped.length, 1);
+
+    game.auras.apply(foe, { aura: game.auraId.hex, source: hero.id });
+    game.auras.enterState(foe, 'dead');
+    assert.equal(game.spells.withdrawDelayed(foe), 0);
+    assert.equal(game.spells.withdrawDelayed(hero), 1);
+    game.step(1);
+    assert.equal(game.spells.stepDelayed(), 0);
+    assert.equal(checked.length, 2);
+  });
+
+  it('resolves explicit self and source selectors independently of inherited ownership', () => {
+    const game = makeSpellGame({});
+    const self = game.unit(1);
+    const source = game.unit(2);
+
+    game.procs.run(
+      [
+        after<Game>(
+          0.25,
+          [
+            after<Game>(1, [mark('inherited')]),
+            after<Game>(1, [mark('self')], { owner: 'self' }),
+            after<Game>(1, [mark('source')], { owner: 'source' })
+          ],
+          { owner: 'source' }
+        )
+      ],
+      { self, source: source.id }
+    );
+    game.step(1);
+    assert.equal(game.spells.stepDelayed(), 1);
+    assert.equal(game.spells.withdrawDelayed(self), 1);
+    assert.equal(game.spells.withdrawDelayed(source), 2);
+    game.step(4);
+    assert.equal(game.spells.stepDelayed(), 0);
+    assert.deepEqual(game.log, []);
+  });
+
+  it('skips a source-owned delay when the source is absent or cannot be resolved', () => {
+    const game = makeSpellGame({});
+    const self = game.unit(1);
+    const pop = after<Game>(0.25, [mark('pop')], { owner: 'source' });
+
+    assert.equal(game.procs.apply(pop, { self, source: -1 }).status, 'skipped');
+    assert.equal(game.procs.apply(pop, { self, source: 999 }).status, 'skipped');
+    assert.equal(game.spells.delayed.pending, 0);
+    assert.equal(game.spells.withdrawDelayed(self), 0);
+
+    const procs = createProcSystem<Game>({
+      auras: game.auras,
+      kinds: game.procs.kinds,
+      host: { log: game.log, idOf: (unit) => unit.id }
+    });
+
+    assert.throws(() => procs.apply(pop, { self, source: self.id }), /needs the proc host's unitOf service/);
+    assert.equal(game.spells.delayed.pending, 0);
+  });
+
   it('gives an aura pop an explicit owner without changing its bearer, target, or source credit', () => {
     const seen: number[][] = [];
     const owners: Game['bearer'][] = [];

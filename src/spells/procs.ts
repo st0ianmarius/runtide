@@ -1,5 +1,13 @@
 import type { TickSlotId } from '../core/index.ts';
-import type { ChanceOption, Proc, ProcContext, ProcKindDef, ProcShape, ProcTarget } from '../procs/index.ts';
+import type {
+  ChanceOption,
+  Proc,
+  ProcContext,
+  ProcKindDef,
+  ProcOrigin,
+  ProcShape,
+  ProcTarget
+} from '../procs/index.ts';
 import type { SpellId, SpellTagId, SpellTypes } from './spell-types.ts';
 
 /**
@@ -56,9 +64,11 @@ export interface AfterProc<G extends SpellTypes> extends ProcShape {
 
   /**
    * Who owns this list for `bound` and withdrawal. Defaults to its parent delayed list's owner for follow-ups,
-   * otherwise the cast's caster or the list's self. Does not change targets, source credit, or cast retention.
+   * otherwise the cast's caster or the list's self. `self` names the scheduling list's self; `source` resolves its
+   * credit through the proc host's `unitOf` (required for this selector). An absent or missing source schedules
+   * nothing. Does not change targets, source credit, or cast retention.
    */
-  readonly owner?: G['bearer'];
+  readonly owner?: 'self' | 'source' | G['bearer'];
 
   /**
    * Whether they still land, asked of their captured owner as they fall due: a false
@@ -69,8 +79,8 @@ export interface AfterProc<G extends SpellTypes> extends ProcShape {
 
 /** An `after` proc's bound: whether its owner still lets it land; declared as a method so a narrower owner fits. */
 export type DelayBound<G extends SpellTypes> = {
-  /** Reads the owner. */
-  bivarianceHack(owner: G['bearer']): boolean;
+  /** Reads the owner and captured origin (no live aura or event payload); pooled, so read it only during the call. */
+  bivarianceHack(owner: G['bearer'], origin: ProcOrigin<G>): boolean;
 }['bivarianceHack'];
 
 /**

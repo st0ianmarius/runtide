@@ -77,8 +77,8 @@ export interface DelaySpec<G extends SpellTypes> {
   /** Its tick slot; the landing list's slot for `due`, else 0. */
   readonly slot?: number | undefined;
 
-  /** Its explicit owner; otherwise inherited from a parent delayed list, or the cast's caster/list's self. */
-  readonly owner?: G['bearer'] | undefined;
+  /** Its bearer or self/source selector; otherwise inherited from a parent delay, or the cast's caster/list's self. */
+  readonly owner?: 'self' | 'source' | G['bearer'] | undefined;
 
   /** Whether its owner still lets it land, asked as it falls due; it always lands when absent. */
   readonly bound?: DelayBound<G> | undefined;
@@ -130,13 +130,17 @@ export class DelayedProcs<G extends SpellTypes> {
 
   /**
    * Schedules a list for the origin of the running proc context, held by the cast the running list belongs to (if any),
-   * due `seconds` from now or from the landing list's due time.
+   * due `seconds` from now or from the landing list's due time. Returns false when a source owner cannot be resolved.
    */
-  schedule(ctx: ProcContext<G>, spec: DelaySpec<G>): void {
+  schedule(ctx: ProcContext<G>, spec: DelaySpec<G>): boolean {
     const engine = this.#engine;
     const parent = spec.from === 'due' ? this.landing : undefined;
     const cast = engine.castFor(ctx);
     const owner = this.#ownerFor(ctx, spec, cast);
+
+    if (owner === undefined) {
+      return false;
+    }
 
     this.#pending = ctx.self;
 
@@ -161,6 +165,8 @@ export class DelayedProcs<G extends SpellTypes> {
     const wheel = this.#wheels[record.slot] ?? missing(`tick slot ${record.slot}`);
 
     wheel.schedule(record.anchor + stepsUntil(record.offset, dt), handle);
+
+    return true;
   }
 
   /**
@@ -237,7 +243,7 @@ export class DelayedProcs<G extends SpellTypes> {
 
     // Released when its bound fails or throws: out of the live list already, nothing else would let it go.
     try {
-      lands = record.bound?.(record.owner) !== false;
+      lands = record.bound?.(record.owner, record) !== false;
     } finally {
       if (!lands) {
         this.#release(record);
@@ -297,7 +303,23 @@ export class DelayedProcs<G extends SpellTypes> {
   }
 
   /** Captures ownership independently of cast retention; only the landing list's own descendants inherit it. */
-  #ownerFor(ctx: ProcContext<G>, spec: DelaySpec<G>, cast: Cast<G> | undefined): G['bearer'] {
+  #ownerFor(ctx: ProcContext<G>, spec: DelaySpec<G>, cast: Cast<G> | undefined): G['bearer'] | undefined {
+    if (spec.owner === 'self') {
+      return ctx.self;
+    }
+
+    if (spec.owner === 'source') {
+      if (ctx.source === NO_SOURCE) {
+        return undefined;
+      }
+
+      if (ctx.host.unitOf === undefined) {
+        throw new TypeError("an after proc owned by source needs the proc host's unitOf service.");
+      }
+
+      return ctx.host.unitOf(ctx.source);
+    }
+
     if (spec.owner !== undefined) {
       return spec.owner;
     }

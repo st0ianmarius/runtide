@@ -159,8 +159,8 @@ export interface Game extends AreaTriggerTypes, DamageTypes, TriggerTypes {
   /** One clock. */
   readonly clock: 'world';
 
-  /** No states. */
-  readonly state: never;
+  /** The death state, which aura hooks can answer. */
+  readonly state: 'dead';
 
   /** The framework's blow. */
   readonly blow: Blow<Game>;
@@ -496,12 +496,14 @@ export const makeSpellGame = <
 
   const cues = createCueBuffer(CUES);
   const views = new WeakMap<Unit, StatView>();
+  const units = new Map<number, Unit>();
   const late: { procs?: ProcSystem<Game>; spells?: SpellSystem<Game> } = {};
 
   const auras = createAuraSystem<Game>({
     registry: auraRegistry,
     tags: TAGS,
     clocks: { world: clock },
+    states: ['dead'],
     host: { run: (list, ctx) => late.procs?.runAura(list, ctx) },
     events: { bus, changed: bus.kind.aura }
   });
@@ -537,6 +539,7 @@ export const makeSpellGame = <
   const host = {
     log,
     idOf: (unit: Unit) => unit.id,
+    unitOf: (id: number) => units.get(id),
     positionOf: (unit: Unit): Vec2 => unit.at,
     statsOf: (unit: Unit) => statsOf(unit),
     ...options.host
@@ -630,6 +633,7 @@ export const makeSpellGame = <
     };
 
     views.set(made, viewOf(made));
+    units.set(id, made);
     world.add(made, { id, at: made.at, radius: 0.5, side: id >= 100 ? 1 : 0 });
 
     for (const spell of registry.ids) {

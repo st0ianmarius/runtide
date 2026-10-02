@@ -5,7 +5,7 @@ import type { GateAnswer } from './cast-request.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 
 /**
- * The narrow host a spell system runs against: the proc host's services (`idOf`, `party`, `positionOf`,
+ * The narrow host a spell system runs against: the proc host's services (`idOf`, `unitOf`, `party`, `positionOf`,
  * `grant`), plus what only spells ask. Every member is optional; without one, the matching rule is the default below.
  */
 export interface SpellHost<G extends SpellTypes> extends ProcHost<G> {

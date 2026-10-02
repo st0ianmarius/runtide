@@ -108,9 +108,7 @@ const checkAfter = <G extends SpellTypes>(engine: SpellEngine<G>, proc: AfterPro
 const afterKind = <G extends SpellTypes>(engine: SpellEngine<G>): ProcKindDef<AfterProc<G>, G> => ({
   apply: (proc, ctx) => {
     checkAfter(engine, proc);
-    engine.delayed.schedule(ctx, proc);
-
-    return PROC_LANDED;
+    return engine.delayed.schedule(ctx, proc) ? PROC_LANDED : PROC_SKIPPED;
   },
 
   prepare: (proc, resolve) => {

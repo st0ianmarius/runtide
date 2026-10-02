@@ -509,7 +509,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
       ...ai.procKinds
     }),
     auras,
-    host: { idOf: (unit) => unit.id },
+    host: { idOf: (unit) => unit.id, unitOf: (id) => units.byId(id) },
     random: stream(3)
   });
 
