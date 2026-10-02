@@ -1,6 +1,7 @@
 /**
  * The kinds of combat log entry, by code: a blow (`damage`), a blow the target's ignore stage ignored
- * (`immune`), a heal, a death, an aura's lifecycle, a cast's four moments, and an area trigger's two.
+ * (`immune`), a heal, a death, an aura's lifecycle, a cast's four moments, an area trigger's two, and a force (a
+ * knock, push or pull). A new kind is appended, so the codes of the others stay.
  */
 export const COMBAT_ENTRY_KINDS = [
   'damage',
@@ -16,7 +17,8 @@ export const COMBAT_ENTRY_KINDS = [
   'castHit',
   'castEnd',
   'areaSpawned',
-  'areaEnded'
+  'areaEnded',
+  'force'
 ] as const;
 
 /** A kind of combat log entry. */
@@ -49,16 +51,25 @@ export interface CombatEntry {
   /** The entity it is credited to (a blow's, heal's or death's source, an aura's source, a cast's credit, an owner). */
   readonly source: number;
 
-  /** The entity that acted (the attacker, the healer, the killer, the caster, an aura's dispeller); −1 for none. */
+  /**
+   * The entity that acted (the attacker, the healer, the killer, the caster, an aura's dispeller, a force's attacker);
+   * −1 for none.
+   */
   readonly actor: number;
 
-  /** The entity it happened to (the target, the one who died, the aura's bearer); −1 for none. */
+  /** The entity it happened to (the target, the one who died, the aura's bearer, the unit a force moved); −1 for none. */
   readonly target: number;
 
-  /** The spell behind it (the host's `spellIdOf` of a blow's, heal's or death's spell; a cast's spell); −1 for none. */
+  /**
+   * The spell behind it (the host's `spellIdOf` of a blow's, heal's or death's spell, or of the spell of the blow whose
+   * knockback a force is; a cast's spell); −1 for none.
+   */
   readonly spell: number;
 
-  /** The aura of an aura entry, or the aura a blow or heal came from (a damage over time's beat); −1 for none. */
+  /**
+   * The aura of an aura entry, or the aura a blow or heal came from (a damage over time's beat), or that a force's blow
+   * came from; −1 for none.
+   */
   readonly aura: number;
 
   /** The kind of an area trigger entry; −1 for any other. */
@@ -67,10 +78,10 @@ export interface CombatEntry {
   /** The damage kind of a damage or immune entry; −1 for any other. */
   readonly damageKind: number;
 
-  /** What reached health (a blow's `dealt`), what a heal gave back, or an aura's stacks. */
+  /** What reached health (a blow's `dealt`), what a heal gave back, an aura's stacks, or a force's applied strength. */
   readonly amount: number;
 
-  /** What it was asked for (a blow's or heal's `base`). */
+  /** What it was asked for (a blow's or heal's `base`, a force's strength before its stages). */
   readonly base: number;
 
   /** What absorbs took out of a blow. */
@@ -79,7 +90,11 @@ export interface CombatEntry {
   /** What mitigation took off a blow (negative when it amplified it). */
   readonly mitigated: number;
 
-  /** What went past health: a blow's overkill, a heal's overheal. */
+  /**
+   * What went past health: a blow's overkill, a heal's overheal. For a blow flagged `ENTRY_DEATH_PREVENTED` it is
+   * instead the damage the prevented death did not deal (the blow's `prevented`): such a blow never has overkill, so
+   * the column is free, and the flag says which it holds.
+   */
   readonly overflow: number;
 
   /** Its flag bits (`ENTRY_CRIT`, `ENTRY_KILLED`, `ENTRY_DEATH_PREVENTED`). */
@@ -89,13 +104,20 @@ export interface CombatEntry {
   readonly outcome: number;
 
   /**
-   * A code for how it ended: a blow's status (`BLOW_STATUSES`), a heal's (`skipped`, `blocked`, `landed`), a cast end's
-   * outcome (the log's cast outcomes), an area trigger end's reason (its end reasons); −1 for none.
+   * A code for how it ended: a blow's status (`BLOW_STATUSES`), a heal's (`skipped`, `blocked`, `landed`), a force's
+   * (`skipped`, `ignored`, `landed`), a cast end's outcome (the log's cast outcomes), an area trigger end's reason (its
+   * end reasons); −1 for none.
    */
   readonly reason: number;
+
+  /** A force entry's kind, as its index in the log's force kinds (`knock`, `push`, `pull`, the game's own); −1 for none. */
+  readonly forceKind: number;
 }
 
-/** The numeric fields of an entry, in the order the log stores them. */
+/**
+ * The numeric fields of an entry, in the order the log stores, digests and would send them. A new column is appended,
+ * so the others keep their places: `forceKind` is the latest.
+ */
 export const ENTRY_FIELDS = [
   'tick',
   'kind',
@@ -113,7 +135,8 @@ export const ENTRY_FIELDS = [
   'overflow',
   'flags',
   'reason',
-  'outcome'
+  'outcome',
+  'forceKind'
 ] as const;
 
 /** An entry being written or read: a class for fast properties, reused. */
@@ -136,6 +159,7 @@ export class EntryRecord implements CombatEntry {
   flags = 0;
   reason = -1;
   outcome = -1;
+  forceKind = -1;
 
   /** Clears it for a new entry of a kind on a tick. */
   begin(kind: CombatEntryKind, tick: number): this {
@@ -156,6 +180,7 @@ export class EntryRecord implements CombatEntry {
     this.flags = 0;
     this.reason = -1;
     this.outcome = -1;
+    this.forceKind = -1;
 
     return this;
   }

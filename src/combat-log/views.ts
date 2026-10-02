@@ -50,6 +50,9 @@ export interface BlowView<Unit, Spell> {
   /** Whether a death it would have dealt was prevented. */
   readonly isDeathPrevented: boolean;
 
+  /** The damage a prevented death did not deal (0 unless `isDeathPrevented`); 0 when absent. */
+  readonly prevented?: number | undefined;
+
   /** The outcome row it rolled (`dodge`, `crit`), if any. */
   readonly outcome: string | undefined;
 }
@@ -100,6 +103,41 @@ export interface DeathView<Unit, Spell> {
 
   /** The spell behind it. */
   readonly spell: Spell | undefined;
+}
+
+/** What the log reads of a force (a damage system's `Force` is one): its units, credit, kind, strength and status. */
+export interface ForceView<Unit, Spell> {
+  /** Who it moved. */
+  readonly target: Unit;
+
+  /** Who caused it. */
+  readonly attacker: Unit | undefined;
+
+  /** Who it is credited to. */
+  readonly source: number;
+
+  /** What it is: `knock`, `push`, `pull` or the game's own. */
+  readonly kind: string;
+
+  /** The strength it was asked for. */
+  readonly base: number;
+
+  /** The strength applied (0 when ignored). */
+  readonly amount: number;
+
+  /** The blow whose knockback it is, if a blow caused it. */
+  readonly blow:
+    | {
+        /** The blow's spell. */
+        readonly spell: Spell | undefined;
+
+        /** The aura the blow came from, if any. */
+        readonly aura?: number | undefined;
+      }
+    | undefined;
+
+  /** How it ended. */
+  readonly status: string;
 }
 
 /** What the log reads of an aura lifecycle event (an aura system's `AuraEvent` is one). */
@@ -197,6 +235,12 @@ export interface DeathPayload<Unit, Spell> {
   readonly death: DeathView<Unit, Spell> | undefined;
 }
 
+/** A force event's payload, as the log reads it (`ForceEvent`). */
+export interface ForcePayload<Unit, Spell> {
+  /** The force. */
+  readonly force: ForceView<Unit, Spell> | undefined;
+}
+
 /** The event kinds of a damage system the log records. */
 export interface DamageLogEvents<Unit, Spell> {
   /**
@@ -216,6 +260,15 @@ export interface DamageLogEvents<Unit, Spell> {
 
   /** Every death (`DamageEvents.death`). */
   readonly death?: EventKind<DeathPayload<Unit, Spell>>;
+
+  /** Every force that was not skipped, after the host applied it (`DamageEvents.forced`). */
+  readonly forced?: EventKind<ForcePayload<Unit, Spell>>;
+
+  /**
+   * The force kinds a force entry is coded by: the framework's (`FORCE_KINDS`) then the game's own; `FORCE_KINDS` when
+   * absent.
+   */
+  readonly forceKinds?: readonly string[];
 }
 
 /** The event kinds of a spell system the log records. */

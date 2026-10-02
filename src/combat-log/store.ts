@@ -11,7 +11,8 @@ const FNV_PRIME = 0x01_00_01_93;
 
 /**
  * The log's storage: a ring of the latest `capacity` entries, one row of numbers each in one `Float64Array`,
- * so recording allocates nothing and an old entry is overwritten, never collected.
+ * so recording allocates nothing and an old entry is overwritten, never collected. Beside the ring it keeps a running
+ * digest of every entry it was given, so an overwritten entry still counts in the checksum.
  */
 export class EntryStore {
   readonly capacity: number;
@@ -21,6 +22,9 @@ export class EntryStore {
 
   readonly #rows: Float64Array;
   readonly #scratch = new DataView(new ArrayBuffer(8));
+
+  /** The FNV-1a hash of every entry recorded since the start or the last `clear`, oldest first. */
+  #digest = FNV_OFFSET;
 
   constructor(capacity: number) {
     if (!Number.isInteger(capacity) || capacity < 1) {
@@ -64,7 +68,12 @@ export class EntryStore {
     rows[at + 14] = entry.flags;
     rows[at + 15] = entry.reason;
     rows[at + 16] = entry.outcome;
+    rows[at + 17] = entry.forceKind;
     this.total += 1;
+
+    for (let i = at; i < at + WIDTH; i++) {
+      this.#digest = this.#fold(this.#digest, this.#number(i));
+    }
   }
 
   /** Fills `out` with the entry of a running number; false when it is not held (not yet, or overwritten). */
@@ -93,31 +102,32 @@ export class EntryStore {
     out.flags = this.#number(at + 14);
     out.reason = this.#number(at + 15);
     out.outcome = this.#number(at + 16);
+    out.forceKind = this.#number(at + 17);
 
     return true;
   }
 
   /**
-   * A 32-bit FNV-1a hash of every held entry's numbers, oldest first, over their exact float bits read little-endian
-   * (the same on every platform), as eight hex digits: what a golden test compares, so two runs that differ in any
-   * number of any entry differ here.
+   * A 32-bit FNV-1a hash, as eight hex digits, of every entry recorded since the start or the last `clear` (held or
+   * already overwritten), oldest first, each row's numbers in `ENTRY_FIELDS` order over their exact float bits read
+   * little-endian (the same on every platform), then of `total`: what a golden test compares, so two runs that differ
+   * in any number of any entry, however long ago it left the ring, differ here. It is the running digest kept as the
+   * entries are pushed (the ring alone is no longer hashed: the digest already covers every held entry), so it costs
+   * nothing to take and does not depend on the capacity.
    */
   checksum(): string {
-    const rows = this.#rows;
+    return this.#fold(this.#digest, this.total).toString(16).padStart(8, '0');
+  }
+
+  /** Folds one number's float bits, low word first, into a hash. */
+  #fold(hash: number, value: number): number {
     const scratch = this.#scratch;
-    let hash = FNV_OFFSET;
 
-    for (let seq = this.first; seq < this.total; seq++) {
-      const from = (seq % this.capacity) * WIDTH;
+    scratch.setFloat64(0, value, true);
 
-      for (let i = from; i < from + WIDTH; i++) {
-        scratch.setFloat64(0, rows[i] ?? 0, true);
-        hash = Math.imul(hash ^ scratch.getUint32(0, true), FNV_PRIME) >>> 0;
-        hash = Math.imul(hash ^ scratch.getUint32(4, true), FNV_PRIME) >>> 0;
-      }
-    }
+    const low = Math.imul(hash ^ scratch.getUint32(0, true), FNV_PRIME) >>> 0;
 
-    return hash.toString(16).padStart(8, '0');
+    return Math.imul(low ^ scratch.getUint32(4, true), FNV_PRIME) >>> 0;
   }
 
   /** One stored number (every slot of a written row holds one). */
@@ -125,8 +135,9 @@ export class EntryStore {
     return this.#rows[index] ?? 0;
   }
 
-  /** Forgets every entry; the next is numbered 0 again. */
+  /** Forgets every entry and the digest of them; the next is numbered 0 again. */
   clear(): void {
     this.total = 0;
+    this.#digest = FNV_OFFSET;
   }
 }

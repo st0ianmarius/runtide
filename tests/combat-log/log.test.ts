@@ -207,6 +207,27 @@ describe('the combat log', () => {
     assert.match(run(5), /^[0-9a-f]{8}$/);
   });
 
+  it('checksums every entry ever recorded, overwritten ones too, the same for any capacity, until a clear', () => {
+    const run = (amounts: readonly number[], capacity?: number): CombatLog => {
+      const game = logGame();
+      const log = logOf(game, capacity);
+
+      for (const amount of amounts) {
+        game.damage.hit({ target: game.unit(100), amount });
+      }
+
+      return log;
+    };
+
+    assert.notEqual(run([1, 2, 3], 2).checksum(), run([7, 2, 3], 2).checksum());
+    assert.equal(run([1, 2, 3], 2).checksum(), run([1, 2, 3]).checksum());
+
+    const cleared = run([7, 2, 3], 2);
+
+    cleared.clear();
+    assert.equal(cleared.checksum(), run([]).checksum());
+  });
+
   it('hands entries to subscribers, forgets them on clear and stops listening on close', () => {
     const game = logGame();
     const log = logOf(game);

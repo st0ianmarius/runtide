@@ -5,9 +5,11 @@ import { type CombatEntry, type CombatEntryKind, EntryRecord } from './entry.ts'
 import {
   areaRecorder,
   castRecorder,
+  FORCE_KINDS,
   recordAura,
   recordBlow,
   recordDeath,
+  recordForce,
   recordHeal,
   type Recording
 } from './recorders.ts';
@@ -63,7 +65,7 @@ export interface CombatLogOptions<Unit, Spell = unknown> {
 }
 
 /**
- * A combat log: a structured stream of every blow, immunity, heal, death, aura change, cast moment and
+ * A combat log: a structured stream of every blow, immunity, heal, death, force, aura change, cast moment and
  * area trigger spawn and end, as ids and numbers, in the order they happened. It keeps the latest entries in a ring
  * and hands each to its subscribers as it is recorded: a damage meter, a test, an analytics sink.
  */
@@ -89,7 +91,10 @@ export interface CombatLog {
   /** Subscribes to every entry recorded from now on; returns the unsubscribe. */
   readonly subscribe: (listener: CombatLogListener) => () => void;
 
-  /** A 32-bit hash of every held entry's numbers, oldest first: what a golden test compares. */
+  /**
+   * A 32-bit hash of every entry recorded since the start or the last `clear`, the ones the ring already overwrote
+   * included, oldest first, and of their count: what a golden test compares, the same for any capacity.
+   */
   readonly checksum: () => string;
 
   /** Forgets every entry (a new encounter); subscribers stay. */
@@ -127,6 +132,12 @@ const listen = <Unit, Spell>(
       recordBlow(recording, event.blow);
     });
   }
+
+  const forceKinds = damage?.forceKinds ?? FORCE_KINDS;
+
+  on(damage?.forced, (event) => {
+    recordForce(recording, event.force, forceKinds);
+  });
   on(damage?.healed, (event) => {
     recordHeal(recording, event.heal);
   });

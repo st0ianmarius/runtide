@@ -1,12 +1,26 @@
 import { BLOW_STATUSES } from '../damage/index.ts';
 import { type CombatEntryKind, ENTRY_CRIT, ENTRY_DEATH_PREVENTED, ENTRY_KILLED, type EntryRecord } from './entry.ts';
-import type { AreaEventView, AuraEventView, BlowView, DeathView, HealView, SpellEventView } from './views.ts';
+import type {
+  AreaEventView,
+  AuraEventView,
+  BlowView,
+  DeathView,
+  ForceView,
+  HealView,
+  SpellEventView
+} from './views.ts';
 
 /** A blow's statuses by code (`BLOW_STATUSES`). */
 const BLOW_CODES: readonly string[] = BLOW_STATUSES;
 
 /** A heal's statuses by code: `skipped`, `blocked`, `landed`. */
 const HEAL_CODES: readonly string[] = ['skipped', 'blocked', 'landed'];
+
+/** A force's statuses by code: `skipped`, `ignored`, `landed` (`ForceStatus`). */
+const FORCE_CODES: readonly string[] = ['skipped', 'ignored', 'landed'];
+
+/** The framework's force kinds, by code: what a force entry's `forceKind` indexes when the log is given no others. */
+export const FORCE_KINDS: readonly string[] = Object.freeze(['knock', 'push', 'pull']);
 
 /** The entry kind of each aura change; `stateEntered` is not logged (the death or despawn is). */
 const AURA_KINDS: Readonly<Record<string, CombatEntryKind | undefined>> = {
@@ -34,7 +48,10 @@ export interface Recording<Unit, Spell> {
   readonly outcomeOf: (outcome: string | undefined) => number;
 }
 
-/** Records a blow: `damage`, or `immune` for one its target's ignore stage ignored. */
+/**
+ * Records a blow: `damage`, or `immune` for one its target's ignore stage ignored. A blow whose death was prevented
+ * has no overkill, so its `overflow` holds what the prevented death did not deal instead.
+ */
 export const recordBlow = <Unit, Spell>(
   recording: Recording<Unit, Spell>,
   blow: BlowView<Unit, Spell> | undefined
@@ -55,7 +72,7 @@ export const recordBlow = <Unit, Spell>(
   entry.base = blow.base;
   entry.absorbed = blow.absorbed;
   entry.mitigated = blow.mitigated;
-  entry.overflow = Math.max(0, blow.amount - blow.dealt);
+  entry.overflow = blow.isDeathPrevented ? (blow.prevented ?? 0) : Math.max(0, blow.amount - blow.dealt);
   entry.flags =
     (blow.isCrit ? ENTRY_CRIT : 0) |
     (blow.hasKilled ? ENTRY_KILLED : 0) |
@@ -86,6 +103,33 @@ export const recordHeal = <Unit, Spell>(
   entry.absorbed = heal.absorbed;
   entry.overflow = heal.overheal;
   entry.reason = HEAL_CODES.indexOf(heal.status);
+  recording.commit();
+};
+
+/**
+ * Records a force: its credit, attacker and target, the spell and aura of the blow whose knockback it is, its strength
+ * asked (`base`) and applied (`amount`), its status and its kind, coded by `kinds` (−1 for one not in them).
+ */
+export const recordForce = <Unit, Spell>(
+  recording: Recording<Unit, Spell>,
+  force: ForceView<Unit, Spell> | undefined,
+  kinds: readonly string[]
+): void => {
+  if (force === undefined) {
+    return;
+  }
+
+  const entry = recording.begin('force');
+
+  entry.source = force.source;
+  entry.actor = recording.idOf(force.attacker);
+  entry.target = recording.idOf(force.target);
+  entry.spell = recording.spellOf(force.blow?.spell);
+  entry.aura = force.blow?.aura ?? -1;
+  entry.amount = force.amount;
+  entry.base = force.base;
+  entry.reason = FORCE_CODES.indexOf(force.status);
+  entry.forceKind = kinds.indexOf(force.kind);
   recording.commit();
 };
 
