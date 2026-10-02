@@ -112,6 +112,10 @@ const checkAfter = <G extends SpellTypes>(engine: SpellEngine<G>, proc: AfterPro
   if (proc.bound !== undefined && typeof proc.bound !== 'function') {
     throw new TypeError("an after proc's bound is a function of its owner.");
   }
+
+  if (proc.bound !== undefined && proc.owner === 'none') {
+    throw new TypeError("an unowned after proc (owner 'none') has no owner to ask its bound.");
+  }
 };
 
 /** The `after` kind: schedules its procs on the timing wheel of its slot. */

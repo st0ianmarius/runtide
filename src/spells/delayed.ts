@@ -53,8 +53,8 @@ class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
   /** Whether it was withdrawn: its slot waits, emptied, for its entry on the wheel to come due before it is reused. */
   isWithdrawn = false;
 
-  /** Its captured owner, for bounds and withdrawal, independent of its cast and origin. */
-  owner: G['bearer'];
+  /** Its captured owner, for bounds and withdrawal, independent of its cast and origin; `undefined` for none. */
+  owner: G['bearer'] | undefined;
 
   constructor(self: G['bearer']) {
     this.self = self;
@@ -77,12 +77,22 @@ export interface DelaySpec<G extends SpellTypes> {
   /** Its tick slot; the landing list's slot for `due`, else 0. */
   readonly slot?: number | undefined;
 
-  /** Its bearer or self/source selector; otherwise inherited from a parent delay, or the cast's caster/list's self. */
-  readonly owner?: 'self' | 'source' | G['bearer'] | undefined;
+  /**
+   * Its bearer, a self/source selector, or `none` (unowned); otherwise inherited from a parent delay, or the cast's
+   * caster/list's self.
+   */
+  readonly owner?: 'self' | 'source' | 'none' | G['bearer'] | undefined;
 
   /** Whether its owner still lets it land, asked as it falls due; it always lands when absent. */
   readonly bound?: DelayBound<G> | undefined;
 }
+
+/** Throws a `TypeError` for an unowned list with a bound: there is nobody to ask. */
+const checkBound = <G extends SpellTypes>(owner: G['bearer'] | undefined, spec: DelaySpec<G>): void => {
+  if (owner === undefined && spec.bound !== undefined) {
+    throw new TypeError("an unowned after proc (owner 'none', or a follow-up of one) has no owner to ask its bound.");
+  }
+};
 
 /**
  * The delayed procs of one spell system: pooled records on one timing wheel per tick slot, so lists
@@ -131,6 +141,7 @@ export class DelayedProcs<G extends SpellTypes> {
   /**
    * Schedules a list for the origin of the running proc context, held by the cast the running list belongs to (if any),
    * due `seconds` from now or from the landing list's due time. Returns false when a source owner cannot be resolved.
+   * Throws a `TypeError` for an unowned list with a bound: there is nobody to ask.
    */
   schedule(ctx: ProcContext<G>, spec: DelaySpec<G>): boolean {
     const engine = this.#engine;
@@ -138,9 +149,11 @@ export class DelayedProcs<G extends SpellTypes> {
     const cast = engine.castFor(ctx);
     const owner = this.#ownerFor(ctx, spec, cast);
 
-    if (owner === undefined) {
+    if (owner === false) {
       return false;
     }
+
+    checkBound(owner, spec);
 
     this.#pending = ctx.self;
 
@@ -243,7 +256,9 @@ export class DelayedProcs<G extends SpellTypes> {
 
     // Released when its bound fails or throws: out of the live list already, nothing else would let it go.
     try {
-      lands = record.bound?.(record.owner, record) !== false;
+      const { owner } = record;
+
+      lands = owner === undefined || record.bound?.(owner, record) !== false;
     } finally {
       if (!lands) {
         this.#release(record);
@@ -302,22 +317,29 @@ export class DelayedProcs<G extends SpellTypes> {
     this.#release(record);
   }
 
-  /** Captures ownership independently of cast retention; only the landing list's own descendants inherit it. */
-  #ownerFor(ctx: ProcContext<G>, spec: DelaySpec<G>, cast: Cast<G> | undefined): G['bearer'] | undefined {
+  /**
+   * Captures ownership independently of cast retention; only the landing list's own descendants inherit it. `undefined`
+   * for an unowned list; false when a source owner cannot be resolved.
+   */
+  #ownerFor(ctx: ProcContext<G>, spec: DelaySpec<G>, cast: Cast<G> | undefined): G['bearer'] | undefined | false {
     if (spec.owner === 'self') {
       return ctx.self;
     }
 
+    if (spec.owner === 'none') {
+      return undefined;
+    }
+
     if (spec.owner === 'source') {
       if (ctx.source === NO_SOURCE) {
-        return undefined;
+        return false;
       }
 
       if (ctx.host.unitOf === undefined) {
         throw new TypeError("an after proc owned by source needs the proc host's unitOf service.");
       }
 
-      return ctx.host.unitOf(ctx.source);
+      return ctx.host.unitOf(ctx.source) ?? false;
     }
 
     if (spec.owner !== undefined) {
@@ -331,13 +353,16 @@ export class DelayedProcs<G extends SpellTypes> {
     return cast?.caster ?? ctx.self;
   }
 
-  /** Puts a list in the live list, held by its cast (if any), and counts it for its owner. */
-  #list(record: Delayed<G>, cast: Cast<G> | undefined, owner: G['bearer']): void {
+  /** Puts a list in the live list, held by its cast (if any), and counts it for its owner, when it has one. */
+  #list(record: Delayed<G>, cast: Cast<G> | undefined, owner: G['bearer'] | undefined): void {
     record.cast = cast;
     record.owner = owner;
     record.index = this.#live.length;
     this.#live.push(record);
-    this.#owned.set(record.owner, (this.#owned.get(record.owner) ?? 0) + 1);
+
+    if (owner !== undefined) {
+      this.#owned.set(owner, (this.#owned.get(owner) ?? 0) + 1);
+    }
 
     if (cast !== undefined) {
       cast.holds += 1;
@@ -347,12 +372,16 @@ export class DelayedProcs<G extends SpellTypes> {
   /** Takes a list out of the live list, moving the last one into its place. */
   #unlist(record: Delayed<G>): void {
     const live = this.#live;
-    const left = (this.#owned.get(record.owner) ?? 1) - 1;
+    const { owner } = record;
 
-    if (left > 0) {
-      this.#owned.set(record.owner, left);
-    } else {
-      this.#owned.delete(record.owner);
+    if (owner !== undefined) {
+      const left = (this.#owned.get(owner) ?? 1) - 1;
+
+      if (left > 0) {
+        this.#owned.set(owner, left);
+      } else {
+        this.#owned.delete(owner);
+      }
     }
 
     const last = live.pop();

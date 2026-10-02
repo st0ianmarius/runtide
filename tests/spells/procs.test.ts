@@ -708,6 +708,44 @@ describe('the cast a proc list belongs to', () => {
     assert.deepEqual(game.log, []);
   });
 
+  it('leaves an unowned delay and its follow-ups to no withdrawal, and refuses a bound it cannot ask', () => {
+    const game = makeSpellGame({});
+    const self = game.unit(1);
+
+    game.procs.run(
+      [
+        after<Game>(
+          0.25,
+          [
+            mark('burst'),
+            after<Game>(0.25, [mark('follow-up')]),
+            after<Game>(0.25, [mark('owned')], { owner: 'self' })
+          ],
+          { owner: 'none' }
+        )
+      ],
+      { self }
+    );
+    assert.equal(game.spells.withdrawDelayed(self), 0);
+    game.step(1);
+    assert.equal(game.spells.stepDelayed(), 1);
+    assert.equal(game.spells.withdrawDelayed(self), 1);
+    game.step(1);
+    assert.equal(game.spells.stepDelayed(), 1);
+    assert.deepEqual(game.log, ['burst@1', 'follow-up@1']);
+
+    assert.throws(
+      () => game.procs.prepare([after<Game>(1, [], { owner: 'none', bound: () => true })], 'Test'),
+      /no owner to ask its bound/
+    );
+
+    const inherits = after<Game>(0.25, [after<Game>(0.25, [], { bound: () => true })], { owner: 'none' });
+
+    game.procs.run([inherits], { self });
+    game.step(1);
+    assert.throws(() => game.spells.stepDelayed(), /no owner to ask its bound/);
+  });
+
   it('skips a source-owned delay when the source is absent or cannot be resolved', () => {
     const game = makeSpellGame({});
     const self = game.unit(1);
