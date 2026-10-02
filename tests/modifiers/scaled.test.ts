@@ -23,7 +23,8 @@ import {
   snapshotScaled,
   stacking,
   type StatTable,
-  type StatView
+  type StatView,
+  table
 } from '../../src/modifiers/index.ts';
 import { CURVES } from '../helpers/curves.ts';
 
@@ -182,6 +183,28 @@ describe('snapshots (decision 2)', () => {
 });
 
 describe('explanations', () => {
+  it('keep a table curve in a preview, since it has no parameters to read a target through', () => {
+    const value = compileScaled(
+      STATS,
+      scaled(
+        10,
+        curveOf(
+          table([
+            [0, 1],
+            [4, 3]
+          ]),
+          1,
+          { stat: 'level' }
+        )
+      )
+    );
+
+    const preview = explainScaled(value, 1, { caster: unit({ level: 2 }) });
+
+    assert.equal(preview.total, 20);
+    assert.equal(preview.isPartial, false);
+  });
+
   it('omit curves with target-dependent parameters from previews and targetless snapshots', () => {
     const lookup = byLevel([[1, 0.5]], { from: 'target' });
 
