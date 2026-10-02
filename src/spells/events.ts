@@ -39,7 +39,11 @@ export interface SpellEvents<G extends SpellTypes> {
   /** A cast started (its windup began, or it released at once), after `begin`. */
   readonly start?: EventKind<SpellEvent<G>>;
 
-  /** A cast's payload went out, after `release` (the plan's `spellCast`). */
+  /**
+   * A cast's payload went out, after `release` (the plan's `spellCast`): raised for every released cast, at its end for
+   * one that ended within its release (its hook finished it, its procs killed its caster), before its end cue, `onEnd`
+   * and `end`.
+   */
   readonly release?: EventKind<SpellEvent<G>>;
 
   /** A delivery of a cast caught units (`spells.hit`), after `onHit`. */

@@ -3,7 +3,7 @@ import type { Cast } from './cast.ts';
 import { recordOf, stopThrown } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
-import { afterPayload, endCast, isEnded, releaseCast } from './runner.ts';
+import { afterPayload, endCast, isEnded, releaseCast } from './payload.ts';
 import type { CastOutcome } from './spell-def.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import { refreshLive } from './take-stats.ts';

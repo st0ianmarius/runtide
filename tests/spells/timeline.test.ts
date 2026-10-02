@@ -162,7 +162,7 @@ describe('stage order', () => {
     assert.equal(game.spells.isRunning(handle), false);
   });
 
-  it('keeps an outcome finished from the release, and releases nothing for a cast track ended', () => {
+  it('keeps an outcome finished from the release, its release event raised, and releases nothing for a cast track ended', () => {
     const game = timeline({
       charge: spell({
         activation: { kind: 'trigger' },
@@ -200,6 +200,7 @@ describe('stage order', () => {
     game.advance(3);
     assert.deepEqual(game.log, [
       'start charge@1',
+      'release charge@1',
       'start slam@1',
       't1',
       'end charge@1 blocked',
@@ -605,8 +606,15 @@ describe('hooks for the cast rules (F16)', () => {
 
     assert.equal(report.status, 'ended');
     assert.equal(game.spells.isRunning(self ?? handle), false);
-    // The release's list runs on after the cancel, but the cast goes no further: no release event, no recovery.
-    assert.deepEqual(game.log.slice(-4), ['start rash@1', 'onEnd cancelled@1', 'end rash@1 cancelled', 'after@1']);
+    // The release's list runs on after the cancel, but the cast goes no further: no recovery. Its release event goes
+    // out as it ends, before its end.
+    assert.deepEqual(game.log.slice(-5), [
+      'start rash@1',
+      'release rash@1',
+      'onEnd cancelled@1',
+      'end rash@1 cancelled',
+      'after@1'
+    ]);
   });
 
   it("finishes a channel's payload with the game's outcome, its recovery following", () => {

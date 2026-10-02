@@ -312,7 +312,11 @@ export interface SpellDef<
   /** The windup's start: telegraphs, the caster's motion. */
   begin?(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target, out: ProcOut<G>): ProcReturn<G>;
 
-  /** The payload. None of its procs going off means the cast did not go out (`CastReport.went` is 0). */
+  /**
+   * The payload. None of its procs going off means the cast did not go out (`CastReport.went` is 0). A hook that ends
+   * its own cast (`spells.finish`, `spells.cancel`) still has the procs it returned run, after the end; the `release`
+   * event goes out all the same.
+   */
   release(this: void, ctx: SpellContext<G, Source, Target, State>, target: Target, out: ProcOut<G>): ProcReturn<G>;
 
   /** A delivery of this cast caught units (`spells.hit`), all in one call. */

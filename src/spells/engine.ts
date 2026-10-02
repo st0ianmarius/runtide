@@ -103,7 +103,7 @@ export interface EngineParts<G extends SpellTypes> {
 /**
  * The spell machinery's shared state: the registry and its resolved tables, the pool of casts, the stack of
  * reusable proc lists, the cast whose procs are running, the cue place and the host. The cast order and the timeline
- * (`runner.ts`, `stepper.ts`) are functions over it.
+ * (`runner.ts`, `payload.ts`, `stepper.ts`) are functions over it.
  */
 export class SpellEngine<G extends SpellTypes> implements CastServices<G> {
   readonly registry: SpellRegistry<G>;
