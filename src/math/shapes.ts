@@ -173,7 +173,11 @@ export const ring = (inner: number, outer: number, at: Vec2 = ORIGIN): Ring => (
   outer
 });
 
-/** A cone. */
+/**
+ * A cone. `covers` reads it through `Math.atan2` and its edges through `Math.sin` and `Math.cos`, which can differ in
+ * the last bit between engines, so a server and a mirror may disagree on a point against its rim; a game that wants
+ * its rims exact between peers authors it as a polygon (a fan of corners) from its own tables.
+ */
 export const cone = (spec: ConeSpec): Cone => ({
   kind: 'cone',
   at: spec.at ?? ORIGIN,
@@ -183,7 +187,11 @@ export const cone = (spec: ConeSpec): Cone => ({
   apex: spec.apex ?? 0
 });
 
-/** A lane. */
+/**
+ * A lane. One with a heading other than 0 is turned through `Math.sin` and `Math.cos`, which can differ in the last bit
+ * between engines, so a server and a mirror may disagree on a point against its rim; a game that wants its rims exact
+ * between peers authors it as a polygon from its own tables of corners.
+ */
 export const lane = (spec: LaneSpec): Lane => ({
   kind: 'lane',
   at: spec.at ?? ORIGIN,
@@ -199,6 +207,34 @@ export const polygon = (points: readonly Vec2[], band = 0): Polygon => ({
   points,
   band
 });
+
+/**
+ * A rectangle `width` across and `depth` along the heading `heading` (as `atan2(x, z)`), centred on `center`, as its
+ * four corners: a rotated box collider, covering what a lane of the same heading, width and length `depth` would, its
+ * edges inclusive. The corners run from back and −across through the front, across being `(cos, −sin)` of the
+ * heading (+x at a heading of 0). A heading other than 0 goes through `Math.sin` and `Math.cos`, which can differ
+ * in the last bit between engines; a game that wants its rims exact between peers builds the corners from its own
+ * tables and passes them to `polygon`.
+ */
+export const box = (center: Vec2, width: number, depth: number, heading: number): Polygon => {
+  const sin = Math.sin(heading);
+  const cos = Math.cos(heading);
+
+  const corner = (along: number, across: number): Vec2 => ({
+    x: center.x + sin * along + cos * across,
+    z: center.z + cos * along - sin * across
+  });
+
+  const halfDepth = depth / 2;
+  const halfWidth = width / 2;
+
+  return polygon([
+    corner(-halfDepth, -halfWidth),
+    corner(halfDepth, -halfWidth),
+    corner(halfDepth, halfWidth),
+    corner(-halfDepth, halfWidth)
+  ]);
+};
 
 /** The complement of a shape (the burn outside a ring of fire). */
 export const outside = (shape: Shape): Outside => ({ kind: 'outside', shape });

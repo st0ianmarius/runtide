@@ -1,6 +1,6 @@
 /**
  * Geometry on the ground plane: `Vec2`, angles, shapes as data with `covers`, shape algebra, bounds, the
- * segment-circle sweep, the swept path tests and polygon tests. Nothing here reads a world; the world
+ * segment-circle sweep, the swept path tests and polygon tests and measures. Nothing here reads a world; the world
  * query builds on it.
  */
 
@@ -10,9 +10,17 @@ export { covers } from './covers.ts';
 
 export { pathIntervals, type TickPath } from './path.ts';
 
-export { inPolygon, polygonEdgeDistanceSq, segmentDistanceSq } from './polygon.ts';
+export {
+  inPolygon,
+  polygonArea,
+  polygonCentroid,
+  polygonEdgeDistanceSq,
+  segmentDistanceSq,
+  segmentIntersection
+} from './polygon.ts';
 
 export {
+  box,
   type Circle,
   circle,
   type Cone,

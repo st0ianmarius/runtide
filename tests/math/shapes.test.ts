@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import fc from 'fast-check';
 
 import {
+  box,
   circle,
   cone,
   covers,
@@ -146,6 +147,48 @@ describe('covers: base shapes', () => {
     assert.equal(covers(outside(a), vec2(0.5, 0.5), 0.5), false);
     assert.equal(covers(polygon(a.points, 1), vec2(3, 0.5)), false);
     assert.equal(covers(polygon(a.points, 1), vec2(1.9, 0.5)), true);
+  });
+
+  it('builds a box as the four corners of a rotated rectangle, covering what a lane of its heading covers', () => {
+    assert.deepEqual(box(vec2(1, 2), 2, 4, 0), polygon([vec2(0, 0), vec2(0, 4), vec2(2, 4), vec2(2, 0)]));
+
+    const turned = box(vec2(0, 0), 2, 4, Math.PI / 2);
+    const expected = [vec2(-2, 1), vec2(2, 1), vec2(2, -1), vec2(-2, -1)];
+
+    assert.equal(turned.points.length, 4);
+    turned.points.forEach((corner, i) => {
+      assert.ok(
+        Math.abs(corner.x - (expected[i]?.x ?? 0)) < 1e-12 && Math.abs(corner.z - (expected[i]?.z ?? 0)) < 1e-12
+      );
+    });
+
+    const heading = 0.7;
+    const centre = vec2(3, -1);
+    const forward = vec2(Math.sin(heading), Math.cos(heading));
+    const across = vec2(Math.cos(heading), -Math.sin(heading));
+    const collider = box(centre, 2, 4, heading);
+
+    const strip = lane({
+      length: 4,
+      width: 2,
+      dir: heading,
+      at: vec2(centre.x - forward.x * 2, centre.z - forward.z * 2)
+    });
+
+    const at = (along: number, side: number) =>
+      vec2(centre.x + forward.x * along + across.x * side, centre.z + forward.z * along + across.z * side);
+
+    for (const [along, side, inside] of [
+      [0, 0, true],
+      [1.99, 0.99, true],
+      [-1.99, -0.99, true],
+      [2.01, 0, false],
+      [0, -1.01, false],
+      [-2.01, 0.5, false]
+    ] as const) {
+      assert.equal(covers(collider, at(along, side)), inside);
+      assert.equal(covers(strip, at(along, side)), inside);
+    }
   });
 });
 
