@@ -52,7 +52,13 @@ export interface AfterProc<G extends SpellTypes> extends ProcShape {
   readonly slot?: TickSlotId;
 
   /**
-   * Whether they still land, asked of their owner (the cast's caster, else the list's self) as they fall due: a false
+   * Who owns this list for `bound` and withdrawal. Defaults to its parent delayed list's owner for follow-ups,
+   * otherwise the cast's caster or the list's self. Does not change targets, source credit, or cast retention.
+   */
+  readonly owner?: G['bearer'];
+
+  /**
+   * Whether they still land, asked of their captured owner as they fall due: a false
    * drops them unrun (Galeheart's strike lands only while its owner stands). They always land when absent.
    */
   readonly bound?: DelayBound<G>;
@@ -113,5 +119,5 @@ export const castSpell = <G extends SpellTypes = SpellTypes>(
 export const after = <G extends SpellTypes = SpellTypes>(
   seconds: number,
   procs: readonly Proc<G>[],
-  options: ChanceOption & Pick<AfterProc<G>, 'from' | 'slot' | 'bound'> = {}
+  options: ChanceOption & Pick<AfterProc<G>, 'from' | 'slot' | 'bound' | 'owner'> = {}
 ): AfterProc<G> => ({ ...options, kind: 'after', seconds, procs });

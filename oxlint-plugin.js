@@ -115,35 +115,6 @@ const paddedStatements = {
   })
 };
 
-/** Whether an object-literal property is a function that spans several lines. */
-const isMultilineFunction = (sourceCode, property) => {
-  const value = property.type === 'Property' ? property.value : undefined;
-
-  const isFunction = value?.type === 'ArrowFunctionExpression' || value?.type === 'FunctionExpression';
-
-  return isFunction && isMultiline(sourceCode, property);
-};
-
-/** A blank line around every multi-line function in an object literal, autofixable. */
-const paddedObjectFunctions = {
-  meta: { type: 'layout', fixable: 'whitespace', schema: [] },
-
-  create: (context) => ({
-    ObjectExpression: (node) => {
-      node.properties.slice(1).forEach((next, index) => {
-        const previous = node.properties[index];
-        const { sourceCode } = context;
-
-        if (isMultilineFunction(sourceCode, previous) || isMultilineFunction(sourceCode, next)) {
-          const comma = sourceCode.getTokenAfter(previous);
-
-          requireBlankLine(context, [comma, next], 'Expected a blank line around a multi-line function property.');
-        }
-      });
-    }
-  })
-};
-
 /**
  * A blank line before every block comment on its own line, except at the start of a block, object, array or case, or
  * right after another comment, autofixable.
@@ -514,7 +485,6 @@ export default {
   rules: {
     'todo-with-issue': todoWithIssue,
     'padded-statements': paddedStatements,
-    'padded-object-functions': paddedObjectFunctions,
     'blank-line-before-block-comment': blankLineBeforeBlockComment,
     'export-docs': exportDocs,
     'presentation-fields': presentationFields,

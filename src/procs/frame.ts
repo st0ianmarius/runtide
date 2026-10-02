@@ -71,6 +71,8 @@ export interface FrameShared<G extends ProcTypes> {
  * reused aura application (made on the first `applyAura`). Its functions are arrow fields, so they work detached.
  */
 export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
+  /** The original list identity, shared by `ctx.run` descendants, only while the frame runs. */
+  origin: ProcOrigin<G> | undefined = undefined;
   self: G['bearer'];
   target: G['bearer'];
   eventUnit: G['bearer'] | undefined = undefined;
@@ -128,6 +130,7 @@ export class ProcFrame<G extends ProcTypes> implements ProcContext<G> {
 
   /** Takes an origin's fields and forgets the last list's kills. */
   reset(origin: ProcOrigin<G>): void {
+    this.origin = origin instanceof ProcFrame ? origin.origin : origin;
     this.self = origin.self;
     this.target = origin.target ?? origin.self;
     this.eventUnit = origin.eventUnit;

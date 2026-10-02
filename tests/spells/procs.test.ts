@@ -453,6 +453,157 @@ describe('the escape report', () => {
 });
 
 describe('the cast a proc list belongs to', () => {
+  it('gives an aura pop an explicit owner without changing its bearer, target, or source credit', () => {
+    const seen: number[][] = [];
+    const owners: Game['bearer'][] = [];
+
+    const game = makeSpellGame(
+      {},
+      {
+        auras: {
+          hex: aura({
+            duration: 'infinite',
+            onApplied: () => [
+              after<Game>(
+                0.5,
+                [
+                  run<Game>('pop', (ctx) => {
+                    seen.push([ctx.self.id, ctx.target.id, ctx.source]);
+                  })
+                ],
+                {
+                  owner: source,
+                  bound: (owner) => {
+                    owners.push(owner);
+                    return true;
+                  }
+                }
+              )
+            ]
+          })
+        }
+      }
+    );
+
+    const source: Game['bearer'] = game.unit(1);
+    const bearer = game.unit(2);
+    game.auras.apply(bearer, { aura: game.auraId.hex, source: source.id });
+    assert.equal(game.spells.withdrawDelayed(bearer), 0);
+    game.step(2);
+    assert.equal(game.spells.stepDelayed(), 1);
+    assert.deepEqual(owners, [source]);
+    assert.deepEqual(seen, [[2, 2, 1]]);
+
+    game.auras.remove(bearer, game.auraId.hex);
+    game.auras.apply(bearer, { aura: game.auraId.hex, source: source.id });
+    assert.equal(game.spells.withdrawDelayed(bearer), 0);
+    assert.equal(game.spells.withdrawDelayed(source), 1);
+    game.step(2);
+    assert.equal(game.spells.stepDelayed(), 0);
+    assert.equal(seen.length, 1);
+  });
+
+  for (const from of ['now', 'due'] as const) {
+    it(`inherits an explicit owner through direct and nested ${from} follow-ups, with child overrides`, () => {
+      const game = makeSpellGame({});
+      const self = game.unit(1);
+      const owner: Game['bearer'] = game.unit(2);
+      const override = game.unit(3);
+      game.procs.run(
+        [
+          after<Game>(
+            0.5,
+            [
+              after<Game>(0.5, [mark('direct')], { from }),
+              run<Game>('nested', (ctx) =>
+                ctx.run([
+                  after<Game>(0.5, [mark('nested')], { from }),
+                  after<Game>(0.5, [mark('override')], { from, owner: override })
+                ])
+              )
+            ],
+            { owner }
+          )
+        ],
+        { self }
+      );
+      game.step(2);
+      assert.equal(game.spells.stepDelayed(), 1);
+      assert.equal(game.spells.withdrawDelayed(self), 0);
+      assert.equal(game.spells.withdrawDelayed(owner), 2);
+      assert.equal(game.spells.withdrawDelayed(override), 1);
+      game.step(2);
+      assert.equal(game.spells.stepDelayed(), 0);
+    });
+  }
+
+  it('does not inherit a delayed owner into independent nested casts or aura hooks on the same unit', () => {
+    const game = makeSpellGame(
+      {
+        nested: spell({ activation: { kind: 'trigger' }, release: () => [after<Game>(0.5, [mark('cast')])] })
+      },
+      {
+        auras: {
+          nested: aura({ duration: 'infinite', onApplied: () => [after<Game>(0.5, [mark('aura')])] })
+        }
+      }
+    );
+
+    const self = game.unit(1);
+    const owner = game.unit(2);
+    game.procs.run([after<Game>(0.5, [castSpell<Game>('nested'), applyAura<Game>('nested')], { owner })], { self });
+    game.step(2);
+    assert.equal(game.spells.stepDelayed(), 1);
+    assert.equal(game.spells.withdrawDelayed(owner), 0);
+    assert.equal(game.spells.withdrawDelayed(self), 2);
+    assert.equal(game.spells.pool.live, 0);
+    game.step(2);
+    assert.equal(game.spells.stepDelayed(), 0);
+  });
+
+  for (const ending of ['land', 'bound', 'withdraw'] as const) {
+    it(`releases the originating cast after ${ending} with an overridden owner`, () => {
+      const checked: Game['bearer'][] = [];
+
+      const game = makeSpellGame({
+        bolt: spell({
+          activation: { kind: 'trigger' },
+
+          release: () => [
+            after<Game>(0.5, [mark('landed')], {
+              owner,
+
+              bound: (unit) => {
+                checked.push(unit);
+                return ending !== 'bound';
+              }
+            })
+          ]
+        })
+      });
+
+      const caster = game.unit(1);
+      const owner: Game['bearer'] = game.unit(2);
+      const { handle } = game.spells.cast(caster, game.id.bolt);
+      assert.ok(game.spells.get(handle));
+      assert.equal(game.spells.withdrawDelayed(caster), 0);
+      if (ending === 'withdraw') {
+        assert.equal(game.spells.withdrawDelayed(owner), 1);
+        assert.equal(game.spells.get(handle), undefined);
+      }
+      game.step(2);
+      assert.equal(game.spells.stepDelayed(), ending === 'land' ? 1 : 0);
+      assert.deepEqual(checked, ending === 'withdraw' ? [] : [owner]);
+      assert.equal(game.spells.get(handle), undefined);
+      assert.equal(game.spells.pool.live, 0);
+      assert.equal(game.log.includes('landed@1'), ending === 'land');
+      // Reused proc frames must forget the previous delayed origin and its owner.
+      game.procs.run([after<Game>(0.5, [])], { self: caster });
+      assert.equal(game.spells.withdrawDelayed(owner), 0);
+      assert.equal(game.spells.withdrawDelayed(caster), 1);
+    });
+  }
+
   it('credits an aura’s hooks to no cast, even while a cast lands the aura', () => {
     const game = makeSpellGame(
       {

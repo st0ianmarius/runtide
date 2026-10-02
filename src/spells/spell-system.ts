@@ -138,7 +138,8 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /**
    * Withdraws every delayed list a unit owns that has not landed (an enraged elite's pending
-   * volleys): those its casts scheduled, even casts that ended, and those scheduled for it outside a cast. How many.
+   * volleys), using the owner captured when scheduled. Defaults to the cast's caster or list's self; follow-up
+   * delays inherit their parent owner, and `after(seconds, procs, { owner })` overrides it. How many.
    */
   readonly withdrawDelayed: (owner: G['bearer']) => number;
 

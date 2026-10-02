@@ -10,6 +10,7 @@ import {
   stepsUntil,
   type TimingWheel
 } from '../core/index.ts';
+import { frameOf } from '../procs/frame.ts';
 import type { Proc, ProcContext, ProcOrigin } from '../procs/index.ts';
 import type { Cast } from './cast.ts';
 import type { SpellEngine } from './engine.ts';
@@ -52,7 +53,7 @@ class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
   /** Whether it was withdrawn: its slot waits, emptied, for its entry on the wheel to come due before it is reused. */
   isWithdrawn = false;
 
-  /** Who owns it, for a withdrawal: its cast's caster, else its self. */
+  /** Its captured owner, for bounds and withdrawal, independent of its cast and origin. */
   owner: G['bearer'];
 
   constructor(self: G['bearer']) {
@@ -75,6 +76,9 @@ export interface DelaySpec<G extends SpellTypes> {
 
   /** Its tick slot; the landing list's slot for `due`, else 0. */
   readonly slot?: number | undefined;
+
+  /** Its explicit owner; otherwise inherited from a parent delayed list, or the cast's caster/list's self. */
+  readonly owner?: G['bearer'] | undefined;
 
   /** Whether its owner still lets it land, asked as it falls due; it always lands when absent. */
   readonly bound?: DelayBound<G> | undefined;
@@ -131,6 +135,8 @@ export class DelayedProcs<G extends SpellTypes> {
   schedule(ctx: ProcContext<G>, spec: DelaySpec<G>): void {
     const engine = this.#engine;
     const parent = spec.from === 'due' ? this.landing : undefined;
+    const cast = engine.castFor(ctx);
+    const owner = this.#ownerFor(ctx, spec, cast);
 
     this.#pending = ctx.self;
 
@@ -149,7 +155,7 @@ export class DelayedProcs<G extends SpellTypes> {
     record.anchor = parent?.anchor ?? engine.clock.tick;
     record.offset = (parent?.offset ?? 0) + spec.seconds;
     record.slot = spec.slot ?? parent?.slot ?? 0;
-    this.#list(record, engine.castFor(ctx));
+    this.#list(record, cast, owner);
 
     const { dt } = engine.clock;
     const wheel = this.#wheels[record.slot] ?? missing(`tick slot ${record.slot}`);
@@ -192,8 +198,8 @@ export class DelayedProcs<G extends SpellTypes> {
   }
 
   /**
-   * Withdraws every list a unit owns that has not landed (`despawnOwned`): those its casts scheduled, and those
-   * scheduled for it outside a cast. None of their procs run; returns how many it withdrew. Each lets go of its cast
+   * Withdraws every list with this captured owner that has not landed (`despawnOwned`). None of their procs run;
+   * returns how many it withdrew. Each lets go of its cast
    * and procs at once, but keeps its slot until its entry on the wheel comes due, so that entry never reaches a list
    * scheduled since in a reused slot.
    */
@@ -290,10 +296,23 @@ export class DelayedProcs<G extends SpellTypes> {
     this.#release(record);
   }
 
+  /** Captures ownership independently of cast retention; only the landing list's own descendants inherit it. */
+  #ownerFor(ctx: ProcContext<G>, spec: DelaySpec<G>, cast: Cast<G> | undefined): G['bearer'] {
+    if (spec.owner !== undefined) {
+      return spec.owner;
+    }
+
+    if (this.landing !== undefined && frameOf(ctx).origin === this.landing) {
+      return this.landing.owner;
+    }
+
+    return cast?.caster ?? ctx.self;
+  }
+
   /** Puts a list in the live list, held by its cast (if any), and counts it for its owner. */
-  #list(record: Delayed<G>, cast: Cast<G> | undefined): void {
+  #list(record: Delayed<G>, cast: Cast<G> | undefined, owner: G['bearer']): void {
     record.cast = cast;
-    record.owner = cast?.caster ?? record.self;
+    record.owner = owner;
     record.index = this.#live.length;
     this.#live.push(record);
     this.#owned.set(record.owner, (this.#owned.get(record.owner) ?? 0) + 1);

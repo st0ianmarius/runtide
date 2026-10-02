@@ -241,6 +241,7 @@ const createRunner = <G extends ProcTypes>(
         }
       }
     } finally {
+      frame.origin = undefined;
       state.depth -= 1;
     }
 
@@ -261,6 +262,7 @@ const createRunner = <G extends ProcTypes>(
       try {
         return applyIn(frame, proc);
       } finally {
+        frame.origin = undefined;
         state.depth -= 1;
       }
     },

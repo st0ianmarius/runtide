@@ -23,7 +23,6 @@
     "max-params": ["error", 5],
     "runtide/todo-with-issue": "error",
     "runtide/padded-statements": "error",
-    "runtide/padded-object-functions": "error",
     "runtide/blank-line-before-block-comment": "error",
     "runtide/import-order": "error",
     "runtide/export-order": "error",
