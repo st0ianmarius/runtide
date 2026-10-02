@@ -132,6 +132,21 @@ describe('covers: base shapes', () => {
     assert.equal(covers(polygon(square, 1.5), vec2(5, 2)), true);
     assert.equal(covers(polygon(square, 0.5), vec2(5, 2)), false);
   });
+
+  it('covers a bare polygon’s edges, so two tiled flush leave no crack, and leaves a band’s rim out', () => {
+    const a = polygon([vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1)]);
+    const b = polygon([vec2(1, 0), vec2(2, 0), vec2(2, 1), vec2(1, 1)]);
+    const seam = vec2(1, 0.5);
+
+    assert.equal(covers(a, seam), true);
+    assert.equal(covers(b, seam), true);
+    assert.equal(covers(union(a, b), seam), true);
+    assert.equal(covers(a, vec2(0, 0)), true);
+    assert.equal(covers(a, vec2(2, 0.5), 1), true);
+    assert.equal(covers(outside(a), vec2(0.5, 0.5), 0.5), false);
+    assert.equal(covers(polygon(a.points, 1), vec2(3, 0.5)), false);
+    assert.equal(covers(polygon(a.points, 1), vec2(1.9, 0.5)), true);
+  });
 });
 
 describe('covers: shape algebra', () => {
@@ -150,6 +165,25 @@ describe('covers: shape algebra', () => {
     assert.equal(covers(outCone, vec2(1e-9, 0), 1), true);
     assert.equal(covers(outside(circle(5)), vec2(Number.NaN, 0)), false);
     assert.equal(covers(circle(5), vec2(0, Number.NaN)), false);
+  });
+
+  it('covers a body on or just ahead of an obtuse cone’s apex from outside it: it reaches behind the apex', () => {
+    const wide = outside(cone({ r: 10, half: 0.75 * Math.PI, dir: 0 }));
+
+    assert.equal(covers(wide, vec2(0, 0), 1), true);
+    assert.equal(covers(wide, vec2(0, 0.5), 1), true);
+    assert.equal(covers(wide, vec2(1.2, 0), 1), true);
+    assert.equal(covers(wide, vec2(0, 1.5), 1), false);
+    assert.equal(covers(wide, vec2(3, 0), 1), false);
+    assert.equal(covers(wide, vec2(0, -0.5)), true);
+  });
+
+  it('covers no body wholly inside a cone of half-angle π, the whole disc, from outside it', () => {
+    const whole = outside(cone({ r: 10, half: Math.PI, dir: 0 }));
+
+    assert.equal(covers(whole, vec2(0, -0.5), 1), false);
+    assert.equal(covers(whole, vec2(0, -3), 1), false);
+    assert.equal(covers(whole, vec2(0, -9.5), 1), true);
   });
 
   it('covers a union where any part does', () => {

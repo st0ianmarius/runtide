@@ -46,6 +46,16 @@ describe('Vec2', () => {
     assert.deepEqual(normalize(vec2(0, -3)), { x: 0, z: -1 });
     assert.equal(normalize(vec2(0, 0)), ORIGIN);
   });
+
+  it('normalises a vector whose squared length overflows or underflows, and gives NaN for a non-finite one', () => {
+    assert.deepEqual(normalize(vec2(3e200, -4e200)), { x: 0.6, z: -0.8 });
+    close(normalize(vec2(1e200, 1e200)).x, Math.SQRT1_2);
+    assert.deepEqual(normalize(vec2(1e-200, 0)), { x: 1, z: 0 });
+    assert.deepEqual(normalize(vec2(0, -5e-324)), { x: 0, z: -1 });
+    assert.deepEqual(normalize(vec2(3e-160, 4e-160)), { x: 0.6, z: 0.8 });
+    assert.deepEqual(normalize(vec2(Number.NaN, 1)), { x: Number.NaN, z: Number.NaN });
+    assert.deepEqual(normalize(vec2(Number.POSITIVE_INFINITY, 1)), { x: Number.NaN, z: Number.NaN });
+  });
 });
 
 describe('angles', () => {

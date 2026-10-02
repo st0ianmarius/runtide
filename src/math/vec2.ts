@@ -65,11 +65,29 @@ export const distanceSq = (a: Vec2, b: Vec2): number => {
 /** The distance between two points. */
 export const distance = (a: Vec2, b: Vec2): number => Math.sqrt(distanceSq(a, b));
 
-/** The unit vector along `v`, or the origin for a zero vector. */
+/**
+ * The unit vector along `v`, or the origin for a zero vector. The components are first divided by the larger of them,
+ * so a vector whose squared length would overflow (`(1e200, 1e200)`) or underflow (`(1e-200, 0)`) still has its
+ * direction. One with a component that is not finite has none: NaN comes out, not a zero vector that reads as
+ * standing still.
+ */
 export const normalize = (v: Vec2): Vec2 => {
-  const length = lengthOf(v);
+  const larger = Math.max(Math.abs(v.x), Math.abs(v.z));
 
-  return length > 0 ? { x: v.x / length, z: v.z / length } : ORIGIN;
+  if (larger === 0) {
+    return ORIGIN;
+  }
+
+  if (!Number.isFinite(larger)) {
+    return { x: Number.NaN, z: Number.NaN };
+  }
+
+  const x = v.x / larger;
+  const z = v.z / larger;
+  // oxlint-disable-next-line unicorn/prefer-modern-math-apis -- one correctly rounded root, as `hypot` above
+  const length = Math.sqrt(x * x + z * z);
+
+  return { x: x / length, z: z / length };
 };
 
 /** The point a share `t` of the way from `a` to `b`. */

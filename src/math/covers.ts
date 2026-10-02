@@ -34,9 +34,19 @@ const reachesEdge = (shape: Cone, dx: number, dz: number, off: number, margin: n
 };
 
 /**
+ * Whether a body of radius `reach` at distance `d` and angle `off` inside a cone's angle (and short of its rim) lies
+ * wholly inside it: `d · sin(half − |off|) >= reach` from the nearer edge's line, and `d >= reach` from the apex, the
+ * nearest point left out once the body sits more than a right angle in from the edge (only an obtuse cone has such
+ * points). A cone of half-angle π or more is the whole disc, with no edge to clear.
+ */
+const isWhollyInside = (shape: Cone, d: number, off: number, reach: number): boolean =>
+  shape.half >= Math.PI || (d >= reach && Math.abs(off) <= shape.half - Math.asin(reach / d));
+
+/**
  * Whether a body reaching `margin` past `p` overlaps a cone; near the apex it counts at any angle, the apex's radius
  * grown by the reach like any round rim (a body behind the tip still touches it). Past the cone's angle a body
- * reaching out is measured to the nearer edge, so one beyond an outer corner touches it only within its reach.
+ * reaching out is measured to the nearer edge, so one beyond an outer corner touches it only within its reach. A body
+ * asked whether it lies wholly inside (a negative margin) must clear the edges and the apex.
  */
 const coversCone = (shape: Cone, p: Vec2, margin: number): boolean => {
   const dx = p.x - shape.at.x;
@@ -56,7 +66,7 @@ const coversCone = (shape: Cone, p: Vec2, margin: number): boolean => {
   const off = wrap(Math.atan2(dx, dz) - shape.dir);
 
   if (Math.abs(off) <= shape.half) {
-    return margin >= 0 || Math.abs(off) <= shape.half - Math.asin(Math.min(1, -margin / d));
+    return margin >= 0 || isWhollyInside(shape, d, off, -margin);
   }
 
   return margin > 0 && reachesEdge(shape, dx, dz, off, margin);
@@ -95,12 +105,17 @@ const coversAny = (shapes: readonly Shape[], p: Vec2, margin: number): boolean =
   return false;
 };
 
-/** Whether a body reaching `margin` past `p` overlaps a polygon grown by its band: signed edge distance below the reach. */
+/**
+ * Whether a body reaching `margin` past `p` overlaps a polygon grown by its band: signed edge distance within the
+ * reach. A band rounds the corners into an exclusive rim, like a circle's; a bare polygon's edges are inclusive, like a
+ * lane's, so polygons tiled flush leave no crack along their seam (a point on it is in both, the edge distance ±0).
+ */
 const coversPolygon = (shape: Polygon, p: Vec2, margin: number): boolean => {
   const edge = Math.sqrt(polygonEdgeDistanceSq(p, shape.points));
   const signed = inPolygon(p, shape.points) ? -edge : edge;
+  const reach = shape.band + margin;
 
-  return signed < shape.band + margin;
+  return shape.band > 0 ? signed < reach : signed <= reach;
 };
 
 /** The rings of points a body is sampled at, past its centre: the `k`th at `k / SAMPLE_RINGS` of its reach. */
@@ -200,14 +215,33 @@ const coversBuilt = (shape: Outside | Union | Difference, p: Vec2, margin: numbe
 
 /**
  * Whether `shape` covers a body of `radius` at `p` (0 for a bare point, the default): the body overlaps the shape.
- * Round outer rims (a circle's, a ring's and a cone's radius, a polygon's band) are exclusive and a ring's inner rim is
- * inclusive, so rings sharing a radius tile the plane with no point in two of them; a lane's and a cone's straight
- * edges are inclusive, and a point shape is reached at exactly the body's radius. An `outside` or `difference` covers
- * a body that is not wholly inside what it excludes. A body is tested exactly against base shapes, their unions and
- * their outsides; against a difference, or the outside of anything built, its centre and 36 points over its disc are
- * (never a false hit, but a sliver narrower than their spacing, about a third of the radius, can be missed). A game that
- * needs other rims wraps `covers` with its own test. A point that is not finite (a NaN from upstream) is covered by
- * nothing, `outside` shapes included.
+ *
+ * The rims, the one place they are set out (a body of radius `R` reaches them `R` further out):
+ * - point: reached at exactly the body's radius (`distance <= R`);
+ * - circle: the rim is outside (`distance < r + R`);
+ * - ring: the outer rim is outside, the inner rim inside, so rings sharing a radius tile the plane, no point in two;
+ * - cone: the round rim and the apex circle's rim are outside, the straight edges inside (but for their outer corners,
+ *   on the round rim); a cone of half-angle π or more is the whole disc;
+ * - lane: every edge is inside, corners included, and a body reaching past one rounds it, inclusively;
+ * - polygon: a bare (or shrunk) one's edges are inside, so polygons tiled flush leave no crack and share their seam;
+ *   one grown by a band has a round rim, outside, like a circle's;
+ * - outside: covers a body that is not wholly inside the shape, so its rims are the shape's, turned around;
+ * - union and difference: their parts' rims, as the parts decide them.
+ *
+ * A body is tested exactly against base shapes, their unions and their outsides; against a difference, or the outside
+ * of anything built, its centre and 36 points over its disc are (never a false hit, but a sliver narrower than their
+ * spacing, about a third of the radius, can be missed). For an exact answer there, build the region the body's centre
+ * may stand in (the shape grown by the body's radius) from base shapes, their unions and their outsides, and test the
+ * bare point, which is never sampled: a body of radius `R` against `difference(circle(5), circle(2))` is exactly the
+ * point against `ring(2 − R, 5 + R)`, and against the outside of two polygons tiled flush, the point against the
+ * outside of their joined outline grown by `−R` (a polygon's band). A game that needs other rims wraps `covers` with
+ * its own test. A point that is not finite (a NaN from upstream) is covered by nothing, `outside` shapes included.
+ *
+ * Cones, and lanes with a heading other than 0, go through `Math.sin`, `Math.cos` and `Math.atan2` (as do the 36
+ * sample points, once, at load), which the spec leaves to each engine: a server and a mirror on different engines can
+ * disagree in the last bit for a point on or against a rim. A game that wants rims exact between its peers authors
+ * rotated shapes as polygons from its own tables of corners (circles, rings, polygons and unrotated lanes take only
+ * `+ − × ÷` and `√`, correctly rounded everywhere).
  */
 export const covers = (shape: Shape, p: Vec2, radius = 0): boolean =>
   Number.isFinite(p.x) && Number.isFinite(p.z) && coversBy(shape, p, radius);

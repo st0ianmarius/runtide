@@ -185,6 +185,28 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
     assert.ok((out[1] ?? 1) < 0.48 && (out[2] ?? 0) > 0.48, `${out.slice(0, 4).join(', ')} spans the middle`);
   });
 
+  it('counts a body through an obtuse cone’s apex outside it until it clears the apex by its radius', () => {
+    const wide = outside(cone({ r: 10, half: 0.75 * Math.PI, dir: 0 }));
+    const out: number[] = [];
+
+    // Ahead of the apex the nearest point the cone leaves out is the apex itself, so the body is outside until z = 1.
+    assert.equal(pathIntervals(wide, { from: vec2(0, -3), to: vec2(0, 3), t0: 0, t1: 1, radius: 1 }, out), 1);
+    close(out[0], 0);
+    close(out[1], 4 / 6);
+  });
+
+  it('counts a point running along the seam of two polygons tiled flush as inside', () => {
+    const a = polygon([vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1)]);
+    const b = polygon([vec2(1, 0), vec2(2, 0), vec2(2, 1), vec2(1, 1)]);
+    const seam = { from: vec2(1, -1), to: vec2(1, 2), t0: 0, t1: 3 };
+    const out: number[] = [];
+
+    assert.equal(pathIntervals(union(a, b), seam, out), 1);
+    close(out[0], 1);
+    close(out[1], 2);
+    close(secondsInside(a, seam), 1);
+  });
+
   it('agrees with covers at every sampled point of any segment, for any shape', () => {
     const shapes: Shape[] = [
       circle(3, vec2(1, 2)),
@@ -192,6 +214,11 @@ describe('pathIntervals: a body crossing a shape over one tick', () => {
       cone({ r: 5, half: 0.6, dir: 0.3, apex: 0.5 }),
       lane({ length: 6, width: 2, dir: 1, back: 1 }),
       polygon([vec2(0, 0), vec2(4, 1), vec2(3, 4), vec2(-1, 3)], 0.5),
+      // Off the origin, where fast-check crowds its coordinates: a hair (1e-162) from a corner, a square underflows.
+      polygon([vec2(0.5, -0.3), vec2(4, 1), vec2(3, 4), vec2(-1, 3)]),
+      outside(polygon([vec2(0.5, -0.3), vec2(4, 1), vec2(3, 4), vec2(-1, 3)])),
+      outside(cone({ r: 6, half: 2.4, dir: -2, at: vec2(0.3, -0.2) })),
+      outside(cone({ r: 6, half: Math.PI, dir: 1, at: vec2(0.3, -0.2) })),
       difference(circle(4), ring(1, 2)),
       difference(circle(5), lane({ length: 10, width: 0.5, dir: 0, at: vec2(0, -5) })),
       outside(union(circle(2, vec2(-1, 0)), circle(2, vec2(1, 0)))),
