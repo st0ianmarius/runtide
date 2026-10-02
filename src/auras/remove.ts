@@ -341,23 +341,25 @@ export const spendStacks = <G extends AuraTypes>(
 
   const from = engine.events.open('spendStacks');
 
-  for (let i = 0; i < set.items.length && left > 0; i++) {
-    const item = set.items[i];
+  try {
+    for (let i = 0; i < set.items.length && left > 0; i++) {
+      const item = set.items[i];
 
-    if (item?.id !== id) {
-      continue;
+      if (item?.id !== id) {
+        continue;
+      }
+
+      const taken = Math.min(item.stacks, left);
+
+      item.stacks -= taken;
+      left -= taken;
+      engine.isSpentEmpty = item.stacks <= 0;
+      i -= spendOne(engine, bearer, i);
     }
-
-    const taken = Math.min(item.stacks, left);
-
-    item.stacks -= taken;
-    left -= taken;
-    engine.isSpentEmpty = item.stacks <= 0;
-    i -= spendOne(engine, bearer, i);
+  } finally {
+    engine.refreshTags(set);
+    engine.events.close(from);
   }
-
-  engine.refreshTags(set);
-  engine.events.close(from);
 
   return true;
 };
@@ -414,23 +416,25 @@ export const spendValue = <G extends AuraTypes>(
   const keeps = ((engine.flags[id] ?? 0) & KEEP_DEPLETED) !== 0;
   let left = amount;
 
-  for (let i = 0; i < set.items.length && left > 0; i++) {
-    const item = set.items[i];
+  try {
+    for (let i = 0; i < set.items.length && left > 0; i++) {
+      const item = set.items[i];
 
-    if (item?.id !== id || !(item.value > 0) || (only !== undefined && item !== only)) {
-      continue;
+      if (item?.id !== id || !(item.value > 0) || (only !== undefined && item !== only)) {
+        continue;
+      }
+
+      const taken = Math.min(item.value, left);
+
+      item.value -= taken;
+      left -= taken;
+      engine.isSpentEmpty = item.value <= 0 && !keeps;
+      i -= spendOne(engine, bearer, i);
     }
-
-    const taken = Math.min(item.value, left);
-
-    item.value -= taken;
-    left -= taken;
-    engine.isSpentEmpty = item.value <= 0 && !keeps;
-    i -= spendOne(engine, bearer, i);
+  } finally {
+    engine.refreshTags(set);
+    engine.events.close(from);
   }
-
-  engine.refreshTags(set);
-  engine.events.close(from);
 
   return amount - left;
 };

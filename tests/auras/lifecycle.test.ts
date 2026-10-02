@@ -284,6 +284,38 @@ describe('aura events on the bus', () => {
 });
 
 describe('hooks that throw', () => {
+  for (const spend of ['spendStacks', 'spendValue'] as const) {
+    it(`closes ${spend} when a removal watcher throws, releasing slots and refreshing tags`, () => {
+      const { auras, id, unit, log } = makeGame({
+        ward: aura({ duration: 'infinite', tags: ['immune'], value: 1, ...logged('ward') })
+      });
+
+      const u = unit();
+      const error = new Error('watcher');
+      let throws = true;
+
+      auras.watchRemovals(() => {
+        if (throws) {
+          throw error;
+        }
+      });
+      auras.apply(u, id.ward);
+      assert.throws(
+        () => auras[spend](u, id.ward, 1),
+        (caught) => caught === error
+      );
+      assert.deepEqual([auras.list(u).length, auras.hasTag(u, TAGS.id.immune), auras.pool.live], [0, false, 0]);
+      assert.deepEqual(log, ['applied:ward@1', 'removed:ward@1']);
+
+      // Later operations must release their slots too, with no stale events left queued.
+      throws = false;
+      auras.apply(u, id.ward);
+      auras.remove(u, id.ward);
+      assert.equal(auras.pool.live, 0);
+      assert.deepEqual(log, ['applied:ward@1', 'removed:ward@1', 'applied:ward@1', 'removed:ward@1']);
+    });
+  }
+
   it('still dispatch the rest of the operation’s events, then throw', () => {
     const { auras, id, unit, log } = makeGame({
       first: aura({
