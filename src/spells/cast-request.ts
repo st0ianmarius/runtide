@@ -40,6 +40,12 @@ export interface CastReport<G extends SpellTypes = SpellTypes> {
   readonly hasReleased: boolean;
 }
 
+/**
+ * What a caster's `auto` casts are started with in one step (`spells.stepAuto`): the step's aim or target (`input`: a
+ * twin-stick hero's aim, an MMO swing's target) and whom their hits credit (`source`: a pet's owner).
+ */
+export type AutoOptions<G extends SpellTypes> = Pick<CastOptions<G>, 'input' | 'source'>;
+
 /** How a cast is started, beyond the caster and the spell. */
 export interface CastOptions<G extends SpellTypes> {
   /** What the activation hands it: an aim, a unit (`ctx.input`, the `target` hook's argument). */

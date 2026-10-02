@@ -52,6 +52,30 @@ describe('auto clocks', () => {
     assert.ok(Math.abs(game.spells.autoClock(game.a, game.id.swing) - 0.05) < 1e-12);
   });
 
+  it('casts with the step’s input and credit when the step gives them, and none and its own without', () => {
+    const seen: string[] = [];
+
+    const game = autoGame({
+      swing: spell({
+        activation: { kind: 'auto', interval: 0.25 },
+
+        release: (ctx) => {
+          seen.push(`input ${ctx.input?.id ?? 'none'} source ${ctx.source}`);
+
+          return undefined;
+        }
+      })
+    });
+
+    const [foe, owner] = [game.unit(100), game.unit(7)];
+
+    game.step();
+    game.spells.stepAuto(game.a, { input: foe, source: owner.id });
+    game.step();
+    game.spells.stepAuto(game.a);
+    assert.deepEqual(seen, ['input 100 source 7', 'input none source 1']);
+  });
+
   it("reads the interval from the cast's stats", () => {
     const game = autoGame({
       volley: spell({

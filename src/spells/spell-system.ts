@@ -3,7 +3,7 @@ import type { TickSlotId } from '../core/index.ts';
 import type { StatId } from '../modifiers/index.ts';
 import type { ProcContext } from '../procs/index.ts';
 import type { ClockScale } from './auto.ts';
-import type { CastOptions, CastRefusal, CastReport } from './cast-request.ts';
+import type { AutoOptions, CastOptions, CastRefusal, CastReport } from './cast-request.ts';
 import type { CasterState } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import type { CastHandle } from './ids.ts';
@@ -109,10 +109,11 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /**
    * Steps a caster's armed `auto` clocks by one step, in registry order: one that ran out casts its spell and
-   * is set to what its activation's `next` answers (the interval read at the cast, or sooner). A caster with none
-   * armed costs nothing.
+   * is set to what its activation's `next` answers (the interval read at the cast, or sooner). Each cast this step
+   * starts goes with `options` (the step's `input`, its credited `source`), as `cast`'s would; with none, no input and
+   * the caster's own credit. A caster with none armed costs nothing.
    */
-  readonly stepAuto: (caster: G['bearer']) => void;
+  readonly stepAuto: (caster: G['bearer'], options?: AutoOptions<G>) => void;
 
   /**
    * Arms a caster's `auto` clock for a spell it has now (a template's swing, a card), with `seconds` left (0: it casts

@@ -5,6 +5,7 @@ import { armAuto, autoClockOf, type ClockScale, rescaleClocks, setAutoClock, ste
 import { engineOf, gameActivationsOf } from './build-engine.ts';
 import { fireCastCue } from './cast-cue.ts';
 import {
+  type AutoOptions,
   type CastOptions,
   type CastRefusal,
   type CastReport,
@@ -88,9 +89,12 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly cast = (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>): CastReport<G> =>
     startCast(this.#engine, this.#requestOf(caster, spell, options), this.#report);
 
+  /** The options of the auto step running now, which its casts start with; none outside a step. */
+  #autoOptions: AutoOptions<G> | undefined = undefined;
+
   /** An auto clock's cast: the system's report, with the interval the clock reads. */
   readonly #castAuto = (caster: G['bearer'], spell: SpellId): Report<G> =>
-    startCast(this.#engine, this.#requestOf(caster, spell, undefined), this.#report);
+    startCast(this.#engine, this.#requestOf(caster, spell, this.#autoOptions), this.#report);
 
   /** The system's one request, rewritten: the cast order reads it before any hook runs, so a nested cast may reuse it. */
   #requestOf(caster: G['bearer'], spell: SpellId, options: CastOptions<G> | undefined): CastRequest<G> {
@@ -139,8 +143,17 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
   readonly castsOf = (caster: G['bearer'], out: CastHandle[]): number => recordOf(caster).copyInto(out);
 
-  readonly stepAuto = (caster: G['bearer']): void => {
-    stepAutoClocks(this.#engine, caster, this.#castAuto);
+  readonly stepAuto = (caster: G['bearer'], options?: AutoOptions<G>): void => {
+    // Restored after, so an auto step a cast's procs run for another caster leaves this one's options as they were.
+    const outer = this.#autoOptions;
+
+    this.#autoOptions = options;
+
+    try {
+      stepAutoClocks(this.#engine, caster, this.#castAuto);
+    } finally {
+      this.#autoOptions = outer;
+    }
   };
 
   readonly arm = (caster: G['bearer'], spell: SpellId, seconds = 0): boolean =>
