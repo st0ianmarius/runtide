@@ -1,5 +1,6 @@
 // Hot path: every blow runs these, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
+import type { DealtChange } from '../auras/damage-hooks.ts';
 import type { ActiveAura, AuraContext, BlowChange } from '../auras/index.ts';
 import type { BlowRecord } from './blow.ts';
 import type { BlowStop, DamageTypes } from './damage-types.ts';
@@ -66,6 +67,41 @@ const changeApplier =
     }
   };
 
+/** Whether an `onDealt` answer is a plain list of procs. */
+const isProcList = <Proc>(answer: readonly Proc[] | DealtChange<Proc>): answer is readonly Proc[] =>
+  Array.isArray(answer);
+
+/** Runs an `onDealt` answer: its procs, then the value it spends from the instance whose hook it was. */
+const runDealt = <G extends DamageTypes>(
+  engine: DamageEngine<G>,
+  [aura, ctx]: readonly [ActiveAura<G>, AuraContext<G>],
+  answer: readonly G['proc'][] | DealtChange<G['proc']> | undefined
+): void => {
+  if (answer === undefined || isProcList(answer)) {
+    engine.runProcs(answer, ctx);
+
+    return;
+  }
+
+  engine.runProcs(answer.procs, ctx);
+
+  if ((answer.spend ?? 0) > 0) {
+    engine.auras.spendValue(ctx.bearer, aura, answer.spend ?? 0);
+  }
+};
+
+/** Each aura's place in a walk by aura id, from one of its definition's fields; `undefined` when every place is 0. */
+const placesOf = <G extends DamageTypes>(
+  engine: DamageEngine<G>,
+  place: 'incomingOrder' | 'lethalOrder'
+): Float64Array | undefined => {
+  const { defs } = engine.auras.registry;
+
+  return defs.some((def) => (def?.[place] ?? 0) !== 0)
+    ? Float64Array.from(defs, (def) => def?.[place] ?? 0)
+    : undefined;
+};
+
 /** Prevents a death if a lethal hook says so: the damage is kept back and the hook's procs run. Made once per system. */
 const deathPreventer =
   <G extends DamageTypes>(engine: DamageEngine<G>) =>
@@ -90,11 +126,8 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
   const target = (blow: BlowRecord<G>): G['bearer'] => blow.target;
   const attacker = (blow: BlowRecord<G>): G['bearer'] | undefined => blow.attacker;
   const applyChange = changeApplier(engine);
-  const { defs } = engine.auras.registry;
-
-  const incomingOrder = defs.some((def) => (def?.incomingOrder ?? 0) !== 0)
-    ? Float64Array.from(defs, (def) => def?.incomingOrder ?? 0)
-    : undefined;
+  const incomingOrder = placesOf(engine, 'incomingOrder');
+  const lethalOrder = placesOf(engine, 'lethalOrder');
 
   return {
     ignore: {
@@ -138,7 +171,13 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
       }
     },
 
-    lethal: { hook: 'onLethal', unit: target, other: attacker, step: deathPreventer(engine) },
+    lethal: {
+      hook: 'onLethal',
+      unit: target,
+      other: attacker,
+      ...(lethalOrder === undefined ? {} : { order: lethalOrder }),
+      step: deathPreventer(engine)
+    },
 
     dealt: {
       hook: 'onDealt',
@@ -146,7 +185,7 @@ export const createBlowWalks = <G extends DamageTypes>(engine: DamageEngine<G>):
       other: target,
 
       step: (blow, aura, ctx) => {
-        engine.runProcs(hooks.onDealt[aura.id]?.(ctx, blow), ctx);
+        runDealt(engine, [aura, ctx], hooks.onDealt[aura.id]?.(ctx, blow));
 
         return false;
       }

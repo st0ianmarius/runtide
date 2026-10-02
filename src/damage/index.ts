@@ -1,10 +1,10 @@
 /**
- * Damage, healing and force: one side-agnostic damage pipeline for any unit,
- * in a documented stage order a game extends with its own named stages: the ignore gates, the block
- * roll, the attacker's outgoing multipliers and crit, the mitigation rows, absorbs, `onLethal` and health,
- * then the after-stages (`onDealt`, the events, the knockback, the death pipeline). Damage kinds bypass the stages
- * they name (true damage skips block, mitigation and absorbs). A heal pipeline, a force pipeline and the death
- * pipeline with its reward slots sit beside it, and the `damage`, `heal` and `setHealth` proc kinds reach them all.
+ * Damage, healing and force: one side-agnostic damage pipeline for any unit, in a documented stage order a game
+ * extends with its own named stages: the ignore gates, the block roll, the attacker's outgoing multipliers and crit,
+ * the mitigation rows, absorbs, `onLethal` and health, then the after-stages (`onDealt`, the events, the death
+ * pipeline); a knockback is the game's own after-stage calling `force`. Damage kinds bypass the stages they name (true
+ * damage skips block, mitigation and absorbs). A heal pipeline, a force pipeline and the death pipeline with its reward
+ * slots sit beside it, and the `damage`, `heal`, `setHealth` and `force` proc kinds reach them all.
  */
 
 export type { Blow, BlowSpec, BlowStep } from './blow.ts';
@@ -30,12 +30,14 @@ export {
   copyBlow,
   createDamageEvent,
   createDeathEvent,
+  createForceEvent,
   createHealEvent,
   type DamageEvent,
   type DamageEvents,
   damageTriggerEvent,
   type DeathEvent,
   deathTriggerEvent,
+  type ForceEvent,
   type HealEvent,
   healTriggerEvent,
   type SpellNames

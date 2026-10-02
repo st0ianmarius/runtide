@@ -86,6 +86,9 @@ export interface HealProc<G extends DamageTypes> extends ProcShape {
 
   /** The spell it comes from. */
   readonly spell?: G['spell'];
+
+  /** The game's own fields on its heal (`heal.ext`): how the game classifies it, a regeneration or a direct heal. */
+  readonly ext?: G['blowExt'];
 }
 
 /** Sets health outright, bypassing the heal stages: a death escape's heal back to a share. */

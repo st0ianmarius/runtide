@@ -318,6 +318,26 @@ describe('the attacker’s onDealt hooks', () => {
     assert.equal(attacker.hp, 65);
   });
 
+  it('spend their own instance’s value by what a `spend` answer names, once its procs ran', () => {
+    const { damage, auras, id, unit } = makeDamageGame({
+      pool: aura({
+        duration: 10,
+        value: 10,
+        onDealt: (ctx, blow) => ({ procs: [heal(Math.min(ctx.aura.value, blow.dealt))], spend: blow.dealt })
+      })
+    });
+
+    const [target, attacker] = [unit(1), unit(2)];
+
+    attacker.hp = 50;
+    auras.apply(attacker, id.pool);
+    damage.hit({ target, attacker, amount: 6 });
+    assert.deepEqual([attacker.hp, auras.find(attacker, id.pool)?.value], [56, 4]);
+
+    damage.hit({ target, attacker, amount: 6 });
+    assert.deepEqual([attacker.hp, auras.has(attacker, id.pool)], [60, false]);
+  });
+
   it('name the blow’s target as the other unit, which their procs reach as `other`', () => {
     const { damage, auras, id, unit } = makeDamageGame(AURAS);
     const [target, attacker] = [unit(1), unit(2)];

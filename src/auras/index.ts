@@ -31,6 +31,7 @@ export { auraCue, checkAuraCues } from './cues.ts';
 export type {
   AuraDamageHooks,
   BlowChange,
+  DealtChange,
   ForceChange,
   HealChange,
   LethalOutcome,

@@ -12,6 +12,7 @@ const compileForceRuns = <G extends DamageTypes>(engine: DamageEngine<G>): reado
   const resist: HookWalk<G, ForceRecord<G>> = {
     hook: 'onIncomingForce',
     unit: (force) => force.target,
+    other: (force) => force.attacker,
 
     step: (force, aura, ctx) => {
       const change = hooks.onIncomingForce[aura.id]?.(ctx, force);
@@ -82,10 +83,28 @@ const runForceStages = <G extends DamageTypes>(
   }
 };
 
+/** Raises the `forced` event for a force that ran, if it is heard, and lets go of the force once the listeners are done. */
+const raiseForced = <G extends DamageTypes>(engine: DamageEngine<G>, force: ForceRecord<G>): void => {
+  const events = engine.options.events;
+  const kind = events?.forced;
+
+  if (events === undefined || kind === undefined || !events.bus.hears(kind)) {
+    return;
+  }
+
+  const payload = events.bus.payload(kind);
+
+  payload.force = force;
+  events.bus.raise(kind, payload);
+  payload.force = undefined;
+};
+
 /**
  * Builds the force pipeline: a knockback, push or pull goes through the target's `onIncomingForce` hooks in
- * list order (a cancel ends it `ignored`, a scale changes its strength) and the game's stages (immunity, a resist
- * factor and cap), then the host moves the unit. A force with no strength, or on a dead unit, is `skipped`.
+ * list order (each hook's `other` the force's attacker; a cancel ends it `ignored`, a scale changes its strength) and
+ * the game's stages (immunity, a resist factor and cap), then the host moves the unit, then the `forced` event is
+ * raised (for a landed or an ignored force). A force with no strength, a non-finite one, or on a dead unit is
+ * `skipped` and raises nothing.
  */
 export const createForcePipeline = <G extends DamageTypes>(engine: DamageEngine<G>) => {
   const runs = compileForceRuns(engine);
@@ -107,6 +126,10 @@ export const createForcePipeline = <G extends DamageTypes>(engine: DamageEngine<
 
       runForceStages(engine, runs, force);
       cues?.force?.(force, cues.out);
+
+      if (force.status !== 'skipped') {
+        raiseForced(engine, force);
+      }
     } finally {
       engine.leave();
     }

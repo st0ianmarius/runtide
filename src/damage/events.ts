@@ -4,6 +4,7 @@ import type { TriggerEvent, TriggerTypes } from '../triggers/index.ts';
 import type { Blow } from './blow.ts';
 import type { BlowStatus, DamageTypes } from './damage-types.ts';
 import type { Death } from './death.ts';
+import type { Force } from './force.ts';
 import type { Heal } from './heal.ts';
 import type { DamageKindTable } from './kinds.ts';
 import type { RollTable } from './rolls.ts';
@@ -81,6 +82,12 @@ export interface DeathEvent<G extends DamageTypes> {
   death: Death<G> | undefined;
 }
 
+/** The payload of a force event: the force, reused between raises, read while the listener runs. */
+export interface ForceEvent<G extends DamageTypes> {
+  /** The force; set on every raise. */
+  force: Force<G> | undefined;
+}
+
 /** Makes an empty damage event payload: the factory a game registers `dealt` and `taken` on its bus with. */
 export const createDamageEvent = <G extends DamageTypes>(): DamageEvent<G> => ({ blow: undefined });
 
@@ -89,6 +96,9 @@ export const createHealEvent = <G extends DamageTypes>(): HealEvent<G> => ({ hea
 
 /** Makes an empty death event payload. */
 export const createDeathEvent = <G extends DamageTypes>(): DeathEvent<G> => ({ death: undefined });
+
+/** Makes an empty force event payload. */
+export const createForceEvent = <G extends DamageTypes>(): ForceEvent<G> => ({ force: undefined });
 
 /**
  * The bus and the event kinds the damage system raises: generic kinds a game maps its own trigger
@@ -130,6 +140,12 @@ export interface DamageEvents<G extends DamageTypes> {
    * Never raised for a death credited to no one.
    */
   readonly kill?: EventKind<DeathEvent<G>>;
+
+  /**
+   * A force that was not skipped (ignored ones too), about its target, after the host applied it: what the combat log
+   * records a force at.
+   */
+  readonly forced?: EventKind<ForceEvent<G>>;
 }
 
 /** The blow statuses, in the code order a `status` filter's argument resolves to. */

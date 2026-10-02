@@ -99,6 +99,7 @@ class ProcHealSpec<G extends DamageTypes> implements HealSpec<G> {
   source: number | undefined = undefined;
   spell: G['spell'] | undefined = undefined;
   aura: AuraId | undefined = undefined;
+  ext: G['blowExt'] | undefined = undefined;
 
   constructor(target: G['bearer']) {
     this.target = target;
@@ -216,6 +217,7 @@ const healKind = <G extends DamageTypes>(engine: DamageEngine<G>, pipelines: Pro
       spec.source = ctx.source;
       spec.spell = proc.spell;
       spec.aura = ctx.aura?.id;
+      spec.ext = proc.ext;
 
       return pipelines.heal(spec);
     },

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { copyBlow, damage } from '../../src/damage/index.ts';
+import { copyBlow, damage, heal } from '../../src/damage/index.ts';
 import { aura, type Game, makeDamageGame } from '../helpers/damage-game.ts';
 
 /** An ally's `onDealt` aura dealing an extra blow of 10 for each blow its bearer deals, with one attacker option. */
@@ -74,5 +74,30 @@ describe('copyBlow', () => {
       [30, 30, 0, false, 2, 2, 'landed']
     );
     assert.deepEqual([second.dealt, second.overkill, second.hasKilled], [70, 10, true]);
+  });
+});
+
+describe('a heal’s ext', () => {
+  it('carries the game’s classification from the spec, reset for a heal without one', () => {
+    const { damage: system, unit } = makeDamageGame({});
+    const target = unit(1);
+
+    target.hp = 10;
+
+    assert.deepEqual(system.heal({ target, amount: 5, ext: { crushing: 1 } }).ext, { crushing: 1 });
+    assert.equal(system.heal({ target, amount: 5 }).ext, undefined);
+  });
+
+  it('is carried from a heal proc, as a healed listener reads it', () => {
+    const { damage: system, procs, unit, bus } = makeDamageGame({});
+    const target = unit(1);
+    const seen: unknown[] = [];
+
+    target.hp = 10;
+    bus.on(bus.kind.healed, ({ heal: healed }) => seen.push(healed?.ext));
+    procs.apply(heal<Game>(5, { ext: { crushing: 2 } }), { self: target, source: target.id });
+    system.heal({ target, amount: 5 });
+
+    assert.deepEqual(seen, [{ crushing: 2 }, undefined]);
   });
 });

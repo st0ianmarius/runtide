@@ -21,6 +21,12 @@ export interface HealSpec<G extends DamageTypes> {
 
   /** The aura it comes from (a regeneration's beat), for the log and the game's stages. */
   readonly aura?: AuraId | undefined;
+
+  /**
+   * The game's own fields for this heal, of the blows' type: the game's way to classify heals (a regeneration beat or a
+   * direct heal), which its stages, listeners and log read. The framework never reads it.
+   */
+  readonly ext?: G['blowExt'] | undefined;
 }
 
 /**
@@ -42,6 +48,9 @@ export interface Heal<G extends DamageTypes> extends ProcOutcome {
 
   /** The aura it comes from, if any. */
   readonly aura: AuraId | undefined;
+
+  /** The game's own fields, as the spec gave them (how the game classifies the heal). */
+  readonly ext: G['blowExt'] | undefined;
 
   /** The amount it was asked for. */
   readonly base: number;
@@ -72,6 +81,7 @@ export class HealRecord<G extends DamageTypes> implements Heal<G> {
   source = NO_SOURCE;
   spell: G['spell'] | undefined = undefined;
   aura: AuraId | undefined = undefined;
+  ext: G['blowExt'] | undefined = undefined;
   base = 0;
   amount = 0;
   overheal = 0;
@@ -92,6 +102,7 @@ export class HealRecord<G extends DamageTypes> implements Heal<G> {
     this.source = source;
     this.spell = spec.spell;
     this.aura = spec.aura;
+    this.ext = spec.ext;
     this.base = spec.amount;
     this.amount = spec.amount;
     this.overheal = 0;

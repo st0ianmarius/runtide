@@ -53,6 +53,21 @@ export interface LethalOutcome<Proc> {
 }
 
 /**
+ * What an `onDealt` hook answers in place of a plain list of procs, when it spends its own aura too (a leech pool
+ * paying out what it heals).
+ */
+export interface DealtChange<Proc = unknown> {
+  /** Procs to run, credited to the aura, as a plain list's are. */
+  readonly procs?: readonly Proc[];
+
+  /**
+   * Value to spend from the instance whose hook it was, once its procs ran; it spends no more than the instance holds,
+   * and an instance spent to 0 goes unless its aura keeps it when depleted. Nothing below 0 or NaN.
+   */
+  readonly spend?: number;
+}
+
+/**
  * The damage and heal pipelines' aura hooks: before a blow or a heal lands on a bearer, each of its auras with a
  * hook sees it, in registry order. They are declared here and built into the registry's hook tables; the damage
  * system's pipelines call them.
@@ -76,11 +91,23 @@ export interface AuraDamageHooks<G extends AuraTypes> {
   /** Where its `onIncomingDamage` answers among its bearer's: lower first, 0 when absent. */
   readonly incomingOrder?: number;
 
-  /** The lethal stage: prevents the death, or `undefined` to let it happen. It runs for true damage too. */
+  /**
+   * The lethal stage: prevents the death, or `undefined` to let it happen. It runs for true damage too. The bearer's
+   * auras answer in their `lethalOrder`, then registry order, until one prevents it.
+   */
   readonly onLethal?: (ctx: AuraContext<G>, blow: G['blow']) => LethalOutcome<G['proc']> | undefined;
 
-  /** The attacker side: procs after the bearer dealt a blow (lifesteal spending the aura's value). */
-  readonly onDealt?: (ctx: AuraContext<G>, blow: G['blow']) => readonly G['proc'][] | undefined;
+  /** Where its `onLethal` answers among its bearer's: lower first, 0 when absent. */
+  readonly lethalOrder?: number;
+
+  /**
+   * The attacker side: procs after the bearer dealt a blow, as a list, or with value its own instance spends (lifesteal
+   * spending the aura's value).
+   */
+  readonly onDealt?: (
+    ctx: AuraContext<G>,
+    blow: G['blow']
+  ) => readonly G['proc'][] | DealtChange<G['proc']> | undefined;
 
   /** The force stage: changes a knockback, push or pull, or `undefined` to leave it alone. */
   readonly onIncomingForce?: (ctx: AuraContext<G>, force: G['force']) => ForceChange | undefined;
