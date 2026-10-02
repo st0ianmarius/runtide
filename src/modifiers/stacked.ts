@@ -21,13 +21,21 @@ export const clampStat = <Host>(sheet: Sheet<Host>, stat: number, value: number)
 export const stackedAdd = (value: number, stacks: number): number => (stacks <= 1 ? value : value * stacks);
 
 /**
- * A mul at `stacks` stacks: the authored float at one stack or fewer, else `value ^ stacks`, or `1 + (value − 1) ×
- * stacks` for linear stacking.
+ * A mul at `stacks` stacks: the authored float at one stack or fewer, else `value ^ stacks`, or for linear stacking
+ * `1 + perStack × stacks` with an authored rise per stack, else `1 + (value − 1) × stacks`.
  */
-export const stackedMul = (entry: { readonly isLinear: boolean }, value: number, stacks: number): number => {
+export const stackedMul = (
+  entry: { readonly isLinear: boolean; readonly perStack?: number | undefined },
+  value: number,
+  stacks: number
+): number => {
   if (stacks <= 1) {
     return value;
   }
 
-  return entry.isLinear ? 1 + (value - 1) * stacks : value ** stacks;
+  if (!entry.isLinear) {
+    return value ** stacks;
+  }
+
+  return entry.perStack === undefined ? 1 + (value - 1) * stacks : 1 + entry.perStack * stacks;
 };

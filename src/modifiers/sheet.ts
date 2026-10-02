@@ -107,6 +107,9 @@ export interface Entry<Host> {
   /** Whether a gated `mul` stacks linearly. */
   readonly isLinear: boolean;
 
+  /** A linear `mul`'s rise per stack, or `undefined` to rebuild it from the value. */
+  readonly perStack: number | undefined;
+
   /** The compiled modifier, for explanations. */
   readonly modifier: CompiledModifier;
 

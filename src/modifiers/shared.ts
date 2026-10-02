@@ -18,6 +18,7 @@ const markerOf = (stat: StatId): CompiledModifier =>
     op: 'add',
     value: 0,
     stacking: 'power',
+    perStack: undefined,
     when: undefined,
     scope: undefined
   });

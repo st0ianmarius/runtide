@@ -86,6 +86,23 @@ const compileWhen = <S extends string, C extends string, V extends string>(
         `${place.what}, when`
       );
 
+/** Throws unless a modifier's rise per stack is absent, or a finite number on a linear `mul`. */
+const checkPerStack = (modifier: { readonly stacking?: string; readonly perStack?: number }, what: string): void => {
+  const { perStack } = modifier;
+
+  if (perStack === undefined) {
+    return;
+  }
+
+  if (modifier.stacking !== 'linear') {
+    throw new RangeError(`${what}: a rise per stack (perStack) applies to linear stacking only.`);
+  }
+
+  if (!Number.isFinite(perStack)) {
+    throw new RangeError(`${what}: a rise per stack (perStack) is a finite number; got ${perStack}.`);
+  }
+};
+
 /** Compiles and checks one modifier. */
 const compileModifier = <S extends string, C extends string, V extends string>(
   modifier: Modifier<S, C, V>,
@@ -101,6 +118,8 @@ const compileModifier = <S extends string, C extends string, V extends string>(
     throw new RangeError(`${place.what}: linear stacking applies to a mul only.`);
   }
 
+  checkPerStack(modifier, place.what);
+
   if (scope !== undefined && (!Number.isInteger(scope) || scope < 0)) {
     throw new RangeError(`${place.what}: scope must be a game scope id, a non-negative integer.`);
   }
@@ -110,6 +129,7 @@ const compileModifier = <S extends string, C extends string, V extends string>(
     op,
     value: compileValue(modifier.value, place),
     stacking: stacking ?? 'power',
+    perStack: modifier.perStack,
     when: compileWhen(modifier.when, place),
     scope
   });

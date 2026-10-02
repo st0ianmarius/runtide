@@ -30,7 +30,7 @@ export const explainModifier = (modifier: CompiledModifier, stacks = 1): Modifie
   let landed: number | undefined;
 
   if (typeof value === 'number') {
-    landed = op === 'mul' ? stackedMul({ isLinear }, value, stacks) : value;
+    landed = op === 'mul' ? stackedMul({ isLinear, perStack: modifier.perStack }, value, stacks) : value;
     landed = op === 'add' ? stackedAdd(value, stacks) : landed;
   }
 

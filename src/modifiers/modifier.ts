@@ -61,6 +61,13 @@ export interface Modifier<S extends string = string, C extends string = string, 
    */
   readonly stacking?: 'power' | 'linear';
 
+  /**
+   * A linear `mul`'s rise per stack, landing `1 + perStack × stacks` in place of `1 + (value − 1) × stacks`: authored as
+   * the rise itself (`0.4 / 7`), so a rank's product is the float the game writes by hand, not one rebuilt from
+   * `value − 1`. Linear stacking only; `value` still lands at one stack or fewer.
+   */
+  readonly perStack?: number;
+
   /** When it counts (a game test, a comparison, or their composition); always when absent. */
   readonly when?: ConditionExpr<C, V>;
 
@@ -78,6 +85,9 @@ export interface ModifierOptions<C extends string = string, V extends string = n
 
   /** How a gated `mul` stacks. */
   readonly stacking?: 'power' | 'linear';
+
+  /** A linear `mul`'s rise per stack (`Modifier.perStack`). */
+  readonly perStack?: number;
 }
 
 /** Builds a modifier with only the options that are present. */
@@ -88,7 +98,8 @@ const modifierOf = <S extends string, C extends string, V extends string>(
   ...head,
   ...(options.when === undefined ? {} : { when: options.when }),
   ...(options.scope === undefined ? {} : { scope: options.scope }),
-  ...(options.stacking === undefined ? {} : { stacking: options.stacking })
+  ...(options.stacking === undefined ? {} : { stacking: options.stacking }),
+  ...(options.perStack === undefined ? {} : { perStack: options.perStack })
 });
 
 /** An `add` modifier. Named `plus` because `add` is the scaled-value term helper. */
@@ -195,6 +206,9 @@ export interface CompiledModifier {
 
   /** How it stacks when gated. */
   readonly stacking: 'power' | 'linear';
+
+  /** A linear `mul`'s rise per stack, or `undefined` to rebuild it from the value. */
+  readonly perStack: number | undefined;
 
   /** When it counts, compiled, or `undefined` for always. */
   readonly when: CompiledCondition | undefined;

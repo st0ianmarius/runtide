@@ -76,6 +76,7 @@ export const entryOf = <Host>(
     source: at.source,
     gate: at.gate,
     isLinear: modifier.stacking === 'linear',
+    perStack: modifier.perStack,
     modifier,
     shared: at.shared
   };
