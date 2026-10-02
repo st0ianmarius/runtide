@@ -1,3 +1,4 @@
+import type { Bitset } from '../core/index.ts';
 import { ownValue } from '../core/records.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { SpellId } from '../spells/index.ts';
@@ -8,7 +9,7 @@ import { syncStates } from './interrupts.ts';
 import { changeSide, moveTo, raiseSpawned } from './lifecycle.ts';
 import { createUnitProcKinds } from './proc-kinds.ts';
 import type { UnitProcKinds } from './procs.ts';
-import { attachScript, creditOf, joinOwner } from './summons.ts';
+import { attachScript, creditOf, isBoundToGone, joinOwner } from './summons.ts';
 import type { UnitRegistry } from './unit-def.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
@@ -24,12 +25,17 @@ export interface UnitSystem<G extends UnitTypes> {
   /** How many units are live (spawned and not despawned). */
   readonly live: () => number;
 
-  /** Spawns a unit of a template: alive, at full health, its stats its template's with the spawn's on top. */
+  /**
+   * Spawns a unit of a template: alive, at full health, its stats its template's with the spawn's on top. Throws a
+   * `RangeError` for a stat that is not finite, or a maximum health that is not a finite number above 0. A bound spawn
+   * whose owner is not alive (spawned from its owner's death) is despawned at once (reason `owner`), as its owner's
+   * death would have: the unit comes back despawned.
+   */
   readonly spawn: (template: UnitId, spawn: SpawnUnit<G>) => G['bearer'];
 
   /**
    * Spawns a unit as `spawn` does once the game's `admit` lets it; `undefined`, with nothing made, when it refuses (a
-   * crowd at its cap, a placement that failed).
+   * crowd at its cap, a placement that failed), or when it is bound to an owner that is not alive.
    */
   readonly trySpawn: (template: UnitId, spawn: SpawnUnit<G>) => G['bearer'] | undefined;
 
@@ -44,7 +50,8 @@ export interface UnitSystem<G extends UnitTypes> {
 
   /**
    * Despawns a unit: removed without dying, so no rewards, no kill and no death event; its id is freed,
-   * and the `despawned` event carries the reason (`despawn` when absent). False for a unit already despawned.
+   * and the `despawned` event carries the reason (`despawn` when absent). False for a unit already despawned; true when
+   * queued behind a lifecycle move of the unit running now (as `revive`).
    */
   readonly despawn: (unit: G['bearer'], reason?: string) => boolean;
 
@@ -61,10 +68,19 @@ export interface UnitSystem<G extends UnitTypes> {
    */
   readonly creditOf: (unit: G['bearer']) => number;
 
-  /** A dead unit lives again with some health (its maximum when absent); false when it is not dead. */
+  /**
+   * A dead unit lives again with some health (its maximum when absent); false when it is not dead. True too when it is
+   * queued behind a lifecycle move of the unit running now (a revive from its death's `onState`), which runs once that
+   * move is done and may still be refused then: read its `lifecycle` after.
+   */
   readonly revive: (unit: G['bearer'], health?: number) => boolean;
 
-  /** A unit dies (the damage host's `remove` does this for a death by a blow); false when it is not alive. */
+  /**
+   * A unit's lifecycle moves to dead, its health set to 0 first; false when it is not alive (true when queued, as
+   * `revive`). It is the lifecycle move alone: no death event, kill credit or reward. For a death through the death
+   * pipeline, call the damage system's `damage.kill(unit, credit)` or `damage.setHealth(unit, 0)`, whose host's
+   * `remove` makes this move. A downed hero is a dead unit, revived by `revive`.
+   */
   readonly kill: (unit: G['bearer']) => boolean;
 
   /** Whether a unit is in a derived state (`stunned`), read from its aura tags now. */
@@ -93,10 +109,11 @@ export interface UnitSystem<G extends UnitTypes> {
 
   /**
    * A unit's stats: its sheet folded with it as the host, or its own bases without a modifier system. With `against`,
-   * folded against that unit, for the modifiers that ask about it (`against`, `againstValue`): a view to read at once,
-   * since the next such read of the unit reuses it.
+   * folded against that unit, for the modifiers that ask about it (`against`, `againstValue`); with `scope`, within
+   * those spell scopes (a spell's registry tags, `spells.registry.tagSets[spell]`): a view to read at once, since the
+   * next such read of the unit reuses it.
    */
-  readonly statsOf: (unit: G['bearer'], against?: G['bearer']) => StatView;
+  readonly statsOf: (unit: G['bearer'], against?: G['bearer'], scope?: Bitset) => StatView;
 
   /**
    * The unit system's proc kinds (`revive`, `summon`, `despawn`, `despawnSummons`): `createProcRegistry({
@@ -141,9 +158,14 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     registry.get(template);
 
     const unit = engine.create(template, spawn);
+    const stays = joinOwner(unit);
 
-    joinOwner(unit);
     raiseSpawned(engine, unit, spawn.at);
+
+    // Bound to an owner gone already: it goes as that owner's death or despawn would have taken it.
+    if (!stays) {
+      moveTo(engine, unit, 'despawned', undefined, 'owner');
+    }
 
     // A `spawned` listener that despawned it at once (a refused spawn point) leaves nothing to attach.
     if (unitOf<G>(unit).lifecycle === 'alive') {
@@ -172,7 +194,9 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     trySpawn: (template, spawn) => {
       registry.get(template);
 
-      return options.admit?.(template, spawn) === false ? undefined : spawnUnit(template, spawn);
+      return isBoundToGone(spawn) || options.admit?.(template, spawn) === false
+        ? undefined
+        : spawnUnit(template, spawn);
     },
 
     variant: (template, stats) => {
@@ -190,7 +214,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
 
     revive: reviveUnit,
 
-    kill: (unit) => moveTo(engine, unit, 'dead'),
+    kill: (unit) => moveTo(engine, unit, 'dead', 0),
 
     is: (unit, state) => {
       const bits = states?.tags[state];
@@ -214,10 +238,10 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     },
 
     syncStates: (unit) => syncStates(engine, unit),
-    statsOf: (unit, against) => engine.statsOf(unit, against),
+    statsOf: (unit, against, scope) => engine.statsOf(unit, against, scope),
     autoAttackOf: (unit) => engine.autoAttacks[unitOf<G>(unit).template],
     syncHealth: (unit) => syncHealth(engine, unit),
-    damageHost: damageHostOf(engine)
+    damageHost: damageHostOf(engine),
   };
 
   return Object.freeze(system);

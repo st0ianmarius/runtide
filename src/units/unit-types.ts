@@ -11,8 +11,9 @@ export type UnitId = Id<'units'>;
 export type UnitTagId = Id<'unitTags'>;
 
 /**
- * Where a unit is in its life: `alive`; `dead` (revivable); `despawned` (removed without dying: no rewards,
- * no kill). Going down and a player leaving are the game's own states: auras whose tags a unit state reads.
+ * Where a unit is in its life: `alive`; `dead` (revivable: a downed hero is dead, every leave-life cleanup run, its
+ * rewards gated by the game's own reward steps); `despawned` (removed without dying: no rewards, no kill). A player
+ * leaving is the game's own state: an aura whose tags a unit state reads.
  */
 export type Lifecycle = 'alive' | 'dead' | 'despawned';
 

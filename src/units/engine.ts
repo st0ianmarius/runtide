@@ -40,7 +40,10 @@ export interface UnitSystemBase<G extends UnitTypes> {
   /** The spell system every unit casts through. */
   readonly spells: SpellSystem<G>;
 
-  /** The area trigger system's lifecycle side: ends areas that need their owner as it dies or despawns. */
+  /**
+   * The area trigger system's lifecycle side: ends areas that need their owner as it dies or despawns. Required by a
+   * game with area triggers (left out, a gone owner's dependent areas live on): `units.checkWiring` asks for it.
+   */
   readonly areaTriggers?: {
     /** Ends the owner's dependent areas as `source-gone`, leaving independent areas alive. */
     readonly ownerGone: (owner: G['bearer']) => number;
@@ -74,13 +77,23 @@ export interface UnitSystemBase<G extends UnitTypes> {
     readonly scopeOf?: (spell: G['spell']) => Bitset | undefined;
   };
 
-  /** Health: the stat that is a unit's maximum, and what health does when it moves (`scale`). */
+  /**
+   * Health: the stat that is a unit's maximum (a finite number above 0 at every spawn), what health does when it moves
+   * (`scale`), and what a living unit whose health that left at 0 does.
+   */
   readonly health: {
     /** The maximum health stat. */
     readonly stat: G['stat'];
 
     /** The policy; `scale` when absent. */
     readonly policy?: HealthPolicy<G>;
+
+    /**
+     * A living unit's health was left at 0 by `units.syncHealth` (its maximum folded to 0): wire the damage system's
+     * `damage.kill` here (lazily, since the damage system is made after), so it dies through the death pipeline
+     * (events, kill credit). Absent, the unit stays alive at 0 until something hits it.
+     */
+    readonly onLethal?: (unit: G['bearer']) => void;
   };
 
   /** The game's derived unit states (`defineUnitStates`), with the interrupts they raise; none when absent. */
@@ -91,9 +104,16 @@ export interface UnitSystemBase<G extends UnitTypes> {
 
   /**
    * Allocates a unit's entity id from the game's shared counter (`createEntityIds().next`), so units, area triggers
-   * and casts share one id space. Without it the system counts its own ids from 1.
+   * and casts share one id space. Without it the system counts its own ids from 1. The counter owns the ids: a spawn
+   * that names its own `id` is refused unless `reserveId` is given too.
    */
   readonly allocateId?: () => number;
+
+  /**
+   * Takes an id a spawn names (`SpawnUnit.id`: a replica's id from the server) out of the shared counter's hands, so it
+   * never hands it out again; with `allocateId`, required for any spawn naming its id. It may throw to refuse one.
+   */
+  readonly reserveId?: (id: number) => void;
 }
 
 /** Makes the game's fields of a new unit: its template tells a mob from a hero, its spawn holds what it was given. */
@@ -138,8 +158,8 @@ export interface SpawnUnit<G extends UnitTypes> {
   readonly owner?: G['bearer'];
 
   /**
-   * Its entity id, a whole number from 0; the system's next when absent. With `allocateId`, an id given here must come
-   * from that counter (an id the server handed out), which is never told of it and could hand it out again.
+   * Its entity id, a whole number from 0; the system's next when absent. With `allocateId`, the shared counter owns
+   * ids: one given here is refused (a `RangeError`) unless the system has `reserveId`, which is handed it.
    */
   readonly id?: number;
 
@@ -155,7 +175,10 @@ export interface SpawnUnit<G extends UnitTypes> {
   /** Where it stands, handed to the `spawned` event for the game's world; none when absent. */
   readonly at?: Vec2;
 
-  /** Whether it despawns (reason `owner`) as its owner dies or despawns; false when absent. */
+  /**
+   * Whether it despawns (reason `owner`) as its owner dies or despawns; false when absent. Bound to an owner that is not
+   * alive, it despawns at once (`units.spawn`) or is refused (`units.trySpawn`).
+   */
   readonly isBound?: boolean;
 
   /** The game's own data for this spawn (a wave index, a summoner), handed to `createExt` and `admit`. */
@@ -224,6 +247,10 @@ export class UnitEngine<G extends UnitTypes> {
   create(template: UnitId, spawn: SpawnUnit<G>): G['bearer'] {
     const { options, registry } = this;
     const base = this.bases.baseOf(template, spawn);
+
+    // Checked before anything is made: a unit at no health, or at endless health, could never die.
+    this.#checkMaxHealth(template, base);
+
     const id = this.#idFor(spawn);
 
     const unit = new Unit<G>({
@@ -262,9 +289,24 @@ export class UnitEngine<G extends UnitTypes> {
     return made;
   }
 
-  /** A spawn's entity id: its own, or the next; refuses one already live. */
+  /** Throws unless a spawn's bases give it a maximum health that is a finite number above 0. */
+  #checkMaxHealth(template: UnitId, base: ArrayLike<number>): void {
+    const maxHealth = base[this.healthStat];
+
+    if (maxHealth === undefined || !(Number.isFinite(maxHealth) && maxHealth > 0)) {
+      missing(
+        `unit ${this.registry.name(template)} spawns with a maximum health of ${maxHealth}, not a finite number above 0`
+      );
+    }
+  }
+
+  /**
+   * A spawn's entity id: its own, or the next; refuses one already live, and one of its own where the shared counter
+   * owns ids and cannot reserve it.
+   */
   #idFor(spawn: SpawnUnit<G>): number {
-    const id = spawn.id ?? this.options.allocateId?.() ?? this.nextId;
+    const { allocateId, reserveId } = this.options;
+    const id = spawn.id ?? allocateId?.() ?? this.nextId;
 
     if (!Number.isSafeInteger(id) || id < 0) {
       throw new RangeError(`A unit's entity id is a whole number from 0; got ${id}.`);
@@ -272,6 +314,10 @@ export class UnitEngine<G extends UnitTypes> {
 
     if (this.byId.has(id)) {
       missing(`entity id ${id} is already a live unit`);
+    }
+
+    if (spawn.id !== undefined && allocateId !== undefined) {
+      (reserveId ?? ownedIds)(id);
     }
 
     this.nextId = Math.max(this.nextId, id + 1);
@@ -355,6 +401,10 @@ const extFactory = <G extends UnitTypes>(options: UnitSystemOptions<G>): UnitExt
     })
   );
 };
+
+/** Refuses a spawn's own id where the shared counter owns ids and there is no `reserveId`. */
+const ownedIds = (id: number): never =>
+  missing(`a spawn names its entity id ${id}, but allocateId owns the ids; give reserveId to take it from the counter`);
 
 /** Throws a `RangeError` for a unit system problem. */
 const missing = (problem: string): never => {

@@ -1,8 +1,10 @@
 import { DEAD_HOLD } from '../ai/index.ts';
 import type { EventKind } from '../core/index.ts';
 import type { Vec2 } from '../math/index.ts';
+import { type Caught, caught, rethrow } from './cleanup.ts';
 import { lateOf, type UnitEngine, unitOf } from './engine.ts';
 import type { UnitEvent } from './events.ts';
+import { clampHealth } from './health.ts';
 import { despawnBound, leaveOwner, orphanSummons, rejoinOwner } from './summons.ts';
 import type { Lifecycle, UnitTypes } from './unit-types.ts';
 
@@ -69,9 +71,8 @@ export const changeSide = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
 
 /**
  * A unit leaves life (dies or despawns): its casts end if it lived, it enters the matching bearer state (its auras
- * hear it, then those `removedOn` it go), it leaves its owner's summons, taking its bound ones along, and the auras it
- * put on others bound to it (`boundToSource`) come off them (`auras.sourceLeft`). Its dependent areas end and
- * its pending delayed lists are withdrawn, including those scheduled by the leaving hooks.
+ * hear it, then those `removedOn` it go), it leaves its owner's summons, taking its bound ones along, and what it owns
+ * goes (`releaseOwned`). Every step runs even when one throws; the first error surfaces (`rethrow`).
  */
 const leaveFor = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -80,8 +81,8 @@ const leaveFor = <G extends UnitTypes>(
   to: Exclude<Lifecycle, 'alive'>
 ): void => {
   const { auras } = engine.options;
+  let errors: Caught | undefined;
 
-  // Its owner's summons are left, and its bound ones taken along, even when a cast's or an aura's hook throws.
   try {
     if (from === 'alive') {
       engine.options.spells.cancelAll(bearer);
@@ -90,32 +91,65 @@ const leaveFor = <G extends UnitTypes>(
     if (auras.hasState(to)) {
       auras.enterState(bearer, to);
     }
-  } finally {
-    try {
-      leaveOwner(engine, bearer, to === 'despawned');
-      despawnBound(engine, bearer);
-    } finally {
-      releaseOwned(engine, bearer);
-    }
+  } catch (error) {
+    errors = caught(errors, error);
   }
+
+  try {
+    leaveOwner(engine, bearer, to === 'despawned');
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
+  try {
+    despawnBound(engine, bearer);
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
+  try {
+    releaseOwned(engine, bearer);
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
+  rethrow(errors);
 };
 
-/** Removes source-bound auras, dependent areas and delayed lists, even when an earlier cleanup hook throws. */
+/**
+ * What a unit leaving life owns goes, each step even when one before it throws: its dependent areas end first (their
+ * end hooks may still put its source-bound auras on others or schedule its delayed lists), then the auras it put on
+ * others bound to it (`boundToSource`) come off them (`auras.sourceLeft`), then its pending delayed lists are
+ * withdrawn. What runs after this (a `changed` or `despawned` listener, a script's `died` handler) is not tracked: an
+ * aura it puts on another bound to the unit, or a list it owns, stays.
+ */
 const releaseOwned = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer']): void => {
+  let errors: Caught | undefined;
+
+  try {
+    engine.options.areaTriggers?.ownerGone(bearer);
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
   try {
     engine.options.auras.sourceLeft(unitOf<G>(bearer).id);
-  } finally {
-    try {
-      engine.options.areaTriggers?.ownerGone(bearer);
-    } finally {
-      engine.options.spells.withdrawDelayed(bearer);
-    }
+  } catch (error) {
+    errors = caught(errors, error);
   }
+
+  try {
+    engine.options.spells.withdrawDelayed(bearer);
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
+  rethrow(errors);
 };
 
 /**
  * A unit despawned: its id forgotten, its brain freed, the `despawned` event raised, then its script detached and its
- * auras released to their pool.
+ * auras released to their pool, each even when one before it throws (the first error surfaces).
  */
 const despawned = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -124,34 +158,48 @@ const despawned = <G extends UnitTypes>(
   reason: string
 ): void => {
   const unit = unitOf<G>(bearer);
+  let errors: Caught | undefined;
 
   engine.byId.delete(unit.id);
   orphanSummons(bearer);
   engine.options.ai?.release(bearer);
 
-  // A listener or script hook that throws still leaves the unit's script detached and its auras released.
   try {
     raise(engine, engine.options.events?.despawned, [bearer, from, 'despawned', undefined, reason]);
-  } finally {
-    try {
-      if (unit.scriptSlot >= 0 && engine.options.scripts !== undefined) {
-        lateOf(engine.options.scripts).detach(bearer);
-      }
-    } finally {
-      unit.scriptSlot = -1;
-      engine.options.auras.release(bearer);
-    }
+  } catch (error) {
+    errors = caught(errors, error);
   }
+
+  try {
+    if (unit.scriptSlot >= 0 && engine.options.scripts !== undefined) {
+      lateOf(engine.options.scripts).detach(bearer);
+    }
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
+  unit.scriptSlot = -1;
+
+  try {
+    engine.options.auras.release(bearer);
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
+  rethrow(errors);
 };
 
 /**
  * Moves a unit to a lifecycle state, when its state allows the move: a unit leaving life has every cast it
  * runs cancelled, enters the aura system's matching bearer state (its auras' `onState`, then those
  * `removedOn` it go: a death burst is an aura's `onState` of `dead`), leaves its owner's summons and takes its bound
- * summons along; a revive sets health (the maximum by default) and rejoins its owner's summons, if it still has one. Raises `changed`, or `despawned` with its
- * reason for a despawn, which also forgets the unit's entity id and frees its brain. A move asked for from its hooks or
- * events (a revive from a death's `onState`) waits until this one is done, so its events follow this one's; such
- * moves run in the order asked, each checked when its turn comes. False when the move is not allowed.
+ * summons along; a move to `dead` with a health sets it first (a kill's 0); a revive sets health (the maximum by
+ * default) and rejoins its owner's summons, if it still has one and its summon limit has room. Raises `changed`, or
+ * `despawned` with its reason for a despawn, which also forgets the unit's entity id and frees its brain. A move asked
+ * for from its hooks or events (a revive from a death's `onState`) waits until this one is done, so its events follow
+ * this one's; such moves run in the order asked, each checked when its turn comes. False when the move is not allowed;
+ * true when it was made, or queued behind the running move (it may still be refused when its turn comes: read the
+ * unit's `lifecycle` after the outer move to know).
  */
 export const moveTo = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -225,25 +273,52 @@ const enter = <G extends UnitTypes>(
     unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
     rejoinOwner(bearer);
     lifeChanged(engine, bearer, true);
-  } else if (to === 'despawned') {
-    // A despawn cannot be asked again: a hook that throws while it leaves still has it forgotten and released.
-    try {
-      leaveFor(engine, bearer, from, to);
-    } finally {
-      despawned(engine, bearer, from, reason ?? 'despawn');
+  } else {
+    // A kill's health is set before anything hears the death.
+    if (health !== undefined) {
+      unit.health = clampHealth(health, unit.maxHealth);
     }
 
-    return;
-  } else {
-    // Its brain and script stop even when a cast's or an aura's hook throws as it leaves life.
-    try {
-      leaveFor(engine, bearer, from, to);
-    } finally {
-      lifeChanged(engine, bearer, false);
+    leaveLife(engine, bearer, from, reason);
+
+    if (to === 'despawned') {
+      return;
     }
   }
 
   raise(engine, engine.options.events?.changed, [bearer, from, to, undefined, '']);
+};
+
+/**
+ * The unit leaves life (its new state set already): a despawn cannot be asked again, so one whose hook throws still has
+ * it forgotten and released; a death still stops its brain and script. The first error surfaces.
+ */
+const leaveLife = <G extends UnitTypes>(
+  engine: UnitEngine<G>,
+  bearer: G['bearer'],
+  from: Lifecycle,
+  reason: string | undefined
+): void => {
+  const to = unitOf<G>(bearer).lifecycle;
+  let errors: Caught | undefined;
+
+  try {
+    leaveFor(engine, bearer, from, to === 'despawned' ? 'despawned' : 'dead');
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
+  try {
+    if (to === 'despawned') {
+      despawned(engine, bearer, from, reason ?? 'despawn');
+    } else {
+      lifeChanged(engine, bearer, false);
+    }
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
+  rethrow(errors);
 };
 
 /**

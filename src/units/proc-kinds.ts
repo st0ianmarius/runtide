@@ -54,16 +54,32 @@ const templateOf = <G extends UnitTypes>(engine: UnitEngine<G>, unit: G['unitNam
   return id;
 };
 
+/** A revive proc's health for a unit: its own, a share of the unit's maximum, or `undefined` for the maximum. */
+const reviveHealth = <G extends UnitTypes>(proc: ReviveProc<G>, unit: G['bearer']): number | undefined => {
+  const { health } = proc;
+
+  return health === undefined || typeof health === 'number' ? health : health.share * unitOf<G>(unit).maxHealth;
+};
+
+/** Throws unless a revive proc's health, or its share, is a finite number above 0. */
+const checkRevive = <G extends UnitTypes>(proc: ReviveProc<G>): void => {
+  const { health } = proc;
+  const value = typeof health === 'object' ? health.share : health;
+
+  if (value !== undefined && !(value > 0 && Number.isFinite(value))) {
+    throw new RangeError(`a revive proc's health is a finite number above 0, as is its share; got ${value}.`);
+  }
+};
+
 /** The `revive` kind. */
 const reviveKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<ReviveProc<G>, G> => ({
   targetOf: (proc) => proc.to,
 
-  apply: (proc, _ctx, unit) => (unit !== undefined && parts.revive(unit, proc.health) ? PROC_LANDED : PROC_SKIPPED),
+  apply: (proc, _ctx, unit) =>
+    unit !== undefined && parts.revive(unit, reviveHealth(proc, unit)) ? PROC_LANDED : PROC_SKIPPED,
 
   prepare: (proc) => {
-    if (proc.health !== undefined && !(proc.health > 0 && Number.isFinite(proc.health))) {
-      throw new RangeError(`a revive proc's health is a finite number above 0; got ${proc.health}.`);
-    }
+    checkRevive(proc);
 
     return proc;
   }
@@ -114,16 +130,18 @@ const summonSpec = <G extends UnitTypes>(
   };
 };
 
-/** Spawns one summon of a summon proc as its spec says, held by the running cast. */
+/** Spawns one summon of a summon proc as its spec says, held by the running cast, under the proc's limit. */
 const spawnSummon = <G extends UnitTypes>(
   parts: UnitKindParts<G>,
-  ctx: ProcContext<G>,
+  [proc, ctx]: readonly [SummonProc<G>, ProcContext<G>],
   [template, spec]: readonly [UnitId, SpawnUnit<G>]
 ): void => {
   const unit = parts.spawn(template, spec);
 
   const { spells } = parts.engine.options;
   const cast = spells.castFor(ctx);
+
+  unitOf<G>(unit).perOwner = proc.limit?.perOwner ?? Number.POSITIVE_INFINITY;
 
   // A summon its own `spawned` listeners despawned holds nothing.
   if (cast !== NO_CAST && isAlive(unit) && spells.retain(cast)) {
@@ -249,7 +267,7 @@ const summonOne = <G extends UnitTypes>(
     return 'stop';
   }
 
-  spawnSummon(parts, ctx, [template, spec]);
+  spawnSummon(parts, [proc, ctx], [template, spec]);
 
   return 'made';
 };

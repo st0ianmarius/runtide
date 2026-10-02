@@ -1,13 +1,48 @@
 import { NO_CAST } from '../spells/index.ts';
-import { lateOf, type UnitEngine, unitOf } from './engine.ts';
+import { type Caught, caught, rethrow } from './cleanup.ts';
+import { lateOf, type SpawnUnit, type UnitEngine, unitOf } from './engine.ts';
 import { moveTo } from './lifecycle.ts';
-import type { UnitTypes } from './unit-types.ts';
+import type { UnitId, UnitTypes } from './unit-types.ts';
 
 /**
  * A spawned unit with an owner joins what its owner owns and its summons, the owner alive or dead; an owner despawned
- * already lets go of it at once, as its despawn would have.
+ * already lets go of it at once, as its despawn would have. Returns whether the unit may stay: false for a bound unit
+ * whose owner is not alive (spawned from the owner's death), which the spawn despawns at once (reason `owner`), as the
+ * owner's death would have.
  */
-export const joinOwner = (bearer: UnitTypes['bearer']): void => {
+export const joinOwner = (bearer: UnitTypes['bearer']): boolean => {
+  const unit = unitOf<UnitTypes>(bearer);
+  const { owner } = unit;
+
+  if (owner === undefined) {
+    return true;
+  }
+
+  const record = unitOf<UnitTypes>(owner);
+
+  if (record.lifecycle === 'despawned') {
+    unit.credit = creditOf(bearer);
+    unit.owner = undefined;
+
+    return !unit.isBound;
+  }
+
+  record.owned.push(bearer);
+  record.summons.push(bearer);
+
+  return !unit.isBound || record.lifecycle === 'alive';
+};
+
+/** Whether a spawn is bound to an owner that is not alive: one `trySpawn` refuses, and `spawn` despawns at once. */
+export const isBoundToGone = <G extends UnitTypes>(spawn: SpawnUnit<G>): boolean =>
+  spawn.isBound === true && spawn.owner !== undefined && unitOf<G>(spawn.owner).lifecycle !== 'alive';
+
+/**
+ * A revived unit joins its owner's summons again, last, if it still has an owner (alive or dead) and the limit it was
+ * summoned under (`limit.perOwner`) has room among them. With no room it is let go, as an orphan: it lives on
+ * ownerless, crediting its owner, and no longer despawns with it.
+ */
+export const rejoinOwner = (bearer: UnitTypes['bearer']): void => {
   const unit = unitOf<UnitTypes>(bearer);
   const { owner } = unit;
 
@@ -17,24 +52,28 @@ export const joinOwner = (bearer: UnitTypes['bearer']): void => {
 
   const record = unitOf<UnitTypes>(owner);
 
-  if (record.lifecycle === 'despawned') {
-    unit.credit = creditOf(bearer);
-    unit.owner = undefined;
+  if (countOf(record.summons, unit.template) < unit.perOwner) {
+    record.summons.push(bearer);
 
     return;
   }
 
-  record.owned.push(bearer);
-  record.summons.push(bearer);
+  unit.credit = creditOf(bearer);
+  drop(record.owned, bearer);
+  unit.owner = undefined;
 };
 
-/** A revived unit joins its owner's summons again, last, if it still has an owner (alive or dead). */
-export const rejoinOwner = (bearer: UnitTypes['bearer']): void => {
-  const { owner } = unitOf<UnitTypes>(bearer);
+/** How many units of a list are of a template. */
+const countOf = (list: readonly UnitTypes['bearer'][], template: UnitId): number => {
+  let count = 0;
 
-  if (owner !== undefined) {
-    unitOf<UnitTypes>(owner).summons.push(bearer);
+  for (const other of list) {
+    if (unitOf<UnitTypes>(other).template === template) {
+      count += 1;
+    }
   }
+
+  return count;
 };
 
 /**
@@ -112,26 +151,26 @@ export const despawnBound = <G extends UnitTypes>(engine: UnitEngine<G>, bearer:
     return;
   }
 
-  despawnFrom(engine, owned.slice(), 0);
+  despawnFrom(engine, owned.slice());
 };
 
-/** Despawns the bound summons of a list from `start`: one whose hook throws still has the rest go, then it throws. */
-const despawnFrom = <G extends UnitTypes>(engine: UnitEngine<G>, summons: readonly G['bearer'][], start: number) => {
-  for (let i = start; i < summons.length; i++) {
-    const summon = summons[i];
+/** Despawns the bound summons of a list: one whose hook throws still has the rest go; the first error surfaces. */
+const despawnFrom = <G extends UnitTypes>(engine: UnitEngine<G>, summons: readonly G['bearer'][]): void => {
+  let errors: Caught | undefined;
 
-    if (summon === undefined || !unitOf<G>(summon).isBound) {
+  for (const summon of summons) {
+    if (!unitOf<G>(summon).isBound) {
       continue;
     }
 
     try {
       moveTo(engine, summon, 'despawned', undefined, 'owner');
     } catch (error) {
-      despawnFrom(engine, summons, i + 1);
-
-      throw error;
+      errors = caught(errors, error);
     }
   }
+
+  rethrow(errors);
 };
 
 /** A spawned unit is attached to the script its spawn names, else its template's. */

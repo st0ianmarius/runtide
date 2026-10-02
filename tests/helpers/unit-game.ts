@@ -32,7 +32,14 @@ import {
   mul,
   plus
 } from '../../src/modifiers/index.ts';
-import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc, type ProcSystem } from '../../src/procs/index.ts';
+import {
+  CORE_PROCS,
+  createProcRegistry,
+  createProcSystem,
+  type Proc,
+  type ProcSystem,
+  run
+} from '../../src/procs/index.ts';
 import {
   createScriptSystem,
   defineScripts,
@@ -41,6 +48,7 @@ import {
   type ScriptTypes
 } from '../../src/scripts/index.ts';
 import {
+  after,
   type AnySpellDef,
   createSpellSystem,
   defineSpells,
@@ -226,9 +234,31 @@ export const AURA_TAGS = defineAuraTags(['stun', 'root', 'freeze', 'slow', 'free
 /** The bearer states the test mark heard, as `state id`; a test clears it. */
 export const HEARD: string[] = [];
 
+/** A death burst a unit's death schedules: it lands a quarter second later, heard as `burst id` in `HEARD`. */
+const burst = (owner: 'none' | undefined) =>
+  aura({
+    duration: 'infinite',
+    removedOn: ['dead'],
+
+    onState: (_ctx, state) =>
+      state === 'dead'
+        ? [
+            after<UnitGame>(
+              0.25,
+              [
+                run<UnitGame>('burst', (ctx) => {
+                  HEARD.push(`burst ${ctx.self.id}`);
+                })
+              ],
+              owner === undefined ? {} : { owner }
+            )
+          ]
+        : undefined
+  });
+
 /**
- * The test auras: control, a vigour that raises maximum health, a haste, a brand bound to whoever put it on, and a
- * mark that hears states and goes.
+ * The test auras: control, a vigour that raises maximum health, a haste, a brand bound to whoever put it on, a
+ * mark that hears states and goes, and death bursts, one unowned and one owned by the dying unit.
  */
 const AURAS = defineAuras<UnitGame, string>({
   stun: aura({ duration: 1, tags: ['stun'] }),
@@ -249,6 +279,8 @@ const AURAS = defineAuras<UnitGame, string>({
     removedOn: ['dead'],
     onState: (_ctx, state) => (state === 'dead' ? [revive<UnitGame>({ to: 'self', health: 50 })] : undefined)
   }),
+  burst: burst('none'),
+  ownedBurst: burst(undefined),
   mark: aura({
     duration: 'infinite',
     removedOn: ['dead', 'despawned'],
@@ -305,6 +337,12 @@ export interface UnitGameOptions<Extra extends string = never> {
 
   /** The shared entity id counter the unit system draws from; its own when absent. */
   readonly allocateId?: () => number;
+
+  /** Takes an id a spawn names out of the shared counter's hands; refused when absent. */
+  readonly reserveId?: (id: number) => void;
+
+  /** What a living unit whose health `syncHealth` left at 0 does; it stays alive when absent. */
+  readonly onLethal?: (unit: Unit<UnitGame>) => void;
 
   /** The aura host's application policy, handed the unit system. */
   readonly onIncomingAura?: (
@@ -465,7 +503,8 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     ...(options.areaTriggers === undefined ? {} : { areaTriggers: options.areaTriggers }),
     health: {
       stat: 'maxHealth',
-      ...(options.policy === undefined ? {} : { policy: options.policy })
+      ...(options.policy === undefined ? {} : { policy: options.policy }),
+      ...(options.onLethal === undefined ? {} : { onLethal: options.onLethal })
     },
     states: UNIT_STATES,
     events: {
@@ -476,6 +515,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
       sideChanged: bus.kind.sideChanged
     },
     ...(options.allocateId === undefined ? {} : { allocateId: options.allocateId }),
+    ...(options.reserveId === undefined ? {} : { reserveId: options.reserveId }),
 
     createExt: (template, spawn) => ({
       marks: 0,

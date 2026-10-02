@@ -3,8 +3,10 @@ import type { ChanceOption, ProcContext, ProcKindDef, ProcShape, ProcTarget } fr
 import type { UnitId, UnitTypes } from './unit-types.ts';
 
 /**
- * Revives the unit it lands on: a dead unit lives again, at a health or at its maximum. `skipped` for a
- * unit that is alive or despawned. Standing a downed hero back up is the game's own: its down aura removed.
+ * Revives the unit it lands on: a dead unit lives again, at a health, a share of its maximum, or its maximum. `skipped`
+ * for a unit that is alive or despawned. A downed hero is a dead unit (all its leave-life cleanup ran), so this stands
+ * it back up. Landed when the revive was made, or queued behind a lifecycle move of the unit running now (a revive from
+ * its death's `onState`), which runs once that move is done and may still be refused then.
  */
 export interface ReviveProc<G extends UnitTypes> extends ProcShape {
   /** The discriminant. */
@@ -13,8 +15,16 @@ export interface ReviveProc<G extends UnitTypes> extends ProcShape {
   /** Whom; the list's target when absent. */
   readonly to?: ProcTarget<G>;
 
-  /** The health it stands with, capped at its maximum; its maximum when absent. */
-  readonly health?: number;
+  /**
+   * The health it stands with, capped at its maximum, or a share of its maximum (`{ share: 0.3 }`, read as the proc
+   * lands); its maximum when absent.
+   */
+  readonly health?:
+    | number
+    | {
+        /** The share of its maximum health, above 0. */
+        readonly share: number;
+      };
 }
 
 /**
@@ -130,7 +140,7 @@ export interface UnitProcKinds<G extends UnitTypes> {
   readonly despawnSummons: ProcKindDef<DespawnSummonsProc<G>, G>;
 }
 
-/** A `revive` proc: `revive()`, `revive({ health: 30, to: 'eventUnit' })`. */
+/** A `revive` proc: `revive()`, `revive({ health: 30, to: 'eventUnit' })`, `revive({ health: { share: 0.3 } })`. */
 export const revive = <G extends UnitTypes = UnitTypes>(
   options: ChanceOption & Omit<ReviveProc<G>, 'kind' | 'chance'> = {}
 ): ReviveProc<G> => ({ ...options, kind: 'revive' });

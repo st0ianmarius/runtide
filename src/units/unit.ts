@@ -122,6 +122,12 @@ export class Unit<G extends UnitTypes> implements UnitShape {
    */
   readonly owned: G['bearer'][] = [];
 
+  /**
+   * The most of its template its owner may keep among its summons, from the summon proc that made it
+   * (`limit.perOwner`): a revive rejoins its owner only with room under it. Unlimited for any other spawn.
+   */
+  perOwner = Number.POSITIVE_INFINITY;
+
   /** The cast it was summoned by, held alive while it lives; `NO_CAST` for none. */
   cast: CastHandle = NO_CAST;
 

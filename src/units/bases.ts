@@ -61,7 +61,7 @@ export class UnitBases<G extends UnitTypes> {
 
   /**
    * Base stats: a template's, with `own` on top in a copy; none of its own shares its template's (a unit's bases are
-   * read-only, so a horde of one template holds one array).
+   * read-only, so a horde of one template holds one array). Throws for a stat not in the table or not finite.
    */
   baseFor(template: UnitId, own: SpawnUnit<G>['stats']): ArrayLike<number> {
     const { stats } = this.#options.registry;
@@ -75,6 +75,10 @@ export class UnitBases<G extends UnitTypes> {
 
     for (const [stat, value] of Object.entries<number | undefined>(own)) {
       const id = stats.index.idOf(stat) ?? missing(`there is no stat named ${stat}`);
+
+      if (value !== undefined && !Number.isFinite(value)) {
+        missing(`unit ${this.#options.registry.name(template)}'s ${stat} must be a finite number; got ${value}`);
+      }
 
       base[id] = value ?? base[id] ?? 0;
     }
