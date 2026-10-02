@@ -32,6 +32,7 @@ import {
   delayCast,
   finishCast,
   holdCast,
+  interruptBitOf,
   interruptCaster,
   isCasting,
   MANUAL_PAUSE,
@@ -191,7 +192,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     interruptCaster(this.#engine, caster, { reason, isOn: false });
 
   readonly isInterrupted = (caster: G['bearer'], reason: G['interrupt']): boolean =>
-    (recordOf(caster).interrupts & (this.#engine.interruptBits.get(reason) ?? 0)) !== 0;
+    (recordOf(caster).interrupts & interruptBitOf(this.#engine, reason)) !== 0;
 
   readonly cancelAll = (caster: G['bearer']): number => cancelCaster(this.#engine, caster);
 

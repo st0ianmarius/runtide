@@ -332,11 +332,23 @@ const answer = <G extends SpellTypes>(
   return reply === 'pause' && setPause(engine, handle, { bits: change.bits, isOn: change.isOn }) ? 1 : 0;
 };
 
+/** An interrupt's bit; throws for one the game did not declare (`interrupts`) and no timeline names. */
+export const interruptBitOf = <G extends SpellTypes>(engine: SpellEngine<G>, reason: G['interrupt']): number => {
+  const bits = engine.interruptBits.get(reason);
+
+  if (bits === undefined) {
+    throw new RangeError(`Interrupt ${reason}: the game did not declare it (interrupts), and no timeline names it.`);
+  }
+
+  return bits;
+};
+
 /**
  * Raises (or ends) an interrupt on a caster: the caster holds it until as many ends as raises (`isInterrupted`), so two
  * overlapping stuns hold it until both end; an end with none held does nothing. As it is first raised and as its last
  * hold ends, each running cast answers it as its timeline says, `pause` (its stage stops counting until the interrupt
- * ends) or `cancel`; a cast whose timeline does not name it runs on. Returns how many casts answered.
+ * ends) or `cancel`; a cast whose timeline does not name it runs on. Returns how many casts answered. Throws for an
+ * interrupt the game did not declare and no timeline names.
  */
 export const interruptCaster = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -345,12 +357,7 @@ export const interruptCaster = <G extends SpellTypes>(
 ): number => {
   const record = recordOf(caster);
   const { count } = record;
-  const bits = engine.interruptBits.get(change.reason) ?? 0;
-
-  if (bits === 0) {
-    return 0;
-  }
-
+  const bits = interruptBitOf(engine, change.reason);
   const position = 31 - Math.clz32(bits);
   const held = record.interruptCounts[position] ?? 0;
   const holds = change.isOn ? held + 1 : Math.max(0, held - 1);

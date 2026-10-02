@@ -167,20 +167,22 @@ export interface SpellSystem<G extends SpellTypes> {
   /**
    * An interrupt hits a caster (a stun, a freeze): the caster holds it until as many `endInterrupt` calls as raises, so
    * two overlapping stuns hold it until both end. As it is first raised, each running cast answers it as its timeline
-   * says, pausing until it ends or cancelling; returns how many answered (0 for a raise while it is held already). A
-   * unit system raises its states' interrupts itself (`units.syncStates`).
+   * says, pausing until it ends or cancelling; returns how many answered (0 for a raise while it is held already, or
+   * one no running cast answers). A unit system raises its states' interrupts itself (`units.syncStates`). Throws a
+   * `RangeError` for an interrupt the game did not declare (`interrupts`) and no timeline names.
    */
   readonly interrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
 
   /**
    * One raise of an interrupt on a caster ends; as its last does, the casts it paused count down again (unless
-   * something else pauses them). An end with none held does nothing.
+   * something else pauses them). An end with none held does nothing. Throws a `RangeError` for an interrupt the game
+   * did not declare (`interrupts`) and no timeline names.
    */
   readonly endInterrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
 
   /**
-   * Whether a caster holds an interrupt now (more raises than ends); false for one the game did not declare
-   * (`interrupts`) and no timeline names. A cast started while it holds one answers it at once: one that pauses starts
+   * Whether a caster holds an interrupt now (more raises than ends). Throws a `RangeError` for one the game did not
+   * declare (`interrupts`) and no timeline names. A cast started while it holds one answers it at once: one that pauses starts
    * paused, and one that cancels is refused (`'interrupted'`).
    */
   readonly isInterrupted: (caster: G['bearer'], reason: G['interrupt']) => boolean;
