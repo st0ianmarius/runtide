@@ -104,8 +104,8 @@ const snapshotOwned = <G extends AreaTriggerTypes>(
 };
 
 /**
- * Steps every area trigger of a tick slot once, or only one owner's: kind by kind in
- * registry order, each kind's list in creation order. The walk
+ * Steps every area trigger of a tick slot once, or only one owner's: kind by kind in the slot's kind order
+ * (registry order, but after the kinds a kind's `after` names), each kind's list in creation order. The walk
  * reads a snapshot of handles, so what ends during it is skipped and what spawns during it waits for the next tick.
  * An owner's walk reads the owner's own lists, in the same order: one with none costs a lookup. Returns how many
  * stepped.

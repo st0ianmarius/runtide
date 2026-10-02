@@ -156,9 +156,9 @@ const NO_TAGS: AreaTagTable = createRegistry({}, { kind: 'areaTags' });
 
 /**
  * Registers the game's area trigger kinds: `defineAreaTriggers({ cyclone, pool }, { tags })` gives
- * each its dense id by key order (its wire id, and the kind order they tick in within a slot), checks every definition
- * at load, freezes it, and builds the typed columns, hook tables and tag bitsets the system reads. `TOMBSTONE` keeps a
- * retired slot.
+ * each its dense id by key order (its wire id, and the kind order they tick in within a slot, but after the kinds its
+ * `after` names), checks every definition at load, freezes it, and builds the typed columns, hook tables and tag
+ * bitsets the system reads. `TOMBSTONE` keeps a retired slot.
  */
 export const defineAreaTriggers = <G extends AreaTriggerTypes, const Name extends string>(
   defs: Readonly<Record<Name, AnyAreaTriggerDef<G> | Tombstone>>,

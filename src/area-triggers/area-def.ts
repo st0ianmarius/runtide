@@ -272,6 +272,12 @@ export interface AreaTriggerDef<G extends AreaTriggerTypes, State = unknown> {
   readonly cues?: AreaCues<G, State>;
 
   /**
+   * Kinds this one steps after within its tick slot (its parents' kinds, so a crescent follows the chakram that steers
+   * it); registry order otherwise. Each is a live kind of the same slot, and no kind steps after itself through them.
+   */
+  readonly after?: readonly G['areaTriggerName'][];
+
+  /**
    * The order of its frame's parts, each at most once: `move` (then its shape is placed again), `contact`
    * (the sweep along this frame's move), `frame` (then its shape is placed before its procs), `pulses` and `auras`;
    * `['move', 'contact', 'frame', 'pulses', 'auras']` by default.

@@ -16,9 +16,10 @@ import type { AreaTriggerSystemOptions } from './system-options.ts';
 
 /**
  * An area trigger system: the store of what spells leave in the world. It spawns them (applying limits), steps
- * them per tick slot in the pinned order (kind order, then creation order, children after their parents), counts
- * their lifetimes, checks their bounds, runs their hooks' procs as their owners' and their casts', and ends them with
- * a reason.
+ * them per tick slot in the pinned order (kind order, then creation order), counts their lifetimes, checks their
+ * bounds, runs their hooks' procs as their owners' and their casts', and ends them with a reason. Kind order is
+ * registry order, except where a kind's `after` names kinds it steps after: a child whose kind is registered before
+ * its parent's steps before its parent each tick unless its kind names the parent's in `after`.
  */
 export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueries<G> {
   /** The game's area trigger kinds. */
