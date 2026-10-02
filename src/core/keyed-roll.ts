@@ -42,8 +42,15 @@ const checkPart = (part: number): number => {
   return part;
 };
 
-/** Folds one part into the running hash: `h = fmix32(h ^ mix(part))`, `mix` being Murmur3's block scramble. */
-const fold = (h: number, part: number): number => fmix32(h ^ scramble(checkPart(part)));
+/**
+ * Folds one 32-bit word into a running hash: `fmix32(h ^ scramble(word))`, Murmur3's block scramble then its
+ * finalizer, so every bit of the word and of the hash reaches every bit of the result. Unchecked: the caller hands it
+ * a 32-bit integer. Keyed rolls and the state digest both fold with it.
+ */
+export const foldWord = (h: number, word: number): number => fmix32(h ^ scramble(word));
+
+/** Folds one key part into the running hash, refusing a part that is not a 32-bit integer. */
+const fold = (h: number, part: number): number => foldWord(h, checkPart(part));
 
 /**
  * The keyed roll with its key as one array, for hot paths that reuse a scratch key instead of spreading arguments.

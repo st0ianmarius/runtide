@@ -3,7 +3,18 @@ import { describe, it } from 'node:test';
 
 import fc from 'fast-check';
 
-import { int, keyed, pick, roll, rollKey, shuffle, stream, weighted } from '../../src/core/index.ts';
+import {
+  checkSeed,
+  foldSeed,
+  int,
+  keyed,
+  pick,
+  roll,
+  rollKey,
+  shuffle,
+  stream,
+  weighted
+} from '../../src/core/index.ts';
 
 const draws = (random: () => number, n: number): number[] => Array.from({ length: n }, () => random());
 
@@ -51,6 +62,25 @@ describe('sequential streams', () => {
     assert.throws(() => stream(2.9), /seed is a 32-bit integer/);
     assert.throws(() => stream(1_760_000_000_000), /seed is a 32-bit integer/);
     assert.throws(() => stream(1, 2 ** 40), /salt is a 32-bit integer/);
+  });
+
+  it('combine seed and salt by XOR alone, so pairs with the same XOR draw alike', () => {
+    assert.deepEqual(draws(stream(5, 3), 3), draws(stream(6, 0), 3));
+    assert.deepEqual(draws(stream(100, 1), 3), draws(stream(101, 0), 3));
+  });
+
+  it('fold a wall-clock seed into 32 bits that checkSeed takes, and refuse NaN', () => {
+    const now = 1_760_000_000_000;
+
+    assert.equal(foldSeed(now), 3_358_376_345);
+    assert.equal(checkSeed(foldSeed(now), 'seed'), 3_358_376_345);
+    assert.equal(foldSeed(2 ** 32), 1, 'the high bits count');
+    assert.equal(foldSeed(0xff_ff_ff_ff), 0xff_ff_ff_ff);
+    assert.equal(foldSeed(7.9), 7);
+    assert.notEqual(foldSeed(now), foldSeed(now + 1));
+    assert.throws(() => foldSeed(Number.NaN), /finite number; got NaN/);
+    assert.throws(() => foldSeed(Number.POSITIVE_INFINITY), RangeError);
+    assert.throws(() => checkSeed(now, 'seed'), /seed is a 32-bit integer/);
   });
 
   it('draw the same sequence for the same seed and salt, always in [0, 1)', () => {
@@ -186,6 +216,23 @@ describe('integer helpers', () => {
 
     assert.equal(count(stream(1)), 7);
     assert.equal(count(keyed(1, 0, [3])), 7);
+  });
+
+  it('refuse, without drawing, an int range that is not a whole number from 1', () => {
+    let calls = 0;
+
+    const counted = (): number => {
+      calls += 1;
+
+      return 0.5;
+    };
+
+    for (const n of [0, -3, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      assert.throws(() => int(counted, n), /whole number from 1/);
+    }
+
+    assert.equal(calls, 0);
+    assert.equal(int(counted, 1), 0);
   });
 });
 

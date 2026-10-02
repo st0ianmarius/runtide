@@ -20,10 +20,26 @@ export const checkSeed = (value: number, what: string): number => {
 };
 
 /**
- * A sequential random stream: Mulberry32 seeded with the 32-bit `seed ^ salt` (so `stream(seed, salt)` and
- * `stream(seed ^ salt)` draw the same sequence), one 32-bit output per draw divided by 2³². Each system draws from its
- * own salt, so a roll added to one system never shifts another; within a stream, draws depend on call order. Integer
- * arithmetic only, so every platform draws the same values. The generator is frozen: its tests hold a literal table.
+ * Folds any finite number (a wall-clock `Date.now()`, a 64-bit id read as a float) into an unsigned 32-bit seed that
+ * `checkSeed` accepts: its low 32 bits XORed with the bits above them, so both halves count. A fraction is dropped.
+ * Throws a `RangeError` for NaN or an infinity.
+ */
+export const foldSeed = (n: number): number => {
+  if (!Number.isFinite(n)) {
+    throw new RangeError(`A seed folds from a finite number; got ${n}.`);
+  }
+
+  return (n ^ Math.floor(n / UINT32_RANGE)) >>> 0;
+};
+
+/**
+ * A sequential random stream: Mulberry32 seeded with the 32-bit `seed ^ salt`, one 32-bit output per draw divided by
+ * 2³². Seed and salt combine by XOR alone, so any two pairs with the same XOR draw the same sequence (`stream(5, 3)`
+ * is `stream(6, 0)`): within one seed distinct salts never meet, but with small salts the next seed draws this seed's
+ * streams under swapped salts. A game hashes its salts (each a hash of its system's name, fixed in source, so they lie
+ * far apart in 32 bits), or draws keyed rolls, which hash seed and salt apart. Each system draws from its own salt, so
+ * a roll added to one system never shifts another; within a stream, draws depend on call order. Integer arithmetic
+ * only, so every platform draws the same values. The generator is frozen: its tests hold a literal table.
  */
 export const stream = (seed: number, salt = 0): Random => {
   let state = checkSeed(seed, 'seed') ^ checkSeed(salt, 'salt');
