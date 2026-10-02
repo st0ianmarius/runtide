@@ -253,6 +253,27 @@ describe('contacts and landings', () => {
     }
   });
 
+  it('meets a unit crossing its path only when it sweeps against the units’ motion, as it does by default', () => {
+    for (const relative of [undefined, true, false]) {
+      const contact = relative === undefined ? { radius: 0.2 } : { radius: 0.2, relative };
+      const game = makeSpellGame({}, { areaTriggers: { bolt: missile({ contact }) } });
+      const runner = game.unit(100);
+
+      game.place(runner, vec2(1, 4));
+      game.world.tick();
+      game.areaTriggers.spawn(game.areaId.bolt, { owner: game.unit(1), at: vec2(0, 0) });
+      game.step();
+      game.world.tick();
+      game.place(runner, vec2(1, -4));
+      game.areaTriggers.step();
+      assert.equal(
+        game.log.some((line) => line.startsWith('contact')),
+        relative !== false,
+        `relative ${relative}`
+      );
+    }
+  });
+
   it('sweeps a fork flying with the tick’s leftover time against the units’ motion over that part of the tick alone', () => {
     // A runner crosses x = 1 at half or three quarters of a tick; a missile spawned mid-tick flies 0 to 1 in the tick's
     // second half, so it is still at its start as the first crosses, and meets only the later one.

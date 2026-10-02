@@ -103,12 +103,24 @@ export interface AreaCatch<G extends AreaTriggerTypes, State = unknown> {
 
   /** A condition a unit must meet (line of sight from it, not branded yet). */
   unitFilter?(this: void, c: AreaTriggerContext<G, State>, unit: G['bearer']): boolean;
+
+  /**
+   * What of a unit must be inside: its body (`edge`: caught as its edge touches) or its centre point (`centre`: a
+   * ground effect only a unit standing in it feels); `edge` by default.
+   */
+  readonly measure?: 'edge' | 'centre';
 }
 
 /** Its swept contacts along its move (missiles, blades, waves): its body's radius and whom it may reach. */
 export interface AreaContact<G extends AreaTriggerTypes, State = unknown> extends AreaCatch<G, State> {
   /** Its body's radius, around its position; a function read at each frame. */
   readonly radius: number | AreaFn<G, State, number>;
+
+  /**
+   * Whether its sweep runs against each unit's own motion this tick, so a unit crossing its path is met (an arrow, a
+   * bullet), or against units where they stand now (a slow bolt that only lands where it ends); true by default.
+   */
+  readonly relative?: boolean;
 }
 
 /**

@@ -257,6 +257,19 @@ describe('area auras on enter and exit', () => {
     assert.equal(game.auras.has(foe, game.auraId.chilled), true);
   });
 
+  it('catches a unit whose body touches it by default, and only one whose centre is inside when measured so', () => {
+    for (const measure of [undefined, 'edge', 'centre'] as const) {
+      const game = fieldGame(measure === undefined ? { aura: 'chilled' } : { aura: 'chilled', measure });
+      const foe = game.unit(100);
+
+      // A body of radius 0.5 whose centre is 2.3 from a field of radius 2: its edge is inside, its centre is not.
+      game.place(foe, vec2(2.3, 0));
+      game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+      ticks(game, 1, [foe]);
+      assert.equal(game.auras.has(foe, game.auraId.chilled), measure !== 'centre', `measure ${measure}`);
+    }
+  });
+
   it('lets through only the units its filter keeps, and the side it names', () => {
     const game = fieldGame({
       aura: 'chilled',

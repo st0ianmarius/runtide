@@ -126,9 +126,9 @@ class CatchOptions<G extends AreaTriggerTypes> implements QueryOptions<G['bearer
   side: QuerySide = 'foes';
   of: G['bearer'];
   ofSide = 0;
-  readonly measure = 'edge';
+  measure: 'edge' | 'centre' = 'edge';
   radius = 0;
-  readonly relative = true;
+  relative = true;
   since = 0;
   until = 1;
   isOpen = false;
@@ -192,7 +192,11 @@ export class Catcher<G extends AreaTriggerTypes> {
   optionsFor(hit: Hit<G>, owner: G['bearer']): CatchOptions<G> {
     const options = (this.#options[this.#depth] ??= new CatchOptions<G>(owner));
 
-    options.side = hit.spec?.side ?? 'foes';
+    const { spec } = hit;
+
+    options.side = spec?.side ?? 'foes';
+    options.measure = spec?.measure ?? 'edge';
+    options.relative = spec === undefined || !('relative' in spec) || spec.relative !== false;
     options.of = owner;
     options.ofSide = hit.area?.side ?? 0;
     options.hit = hit;
