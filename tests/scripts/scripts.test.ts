@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { cancelTimer, setTimer } from '../../src/ai/index.ts';
-import { createScriptSystem, defineBehaviour, defineScripts } from '../../src/scripts/index.ts';
+import { createScriptSystem, defineBehaviour, defineScripts, type ScriptCtx } from '../../src/scripts/index.ts';
 import { summon, type UnitDef } from '../../src/units/index.ts';
 import { makeUnitGame, TIMERS, type UnitGame } from '../helpers/unit-game.ts';
 
@@ -407,6 +407,126 @@ describe('scripts', () => {
 });
 
 describe('scripts under hooks that despawn or throw', () => {
+  for (const moment of ['spawn', 'tick'] as const) {
+    it(`stops later ${moment} handlers when an earlier handler kills the unit, while running all died handlers`, () => {
+      const log: string[] = [];
+
+      const first = behaviour({
+        [moment]: (ctx: ScriptCtx<UnitGame>) => {
+          log.push(moment);
+          game.units.kill(ctx.unit);
+
+          return undefined;
+        },
+
+        died: () => (log.push('died first'), undefined)
+      });
+
+      const second = behaviour({
+        [moment]: () => (log.push('late'), undefined),
+        died: () => (log.push('died second'), undefined)
+      });
+
+      const game = makeUnitGame(
+        { boss: { script: 'boss' } },
+        { scripts: defineScripts<UnitGame, 'boss'>({ boss: [first, second] }) }
+      );
+
+      const unit = game.units.spawn(game.id.boss, { side: 1 });
+
+      if (moment === 'tick') {
+        game.scripts.step(unit);
+      }
+
+      game.scripts.step(unit);
+      assert.deepEqual(log, [moment, 'died first', 'died second']);
+    });
+  }
+
+  it('stops later bound event handlers when an earlier handler kills their unit', () => {
+    const log: string[] = [];
+
+    const first = behaviour({
+      on: {
+        changed: (ctx) => {
+          log.push('changed');
+          game.units.kill(ctx.unit);
+
+          return undefined;
+        }
+      }
+    });
+
+    const second = behaviour({ on: { changed: () => (log.push('late'), undefined) } });
+
+    const game = makeUnitGame(
+      { boss: { script: 'boss' }, add: {} },
+      { scripts: defineScripts<UnitGame, 'boss'>({ boss: [first, second] }) }
+    );
+
+    const boss = game.units.spawn(game.id.boss, { side: 1 });
+    const add = game.units.spawn(game.id.add, { side: 1, owner: boss });
+
+    game.units.kill(add);
+    assert.deepEqual(log, ['changed']);
+  });
+
+  for (const throws of [false, true]) {
+    it(`stops timer handlers and ticks after a fatal timer handler${throws ? ' that throws' : ''}, resuming held timers once on revive`, () => {
+      const log: string[] = [];
+
+      const first = behaviour({
+        spawn: () => [setTimer<UnitGame>('pick', 0.25), setTimer<UnitGame>('raise', 0.25)],
+
+        timer: (ctx, timer) => {
+          log.push(`first ${TIMERS.names[timer]}`);
+
+          if (timer === TIMERS.id.pick) {
+            game.units.kill(ctx.unit);
+
+            if (throws) {
+              throw new Error('fatal timer');
+            }
+          }
+
+          return undefined;
+        },
+
+        tick: () => (log.push('tick'), undefined)
+      });
+
+      const second = behaviour({ timer: (_ctx, timer) => (log.push(`second ${TIMERS.names[timer]}`), undefined) });
+
+      const game = makeUnitGame(
+        { boss: { script: 'boss' } },
+        { scripts: defineScripts<UnitGame, 'boss'>({ boss: [first, second] }) }
+      );
+
+      const unit = game.units.spawn(game.id.boss, { side: 1 });
+
+      game.clock.step();
+      game.scripts.collect();
+
+      if (throws) {
+        assert.throws(() => {
+          game.scripts.step(unit);
+        }, /fatal timer/);
+      } else {
+        game.scripts.step(unit);
+      }
+
+      game.scripts.step(unit);
+      assert.deepEqual(log, ['first pick']);
+      game.units.revive(unit);
+      game.scripts.step(unit);
+      assert.deepEqual(log, ['first pick', 'tick'], 'death dropped the old due list');
+      game.clock.step();
+      game.scripts.collect();
+      game.scripts.step(unit);
+      assert.deepEqual(log, ['first pick', 'tick', 'first raise', 'second raise', 'tick']);
+    });
+  }
+
   it('runs no tick for a unit its own timer handler despawned', () => {
     const log: string[] = [];
     const late: { game?: ReturnType<typeof makeUnitGame> } = {};

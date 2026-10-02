@@ -45,7 +45,7 @@ export class ScriptRunner<G extends ScriptTypes> {
     return this.#parts.registry.scripts[record.script] ?? noScript(record.script);
   }
 
-  /** Runs one moment's handlers of a record, in behaviour order, while it stays attached to the same unit. */
+  /** Runs a moment's handlers while attached to the same unit; only `died` handlers run while dead. */
   moment(record: ScriptRecord<G>, moment: Moment): void {
     const script = this.scriptOf(record);
     const { serial } = record;
@@ -53,7 +53,7 @@ export class ScriptRunner<G extends ScriptTypes> {
     for (const index of script[moment]) {
       const handler = script.behaviours[index]?.[moment];
 
-      if (handler !== undefined && record.serial === serial) {
+      if (handler !== undefined && record.serial === serial && (moment === 'died' || !record.isDead)) {
         const ctx = this.#enter(record, index);
 
         try {
@@ -77,7 +77,7 @@ export class ScriptRunner<G extends ScriptTypes> {
     record.dueCount = 0;
 
     try {
-      for (; i < count && record.serial === serial; i++) {
+      for (; i < count && record.serial === serial && !record.isDead; i++) {
         const timer = record.due[i];
 
         if (timer !== undefined && timers.take(unit, timer)) {
@@ -86,7 +86,7 @@ export class ScriptRunner<G extends ScriptTypes> {
       }
     } catch (error) {
       // A handler threw: the timers due after it, already taken off the wheel, wait for the unit's next step.
-      if (record.serial === serial) {
+      if (record.serial === serial && !record.isDead) {
         keepUndelivered(record, [i + 1, count]);
       }
 
@@ -102,7 +102,7 @@ export class ScriptRunner<G extends ScriptTypes> {
     for (const index of script.on.get(event) ?? NO_INDEXES) {
       const handler: AnyEventHandler<G> | undefined = script.behaviours[index]?.on?.[eventKey<G>(event)];
 
-      if (handler !== undefined && record.serial === serial) {
+      if (handler !== undefined && record.serial === serial && !record.isDead) {
         const ctx = this.#enter(record, index);
 
         try {
@@ -122,7 +122,7 @@ export class ScriptRunner<G extends ScriptTypes> {
     for (const index of script.timer) {
       const handler = script.behaviours[index]?.timer;
 
-      if (handler !== undefined && record.serial === serial) {
+      if (handler !== undefined && record.serial === serial && !record.isDead) {
         const ctx = this.#enter(record, index);
 
         try {

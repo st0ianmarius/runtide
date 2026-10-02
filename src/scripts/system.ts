@@ -168,8 +168,8 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
       this.#runner.deliver(record, this.#options.ai);
     }
 
-    // A timer handler that despawned the unit (or handed its record to the next unit) ends its step here.
-    if (record.hasTick && record.serial === serial) {
+    // A timer handler that killed or despawned the unit (or reused its record) ends its step here.
+    if (record.hasTick && record.serial === serial && !record.isDead) {
       this.#runner.moment(record, 'tick');
     }
   };
