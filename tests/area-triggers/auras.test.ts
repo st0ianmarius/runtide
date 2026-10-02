@@ -149,6 +149,48 @@ describe('area auras on enter and exit', () => {
     assert.equal(game.auras.has(other, game.auraId.chilled), false);
   });
 
+  it('lets the units that walk out leave while it is suspended, the ones inside keeping it and none entering', () => {
+    const frozen = { isOn: false };
+
+    const game = makeSpellGame(
+      {},
+      {
+        auras: { chilled: aura({ duration: 'infinite' }), soothed: aura({ duration: 5 }) },
+        areaTriggers: {
+          field: {
+            ...field({ aura: 'chilled', every: 0.5 }),
+            bound: { suspendWhile: () => frozen.isOn }
+          }
+        }
+      }
+    );
+
+    const [foe, other, late] = [game.unit(100), game.unit(101), game.unit(102)];
+
+    game.areaTriggers.spawn(game.areaId.field, { owner: game.unit(1), at: vec2(0, 0) });
+    game.place(foe, vec2(1, 0));
+    game.place(other, vec2(0, -1));
+    game.place(late, vec2(10, 0));
+    ticks(game, 1, []);
+    assert.equal(game.auras.has(foe, game.auraId.chilled), true);
+
+    frozen.isOn = true;
+    game.place(foe, vec2(10, 0));
+    game.place(late, vec2(0, 1));
+    ticks(game, 1, []);
+    assert.deepEqual(
+      [foe, other, late].map((unit) => game.auras.has(unit, game.auraId.chilled)),
+      [false, true, false]
+    );
+
+    frozen.isOn = false;
+    ticks(game, 2, []);
+    assert.deepEqual(
+      [foe, other, late].map((unit) => game.auras.has(unit, game.auraId.chilled)),
+      [false, true, true]
+    );
+  });
+
   it('catches every so often when it checks every so many seconds, noticing an entry up to that late', () => {
     const game = fieldGame({ aura: 'chilled', every: 0.5 });
     const foe = game.unit(100);

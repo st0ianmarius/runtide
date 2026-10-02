@@ -198,6 +198,7 @@ export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
   /**
    * Suspends it while true, its clock and hooks too, checked before each frame: its owner down (Ember Blades keep
    * their clock), or frozen (`spells.isInterrupted`: a frozen caster's telegraphs pause, even from casts that ended).
+   * Its auras stay on the units inside, while the units that walk out still leave them; none enter until it resumes.
    */
   suspendWhile?(this: void, c: AreaTriggerContext<G, State>): boolean;
 

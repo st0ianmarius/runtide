@@ -1,4 +1,5 @@
 import { countDown, isRunOut } from '../core/index.ts';
+import { stepAreaAuras } from './area-auras.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
 import { ANCHOR_OWNER } from './define-area-triggers.ts';
@@ -35,14 +36,18 @@ const checkBound = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
 };
 
 /**
- * Steps one area trigger by `dt`: its bound is checked (a suspended one waits, its clock too), then its frame runs
- * and its lifetime counts down, the last frame running whole: it expires once it ran out. A hook that wants the last
- * frame cut short reads `c.remaining`.
+ * Steps one area trigger by `dt`: its bound is checked (a suspended one waits, its clock too, but lets the units that
+ * walked out of its auras leave), then its frame runs and its lifetime counts down, the last frame running whole: it
+ * expires once it ran out. A hook that wants the last frame cut short reads `c.remaining`.
  */
 export const stepArea = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, dt: number): void => {
   area.steppedTick = engine.clock.tick;
 
   if (!checkBound(engine, area)) {
+    if (area.isSuspended && !area.isEnding) {
+      stepAreaAuras(engine, area, true);
+    }
+
     return;
   }
 

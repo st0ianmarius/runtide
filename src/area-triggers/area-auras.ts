@@ -1,8 +1,5 @@
-import type { AuraApplication, AuraId } from '../auras/index.ts';
-import { NO_SOURCE } from '../auras/index.ts';
 import type { AreaTrigger } from './area-trigger.ts';
 import type { AreaTriggerTypes } from './area-types.ts';
-import type { AreaAura } from './delivery-def.ts';
 import type { AreaEngine } from './engine.ts';
 import { catchIn } from './hits.ts';
 
@@ -94,132 +91,6 @@ export class AuraInside<G extends AreaTriggerTypes> {
   }
 }
 
-/** The application an area aura lands with, reused. */
-class AreaAuraApplication implements AuraApplication {
-  aura: AuraId;
-  duration: number | undefined = undefined;
-  stacks: number | undefined = undefined;
-  value: number | undefined = undefined;
-  source = NO_SOURCE;
-  stacking: 'refresh' | undefined = undefined;
-
-  constructor(aura: AuraId) {
-    this.aura = aura;
-  }
-}
-
-/**
- * How many enter-exit area auras hold each unit's aura, so overlapping area triggers never stack it and
- * the last one the unit leaves takes it off; and which held auras something else took off, for the next area holding
- * one to put back.
- */
-export class AuraHolds<Unit> {
-  readonly #holds = new Map<Unit, Map<number, number>>();
-  readonly #missing = new Map<Unit, Set<number>>();
-  #application: AreaAuraApplication | undefined = undefined;
-
-  /** How many held auras are missing: while none are, a frame asks nothing of the units still inside. */
-  missing = 0;
-
-  /**
-   * The reused application, set for an area aura: its own length as a unit enters, or the linger (a refresh to it) as
-   * the last hold leaves.
-   */
-  applicationFor(
-    aura: AuraId,
-    spec: Pick<AreaAura<AreaTriggerTypes>, 'stacks' | 'value'>,
-    source: number,
-    duration: number | undefined
-  ): AreaAuraApplication {
-    const application = (this.#application ??= new AreaAuraApplication(aura));
-
-    application.aura = aura;
-    application.stacks = spec.stacks;
-    application.value = spec.value;
-    application.source = source;
-    application.duration = duration;
-    application.stacking = duration === undefined ? undefined : 'refresh';
-
-    return application;
-  }
-
-  /** Counts one more hold of an aura on a unit; true when it was the first. */
-  take(unit: Unit, aura: number): boolean {
-    let byAura = this.#holds.get(unit);
-
-    if (byAura === undefined) {
-      byAura = new Map();
-      this.#holds.set(unit, byAura);
-    }
-
-    const count = byAura.get(aura) ?? 0;
-
-    byAura.set(aura, count + 1);
-
-    return count === 0;
-  }
-
-  /** Notes an aura come off a unit: missing, when an area still holds it there. */
-  noteRemoved(unit: Unit, aura: number): void {
-    if ((this.#holds.get(unit)?.get(aura) ?? 0) === 0) {
-      return;
-    }
-
-    let auras = this.#missing.get(unit);
-
-    if (auras === undefined) {
-      auras = new Set();
-      this.#missing.set(unit, auras);
-    }
-
-    if (!auras.has(aura)) {
-      auras.add(aura);
-      this.missing += 1;
-    }
-  }
-
-  /** Whether a held aura on a unit is missing. */
-  isMissing(unit: Unit, aura: number): boolean {
-    return this.missing > 0 && this.#missing.get(unit)?.has(aura) === true;
-  }
-
-  /** Forgets that an aura on a unit is missing: it is back, or no area holds it any more. */
-  found(unit: Unit, aura: number): void {
-    const auras = this.#missing.get(unit);
-
-    if (auras?.delete(aura) !== true) {
-      return;
-    }
-
-    this.missing -= 1;
-
-    if (auras.size === 0) {
-      this.#missing.delete(unit);
-    }
-  }
-
-  /** Counts one fewer hold of an aura on a unit; true when it was the last. */
-  drop(unit: Unit, aura: number): boolean {
-    const byAura = this.#holds.get(unit);
-    const count = byAura?.get(aura) ?? 0;
-
-    if (count <= 1) {
-      this.found(unit, aura);
-      byAura?.delete(aura);
-
-      if (byAura?.size === 0) {
-        this.#holds.delete(unit);
-      }
-
-      return count === 1;
-    }
-
-    byAura?.set(aura, count - 1);
-
-    return false;
-  }
-}
-
 /** A unit enters an area aura: the first hold puts the aura on, for the aura's own length. */
 const enter = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: AuraInside<G>, unit: G['bearer']): void => {
   const { area, index } = inside;
@@ -287,13 +158,15 @@ const leave = <G extends AreaTriggerTypes>(
 
 /**
  * Walks this frame's catch (in id order) against the units inside as of the last frame (in id order too): a unit
- * only in the catch enters, one only inside leaves, and this frame's units are written to the spare lists. An
- * enter or leave hook that ends the area trigger stops the walk, and every unit it still holds leaves.
+ * only in the catch enters (unless the area is suspended), one only inside leaves, and this frame's units are written
+ * to the spare lists. An enter or leave hook that ends the area trigger stops the walk, and every unit it still holds
+ * leaves.
  */
 const compare = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   inside: AuraInside<G>,
-  targets: readonly G['bearer'][]
+  targets: readonly G['bearer'][],
+  isSuspended: boolean
 ): void => {
   const { units, nextUnits, area } = inside;
 
@@ -305,7 +178,7 @@ const compare = <G extends AreaTriggerTypes>(
     for (let j = 0; j < targets.length && !area.isEnding; j++) {
       const unit = targets[j];
 
-      if (unit !== undefined && !visit(engine, inside, unit)) {
+      if (unit !== undefined && !visit(engine, inside, unit, isSuspended)) {
         break;
       }
     }
@@ -366,13 +239,15 @@ const keepHeld = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, inside: Aur
 
 /**
  * Visits a unit of the catch: the units inside before it leave, it is written to the spare lists, and it
- * enters, or has its aura put back when it was inside (written first, so a hook that throws still leaves it held).
- * False when a hook ended the area trigger.
+ * enters, or has its aura put back when it was inside (written first, so a hook that throws still leaves it held). A
+ * suspended area does neither: a unit not inside stays out, and one inside keeps its hold as it is. False when a hook
+ * ended the area trigger.
  */
 const visit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
   inside: AuraInside<G>,
-  unit: G['bearer']
+  unit: G['bearer'],
+  isSuspended: boolean
 ): boolean => {
   const id = engine.world.idOf(unit);
 
@@ -384,6 +259,10 @@ const visit = <G extends AreaTriggerTypes>(
 
   const isInside = inside.cursor < inside.count && inside.ids[inside.cursor] === id;
 
+  if (isSuspended && !isInside) {
+    return true;
+  }
+
   inside.nextUnits[inside.written] = unit;
   inside.nextIds[inside.written] = id;
   inside.written += 1;
@@ -391,7 +270,7 @@ const visit = <G extends AreaTriggerTypes>(
   if (isInside) {
     inside.cursor += 1;
 
-    if (engine.auraHolds.missing > 0) {
+    if (engine.auraHolds.missing > 0 && !isSuspended) {
       restore(engine, inside, unit);
     }
   } else {
@@ -425,11 +304,19 @@ const isDue = <G extends AreaTriggerTypes>(inside: AuraInside<G>, every: number,
   return isDueNow;
 };
 
-/** Runs one area aura for a frame: the units caught now enter, the ones gone leave. */
-const stepAura = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, index: number): void => {
+/**
+ * Runs one area aura for a frame: the units caught now enter, the ones gone leave. A suspended area only lets the ones
+ * gone leave, every frame, its rhythm waiting with its clock.
+ */
+const stepAura = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  area: AreaTrigger<G>,
+  index: number,
+  isSuspended: boolean
+): void => {
   const spec = engine.registry.get(area.kind).auras?.[index];
 
-  if (spec?.every !== undefined && !isDue(area.insideOf(index), spec.every, area.frameTime)) {
+  if (spec?.every !== undefined && !isSuspended && !isDue(area.insideOf(index), spec.every, area.frameTime)) {
     return;
   }
 
@@ -438,19 +325,29 @@ const stepAura = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
   try {
     if (spec !== undefined) {
       catchIn(engine, hit, area.shape);
-      compare(engine, area.insideOf(index), hit.targets);
+      compare(engine, area.insideOf(index), hit.targets, isSuspended);
     }
   } finally {
     engine.catcher.give(hit);
   }
 };
 
-/** Runs an area trigger's auras for a frame, in their order. */
-export const stepAreaAuras = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): void => {
+/**
+ * Runs an area trigger's auras for a frame, in their order. A suspended one runs only those holding units, where its
+ * shape last stood: the units that walked out leave (a frozen caster's slowing field stops slowing the ones outside
+ * it), while none enter and no aura is put back until it runs again.
+ */
+export const stepAreaAuras = <G extends AreaTriggerTypes>(
+  engine: AreaEngine<G>,
+  area: AreaTrigger<G>,
+  isSuspended = false
+): void => {
   const count = engine.registry.get(area.kind).auras?.length ?? 0;
 
   for (let index = 0; index < count && !area.isEnding; index++) {
-    stepAura(engine, area, index);
+    if (!isSuspended || area.insideOf(index).count > 0) {
+      stepAura(engine, area, index, isSuspended);
+    }
   }
 };
 
