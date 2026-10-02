@@ -93,6 +93,24 @@ describe('bus order and payloads', () => {
     assert.deepEqual(heard, ['a', 'b', 'b']);
   });
 
+  it('raises to the listeners it began with: a later one removed mid-raise still hears it, one added does not', () => {
+    const bus = gameBus();
+    const heard: string[] = [];
+    let stopB = (): void => undefined;
+
+    bus.on(bus.kind.kill, () => {
+      heard.push('a');
+      stopB();
+      bus.on(bus.kind.kill, () => heard.push('c'));
+    });
+    stopB = bus.on(bus.kind.kill, () => heard.push('b'));
+    bus.raise(bus.kind.kill, bus.payload(bus.kind.kill));
+    assert.deepEqual(heard, ['a', 'b']);
+    heard.length = 0;
+    bus.raise(bus.kind.kill, bus.payload(bus.kind.kill));
+    assert.deepEqual(heard, ['a', 'c']);
+  });
+
   it('calls observers before handlers and subscribers, at any depth', () => {
     const bus = gameBus();
     const heard: string[] = [];
@@ -152,6 +170,12 @@ describe('bus depth cap', () => {
     assert.deepEqual(handled, [1, 2, 3]);
     assert.deepEqual(subscribed, [4, 3, 2, 1]);
     assert.equal(bus.depth, 0);
+  });
+
+  it('refuses a cap that is not a whole number from 1', () => {
+    for (const maxDepth of [Number.NaN, 0, -1, 1.5, Number.POSITIVE_INFINITY]) {
+      assert.throws(() => createBus({ ping: () => ({ n: 0 }) }, { maxDepth }), /whole number of levels from 1/);
+    }
   });
 
   it('takes its own cap and restores the depth when a handler throws', () => {

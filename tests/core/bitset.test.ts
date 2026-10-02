@@ -23,6 +23,20 @@ describe('bitsets', () => {
     }
   });
 
+  it('refuse a fraction or a negative index to has, remove and create, as add does', () => {
+    const tags = createBitset([1]);
+
+    for (const index of [-1, 1.5, Number.NaN]) {
+      assert.throws(() => tags.has(index), /whole indices from 0/);
+      assert.throws(() => {
+        tags.remove(index);
+      }, /whole indices from 0/);
+      assert.throws(() => createBitset([index]), /whole indices from 0/);
+    }
+
+    assert.deepEqual(tags.toArray(), [1], '1.5 neither tested nor removed 1');
+  });
+
   it('combine in place: union, difference, intersection', () => {
     const a = createBitset([1, 2, 3]);
 

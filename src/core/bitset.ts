@@ -5,13 +5,13 @@ import { TypedFastBitSet } from 'typedfastbitset';
  * The in-place operations change this set; none allocates once the words are large enough.
  */
 export interface Bitset {
-  /** Whether `index` is in the set. */
+  /** Whether `index` is in the set. Throws a `RangeError`, as `add` does, for an index that is not whole from 0. */
   has(index: number): boolean;
 
-  /** Adds `index`, growing the words when needed. */
+  /** Adds `index`, growing the words when needed. Throws a `RangeError` for an index that is not whole from 0. */
   add(index: number): void;
 
-  /** Removes `index`. */
+  /** Removes `index`. Throws a `RangeError`, as `add` does, for an index that is not whole from 0. */
   remove(index: number): void;
 
   /** Removes every index. */
@@ -45,6 +45,18 @@ export interface Bitset {
   toArray(): number[];
 }
 
+/**
+ * Throws unless `index` is a whole number from 0: the library reads a fraction's word and bit apart (1.5 tests as 1)
+ * and a negative index's word as missing.
+ */
+const checkIndex = (index: number): number => {
+  if (!(Number.isInteger(index) && index >= 0)) {
+    throw new RangeError(`A bitset holds whole indices from 0; got ${index}.`);
+  }
+
+  return index;
+};
+
 /** The one implementation: a thin class over the library set, whose private field never leaks out. */
 class WordBitset implements Bitset {
   readonly #set: TypedFastBitSet;
@@ -54,19 +66,15 @@ class WordBitset implements Bitset {
   }
 
   has(index: number): boolean {
-    return this.#set.has(index);
+    return this.#set.has(checkIndex(index));
   }
 
   add(index: number): void {
-    if (!(Number.isInteger(index) && index >= 0)) {
-      throw new RangeError(`A bitset holds whole indices from 0; got ${index}.`);
-    }
-
-    this.#set.add(index);
+    this.#set.add(checkIndex(index));
   }
 
   remove(index: number): void {
-    this.#set.remove(index);
+    this.#set.remove(checkIndex(index));
   }
 
   clear(): void {
@@ -120,5 +128,16 @@ class WordBitset implements Bitset {
   }
 }
 
-/** Creates a bitset holding `indexes` (none by default). Backed by `typedfastbitset`, which never leaks out. */
-export const createBitset = (indexes: Iterable<number> = []): Bitset => new WordBitset(new TypedFastBitSet(indexes));
+/**
+ * Creates a bitset holding `indexes` (none by default), each whole from 0 or it throws. Backed by `typedfastbitset`,
+ * which never leaks out.
+ */
+export const createBitset = (indexes: Iterable<number> = []): Bitset => {
+  const set = new WordBitset(new TypedFastBitSet());
+
+  for (const index of indexes) {
+    set.add(index);
+  }
+
+  return set;
+};

@@ -38,6 +38,18 @@ describe('the host stream table', () => {
     assert.throws(() => createStreamTable(1_760_000_000_000, {}), /seed is a 32-bit integer/);
   });
 
+  it('refuses two salts that are one as 32 bits, since they draw alike', () => {
+    assert.equal(stream(9, -1)(), stream(9, 0xff_ff_ff_ff)());
+    assert.throws(
+      () =>
+        createStreamTable(9, {
+          a: { kind: 'sequential', salt: -1 },
+          b: { kind: 'keyed', salt: 0xff_ff_ff_ff }
+        }),
+      /Streams a and b share the salt 4294967295 \(given as -1 and 4294967295\)/
+    );
+  });
+
   it('saves and restores its sequential streams, which then draw on as before', () => {
     const streams = table();
 

@@ -4,7 +4,10 @@ import type { Defined } from './defined.ts';
 
 /** What a timing wheel is created with. */
 export interface TimingWheelOptions {
-  /** The number of ticks the wheel holds in buckets, rounded up to a power of two; 256 by default. */
+  /**
+   * The number of ticks the wheel holds in buckets, a whole number from 1, rounded up to a power of two; 256 by
+   * default.
+   */
   readonly horizon?: number;
 
   /** The first tick the wheel collects; 0 by default. */
@@ -69,7 +72,14 @@ class Wheel<Item extends Defined> implements TimingWheel<Item> {
   #size = 0;
 
   constructor(options: TimingWheelOptions) {
-    this.#horizon = powerOfTwo(options.horizon ?? 256);
+    const horizon = options.horizon ?? 256;
+
+    // A NaN horizon would make no bucket and a NaN drain limit, so every item would wait in the heap forever.
+    if (!Number.isSafeInteger(horizon) || horizon < 1) {
+      throw new RangeError(`A timing wheel holds a whole number of ticks from 1; got ${horizon}.`);
+    }
+
+    this.#horizon = powerOfTwo(horizon);
     this.#buckets = Array.from({ length: this.#horizon }, () => ({ items: [], count: 0 }));
     this.#cursor = options.start ?? 0;
 
@@ -149,7 +159,7 @@ class Wheel<Item extends Defined> implements TimingWheel<Item> {
   }
 }
 
-/** Creates an empty timing wheel. */
+/** Creates an empty timing wheel. Throws unless the horizon is a whole number from 1 and the start a whole tick. */
 export const createTimingWheel = <Item extends Defined>(options: TimingWheelOptions = {}): TimingWheel<Item> =>
   new Wheel<Item>(options);
 

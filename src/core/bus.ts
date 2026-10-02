@@ -6,8 +6,9 @@ export type Listener<Payload> = (payload: Payload) => void;
 /** What a bus is created with, beyond its payload factories. */
 export interface BusOptions {
   /**
-   * How deep capped handlers nest: at this depth and beyond they no longer run. 3 by default, which lets a trigger
-   * answer an event raised by another trigger's answer, and stops a loop of triggers within three rounds.
+   * How deep capped handlers nest, a whole number from 1: at this depth and beyond they no longer run. 3 by default,
+   * which lets a trigger answer an event raised by another trigger's answer, and stops a loop of triggers within three
+   * rounds.
    */
   readonly maxDepth?: number;
 }
@@ -22,6 +23,9 @@ export type EventKinds<Factories> = {
  * raising an event allocates nothing. Three tiers hear an event: observers first (a recorder such as a combat log, which
  * notes the event before anything it sets off), then capped handlers (the triggers), which stop running past the depth
  * cap, then subscribers in subscription order, which hear every event at any depth.
+ *
+ * A raise calls the listeners the kind had when it began: one removed mid-raise (by itself or by an earlier listener)
+ * still hears that raise and none after it, and one added mid-raise hears from the next raise on.
  */
 export interface Bus<Factories> {
   /** The id of every event kind, by name, in the key order of the factories. */
@@ -35,7 +39,9 @@ export interface Bus<Factories> {
 
   /**
    * The reused payload of `kind` for the next raise at the current nesting level of that kind; made once per level
-   * by the kind's factory, then reused. Fill it, then `raise` it.
+   * by the kind's factory, then reused. Take it right before the raise: fill it, then `raise` it, with nothing in
+   * between that could raise the same kind, since a raise of that kind from the same level reuses (and refills) this
+   * very object, and yours would go out with its fields. Raises nested inside listeners take the next level's payload.
    */
   readonly payload: <Payload>(kind: EventKind<Payload>) => Payload;
 
@@ -56,7 +62,10 @@ export interface Bus<Factories> {
   readonly observe: <Payload>(kind: EventKind<Payload>, observer: Listener<Payload>) => () => void;
 }
 
-/** One kind's listeners: replaced, never mutated, on add and remove, so removing one mid-raise is safe. */
+/**
+ * One kind's listeners: replaced, never mutated, on add and remove, so a raise walks the arrays it began with and
+ * removing or adding one mid-raise is safe.
+ */
 interface Channel {
   /** The observers, in the order they were added. */
   observers: readonly unknown[];
@@ -214,9 +223,19 @@ class EventBus<Factories extends Readonly<Record<string, () => object>>> impleme
 
 /**
  * Creates a bus from one payload factory per event kind (`{ hit: () => ({ target: 0, amount: 0 }) }`). A factory
- * returns a fresh payload with every field set, so each kind keeps one object shape.
+ * returns a fresh payload with every field set, so each kind keeps one object shape. Throws unless `maxDepth` is a
+ * whole number from 1.
  */
 export const createBus = <const Factories extends Readonly<Record<string, () => object>>>(
   factories: Factories,
   options: BusOptions = {}
-): Bus<Factories> => new EventBus(factories, options.maxDepth ?? 3);
+): Bus<Factories> => {
+  const maxDepth = options.maxDepth ?? 3;
+
+  // A NaN cap would run no handler while `hears` still says something listens.
+  if (!Number.isSafeInteger(maxDepth) || maxDepth < 1) {
+    throw new RangeError(`A bus nests handlers a whole number of levels from 1; got ${maxDepth}.`);
+  }
+
+  return new EventBus(factories, maxDepth);
+};

@@ -11,17 +11,23 @@ export interface EntityIds {
   readonly count: () => number;
 }
 
-/** Makes an entity id space, going on from `from` ids already handed out (0 for a new run). */
+/** The last id the space hands out: the highest unsigned 32-bit integer. */
+const LAST_ID = 2 ** 32 - 1;
+
+/**
+ * Makes an entity id space, going on from `from` ids already handed out (0 for a new run). Throws unless `from` is a
+ * whole number from 0 to 2³² − 1.
+ */
 export const createEntityIds = (from = 0): EntityIds => {
-  if (!(Number.isInteger(from) && from >= 0)) {
-    throw new RangeError(`Entity ids go on from a whole number of ids handed out; got ${from}.`);
+  if (!(Number.isInteger(from) && from >= 0 && from <= LAST_ID)) {
+    throw new RangeError(`Entity ids go on from a whole number of ids handed out, up to ${LAST_ID}; got ${from}.`);
   }
 
   let last = from;
 
   return Object.freeze({
     next: (): number => {
-      if (last >= 2 ** 32 - 1) {
+      if (last >= LAST_ID) {
         throw new RangeError('The entity id space is spent.');
       }
 

@@ -6,7 +6,10 @@ export interface StreamSpec {
   /** `sequential` for a salted Mulberry32 stream, `keyed` for keyed rolls under the same salt. */
   readonly kind: 'sequential' | 'keyed';
 
-  /** The salt mixed with the run's seed: one per name, so no two streams draw alike (nor two keyed names roll alike). */
+  /**
+   * The salt mixed with the run's seed: one per name, so no two streams draw alike (nor two keyed names roll alike).
+   * Salts are compared as 32 bits, so `-1` and `0xffffffff` are the same salt.
+   */
   readonly salt: number;
 }
 
@@ -40,18 +43,23 @@ export const createStreamTable = <const Specs extends Readonly<Record<string, St
   type Name = Extract<keyof Specs, string>;
 
   const sequential = new Map<string, SavableStream>();
-  const salts = new Map<number, string>();
+  const salts = new Map<number, readonly [name: string, given: number]>();
 
   checkSeed(seed, 'seed');
 
   for (const [name, spec] of Object.entries(specs)) {
-    const taken = salts.get(checkSeed(spec.salt, 'salt'));
+    // A stream takes its salt as 32 bits, so -1 and 4294967295 are one salt and draw alike.
+    const salt = checkSeed(spec.salt, 'salt') >>> 0;
+    const taken = salts.get(salt);
 
     if (taken !== undefined) {
-      throw new RangeError(`Streams ${taken} and ${name} share the salt ${spec.salt}: give each its own.`);
+      const [other, given] = taken;
+      const alias = given === spec.salt ? '' : ` (given as ${given} and ${spec.salt})`;
+
+      throw new RangeError(`Streams ${other} and ${name} share the salt ${salt}${alias}: give each its own.`);
     }
 
-    salts.set(spec.salt, name);
+    salts.set(salt, [name, spec.salt]);
 
     if (spec.kind === 'sequential') {
       sequential.set(name, savableStream(seed, spec.salt));

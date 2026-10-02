@@ -1,8 +1,17 @@
 import type { Defined } from './defined.ts';
 import type { Random } from './random.ts';
 
-/** A uniform integer in `[0, n)`: one draw, `floor(random() × n)`. */
-export const int = (random: Random, n: number): number => Math.floor(random() * n);
+/**
+ * A uniform integer in `[0, n)`: one draw, `floor(random() × n)`. Throws a `RangeError`, without drawing, unless `n`
+ * is a whole number from 1.
+ */
+export const int = (random: Random, n: number): number => {
+  if (!(Number.isSafeInteger(n) && n > 0)) {
+    throw new RangeError(`int draws below a whole number from 1; got ${n}.`);
+  }
+
+  return Math.floor(random() * n);
+};
 
 /** A uniform element of a non-empty list: one draw. Throws, without drawing, on an empty list. */
 export const pick = <Item extends Defined>(random: Random, list: readonly Item[]): Item => {

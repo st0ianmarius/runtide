@@ -37,14 +37,15 @@ export interface SimClock {
 
   /**
    * The stamp for something that ends `seconds` from now: now plus the steps `seconds` take (`stepsUntil`), so a stamp
-   * and a countdown of the same length end on the same tick. Now itself for `seconds` already run out.
+   * and a countdown of the same length end on the same tick. Now itself for `seconds` already run out; `Infinity` for
+   * an infinite length, which is never due and has `Infinity` seconds remaining. Throws for a negative or NaN length.
    */
   readonly stampAt: (seconds: number) => Stamp;
 
   /** Whether a stamp has come: the clock's tick is at or past it. */
   readonly isDue: (stamp: Stamp) => boolean;
 
-  /** The seconds left until a stamp: `(stamp − tick) × dt`, or zero once it is due. */
+  /** The seconds left until a stamp: `(stamp − tick) × dt` (`Infinity` for an infinite one), or zero once it is due. */
   readonly remaining: (stamp: Stamp) => number;
 }
 

@@ -4,6 +4,10 @@
  * trigger that raises an event that runs triggers) gets its own array. An array keeps its storage between uses (it is
  * never shrunk, since shrinking an array to 0 drops its backing store and the next fill allocates it again), so
  * nothing is allocated once every level has been reached at its largest size.
+ *
+ * A caller that can throw between `take` and `give` (anything that calls a hook or raises an event) gives back in a
+ * `finally`: a missed `give` leaves the stack one level deeper for good, so every later caller takes the wrong array
+ * and the depth never returns to 0.
  */
 export interface Scratch<Item> {
   /** How many arrays are taken right now. */
@@ -11,7 +15,7 @@ export interface Scratch<Item> {
 
   /**
    * Takes the array of the next level. It holds whatever its last user left past index 0, so the caller writes by
-   * index and reads only what it wrote.
+   * index and reads only what it wrote. Pair it with a `give` in a `finally` whenever the work in between can throw.
    */
   readonly take: () => (Item | undefined)[];
 

@@ -33,6 +33,21 @@ describe('scratch arrays', () => {
     assert.equal(scratch.take().length, 2);
   });
 
+  it('come back to depth 0 when a throwing user gives back in a finally', () => {
+    const scratch = createScratch<number>();
+
+    assert.throws(() => {
+      scratch.take();
+
+      try {
+        throw new Error('hook failed');
+      } finally {
+        scratch.give();
+      }
+    }, /hook failed/);
+    assert.equal(scratch.depth, 0);
+  });
+
   it('refuse to give back an array that was not taken', () => {
     assert.throws(() => {
       createScratch().give();

@@ -80,6 +80,17 @@ describe('the timing wheel', () => {
     }
   });
 
+  it('refuses a horizon that is not a whole number from 1, which would hold its items forever', () => {
+    for (const horizon of [Number.NaN, 0, -4, 2.5, Number.POSITIVE_INFINITY]) {
+      assert.throws(() => createTimingWheel<number>({ horizon }), /whole number of ticks from 1; got/);
+    }
+
+    const wheel = createTimingWheel<string>({ horizon: 1 });
+
+    wheel.schedule(3, 'a');
+    assert.deepEqual(due(wheel, 3), ['a']);
+  });
+
   it('orders any schedule by tick, then by scheduling order', () => {
     fc.assert(
       fc.property(fc.array(fc.nat({ max: 40 }), { maxLength: 60 }), (ticks) => {

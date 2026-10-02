@@ -69,12 +69,26 @@ describe('stamps', () => {
     assert.equal(clock.remaining(stamp), 0);
   });
 
-  it('are now for a deadline already run out or infinite', () => {
+  it('are now for a deadline already run out', () => {
     const clock = createClock({ dt: 1 / 60 });
 
     assert.equal(clock.stampAt(5e-7), 0);
     assert.equal(clock.stampAt(0), 0);
-    assert.equal(clock.stampAt(Number.POSITIVE_INFINITY), 0);
+  });
+
+  it('never fall due for an infinite deadline, and refuse a NaN or negative one', () => {
+    const clock = createClock({ dt: 1 / 60 });
+    const stamp = clock.stampAt(Number.POSITIVE_INFINITY);
+
+    for (let i = 0; i < 100; i++) {
+      clock.step();
+    }
+
+    assert.equal(stamp, Number.POSITIVE_INFINITY);
+    assert.equal(clock.isDue(stamp), false);
+    assert.equal(clock.remaining(stamp), Number.POSITIVE_INFINITY);
+    assert.throws(() => clock.stampAt(Number.NaN), /seconds from 0; got NaN/);
+    assert.throws(() => clock.stampAt(-1), /seconds from 0; got -1/);
   });
 });
 
@@ -103,6 +117,15 @@ describe('countdowns', () => {
     assert.equal(stepsUntil(3000, 1 / 60), 180_000);
     assert.equal(stepsUntil(2e-6, 1 / 60), 1);
     assert.equal(stepsUntil(1, 0), 0);
+  });
+
+  it('take infinite steps for an infinite length, as a countdown never runs it out', () => {
+    assert.equal(stepsUntil(Number.POSITIVE_INFINITY, 1 / 60), Number.POSITIVE_INFINITY);
+    assert.equal(countDown(Number.POSITIVE_INFINITY, 1 / 60), Number.POSITIVE_INFINITY);
+    assert.equal(isRunOut(Number.POSITIVE_INFINITY), false);
+    assert.throws(() => stepsUntil(Number.NaN, 1 / 60), RangeError);
+    assert.throws(() => stepsUntil(Number.NEGATIVE_INFINITY, 1 / 60), RangeError);
+    assert.throws(() => stepsUntil(-0.5, 1 / 60), RangeError);
   });
 
   it('agree with walking the countdown down, for any length', () => {

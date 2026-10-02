@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { checkOrder, createRegistry, TOMBSTONE } from '../../src/core/index.ts';
+import { checkOrder, type ColumnType, createRegistry, TOMBSTONE } from '../../src/core/index.ts';
 
 interface SpellDef {
   readonly windup?: number;
@@ -113,6 +113,25 @@ describe('registry tables', () => {
     assert.ok(columns.cooldown instanceof Uint8Array);
     assert.deepEqual([...columns.windup], [0, 1.2, 0.4]);
     assert.deepEqual([...columns.cooldown], [8, 5, 1]);
+  });
+
+  it('refuse a fraction or NaN their type would store as something else, naming the column', () => {
+    const build = (type: ColumnType, value: number) => () =>
+      createRegistry({ a: { v: 0 }, b: { v: value } }, { columns: { amount: { type, of: (def) => def.v } } });
+
+    assert.throws(build('i32', Number.NaN), /Column amount \(i32\) holds whole numbers; slot 1 gives NaN/);
+    assert.throws(build('u8', 1.5), /Column amount \(u8\) holds whole numbers/);
+    assert.throws(build('u32', Number.POSITIVE_INFINITY), /Column amount \(u32\)/);
+    assert.throws(build('f64', Number.NaN), /Column amount \(f64\) holds any number but NaN/);
+    assert.deepEqual([...build('f64', Number.NEGATIVE_INFINITY)().columns.amount], [0, Number.NEGATIVE_INFINITY]);
+    assert.deepEqual([...build('i32', -2_147_483_648)().columns.amount], [0, -2_147_483_648]);
+  });
+
+  it('wrap a whole number outside an integer type, as a typed array does', () => {
+    const build = (type: ColumnType, value: number) =>
+      createRegistry({ a: { v: value } }, { columns: { amount: { type, of: (def) => def.v } } }).columns.amount;
+
+    assert.deepEqual([build('u8', 300)[0], build('u8', -1)[0], build('u16', -1)[0]], [44, 255, 65_535]);
   });
 });
 
