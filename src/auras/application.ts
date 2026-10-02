@@ -11,6 +11,9 @@ export interface AuraApplication<G extends AuraTypes = AuraTypes> {
   /** The aura applied. */
   readonly aura: AuraId;
 
+  /** Skips the host's incoming policy for bookkeeping applications; the aura's own rules still apply. */
+  readonly bypassPolicy?: boolean | undefined;
+
   /** Its length in seconds, in place of the definition's. */
   readonly duration?: number | undefined;
 
@@ -71,7 +74,7 @@ export interface AuraHost<G extends AuraTypes = AuraTypes> {
   /** The bearer's stats, for hook contexts. */
   readonly statsOf?: (bearer: G['bearer']) => StatView | undefined;
 
-  /** The bearer's application policy, asked before anything else; `undefined` accepts the application as it is. */
+  /** The bearer's application policy, unless `bypassPolicy` is set; `undefined` accepts the application as it is. */
   readonly onIncomingAura?: (bearer: G['bearer'], application: AuraApplication<G>) => AuraDecision<G> | undefined;
 
   /**

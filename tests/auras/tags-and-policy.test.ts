@@ -162,6 +162,35 @@ describe('removal and suppression', () => {
 });
 
 describe("the host's application policy", () => {
+  it('bypasses only the incoming policy for bookkeeping applications, preserving aura rules and tag edges', () => {
+    let incoming = 0;
+    let edges = 0;
+
+    const { auras, id, unit } = makeGame(defs, {
+      host: {
+        onIncomingAura: () => {
+          incoming += 1;
+
+          return { refuse: true };
+        },
+
+        onTagsChanged: () => {
+          edges += 1;
+        }
+      }
+    });
+
+    const u = unit(1);
+
+    assert.equal(auras.apply(u, { aura: id.ward, bypassPolicy: true }).applied, true);
+    assert.equal(auras.has(u, id.ward), true);
+    assert.equal(edges, 1);
+    assert.equal(auras.apply(u, { aura: id.scald, bypassPolicy: true }).applied, false, 'blockedBy still applies');
+    assert.equal(incoming, 0);
+    assert.equal(auras.apply(u, { aura: id.mark, bypassPolicy: false }).applied, false);
+    assert.equal(incoming, 1);
+  });
+
   it('refuses, substitutes, scales and arms more after, and a refusal raises nothing', () => {
     const { auras, id, unit, log } = makeGame(
       { ...defs, slow: aura({ duration: 4, onApplied: () => ['slowed'] }) },

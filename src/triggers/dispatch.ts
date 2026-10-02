@@ -249,6 +249,7 @@ const fire = <G extends TriggerTypes, Host>(
   if (cooldown !== undefined) {
     auras.apply(frame.owner, {
       aura: cooldown,
+      bypassPolicy: true,
       duration: cooldownDuration(parts, trigger, frame),
       source
     });

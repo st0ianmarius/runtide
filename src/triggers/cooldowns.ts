@@ -73,7 +73,8 @@ const derive = <G extends TriggerTypes>(
  * `const all = withTriggerCooldowns(AUTHORED, { order: ICD_ORDER, tags: ['cooldown'] })`, then
  * `defineAuras(all.defs, { order: all.order })`. Each is `icd.aura.<name>.<index>`, the trigger's `icd` long,
  * `refresh`, owner-only, quiet (no aura events: triggers on aura events and a combat log never hear it), with the given
- * clock and tags; their ids follow the authored ones, in their own pinned order.
+ * clock and tags; their ids follow the authored ones, in their own pinned order. Trigger dispatch applies them with
+ * the incoming aura policy bypassed, so that policy cannot refuse, replace or scale the internal cooldown.
  */
 export const withTriggerCooldowns = <G extends TriggerTypes, const Name extends string>(
   defs: Readonly<Record<Name, AuraDef<G> | Tombstone>>,

@@ -2,6 +2,7 @@ import {
   type AuraBearer,
   type AuraDef,
   type AuraEvent,
+  type AuraHost,
   type AuraId,
   type AuraRegistry,
   type AuraState,
@@ -246,6 +247,9 @@ export const mark = (label: string, chance?: number): Proc<Game> => ({
 
 /** Overrides of a test game's options. */
 export interface GameOptions {
+  /** Aura host services, including the incoming application policy. */
+  readonly auraHost?: AuraHost<Game>;
+
   /** The cooldown auras' options. */
   readonly cooldowns?: CooldownOptions<Game>;
 
@@ -348,7 +352,7 @@ export const makeGame = <const Name extends string>(
     tags: TAGS,
     clocks: CLOCKS,
     events: { bus, changed: bus.kind.aura },
-    host: { run: (procs, ctx) => holder.procs?.runAura(procs, ctx) }
+    host: { run: (procs, ctx) => holder.procs?.runAura(procs, ctx), ...options.auraHost }
   });
 
   const host: ProcHost<Game> & GameHost = {

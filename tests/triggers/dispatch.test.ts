@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { AuraView, ViewOptions } from '../../src/auras/index.ts';
+import type { AuraDecision, AuraView, ViewOptions } from '../../src/auras/index.ts';
 import { against } from '../../src/conditions/index.ts';
 import { applyAura, type Proc, raise, removeAura, run } from '../../src/procs/index.ts';
 import { explainTriggers } from '../../src/triggers/index.ts';
@@ -335,6 +335,67 @@ describe('one trigger: conditions, cooldown, chance, then its procs', () => {
     game.procs.run([{ kind: 'removeByTag', tag: 'cooldown' }], { self: u });
     game.hit(u);
     assert.deepEqual(game.log, ['echo@1', 'echo@1']);
+  });
+
+  it('protects internal cooldowns from incoming aura policies while ordinary cooldown-tagged auras still use them', () => {
+    for (const mode of ['refuse', 'scale', 'replace'] as const) {
+      const seen: number[] = [];
+
+      const game = makeGame(
+        {
+          echo: aura({ duration: 99, triggers: [{ on: 'hit', icd: 4, do: [mark('echo')] }] }),
+          ordinary: aura({ duration: 4, quiet: true, tags: ['cooldown'] }),
+          replacement: aura({ duration: 1 })
+        },
+        {
+          triggers: { cooldownSeconds: (icd) => icd / 2 },
+          auraHost: {
+            onIncomingAura: (_bearer, application): AuraDecision<Game> | undefined => {
+              if (!game.registry.get(application.aura).tags?.includes('cooldown')) {
+                return undefined;
+              }
+
+              seen.push(application.aura);
+
+              if (mode === 'refuse') {
+                return { refuse: true };
+              }
+
+              return {
+                apply: mode === 'scale' ? { ...application, duration: 0.125 } : { aura: game.id.replacement }
+              };
+            }
+          }
+        }
+      );
+
+      const u = game.unit(1);
+      const cooldown = defined(game.triggers.cooldownOf(game.id.echo, 0));
+
+      game.auras.apply(u, game.id.echo);
+      game.hit(u);
+      game.hit(u);
+      assert.equal(game.auras.remaining(u, cooldown), 2, mode);
+      assert.deepEqual(game.log, ['echo@1'], mode);
+      assert.deepEqual(seen, [], mode);
+
+      for (let i = 0; i < 16; i++) {
+        game.auras.tick(u, 'world');
+      }
+
+      game.hit(u);
+      assert.deepEqual(game.log, ['echo@1', 'echo@1'], mode);
+      assert.deepEqual(seen, [], mode);
+
+      game.auras.apply(u, game.id.ordinary);
+      assert.deepEqual(seen, [game.id.ordinary], mode);
+      assert.equal(game.auras.has(u, game.id.ordinary), mode === 'scale');
+      assert.equal(game.auras.has(u, game.id.replacement), mode === 'replace');
+
+      if (mode === 'scale') {
+        assert.equal(game.auras.remaining(u, game.id.ordinary), 0.125);
+      }
+    }
   });
 
   it('rejects invalid cooldown rule results before applying a cooldown or running procs', () => {

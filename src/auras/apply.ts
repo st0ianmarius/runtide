@@ -220,7 +220,7 @@ const landAura = <G extends AuraTypes>(
 
 /**
  * Applies an aura to a bearer: the host's application policy first (refuse, replace, then more), then the
- * aura's own rules. A refusal raises nothing.
+ * aura's own rules. Bookkeeping applications with `bypassPolicy` skip the host's policy. A refusal raises nothing.
  */
 export const applyAura = <G extends AuraTypes>(
   engine: AuraEngine<G>,
@@ -228,7 +228,7 @@ export const applyAura = <G extends AuraTypes>(
   input: AuraId | AuraApplication<G>
 ): ApplyResult => {
   const incoming = typeof input === 'number' ? engine.applicationOf(input) : input;
-  const decision = engine.host.onIncomingAura?.(bearer, incoming);
+  const decision = incoming.bypassPolicy === true ? undefined : engine.host.onIncomingAura?.(bearer, incoming);
 
   if (decision?.refuse === true) {
     return REFUSED;
