@@ -81,7 +81,8 @@ export const snapshotScaled = (
 
 /**
  * Finishes a snapshot against one target: the full formula in its fixed order, with the frozen caster stats and the
- * target's live ones. Without a target, the target terms are left out. Allocates nothing.
+ * target's live ones. Without a target, target terms and curves with target-dependent parameters are left out.
+ * Allocates nothing.
  */
 export const finishScaled = (snapshot: ScaledSnapshot, target?: StatView): number => {
   if (!(snapshot instanceof Snapshot)) {

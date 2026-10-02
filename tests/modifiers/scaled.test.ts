@@ -4,17 +4,24 @@ import { describe, it } from 'node:test';
 import {
   add,
   amp,
+  byLevel,
   compileScaled,
+  type Curve,
   curveOf,
+  customCurve,
   defineStats,
+  evaluateCurve,
   evaluateScaled,
   explainScaled,
   finishScaled,
   hyperbolic,
+  linear,
   ranks,
+  rating,
   scaled,
   shareOf,
   snapshotScaled,
+  stacking,
   type StatTable,
   type StatView
 } from '../../src/modifiers/index.ts';
@@ -156,6 +163,51 @@ describe('snapshots (decision 2)', () => {
 });
 
 describe('explanations', () => {
+  it('omit curves with target-dependent parameters from previews and targetless snapshots', () => {
+    const lookup = byLevel([[1, 0.5]], { from: 'target' });
+
+    const curves: readonly Curve<'level'>[] = [
+      linear(lookup),
+      rating(lookup),
+      hyperbolic({ k: lookup }),
+      hyperbolic({ k: 1, cap: lookup }),
+      stacking(lookup),
+      customCurve((x, { per }) => x * per, { per: lookup }),
+      linear(scaled(0, add('level', 0.5, { from: 'target' }))),
+      linear(scaled(1, curveOf(linear(lookup), 1, { stat: 'level' })))
+    ];
+
+    const caster = unit({ attackDamage: 100, damage: 2, level: 2 });
+    const target = unit({ level: 3 });
+
+    for (const curve of curves) {
+      const value = compileScaled(
+        STATS,
+        scaled(10, add('attackDamage', 0.1), amp('damage', 1), curveOf(curve, 1, { stat: 'level' }))
+      );
+
+      const preview = explainScaled(value, 1, { caster });
+      const snapshot = snapshotScaled(value, caster);
+
+      assert.equal(preview.total, 40, curve.kind);
+      assert.equal(preview.isPartial, true, curve.kind);
+      assert.equal(evaluateScaled(value, { caster }), 40, curve.kind);
+      assert.equal(finishScaled(snapshot), 40, curve.kind);
+
+      assert.ok(value.curve !== undefined);
+
+      const total = 40 * evaluateCurve(value.curve, 2, { caster, target });
+      const full = explainScaled(value, 1, { caster, target });
+
+      assert.equal(full.total, total, curve.kind);
+      assert.equal(full.isPartial, false, curve.kind);
+      assert.equal(finishScaled(snapshot, target), total, curve.kind);
+      assert.equal(finishScaled(snapshot), 40, 'a subsequent preview still omits the curve');
+      assert.equal(explainScaled(value).total, undefined);
+      assert.equal(explainScaled(value).isPartial, false);
+    }
+  });
+
   it('give the base, each term with its ratio and reading, and the total, as data', () => {
     const value = compileScaled(
       STATS,

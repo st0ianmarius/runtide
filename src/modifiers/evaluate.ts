@@ -63,13 +63,52 @@ const readTerm = (term: CompiledTerm, view: StatView): number => {
   return term.isBonus ? total - view.base(term.stat) : total;
 };
 
-/** A value's curve at the summed input, or exactly 1 when it has none (`x × 1` is `x` to the bit). */
+/** Whether a parameter needs target stats, including parameters of nested scaled values. */
+const paramHasTarget = (param: CompiledParam | undefined): boolean =>
+  param !== undefined && typeof param !== 'number' && (param.kind === 'lookup' ? param.isTarget : param.hasTarget);
+
+/** Whether any parameter of a curve needs target stats. */
+const curveHasTarget = (curve: CompiledCurve): boolean => {
+  switch (curve.kind) {
+    case 'linear':
+    case 'rating': {
+      return paramHasTarget(curve.per);
+    }
+
+    case 'hyperbolic': {
+      return paramHasTarget(curve.k) || paramHasTarget(curve.cap);
+    }
+
+    case 'stacking': {
+      return paramHasTarget(curve.rate);
+    }
+
+    case 'table': {
+      return false;
+    }
+
+    case 'custom': {
+      for (let i = 0; i < curve.params.length; i++) {
+        if (paramHasTarget(curve.params[i])) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+  }
+};
+
+/** A value's curve factor, or exactly 1 when absent or its parameters need a missing target. */
 const curveFactor = (value: CompiledScaled, input: number, ctx: ScaledContext): number =>
-  value.curve === undefined ? 1 : evaluateCurve(value.curve, input, ctx);
+  value.curve === undefined || (ctx.target === undefined && curveHasTarget(value.curve))
+    ? 1
+    : evaluateCurve(value.curve, input, ctx);
 
 /**
  * Evaluates a compiled scaled value: `(base + Σ add) × Π amp × curve(Σ curve terms)`, each sum and product in the
- * order written, at the context's rank. Without a target in the context, target terms are left out. Allocates nothing.
+ * order written, at the context's rank. Without a target, target terms and curves with target-dependent parameters
+ * are left out. Allocates nothing.
  */
 export const evaluateScaled = (value: CompiledScaled, ctx: ScaledContext): number => {
   const slot = rankSlot(value.rankCount, ctx.rank);

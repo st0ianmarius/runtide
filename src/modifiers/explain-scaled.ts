@@ -55,7 +55,7 @@ export interface ScaledExplanation {
   /** The evaluated value when stats were given, or `undefined` for a ratio-only explanation. */
   readonly total: number | undefined;
 
-  /** Whether some target terms were left out of `total` because no target was given. */
+  /** Whether target terms or a curve with target-dependent parameters were left out of `total`. */
   readonly isPartial: boolean;
 }
 

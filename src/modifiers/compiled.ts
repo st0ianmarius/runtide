@@ -18,7 +18,7 @@ export interface ScaledContext {
   /** The caster (the attacker, or the bearer in a conversion). */
   readonly caster: StatView;
 
-  /** The target; without one, target terms are left out (a preview, or the caster part at the cast). */
+  /** The target; without one, target terms and curves with target-dependent parameters are left out. */
   readonly target?: StatView | undefined;
 
   /** The rank, from 1; below 1 reads rank 1 and past the last listed rank reads the last. 1 when absent. */
