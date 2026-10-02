@@ -39,3 +39,4 @@ export { Unit, type UnitParts } from './unit.ts';
 export { defineUnit, defineUnits, type UnitDef, type UnitRegistry, type UnitRegistryOptions } from './unit-def.ts';
 
 export { type Lifecycle, type UnitId, type UnitShape, type UnitTagId, type UnitTypes } from './unit-types.ts';
+export { type UnitHosts, type UnitWiring } from './wiring.ts';

@@ -12,6 +12,7 @@ import type { UnitProcKinds } from './procs.ts';
 import { attachScript, creditOf, isBoundToGone, joinOwner } from './summons.ts';
 import type { UnitRegistry } from './unit-def.ts';
 import type { UnitId, UnitTypes } from './unit-types.ts';
+import { checkWiring, hostsOf, type UnitHosts, type UnitWiring } from './wiring.ts';
 
 /**
  * A unit system: one unit shape for heroes, creatures and summons. It spawns units from
@@ -139,6 +140,18 @@ export interface UnitSystem<G extends UnitTypes> {
 
   /** The damage host the system provides: spread it into the damage system's host. */
   readonly damageHost: ReturnType<typeof damageHostOf<G>>;
+
+  /**
+   * The spell and aura host members the system provides: spread `hosts.spell` into the spell host (`canAct`, `statsOf`)
+   * and `hosts.aura` into the aura host (`onTagsChanged`), lazily where the host is made before the unit system.
+   */
+  readonly hosts: UnitHosts<G>;
+
+  /**
+   * Checks the game's wiring once it is assembled (`units.checkWiring({ spells, auras, ai, procs, areaTriggers })`):
+   * throws a `RangeError` naming the first gate left unwired that the systems let it see.
+   */
+  readonly checkWiring: (wiring: UnitWiring<G>) => void;
 }
 
 /**
@@ -178,14 +191,14 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
   const despawnUnit = (unit: G['bearer'], reason = 'despawn'): boolean =>
     moveTo(engine, unit, 'despawned', undefined, reason);
 
+  const canAct = (unit: G['bearer']): boolean =>
+    isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksAct));
+
+  const procKinds = createUnitProcKinds<G>({ engine, spawn: spawnUnit, revive: reviveUnit, despawn: despawnUnit });
+
   const system: UnitSystem<G> = {
     registry,
-    procKinds: createUnitProcKinds<G>({
-      engine,
-      spawn: spawnUnit,
-      revive: reviveUnit,
-      despawn: despawnUnit
-    }),
+    procKinds,
 
     live: () => engine.byId.size,
 
@@ -222,7 +235,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
       return bits !== undefined && unit.auras.tags.intersects(bits);
     },
 
-    canAct: (unit) => isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksAct)),
+    canAct,
 
     canMove: (unit) => isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksMove)),
 
@@ -242,6 +255,10 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     autoAttackOf: (unit) => engine.autoAttacks[unitOf<G>(unit).template],
     syncHealth: (unit) => syncHealth(engine, unit),
     damageHost: damageHostOf(engine),
+    hosts: hostsOf(engine, { canAct, syncStates: (unit) => syncStates(engine, unit) }),
+    checkWiring: (wiring) => {
+      checkWiring(engine, procKinds, wiring);
+    }
   };
 
   return Object.freeze(system);

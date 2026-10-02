@@ -569,6 +569,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
   });
 
   holdScripts.system = scripts;
+  units.checkWiring({ spells, auras, ai, procs });
 
   const line = (what: string) => (event: UnitEvent<UnitGame>) => {
     log.push(`${what} ${event.unit?.id ?? '?'} ${event.from}>${event.to}`);
