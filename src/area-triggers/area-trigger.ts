@@ -159,7 +159,7 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
   /** The spawn its limit ends it to make room for, while its end runs: its owner aura and area auras pass to it. */
   successor: AreaTrigger<G> | undefined = undefined;
 
-  /** Whether the one it replaced left its kind's owner aura on for it, so its entry does not apply it again. */
+  /** Whether the one it replaced left its kind's owner aura on for it, to come off again if it is refused. */
   keepsOwnerAura = false;
 
   /** Whether it lives while its owner does (its lifetime is `owner`). */

@@ -351,6 +351,21 @@ describe('limits', () => {
     );
     assert.equal(refusing.areaTriggers.pool.live, 2);
   });
+
+  it('throws at the spawn when its perOwner function reads no whole number from 1, leaving nothing behind', () => {
+    let read = Number.NaN;
+    const game = makeSpellGame({}, { areaTriggers: { pool: ending({ limit: { perOwner: () => read } }) } });
+    const owner = game.unit(1);
+
+    for (const value of [Number.NaN, 0, 0.5]) {
+      read = value;
+      assert.throws(
+        () => game.areaTriggers.spawn(game.areaId.pool, { owner, at: vec2(0, 0) }),
+        new RegExp(`Area trigger pool: .* got ${value}`)
+      );
+      assert.equal(game.areaTriggers.pool.live, 0);
+    }
+  });
 });
 
 describe('place and shape', () => {
@@ -539,6 +554,28 @@ describe('the owner aura, cues and events', () => {
         ),
       /its owner aura lasts while the kind lives/
     );
+  });
+
+  it('asks again for an owner aura the aura system refused, as the next instance arrives', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        auras: {
+          busy: aura({ duration: 'infinite', tags: ['busy'] }),
+          tending: aura({ duration: 'infinite', blockedBy: ['busy'] })
+        },
+        areaTriggers: { grove: ending({ ownerAura: 'tending' }) }
+      }
+    );
+
+    const owner = game.unit(1);
+
+    game.auras.apply(owner, game.auraId.busy);
+    game.areaTriggers.spawn(game.areaId.grove, { owner, at: vec2(0, 0) });
+    assert.equal(game.auras.has(owner, game.auraId.tending), false);
+    game.auras.remove(owner, game.auraId.busy);
+    game.areaTriggers.spawn(game.areaId.grove, { owner, at: vec2(0, 0) });
+    assert.equal(game.auras.has(owner, game.auraId.tending), true);
   });
 
   it('fires its cues at its position with its entity id, credited to its owner', () => {

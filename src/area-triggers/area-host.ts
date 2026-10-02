@@ -13,8 +13,10 @@ export interface AreaTriggerHost<G extends AreaTriggerTypes> extends SpellHost<G
   readonly allocateId?: () => number;
 
   /**
-   * A unit's side, which an area trigger it spawns keeps for its catches: the world's `sideOf` when absent, which a
-   * unit with no place in the world (a world script) has none of.
+   * A unit's side, which an area trigger it spawns keeps for its catches: the world's `sideOf` when absent. A memory
+   * world's throws "The unit is not in the world" for an owner with no body there (a world script's), so a game whose
+   * world scripts spawn area triggers supplies this, and the spell host's `positionOf` too for its owner-anchored kinds
+   * and its `spawn` procs without `at`.
    */
   readonly sideOf?: (unit: G['bearer']) => number;
 }

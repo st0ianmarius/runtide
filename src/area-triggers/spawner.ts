@@ -1,6 +1,8 @@
+import { NO_SOURCE } from '../auras/index.ts';
 import type { Vec2 } from '../math/index.ts';
 import { type CastHandle, NO_CAST } from '../spells/index.ts';
 import { dropAreaAuras } from './area-auras.ts';
+import { isLimit } from './area-checks.ts';
 import type { AnyAreaTriggerDef, Lifetime } from './area-def.ts';
 import { type AreaTrigger, NO_SCALED, NO_STATS } from './area-trigger.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
@@ -81,9 +83,12 @@ const bindCast = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaT
   area.scaled = area.statsBox?.scaled ?? context.scaled;
 };
 
-/** Fills a new area trigger's credit: its owner's id, and the source its hits are credited to. */
+/**
+ * Fills a new area trigger's credit: its owner's id (`NO_SOURCE` without the host's `idOf`, as a proc's), and the
+ * source its hits are credited to.
+ */
 const bindCredit = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>, spec: SpawnSpec<G>) => {
-  area.ownerId = engine.host.idOf?.(area.owner) ?? 0;
+  area.ownerId = engine.host.idOf?.(area.owner) ?? NO_SOURCE;
   area.source = spec.source ?? area.cast?.source ?? area.ownerId;
   area.origin.source = area.source;
 };
@@ -149,6 +154,7 @@ const oldestOf = <G extends AreaTriggerTypes>(
  * Whether the limit lets it in: under it, yes; at it, the owner's oldest of the kind ends as `replaced`, or
  * the new one is refused (`refuse`). While the oldest ends, the new one holds its room: a spawn its hooks make of the
  * same owner and kind, with nothing left to replace, is refused, and the new one is let in only if there is room after.
+ * A `perOwner` function reading anything but a whole number from 1 throws.
  */
 const admitLimit = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -162,6 +168,12 @@ const admitLimit = <G extends AreaTriggerTypes>(
   }
 
   const perOwner = typeof limit.perOwner === 'function' ? limit.perOwner(area) : limit.perOwner;
+
+  if (!isLimit(perOwner)) {
+    throw new RangeError(
+      `Area trigger ${engine.registry.name(area.kind)}: its limit per owner is a whole number from 1; got ${perOwner}.`
+    );
+  }
 
   if (engine.countOf(area.owner, area.kind) < perOwner || liveOf(engine, area) < perOwner) {
     return true;
@@ -230,7 +242,7 @@ const dropHanded = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: Are
 
 /**
  * Fills it, asks its limit and settles it; whether it may enter. One the limit refuses, or whose filling throws (a
- * lifetime of 0, a ledger's pierce read as 0), is let go with its cast, the ledgers it opened and what the one it
+ * limit or lifetime of 0, a ledger's pierce read as 0), is let go with its cast, the ledgers it opened and what the one it
  * replaced handed it, before anything links it.
  */
 const admit = <G extends AreaTriggerTypes>(

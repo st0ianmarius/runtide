@@ -98,9 +98,6 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
   #pending: G['bearer'] | undefined = undefined;
   #application: OwnerAuraApplication | undefined = undefined;
 
-  /** How many ends are raising their end event with their kind's owner aura still on (see `release`). */
-  #releasing = 0;
-
   /** A view per pooled ledger, so two views a hook holds stay apart. */
   readonly #views = new Map<Ledger, LedgerView<G>>();
 
@@ -444,29 +441,26 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
    * end; a spawn of its kind from a listener finds the aura on and keeps it.
    */
   release(area: AreaTrigger<G>, reason: EndReason<G>): void {
-    this.#releasing++;
-
     try {
       this.raise('ended', area, reason);
     } finally {
-      this.#releasing--;
       this.holdOwnerAura(area, false);
     }
   }
 
   /**
-   * Puts its kind's owner aura on its owner as the first of the kind arrives, and takes it off as the last
-   * leaves, so overlapping instances share one; call it after the count went up, or after it went down. The last one
-   * ending to make room for a spawn of its kind leaves the aura on for that spawn, whose entry then finds it on; so
-   * does the last one ending as a listener of its end event spawns its kind.
+   * Puts its kind's owner aura on its owner as each of the kind arrives to find it off, and takes it off as the last
+   * leaves, so overlapping instances share one; call it after the count went up, or after it went down. An application
+   * the aura system refused (the owner's incoming policy, a block, an immunity) is asked again by the next to arrive.
+   * The last one ending to make room for a spawn of its kind leaves the aura on for that spawn, whose entry then finds
+   * it on; so does the last one ending as a listener of its end event spawns its kind.
    */
   holdOwnerAura(area: AreaTrigger<G>, isOn: boolean): void {
     const aura = this.ownerAuras[area.kind];
-    const isKept = area.keepsOwnerAura;
 
     area.keepsOwnerAura = false;
 
-    if (aura === undefined || this.countOf(area.owner, area.kind) !== (isOn ? 1 : 0)) {
+    if (aura === undefined || (!isOn && this.countOf(area.owner, area.kind) !== 0)) {
       return;
     }
 
@@ -482,7 +476,7 @@ export class AreaEngine<G extends AreaTriggerTypes> implements AreaServices<G> {
       return;
     }
 
-    if ((isKept || this.#releasing > 0) && this.auras.has(area.owner, aura)) {
+    if (this.auras.has(area.owner, aura)) {
       return;
     }
 

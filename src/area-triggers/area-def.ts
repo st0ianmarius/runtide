@@ -192,7 +192,10 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
  * `suspendWhile` or `when`.
  */
 export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
-  /** Its owner must stay `present` (in the world): it ends as `source-gone` as the owner leaves (`ownerGone`). */
+  /**
+   * Its owner must stay `present` (alive and in the world): it ends as `source-gone` as the owner dies or leaves the
+   * world (`ownerGone`, which the unit system calls on both when wired through its `areaTriggers` option).
+   */
   readonly owner?: 'present';
 
   /**
@@ -208,7 +211,10 @@ export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {
 
 /** How many of a kind one owner may have at once, and what a spawn past it does. */
 export interface AreaLimit<G extends AreaTriggerTypes, State = unknown> {
-  /** The most at once per owner, from 1: a number, or read from the spawning cast's stats. */
+  /**
+   * The most at once per owner, from 1: a number, or read from the spawning cast's stats as each spawns, which throws
+   * on a read that is not a whole number from 1.
+   */
   readonly perOwner: number | AreaFn<G, State, number>;
 
   /**
