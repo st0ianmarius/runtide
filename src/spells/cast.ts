@@ -86,6 +86,9 @@ export class Cast<G extends SpellTypes> implements SpellContext<G> {
   /** Whether its cooldowns started before it was cast (a press that committed them): it neither asks nor lands them. */
   isCommitted = false;
 
+  /** Whether this cast skips checking and starting its spell's cooldowns. */
+  ignoresCooldown = false;
+
   /** The caster's entity id, the second part of every key. */
   casterId = NO_SOURCE;
 

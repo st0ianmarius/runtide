@@ -12,6 +12,7 @@ class ProcCastOptions<G extends SpellTypes> implements CastOptions<G> {
   input: G['input'] | undefined = undefined;
   rank: number | undefined = undefined;
   source: number | undefined = undefined;
+  ignoreCooldown: boolean | undefined = undefined;
 }
 
 /** What the kinds reach: the engine, and the system's cast. */
@@ -67,6 +68,7 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
       options.input = proc.inputOf === undefined ? proc.input : proc.inputOf(ctx);
       options.rank = proc.rank ?? parent?.rank;
       options.source = ctx.source;
+      options.ignoreCooldown = proc.ignoreCooldown;
 
       const { status } = parts.cast(caster, spellIdOf(engine, proc.spell, false), options);
 
@@ -80,7 +82,8 @@ const castSpellKind = <G extends SpellTypes>(parts: KindParts<G>): ProcKindDef<C
     explain: (proc) => ({
       values: {
         spell: spellIdOf(engine, proc.spell, false),
-        ...(proc.rank === undefined ? {} : { rank: proc.rank })
+        ...(proc.rank === undefined ? {} : { rank: proc.rank }),
+        ...(proc.ignoreCooldown === undefined ? {} : { ignoreCooldown: Number(proc.ignoreCooldown) })
       }
     })
   };

@@ -25,6 +25,9 @@ export interface CastSpellProc<G extends SpellTypes> extends ProcShape {
 
   /** Its rank; the rank of the cast whose procs these are, else the caster's own (`host.rankOf`), when absent. */
   readonly rank?: number;
+
+  /** Skips checking and starting the spell's cooldowns, allowing a self-chain; other cast checks still apply. */
+  readonly ignoreCooldown?: boolean;
 }
 
 /**
@@ -109,7 +112,7 @@ export const rescaleClocks = <G extends SpellTypes = SpellTypes>(
   options: ChanceOption & Omit<RescaleClocksProc<G>, 'kind' | 'factor' | 'chance'> = {}
 ): RescaleClocksProc<G> => ({ ...options, kind: 'rescaleClocks', factor });
 
-/** A `castSpell` proc: `castSpell('stab')`, `castSpell('nova', { to: 'eventUnit', rank: 2 })`. */
+/** A `castSpell` proc: `castSpell('stab')`, `castSpell('nova', { ignoreCooldown: true })` for a self-chain. */
 export const castSpell = <G extends SpellTypes = SpellTypes>(
   spell: G['spellName'] | SpellId,
   options: Omit<CastSpellProc<G>, 'kind' | 'spell'> = {}

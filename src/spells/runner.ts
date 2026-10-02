@@ -47,6 +47,7 @@ const initCast = <G extends SpellTypes>(
   cast.ordinal = recordOf(cast.caster).ordinalAt(cast.startTick);
   cast.cueKey = options.key ?? 0;
   cast.isCommitted = options.committed === true;
+  cast.ignoresCooldown = options.ignoreCooldown === true;
   cast.target = undefined;
   cast.state = undefined;
   cast.outcome = undefined;
@@ -124,7 +125,7 @@ const admit = <G extends SpellTypes>(
     return 'interrupted';
   }
 
-  if (!cast.isCommitted && engine.cooldowns.isCooling(cast.caster, cast.spell)) {
+  if (!cast.isCommitted && !cast.ignoresCooldown && engine.cooldowns.isCooling(cast.caster, cast.spell)) {
     return 'cooldown';
   }
 
@@ -263,7 +264,7 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
   refreshLive(engine, cast, def);
   cast.isLocked = true;
 
-  if (!cast.isCommitted) {
+  if (!cast.isCommitted && !cast.ignoresCooldown) {
     engine.cooldowns.start(cast, 'release');
 
     if (cast.stage !== 'windup') {
@@ -305,7 +306,7 @@ export const releaseCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
 
 /**
  * Enters an admitted cast: it joins its caster's casts, makes its own state, enters its windup, paused by any interrupt
- * its caster holds that it answers by pausing, then starts its cooldowns (unless a press committed them), whose auras'
+ * its caster holds that it answers by pausing, then starts its cooldowns (unless committed or ignored), whose auras'
  * hooks may end it.
  */
 const enterCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): void => {
@@ -318,7 +319,7 @@ const enterCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>):
   cast.pauses = record.interrupts & (engine.pauseMasks[cast.spell] ?? 0);
   cast.isLocked = engine.plans[cast.spell]?.track === undefined;
 
-  if (!cast.isCommitted) {
+  if (!cast.isCommitted && !cast.ignoresCooldown) {
     engine.cooldowns.start(cast, 'start');
   }
 };

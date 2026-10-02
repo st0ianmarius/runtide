@@ -11,6 +11,81 @@ import { aura, type Charged, type Game, makeSpellGame, mark, spell } from '../he
 const SLOTS = defineTickSlots(['early', 'late']);
 
 describe('the castSpell proc', () => {
+  for (const startsOn of ['start', 'release'] as const) {
+    it(`opts a delayed self-chain out of its ${startsOn} cooldown without refreshing it`, () => {
+      const game = makeSpellGame(
+        {
+          nova: spell({
+            activation: { kind: 'trigger' },
+            cooldown: { aura: 'icd', seconds: 2, startsOn },
+            release: (ctx) =>
+              ctx.rank === 1
+                ? [mark('nova'), after<Game>(0.5, [castSpell<Game>('nova', { rank: 2, ignoreCooldown: true })])]
+                : [mark('chain')]
+          })
+        },
+        { auras: { icd: aura({ duration: 5 }) } }
+      );
+
+      const hero = game.unit(1);
+
+      game.spells.cast(hero, game.id.nova);
+      assert.equal(game.spells.check(hero, game.id.nova), 'cooldown');
+      for (let i = 0; i < 2; i++) {
+        game.step();
+        game.auras.tick(hero, 'world');
+      }
+
+      const left = game.spells.cooldownLeft(hero, game.id.nova);
+
+      game.spells.stepDelayed();
+      assert.equal(game.log.filter((line) => line === 'chain@1').length, 1);
+      assert.equal(game.spells.cooldownLeft(hero, game.id.nova), left);
+      assert.equal(game.spells.pool.live, 0);
+      assert.equal(game.procs.apply(castSpell<Game>('nova'), { self: hero }).status, 'refused');
+
+      const other = game.unit(2);
+
+      assert.equal(
+        game.procs.apply(castSpell<Game>('nova', { rank: 2, ignoreCooldown: true }), { self: other }).status,
+        'landed'
+      );
+      assert.equal(game.spells.isCooling(other, game.id.nova), false);
+      assert.equal(game.spells.cast(hero, game.id.nova).refusal, 'cooldown');
+    });
+  }
+
+  it('still asks gates, canCast and target when cooldowns are ignored', () => {
+    let canAct = false;
+    let canCast = false;
+
+    const game = makeSpellGame(
+      {
+        nova: spell({
+          activation: { kind: 'trigger' },
+          cooldown: { aura: 'icd', seconds: 2 },
+          canCast: () => canCast,
+          target: (_ctx, input) => input,
+          release: () => [mark('nova')]
+        })
+      },
+      { auras: { icd: aura({ duration: 5 }) }, host: { canAct: () => canAct } }
+    );
+
+    const hero = game.unit(1);
+
+    game.auras.apply(hero, { aura: game.auraId.icd });
+    const refusal = () => game.spells.cast(hero, game.id.nova, { ignoreCooldown: true }).refusal;
+
+    assert.equal(refusal(), 'gate');
+    canAct = true;
+    assert.equal(refusal(), 'canCast');
+    canCast = true;
+    assert.equal(refusal(), 'target');
+    assert.equal(game.procs.apply(castSpell<Game>('nova', { ignoreCooldown: true }), { self: hero }).status, 'refused');
+    assert.equal(game.spells.pool.live, 0);
+  });
+
   it('casts a chained spell through the whole cast order, at the running cast’s rank, credited to its source', () => {
     const game = makeSpellGame({
       swing: spell({ activation: { kind: 'trigger' }, release: () => [castSpell<Game>('stab')] }),
@@ -139,6 +214,10 @@ describe('the castSpell proc', () => {
     assert.deepEqual(prepared, { rank: 2, kind: 'castSpell', spell: game.id.bolt });
     assert.throws(() => game.procs.prepare([castSpell<Game>('nope')], 'combo'), /combo: unknown spell nope/);
     assert.deepEqual(explainProc(game.procs, castSpell<Game>('bolt')).values, { spell: 0 });
+    assert.deepEqual(explainProc(game.procs, castSpell<Game>('bolt', { ignoreCooldown: true })).values, {
+      spell: 0,
+      ignoreCooldown: 1
+    });
   });
 });
 

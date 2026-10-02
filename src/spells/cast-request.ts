@@ -68,6 +68,9 @@ export interface CastOptions<G extends SpellTypes> {
    * refuses on them nor lands them again. False when absent.
    */
   readonly committed?: boolean | undefined;
+
+  /** Skips checking and starting the spell's cooldowns; all other cast checks still apply. False when absent. */
+  readonly ignoreCooldown?: boolean | undefined;
 }
 
 /** No options: every default. */
