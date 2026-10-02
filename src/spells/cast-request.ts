@@ -121,8 +121,9 @@ export class Report<G extends SpellTypes = SpellTypes> implements CastReport<G> 
   hasReleased = false;
 
   /**
-   * For an `auto` spell, its interval read at the cast, with the cast's stats (taken for a refusal at the
-   * gate too, when the interval reads them); NaN for any other spell. The auto clock's own: not on the public report.
+   * For an `auto` spell, its interval read at the cast, with the cast's stats (taken for a refusal at the gate too, when
+   * the interval reads them): after the cast's release for a `live` spell, with the stats as the cast began for a
+   * snapshot spell; NaN for any other spell. The auto clock's own: not on the public report.
    */
   interval = Number.NaN;
 }

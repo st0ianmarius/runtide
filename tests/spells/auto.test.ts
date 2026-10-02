@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { curveOf, scaled } from '../../src/modifiers/index.ts';
+import { run } from '../../src/procs/index.ts';
 import { type AnySpellDef, autoNext, type SpellHost } from '../../src/spells/index.ts';
 import { type Game, makeSpellGame, mark, spell, STATS, type Unit } from '../helpers/spell-game.ts';
 
@@ -88,6 +89,31 @@ describe('auto clocks', () => {
     game.a.stats[STATS.id.abilityHaste] = 100;
     game.advance(1);
     assert.equal(game.spells.autoClock(game.a, game.id.volley), 0.5);
+  });
+
+  it('reads a live spell’s interval after its release, so its own haste counts at that cast; a snapshot’s as it began', () => {
+    /** An auto volley whose release hastes its caster. */
+    const volley = (live: boolean) =>
+      spell({
+        activation: { kind: 'auto', interval: (ctx) => ctx.stats.interval },
+        stats: { interval: scaled(1, curveOf('haste', 1)) },
+        live,
+
+        release: () => [
+          run<Game>('haste', (ctx) => {
+            ctx.self.stats[STATS.id.abilityHaste] = 100;
+          })
+        ]
+      });
+
+    const [live, snapshot] = [autoGame({ volley: volley(true) }), autoGame({ volley: volley(false) })];
+
+    live.advance(1);
+    snapshot.advance(1);
+    assert.equal(live.spells.autoClock(live.a, live.id.volley), 0.5);
+    assert.equal(snapshot.spells.autoClock(snapshot.a, snapshot.id.volley), 1);
+    snapshot.advance(4);
+    assert.equal(snapshot.spells.autoClock(snapshot.a, snapshot.id.volley), 0.5, 'and hasted from the next cast');
   });
 
   it('steps only armed clocks: a disarmed spell stops, and one armed again casts at once, or after its seconds', () => {

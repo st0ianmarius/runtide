@@ -25,7 +25,10 @@ export interface AutoActivation<G extends SpellTypes = SpellTypes, Source extend
   /** The discriminant. */
   readonly kind: 'auto';
 
-  /** The seconds between casts, read at each cast (from its stats snapshot, usually). */
+  /**
+   * The seconds between casts, read at each cast: after the cast's release for a `live` spell (so a haste its own
+   * release gave counts at once), with the stats as the cast began for a snapshot spell.
+   */
   readonly interval: CastSeconds<G, Source>;
 
   /**

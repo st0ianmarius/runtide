@@ -4,7 +4,7 @@ import { LIVE, STATS_FUNCTION, STATS_TABLE } from './define-spells.ts';
 import type { SpellEngine } from './engine.ts';
 import type { CastHandle } from './ids.ts';
 import type { AnySpellDef } from './spell-def.ts';
-import type { SpellTypes } from './spell-types.ts';
+import type { SpellId, SpellTypes } from './spell-types.ts';
 import { copyTable, type StatsBox, takeTable } from './stats-box.ts';
 
 /**
@@ -57,9 +57,13 @@ export const takeStats = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Ca
   }
 };
 
+/** Whether a spell's hooks read its stats live (`live`), taken again before every hook. */
+export const isLive = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId): boolean =>
+  ((engine.registry.columns.flags[spell] ?? 0) & LIVE) !== 0;
+
 /** Takes a `live` spell's stats again, before a hook; nothing for a snapshot spell. */
 export const refreshLive = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, def: AnySpellDef<G>): void => {
-  if (((engine.registry.columns.flags[cast.spell] ?? 0) & LIVE) !== 0) {
+  if (isLive(engine, cast.spell)) {
     takeStats(engine, cast, def);
   }
 };
@@ -71,7 +75,7 @@ export const refreshLive = <G extends SpellTypes>(engine: SpellEngine<G>, cast: 
 export const copyStats = <G extends SpellTypes>(engine: SpellEngine<G>, handle: CastHandle): StatsBox | undefined => {
   const cast = engine.castOf(handle);
 
-  if (cast?.box === undefined || ((engine.registry.columns.flags[cast.spell] ?? 0) & LIVE) === 0) {
+  if (cast?.box === undefined || !isLive(engine, cast.spell)) {
     return undefined;
   }
 
@@ -90,7 +94,8 @@ export const copyStats = <G extends SpellTypes>(engine: SpellEngine<G>, handle: 
 
 /**
  * An `auto` spell's interval read at its cast: its seconds, or its function of the cast (the stats taken
- * first when a gate refused the cast before they were). NaN for any other spell. Throws unless it is above 0.
+ * first when a gate refused the cast before they were). NaN for any other spell. Throws unless it is above 0. A live
+ * spell's is read again as its cast's call ends, so a haste its own release gave counts at once.
  */
 export const autoIntervalOf = <G extends SpellTypes>(
   engine: SpellEngine<G>,

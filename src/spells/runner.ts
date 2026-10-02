@@ -12,7 +12,7 @@ import { checkReach } from './reach.ts';
 import type { AnySpellDef } from './spell-def.ts';
 import type { ActivationShape, SpellId, SpellTypes } from './spell-types.ts';
 import { checkStages, enterStage } from './stage-seconds.ts';
-import { autoIntervalOf, takeStats } from './take-stats.ts';
+import { autoIntervalOf, isLive, takeStats } from './take-stats.ts';
 
 /** A cast's rank, checked: a whole number from 1 (above the spell's ranks, its stats read the top one). */
 const rankFor = <G extends SpellTypes>(engine: SpellEngine<G>, spell: SpellId, rank: number): number => {
@@ -285,6 +285,28 @@ export const startCast = <G extends SpellTypes>(
   }
 };
 
+/**
+ * An `auto` spell's interval as its cast's call ends: a live spell's read again with its stats as they are now (its
+ * end took them, or they are taken again), so a haste its own release gave its caster counts at this cast; a snapshot
+ * spell's as read at the cast, with the stats it began with.
+ */
+const intervalAfter = <G extends SpellTypes>(
+  engine: SpellEngine<G>,
+  cast: Cast<G>,
+  def: AnySpellDef<G>,
+  interval: number
+): number => {
+  if (Number.isNaN(interval) || !isLive(engine, cast.spell)) {
+    return interval;
+  }
+
+  if (!isEnded(cast)) {
+    takeStats(engine, cast, def);
+  }
+
+  return autoIntervalOf(engine, cast, def);
+};
+
 /** The cast order of `startCast` from `begin` on its admitted cast, which it lets go of when done. */
 const runStart = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -299,13 +321,15 @@ const runStart = <G extends SpellTypes>(
   const { went, hasReleased } = cast;
   const status = isEnded(cast) ? 'ended' : 'running';
 
+  const read = intervalAfter(engine, cast, def, interval);
+
   engine.unhold(cast);
   report.handle = cast.cast;
   report.status = status;
   report.refusal = undefined;
   report.went = went;
   report.hasReleased = hasReleased;
-  report.interval = interval;
+  report.interval = read;
 
   return report;
 };
