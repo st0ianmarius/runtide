@@ -44,7 +44,7 @@ export class Picker<G extends AiTypes> {
     this.#spells = spells;
   }
 
-  /** Picks a spell from `pool` for `caster`, or `undefined` when none fits. */
+  /** Picks a spell from `pool` for `caster`, or `undefined`, drawing nothing, when none fits. */
   pick(caster: G['bearer'], pool: readonly SpellId[], options: PickOptions<G>): SpellId | undefined {
     const depth = this.#depth;
     let weights = this.#weights[depth];
@@ -64,7 +64,8 @@ export class Picker<G extends AiTypes> {
         total += weights[i] ?? 0;
       }
 
-      return draw(pool, weights, total * options.random());
+      // Nothing fits: no draw is taken, so an empty pick shifts no later draw of the stream (a crit, a placement).
+      return total > 0 ? draw(pool, weights, total * options.random()) : undefined;
     } finally {
       this.#depth = depth;
     }

@@ -59,6 +59,25 @@ describe('the weighted picker', () => {
     assert.equal(ai.pick(beast, [], { random: fixed(0.3) }), undefined);
   });
 
+  it('takes no draw when nothing fits, so an empty pick shifts no later draw of the stream', () => {
+    const { ai, beast, pool, gate, weight } = picking();
+    let draws = 0;
+
+    const random = (): number => {
+      draws += 1;
+
+      return 0;
+    };
+
+    gate.isOpen = false;
+    assert.equal(ai.pick(beast, pool, { random, weight: () => 0 }), undefined);
+    assert.equal(ai.pick(beast, pool, { random, allows: () => false }), undefined);
+    assert.equal(ai.pick(beast, [], { random }), undefined);
+    assert.equal(draws, 0);
+    assert.notEqual(ai.pick(beast, pool, { random, weight }), undefined);
+    assert.equal(draws, 1);
+  });
+
   it('checks each candidate with its own input when the game gives inputOf', () => {
     const { ai, beast, pool, weight, slam, bolt, nova } = picking();
     const asked: SpellId[] = [];
