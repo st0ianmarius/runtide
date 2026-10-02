@@ -89,6 +89,39 @@ describe('modifier explanations', () => {
     assert.equal(capped && explainModifier(capped, 3).landed, 50);
     assert.equal(add && explainModifier(add, 3).landed, 90);
   });
+
+  it('land an authored rise per stack exactly, where the rise read back from the value drifts', () => {
+    const { system, sources, id } = game();
+    const rise = 0.4 / 7;
+
+    const [authored, derived] = system.compile([
+      mul('damage', 1 + rise, { stacking: 'linear', perStack: rise }),
+      mul('damage', 1 + rise, { stacking: 'linear' })
+    ]).modifiers;
+
+    assert.equal(authored && explainModifier(authored, 7).landed, 1.4);
+    assert.equal(derived && explainModifier(derived, 7).landed, 1.4000000000000001);
+    assert.equal(authored && explainModifier(authored, 1).landed, 1 + rise);
+
+    const sheet = system.createSheet();
+
+    system.setSource(sheet, sources.id.auras, [
+      system.compile([mul('damage', 1 + rise, { stacking: 'linear', perStack: rise })], { gate: 7 })
+    ]);
+
+    assert.equal(system.resolve(sheet, id.damage, { host: 0 }), 1.4);
+  });
+
+  it('refuse a rise per stack off linear stacking, or not finite', () => {
+    const { system } = game();
+
+    assert.throws(() => {
+      system.compile([mul('damage', 1.1, { perStack: 0.1 })]);
+    }, /perStack\) applies to linear stacking only/);
+    assert.throws(() => {
+      system.compile([mul('damage', 1.1, { stacking: 'linear', perStack: Number.NaN })]);
+    }, /perStack\) is a finite number; got NaN/);
+  });
 });
 
 describe('stat explanations', () => {
