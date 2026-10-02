@@ -83,6 +83,9 @@ export interface ProcSystem<G extends ProcTypes> {
   /** How many lists the depth cap has dropped so far. */
   readonly dropped: number;
 
+  /** Whether a list run now would run, not dropped by the depth cap: a trigger asks before its chance and cooldown. */
+  readonly canRun: boolean;
+
   /**
    * Starts a fresh nesting: the depth cap counts from the lists running now, as for lists run from outside any. What a
    * death sets off nests from it afresh (a damage system's `procs`), so a chain of kills through procs is capped by the
@@ -343,6 +346,10 @@ class Procs<G extends ProcTypes> implements ProcSystem<G> {
 
   get dropped(): number {
     return this.#state.dropped;
+  }
+
+  get canRun(): boolean {
+    return this.#state.depth - this.#state.base < this.maxDepth;
   }
 
   readonly rebase = (): number => {

@@ -479,6 +479,47 @@ describe('aura events and nesting', () => {
     assert.equal(capped.procs.dropped, 1);
   });
 
+  it('rolls no chance and starts no cooldown for a trigger too deep for its procs to run', () => {
+    const random = scripted([0.1]);
+
+    const game = makeGame(
+      { echo: aura({ duration: 99, triggers: [{ on: 'hit', chance: 0.5, icd: 2, do: [mark('echo')] }] }) },
+      { triggers: { random } }
+    );
+
+    const u = game.unit(1);
+
+    game.auras.apply(u, game.id.echo);
+
+    // A hit raised four proc lists deep: the trigger's own list would be the fifth, past the cap of 4.
+    const nest = (levels: number): void => {
+      if (levels === 0) {
+        game.hit(u);
+
+        return;
+      }
+
+      game.procs.run(
+        [
+          run('nest', () => {
+            nest(levels - 1);
+          })
+        ],
+        { self: u }
+      );
+    };
+
+    const before = game.procs.dropped;
+
+    nest(4);
+    assert.equal(game.procs.dropped, before + 1, 'its list dropped, and counted');
+    assert.equal(game.auras.has(u, defined(game.triggers.cooldownOf(game.id.echo, 0))), false, 'no cooldown started');
+    assert.equal(random.count(), 0, 'no chance rolled');
+    assert.equal(game.procs.canRun, true);
+    game.hit(u);
+    assert.deepEqual(game.log, ['echo@1'], 'it fires at once within the cap');
+  });
+
   it('stops listening on stop', () => {
     const game = makeGame({
       watch: aura({ duration: 9, triggers: [{ on: 'hit', do: [mark('watch')] }] })

@@ -200,7 +200,9 @@ const isLucky = <G extends TriggerTypes, Host>(
 
 /**
  * Fires one gathered trigger whose aura is still on its owner: its conditions, then whether its cooldown is running,
- * then its chance (rolled only below 1), then its cooldown starts, then its procs run for the owner.
+ * then its chance (rolled only below 1), then its cooldown starts, then its procs run for the owner. One too deep for
+ * its procs to run (the proc system's depth cap) has its list dropped as it would be, rolling no chance and starting no
+ * cooldown, so the next time it fires within the cap it is not held back.
  */
 const fire = <G extends TriggerTypes, Host>(
   parts: DispatchParts<G, Host>,
@@ -211,6 +213,13 @@ const fire = <G extends TriggerTypes, Host>(
   const { cooldown } = trigger;
 
   if (!passes(parts, trigger, frame) || (cooldown !== undefined && auras.has(frame.owner, cooldown))) {
+    return;
+  }
+
+  // Too deep: the list goes to the proc system all the same, which drops it and counts the drop.
+  if (!procs.canRun) {
+    procs.run(trigger.procs, frame);
+
     return;
   }
 
