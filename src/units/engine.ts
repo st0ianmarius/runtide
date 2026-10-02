@@ -39,6 +39,12 @@ export interface UnitSystemBase<G extends UnitTypes> {
   /** The spell system every unit casts through. */
   readonly spells: SpellSystem<G>;
 
+  /** The area trigger system's lifecycle side: ends areas that need their owner as it dies or despawns. */
+  readonly areaTriggers?: {
+    /** Ends the owner's dependent areas as `source-gone`, leaving independent areas alive. */
+    readonly ownerGone: (owner: G['bearer']) => number;
+  };
+
   /**
    * The AI system, for units that think: each unit gets a brain, freed as it despawns, whose timers its
    * states' interrupts hold (`interrupts`). Every unit has the shared empty brain when absent.

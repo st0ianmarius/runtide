@@ -289,6 +289,12 @@ const UNIT_STATES = defineUnitStates(AURA_TAGS, {
 
 /** A unit test game's options. */
 export interface UnitGameOptions<Extra extends string = never> {
+  /** The area trigger system's lifecycle side. */
+  readonly areaTriggers?: {
+    /** Ends the dependent areas of an owner that died or despawned. */
+    readonly ownerGone: (owner: Unit<UnitGame>) => number;
+  };
+
   /** The health policy. */
   readonly policy?: HealthPolicy<UnitGame>;
 
@@ -443,6 +449,7 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     ai,
     spells,
     ...(options.folds === false ? {} : { modifiers: { system: modifiers } }),
+    ...(options.areaTriggers === undefined ? {} : { areaTriggers: options.areaTriggers }),
     health: {
       stat: 'maxHealth',
       ...(options.policy === undefined ? {} : { policy: options.policy })

@@ -70,7 +70,8 @@ export const changeSide = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
 /**
  * A unit leaves life (dies or despawns): its casts end if it lived, it enters the matching bearer state (its auras
  * hear it, then those `removedOn` it go), it leaves its owner's summons, taking its bound ones along, and the auras it
- * put on others bound to it (`boundToSource`) come off them (`auras.sourceLeft`).
+ * put on others bound to it (`boundToSource`) come off them (`auras.sourceLeft`). Its dependent areas end and
+ * its pending delayed lists are withdrawn, including those scheduled by the leaving hooks.
  */
 const leaveFor = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -94,8 +95,20 @@ const leaveFor = <G extends UnitTypes>(
       leaveOwner(engine, bearer, to === 'despawned');
       despawnBound(engine, bearer);
     } finally {
-      // The auras it applied bound to it (a brand, a toxin) come off everyone it left them on.
-      auras.sourceLeft(unitOf<G>(bearer).id);
+      releaseOwned(engine, bearer);
+    }
+  }
+};
+
+/** Removes source-bound auras, dependent areas and delayed lists, even when an earlier cleanup hook throws. */
+const releaseOwned = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G['bearer']): void => {
+  try {
+    engine.options.auras.sourceLeft(unitOf<G>(bearer).id);
+  } finally {
+    try {
+      engine.options.areaTriggers?.ownerGone(bearer);
+    } finally {
+      engine.options.spells.withdrawDelayed(bearer);
     }
   }
 };

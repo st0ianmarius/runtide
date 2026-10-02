@@ -168,8 +168,8 @@ const stepFrom = <G extends AreaTriggerTypes>(
 
 /**
  * Ends, as `source-gone`, every area trigger of an owner that needs its owner: one that lives while its owner does,
- * one bound to its owner's presence, and one anchored on its owner. The game calls it as the owner leaves the world
- * (its despawn); an owner's others (a pool, a missile) live on. Returns how many ended.
+ * one bound to its owner's presence, and one anchored on its owner. The unit system calls it as the owner dies or
+ * despawns when wired through `units.areaTriggers`; an owner's others (a pool, a missile) live on. Returns how many ended.
  */
 export const endOwned = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, owner: G['bearer']): number => {
   const owned = engine.ownerOf(owner);

@@ -187,7 +187,8 @@ export interface AreaTriggerContext<G extends AreaTriggerTypes, State = unknown>
 
 /**
  * What ends an area trigger early, or suspends it. Each part is optional; its owner leaving the world is told by the
- * game (`areaTriggers.ownerGone`). Its owner going down, or holding an interrupt, is the game's to read in
+ * game (`areaTriggers.ownerGone`), or by the unit system on death and despawn when wired through its `areaTriggers`
+ * option. Its owner going down, or holding an interrupt, is the game's to read in
  * `suspendWhile` or `when`.
  */
 export interface AreaBound<G extends AreaTriggerTypes, State = unknown> {

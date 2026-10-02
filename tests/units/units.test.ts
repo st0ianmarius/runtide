@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { createEntityIds, POOL_MIN_FREE } from '../../src/core/index.ts';
+import { run } from '../../src/procs/index.ts';
+import { after } from '../../src/spells/index.ts';
 import { defineUnits, type UnitDef } from '../../src/units/index.ts';
 import { AURA_TAGS, auraId, HEARD, makeUnitGame, STATS, UNIT_TAGS, type UnitGame } from '../helpers/unit-game.ts';
 
@@ -13,6 +15,119 @@ const TEMPLATES = {
   boss: { tags: ['boss'] },
   wall: { tags: ['objective'] }
 } satisfies Record<string, UnitDef<UnitGame>>;
+
+describe('owned effects on leaving life', () => {
+  for (const to of ['dead', 'despawned'] as const) {
+    it(`ends dependent areas and withdraws delayed lists on ${to}, including lists from area end hooks`, () => {
+      const gone: number[] = [];
+      let landed = 0;
+
+      const game = makeUnitGame(TEMPLATES, {
+        areaTriggers: {
+          ownerGone: (owner) => {
+            gone.push(owner.id);
+            game.procs.run([after(1, [])], { self: owner });
+
+            return 1;
+          }
+        },
+        spells: {
+          delayed: {
+            activation: { kind: 'trigger' },
+            release: () => [
+              after(1, [
+                run('landed', () => {
+                  landed += 1;
+                })
+              ])
+            ]
+          }
+        }
+      });
+
+      const owner = game.units.spawn(game.id.hero, { side: 0 });
+      const other = game.units.spawn(game.id.hero, { side: 0 });
+
+      game.spells.cast(owner, game.spellId.delayed);
+      game.spells.cast(other, game.spellId.delayed);
+      assert.equal(game.spells.delayed.pending, 2);
+
+      if (to === 'dead') {
+        game.units.kill(owner);
+      } else {
+        game.units.despawn(owner);
+      }
+
+      assert.deepEqual(gone, [owner.id]);
+      assert.equal(game.spells.delayed.pending, 1);
+      for (let i = 0; i < 4; i++) {
+        game.clock.step();
+      }
+      game.spells.stepDelayed();
+      assert.equal(landed, 1);
+      assert.equal(game.spells.delayed.pending, 0);
+    });
+  }
+
+  it('withdraws delayed lists and releases a despawned unit when an area end hook throws', () => {
+    const game = makeUnitGame(TEMPLATES, {
+      areaTriggers: {
+        ownerGone: () => {
+          throw new Error('area hook');
+        }
+      },
+      spells: {
+        delayed: {
+          activation: { kind: 'trigger' },
+          release: () => [after(1, [run('landed', () => assert.fail('withdrawn list landed'))])]
+        }
+      }
+    });
+
+    const owner = game.units.spawn(game.id.hero, { side: 0 });
+
+    game.spells.cast(owner, game.spellId.delayed);
+    assert.throws(() => game.units.despawn(owner), /area hook/);
+    assert.equal(game.spells.delayed.pending, 0);
+    assert.equal(game.units.byId(owner.id), undefined);
+    for (let i = 0; i < 4; i++) {
+      game.clock.step();
+    }
+    game.spells.stepDelayed();
+  });
+
+  it('still cleans up owned effects when cancelling a cast throws', () => {
+    const gone: number[] = [];
+
+    const game = makeUnitGame(TEMPLATES, {
+      areaTriggers: {
+        ownerGone: (owner) => {
+          gone.push(owner.id);
+          return 1;
+        }
+      },
+      spells: {
+        delayed: { activation: { kind: 'trigger' }, release: () => [after(1, [])] },
+        broken: {
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 1 } },
+          release: () => undefined,
+          onEnd: () => {
+            throw new Error('cast hook');
+          }
+        }
+      }
+    });
+
+    const owner = game.units.spawn(game.id.hero, { side: 0 });
+
+    game.spells.cast(owner, game.spellId.delayed);
+    game.spells.cast(owner, game.spellId.broken);
+    assert.throws(() => game.units.kill(owner), /cast hook/);
+    assert.deepEqual(gone, [owner.id]);
+    assert.equal(game.spells.delayed.pending, 0);
+  });
+});
 
 describe('unit templates', () => {
   it('lay out base stats and class tags at load', () => {

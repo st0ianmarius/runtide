@@ -73,7 +73,7 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
   readonly despawnWhere: (query: AreaQuery<G>, reason?: EndReason<G>) => number;
 
   /**
-   * An owner left the world (its despawn): every area trigger of it that needs it (living while it does, bound to its
+   * An owner died or left the world: every area trigger of it that needs it (living while it does, bound to its
    * presence, anchored on it) ends as `source-gone`; the rest live on. Returns how many ended.
    */
   readonly ownerGone: (owner: G['bearer']) => number;
