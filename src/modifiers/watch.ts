@@ -7,7 +7,7 @@ interface Resolving<Host> {
   readonly resolve: (sheet: StatSheet, stat: StatId, read?: FoldRead<Host>) => number;
 }
 
-/** One stat change, as a watch raises it; the object is reused from one change to the next, so copy what you keep. */
+/** One stat change, with its own record so nested checks cannot overwrite it. */
 export interface StatChange {
   /** The sheet whose stat moved. */
   sheet: StatSheet;
@@ -49,7 +49,6 @@ export const watchStats = <Host>(
 ): StatWatch<Host> => {
   const last = new WeakMap<StatSheet, Float64Array>();
   const stats = [...options.stats];
-  let change: StatChange | undefined;
 
   return {
     check: (sheet, read) => {
@@ -65,12 +64,7 @@ export const watchStats = <Host>(
         values[index] = after;
 
         if (known !== undefined && !Object.is(before, after)) {
-          change ??= { sheet, stat, before, after };
-          change.sheet = sheet;
-          change.stat = stat;
-          change.before = before;
-          change.after = after;
-          options.onChange(change);
+          options.onChange({ sheet, stat, before, after });
         }
       }
 

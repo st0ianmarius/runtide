@@ -209,6 +209,65 @@ describe('values that follow a stat or the bearer', () => {
 });
 
 describe('stat watches', () => {
+  it('preserve the outer change when its handler checks the same sheet again', () => {
+    const { system, sources, id } = game();
+    const sheet = system.createSheet();
+    const heard: StatChange[] = [];
+
+    const watch = watchStats(system, {
+      stats: [id.maxHp],
+      onChange: (change) => {
+        if (change.after === 150) {
+          system.setSource(sheet, sources.id.talents, [system.compile([plus('maxHp', 10)])]);
+          watch.check(sheet);
+        }
+
+        heard.push({ ...change });
+      }
+    });
+
+    system.setSource(sheet, sources.id.talents, [system.compile([plus('maxHp', 30)])]);
+    watch.check(sheet);
+    system.setSource(sheet, sources.id.talents, [system.compile([plus('maxHp', 50)])]);
+    watch.check(sheet);
+    watch.check(sheet);
+
+    assert.deepEqual(heard, [
+      { sheet, stat: id.maxHp, before: 150, after: 110 },
+      { sheet, stat: id.maxHp, before: 130, after: 150 }
+    ]);
+  });
+
+  it('preserve the outer sheet and stat when its handler checks another sheet', () => {
+    const { system, sources, id } = game();
+    const sheet = system.createSheet();
+    const other = system.createSheet();
+    const heard: StatChange[] = [];
+
+    const watch = watchStats(system, {
+      stats: [id.maxHp, id.moveSpeed],
+      onChange: (change) => {
+        if (change.sheet === sheet) {
+          watch.check(other);
+        }
+
+        heard.push({ ...change });
+      }
+    });
+
+    watch.check(sheet);
+    watch.check(other);
+    system.setSource(sheet, sources.id.talents, [system.compile([plus('maxHp', 50)])]);
+    system.setSource(other, sources.id.talents, [system.compile([cap('moveSpeed', 3)])]);
+    watch.check(sheet);
+    watch.check(other);
+
+    assert.deepEqual(heard, [
+      { sheet: other, stat: id.moveSpeed, before: 4, after: 3 },
+      { sheet, stat: id.maxHp, before: 100, after: 150 }
+    ]);
+  });
+
   it('raise each watched stat that moved since the sheet’s last check, in the listed order', () => {
     const { system, sources, id } = game();
     const sheet = system.createSheet();
