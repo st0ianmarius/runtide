@@ -71,12 +71,16 @@ describe('aura lengths in whole steps', () => {
     assert.equal(auras.apply(b, { aura: id.chill, duration: 0.5 }).changed, false);
   });
 
-  it('run out a zero-length aura on the next tick of any clock', () => {
+  // It once ran out on the next tick of any clock, so a server and a prediction mirror ticking only motion between
+  // acks expired it on different clocks.
+  it('run out a zero-length aura on the next tick of its own clock, not of another', () => {
     const { auras, id, bearer } = game({ flash: defineAura({ duration: 0 }) });
     const b = bearer();
 
     auras.apply(b, id.flash);
     auras.tick(b, 'motion');
+    assert.equal(auras.has(b, id.flash), true, 'a motion tick leaves a world aura at 0 left');
+    auras.tick(b, 'world');
     assert.equal(auras.has(b, id.flash), false);
   });
 });

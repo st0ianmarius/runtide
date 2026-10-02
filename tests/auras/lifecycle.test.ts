@@ -366,7 +366,7 @@ describe('hooks that throw', () => {
 
     const u = unit();
 
-    assert.throws(() => auras.apply(u, id.dot), /dot: a live period must be more than 0; got NaN/);
+    assert.throws(() => auras.apply(u, id.dot), /dot: a live period must be seconds from 0.001; got NaN/);
     assert.deepEqual(log, ['applied:dot@1']);
     assert.equal(auras.has(u, id.dot), true);
   });

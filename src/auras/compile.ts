@@ -241,7 +241,9 @@ const compileOne = <G extends AuraTypes>(
   tables.lists[id] = compileList(input, { id, def, what }, at.bySource);
 
   if (def.periodic !== undefined) {
-    tables.beatClock[id] = clock;
+    const beat = def.periodic.clock;
+
+    tables.beatClock[id] = beat === undefined ? clock : clockId(tables.clockNames, beat, what);
   }
 
   if (typeof def.duration === 'number' && rule !== undefined) {

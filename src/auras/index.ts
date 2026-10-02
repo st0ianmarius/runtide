@@ -20,6 +20,7 @@ export {
   type AuraStackingRule,
   defineAura,
   type IncomingAura,
+  MIN_PERIOD,
   type Restack
 } from './aura-def.ts';
 

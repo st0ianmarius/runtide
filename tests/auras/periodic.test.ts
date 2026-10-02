@@ -168,6 +168,115 @@ describe('periodic beats', () => {
     assert.throws(() => {
       auras.apply(u, id.broken);
       run(u, 1);
-    }, /more than 0/);
+    }, /broken: a live period must be seconds from 0.001; got 0/);
+  });
+
+  it('refuses a period below the floor, a static one at load and a live one at its first beat', () => {
+    assert.throws(
+      () => makeGame({ hum: aura({ duration: 5, periodic: { every: 1e-4, onBeat: () => undefined } }) }),
+      /Aura hum: periodic.every must be seconds from 0.001/
+    );
+
+    const { auras, id, unit, run, log } = makeGame({
+      hum: aura({ duration: 5, value: 0.25, periodic: { every: (ctx) => ctx.aura.value, onBeat: () => ['hum'] } })
+    });
+
+    const u = unit();
+
+    auras.apply(u, id.hum);
+    auras.apply(u, { aura: id.hum, value: 1e-4 });
+    assert.throws(() => {
+      run(u, 2);
+    }, /hum: a live period must be seconds from 0.001; got 0.0001/);
+    assert.deepEqual(log, ['hum@1'], 'the beat fired before its next period was read');
+  });
+
+  it('beats once a tick without catch-up, dropping the rest, and every owed beat with it', () => {
+    /** The beats of each of four world ticks of an aura beating four times a step. */
+    const perTick = (catchUp?: boolean): number[] => {
+      let beats = 0;
+      const counts: number[] = [];
+
+      const onBeat = (): undefined => {
+        beats += 1;
+      };
+
+      const every = 0.125 / 4;
+
+      const { auras, id, unit } = makeGame({
+        rapid: aura({
+          duration: 'infinite',
+          periodic: catchUp === undefined ? { every, onBeat } : { every, catchUp, onBeat }
+        })
+      });
+
+      const u = unit();
+
+      auras.apply(u, id.rapid);
+
+      for (let i = 0; i < 4; i++) {
+        const before = beats;
+
+        auras.tick(u, 'world');
+        counts.push(beats - before);
+      }
+
+      return counts;
+    };
+
+    assert.deepEqual(perTick(false), [1, 1, 1, 1]);
+    assert.deepEqual(perTick(), [4, 4, 4, 4]);
+    assert.deepEqual(perTick(true), [4, 4, 4, 4]);
+  });
+
+  it('beats on its own clock: a motion aura beating on world time beats on world ticks and expires on motion ones', () => {
+    const { auras, id, unit, run, log } = makeGame({
+      whirl: aura({ duration: 1, clock: 'motion', periodic: { every: 0.25, clock: 'world', onBeat: () => ['whirl'] } })
+    });
+
+    const u = unit();
+
+    auras.apply(u, id.whirl);
+    run(u, 4, 'motion');
+    assert.deepEqual(log, [], 'motion ticks count no beat');
+    run(u, 4, 'world');
+    assert.deepEqual(log, ['whirl@1', 'whirl@1'], 'a beat every two world ticks');
+    run(u, 3, 'motion');
+    assert.equal(auras.has(u, id.whirl), true);
+    run(u, 1, 'motion');
+    assert.equal(auras.has(u, id.whirl), false, 'it runs out on its eighth motion tick');
+    run(u, 4, 'world');
+    assert.equal(log.length, 2);
+  });
+
+  it('never reads a live period on a silent bearer as it ticks', () => {
+    let calls = 0;
+
+    const { auras, id, unit, run, log } = makeGame({
+      dot: aura({
+        duration: 'infinite',
+
+        periodic: {
+          every: () => {
+            calls += 1;
+
+            return 0.25;
+          },
+
+          onBeat: () => ['tick']
+        }
+      })
+    });
+
+    const u = unit(1, true);
+
+    auras.apply(u, id.dot);
+
+    const atApply = calls;
+
+    assert.ok(atApply <= 1, 'at most one read at the application');
+    run(u, 8);
+    run(u, 8, 'motion');
+    assert.deepEqual([calls, log], [atApply, []]);
   });
 });

@@ -66,13 +66,13 @@ export interface AuraExplanation {
   /** Its modifiers explained at `stacks`, in order. */
   readonly modifiers: readonly ModifierExplanation[];
 
-  /** Its beat: seconds between beats (`'live'` when read from stats, 0 for every tick) and the beat's clock. */
+  /** Its beat: seconds between beats (`'live'` when read from stats) and the beat's clock. */
   readonly periodic:
     | {
         /** Seconds between beats. */
         readonly every: number | 'live';
 
-        /** The id of the clock it counts on. */
+        /** The id of the clock its beats count on: `periodic.clock`, or the aura's own when that is absent. */
         readonly clock: number;
       }
     | undefined;

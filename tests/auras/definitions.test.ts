@@ -72,7 +72,7 @@ describe('defineAuras', () => {
     assert.throws(() => defineAuras({ c: aura({ duration: -1 }) }), /Aura c: duration/);
     assert.throws(() => defineAuras({ d: aura({ value: Number.NaN }) }), /Aura d: duration/);
     assert.throws(() => defineAuras({ e: aura({ periodic: { every: -1, onBeat: () => undefined } }) }), /Aura e/);
-    assert.throws(() => defineAuras({ e: aura({ periodic: { every: 0, onBeat: () => undefined } }) }), /above 0/);
+    assert.throws(() => defineAuras({ e: aura({ periodic: { every: 0, onBeat: () => undefined } }) }), /from 0.001/);
     assert.throws(() => defineAuras({ f: aura({ stacking: 'independent', perSource: true }) }), /Aura f/);
   });
 });
@@ -85,6 +85,12 @@ describe('createAuraSystem', () => {
 
     assert.throws(system(defineAura({ tags: ['cursed'] })), /Aura def tag: there is no cursed/);
     assert.throws(system(defineAura({ clock: 'solar' })), /Aura def: there is no clock solar/);
+
+    assert.throws(
+      system(defineAura({ periodic: { every: 1, clock: 'solar', onBeat: () => undefined } })),
+      /Aura def: there is no clock solar/
+    );
+
     assert.throws(system(defineAura({ removedOn: ['dead'] })), /Aura def: there is no bearer state dead/);
   });
 

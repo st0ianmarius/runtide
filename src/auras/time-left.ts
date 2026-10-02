@@ -7,7 +7,7 @@ import { type AuraSet, setOf } from './state.ts';
 
 /**
  * Sets an aura's time left without touching its duration (its bar keeps its length, only the time left moves): its
- * stamp. An aura at 0 left runs out on its bearer's next tick.
+ * stamp. An aura at 0 left runs out on its bearer's next tick of its own clock (a tick of another clock leaves it).
  */
 const setTimeLeft = <G extends AuraTypes>(
   engine: AuraEngine<G>,

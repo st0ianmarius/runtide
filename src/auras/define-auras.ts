@@ -8,7 +8,7 @@ import {
   type Tombstone
 } from '../core/index.ts';
 import { recordOf } from '../core/records.ts';
-import type { AuraDef, AuraStacking } from './aura-def.ts';
+import { type AuraDef, type AuraStacking, MIN_PERIOD } from './aura-def.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 
 /** The built-in stacking rules, by column code; a game's own rule is `CUSTOM_STACKING`. */
@@ -139,9 +139,9 @@ const flagsOf = <G extends AuraTypes>(def: AuraDef<G>): number =>
 const isSoundDuration = (duration: unknown): boolean =>
   typeof duration !== 'number' || (Number.isFinite(duration) && duration >= 0);
 
-/** Whether a periodic period is sound: a function, or a finite number of seconds above 0. */
+/** Whether a periodic period is sound: a function, or a finite number of seconds from `MIN_PERIOD`. */
 const isSoundPeriod = (every: unknown): boolean =>
-  typeof every === 'function' || (typeof every === 'number' && Number.isFinite(every) && every > 0);
+  typeof every === 'function' || (typeof every === 'number' && Number.isFinite(every) && every >= MIN_PERIOD);
 
 /** Whether a registry entry is a definition, not the tombstone of a retired one. */
 const isDef = <G extends AuraTypes>(entry: AuraDef<G> | Tombstone): entry is AuraDef<G> => entry !== TOMBSTONE;
@@ -172,7 +172,7 @@ const checkDef = <G extends AuraTypes>(name: string, def: AuraDef<G>): void => {
   }
 
   if (def.periodic !== undefined && !isSoundPeriod(def.periodic.every)) {
-    throw new RangeError(`Aura ${name}: periodic.every must be seconds above 0 or a function.`);
+    throw new RangeError(`Aura ${name}: periodic.every must be seconds from ${MIN_PERIOD} or a function.`);
   }
 
   if (def.perSource === true && def.stacking === 'independent') {

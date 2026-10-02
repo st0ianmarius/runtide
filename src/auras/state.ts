@@ -80,17 +80,9 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
     }
   }
 
-  /** Whether any clock's count has reached its due count: an aura may have run out. */
-  isAnyDue(): boolean {
-    const { clocks, due } = this;
-
-    for (let clock = 0; clock < clocks.length; clock++) {
-      if ((clocks[clock] ?? 0) >= (due[clock] ?? 0)) {
-        return true;
-      }
-    }
-
-    return false;
+  /** Whether a clock's count has reached its due count: an aura on that clock may have run out. */
+  isDueOn(clock: number): boolean {
+    return (this.clocks[clock] ?? 0) >= (this.due[clock] ?? Number.POSITIVE_INFINITY);
   }
 
   get list(): readonly ActiveAura[] {

@@ -85,16 +85,36 @@ export type AuraCause =
 export type AuraHook<G extends AuraTypes> = (ctx: AuraContext<G>) => readonly G['proc'][] | undefined;
 
 /**
+ * The shortest period a beat may have, in seconds: a millisecond. A fixed step is longer than that, so a shorter beat
+ * could only fire in bursts of catch-up; the floor bounds a tick's catch-up to `dt / MIN_PERIOD` beats (16 at 60 Hz)
+ * and keeps a beat's countdown far above the countdown epsilon, so it always climbs out.
+ */
+export const MIN_PERIOD = 1e-3;
+
+/**
  * A beat on a clock of its own while the aura lasts: damage or healing over time, a sweep, a pulse. Beats
  * of one tick fire before that tick's expiries, so a 12 s aura beating every 3 s beats four times, the last on the
  * tick it runs out. A refresh keeps the beat.
  */
 export interface AuraPeriodic<G extends AuraTypes> {
   /**
-   * Seconds between beats, above 0, the first one `every` after the application; read at every beat when a function
-   * (a period from live stats). A beat that should skip (a regeneration paused by a wound) returns no procs.
+   * Seconds between beats, at least `MIN_PERIOD`, the first one `every` after the application; read at every beat
+   * when a function (a period from live stats). A beat that should skip (a regeneration paused by a wound) returns no
+   * procs. A silent bearer (a prediction mirror) never reads it nor beats, so a live period may read server-only state.
    */
   readonly every: number | ((ctx: AuraContext<G>) => number);
+
+  /**
+   * The clock its beats count on; the aura's own clock when absent: a whirlwind living on the motion clock and beating
+   * on world time.
+   */
+  readonly clock?: G['clock'];
+
+  /**
+   * Whether every beat owed on a tick fires (a period shorter than a step beats several times; true, the default), or
+   * one beat fires and the beat restarts at the period, the rest dropped (false).
+   */
+  readonly catchUp?: boolean;
 
   /** The beat: procs credited to the aura's source. */
   readonly onBeat: (ctx: AuraContext<G>) => readonly G['proc'][] | undefined;

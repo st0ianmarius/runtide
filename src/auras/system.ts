@@ -224,7 +224,8 @@ export interface AuraSystem<G extends AuraTypes> {
 
   /**
    * Multiplies the time left on every finite aura granting a tag by a factor (a cooldown scaled down),
-   * keeping each one's duration; one left at 0 runs out on the next tick. Raises nothing; returns how many changed.
+   * keeping each one's duration; one left at 0 runs out on the next tick of its own clock. Raises nothing; returns how
+   * many changed.
    */
   readonly scaleTimeLeft: (bearer: G['bearer'], tag: AuraTagId, factor: number) => number;
 
