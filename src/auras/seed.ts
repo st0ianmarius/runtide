@@ -52,14 +52,17 @@ const setSeededClock = <G extends AuraTypes>(
   set.noteEnd(item);
 };
 
-/** Puts one predicted aura back on a mirror from its view: a silent state dispatches no beats, so none is due. */
+/**
+ * Puts one predicted aura back on a mirror from its view (a silent state dispatches no beats, so none is due); returns
+ * it.
+ */
 const seedOne = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   set: AuraSet<G>,
   view: AuraView,
   index: number,
   seed: AuraSeed<G>
-): void => {
+): AuraItem<G> => {
   const item = engine.acquire(view.aura);
 
   item.serial = view.serial;
@@ -70,6 +73,8 @@ const seedOne = <G extends AuraTypes>(
   setSeededClock(set, item, view, seed.clocks[item.clock] ?? 0);
   engine.insert(set, item);
   seed.restore?.(item, index);
+
+  return item;
 };
 
 /**
@@ -105,7 +110,7 @@ export const seedAuras = <G extends AuraTypes>(
       const view = seed.views[i];
 
       if (view !== undefined && ((engine.flags[view.aura] ?? 0) & PREDICTED) !== 0) {
-        seedOne(engine, set, view, i, seed);
+        engine.bind(bearer, seedOne(engine, set, view, i, seed));
         seeded += 1;
       }
     }

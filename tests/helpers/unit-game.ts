@@ -215,7 +215,10 @@ export const AURA_TAGS = defineAuraTags(['stun', 'root', 'freeze', 'slow', 'free
 /** The bearer states the test mark heard, as `state id`; a test clears it. */
 export const HEARD: string[] = [];
 
-/** The test auras: control, a vigour that raises maximum health, a haste, and a mark that hears states and goes. */
+/**
+ * The test auras: control, a vigour that raises maximum health, a haste, a brand bound to whoever put it on, and a
+ * mark that hears states and goes.
+ */
 const AURAS = defineAuras<UnitGame, string>({
   stun: aura({ duration: 1, tags: ['stun'] }),
   veil: aura({ duration: 3, tags: ['veil'] }),
@@ -226,6 +229,7 @@ const AURAS = defineAuras<UnitGame, string>({
   vigour: aura({ duration: 'infinite', modifiers: [plus('maxHealth', 50)] }),
   frail: aura({ duration: 'infinite', modifiers: [mul('maxHealth', 0.5)] }),
   haste: aura({ duration: 'infinite', modifiers: [mul('speed', 2)] }),
+  brand: aura({ duration: 'infinite', boundToSource: true }),
   slayer: aura({ duration: 'infinite', modifiers: [mul('might', 1.5, { when: against({ is: 'elite' }) })] }),
   executioner: aura({ duration: 'infinite', modifiers: [plus('might', againstValue('missingShare'))] }),
   lastStand: aura({

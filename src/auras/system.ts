@@ -139,8 +139,15 @@ export interface AuraSystem<G extends AuraTypes> {
   /** Whether the system declares a bearer state by this name (a unit system enters its lifecycle's by name). */
   readonly hasState: (state: string) => state is G['state'];
 
-  /** A source is gone: every aura bound to it is removed; how many went. */
+  /** A source is gone, for one bearer: every aura on it bound to the source is removed; how many went. */
   readonly sourceGone: (bearer: G['bearer'], source: number) => number;
+
+  /**
+   * A source left (an entity id): every `boundToSource` aura it applied comes off every bearer, found through an index
+   * kept as bound auras land, not by walking every bearer; how many went. The unit system calls it as a unit dies or
+   * despawns; a game calls it for its own states (going down, a disconnect).
+   */
+  readonly sourceLeft: (source: number) => number;
 
   /**
    * The bearer is gone for good (a despawned unit): every aura still on it comes off, raising nothing, and its slot goes

@@ -114,6 +114,7 @@ const fresh = <G extends AuraTypes>(
   item.source = application.source ?? NO_SOURCE;
   engine.setClock(set, item, seconds);
   engine.insert(set, item);
+  engine.bind(bearer, item);
   engine.refreshTags(set);
   set.changes += 1;
   item.nextBeat = 0;
@@ -149,7 +150,9 @@ const again = <G extends AuraTypes>(
     ((engine.flags[item.id] ?? 0) & CREDIT_FIRST) === 0
   ) {
     // A new source alone is no refresh, but readers diffing the list (views, seeds) see it.
+    engine.unbind(bearer, item);
     item.source = application.source;
+    engine.bind(bearer, item);
     setOf<G>(bearer).changes += 1;
   }
 

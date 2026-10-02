@@ -281,6 +281,25 @@ describe('bearer states on the lifecycle', () => {
     assert.equal(auras.has(grunt, auraId('mark')), false);
   });
 
+  it('takes the auras a unit put on others bound to it off them as it dies or despawns', () => {
+    const game = makeUnitGame(TEMPLATES);
+    const { units, auras } = game;
+    const [hero, warlock, imp] = [0, 1, 2].map(() => units.spawn(game.id.grunt, { side: 1 }));
+    const brand = auraId('brand');
+
+    if (hero === undefined || warlock === undefined || imp === undefined) {
+      assert.fail('no units');
+    }
+
+    auras.apply(hero, { aura: brand, source: warlock.id });
+    auras.apply(imp, { aura: brand, source: hero.id });
+    auras.apply(hero, { aura: auraId('haste'), source: warlock.id });
+    units.kill(warlock);
+    assert.deepEqual([auras.has(hero, brand), auras.has(hero, auraId('haste'))], [false, true]);
+    units.despawn(hero);
+    assert.equal(auras.has(imp, brand), false);
+  });
+
   it('gives a despawned unit’s every aura back to the pool, so units coming and going leak none', () => {
     const game = makeUnitGame(TEMPLATES);
     const { units, auras } = game;

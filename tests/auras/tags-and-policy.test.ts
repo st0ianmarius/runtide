@@ -106,6 +106,28 @@ describe('removal and suppression', () => {
     assert.equal(auras.has(u, id.mark), true);
   });
 
+  it('takes a source’s bound auras off every bearer as it leaves, following a bound aura to its new source', () => {
+    const { auras, id, unit, run } = makeGame(defs);
+    const [a, b, c] = [unit(1), unit(2), unit(3)];
+
+    auras.apply(a, { aura: id.brand, source: 3 });
+    auras.apply(a, { aura: id.mark, source: 3 });
+    auras.apply(b, { aura: id.brand, source: 3 });
+    auras.apply(c, { aura: id.brand, source: 4 });
+    auras.apply(c, { aura: id.brand, source: 5 });
+    assert.equal(auras.sourceLeft(4), 0, 'c’s brand now credits 5');
+    assert.equal(auras.sourceLeft(3), 2);
+    assert.deepEqual(
+      [a, b].map((bearer) => auras.has(bearer, id.brand)),
+      [false, false]
+    );
+    assert.equal(auras.has(a, id.mark), true, 'an aura not bound stays');
+    assert.equal(auras.sourceLeft(3), 0, 'nothing left to sweep');
+    run(c, 65);
+    assert.equal(auras.has(c, id.brand), false);
+    assert.equal(auras.sourceLeft(5), 0, 'an expired aura leaves the index');
+  });
+
   it('spends stacks in order and refuses, spending nothing, when too few are held', () => {
     const { auras, id, unit } = makeGame(defs);
     const u = unit();

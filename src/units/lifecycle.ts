@@ -69,7 +69,8 @@ export const changeSide = <G extends UnitTypes>(engine: UnitEngine<G>, bearer: G
 
 /**
  * A unit leaves life (dies or despawns): its casts end if it lived, it enters the matching bearer state (its auras
- * hear it, then those `removedOn` it go), and it leaves its owner's summons, taking its bound ones along.
+ * hear it, then those `removedOn` it go), it leaves its owner's summons, taking its bound ones along, and the auras it
+ * put on others bound to it (`boundToSource`) come off them (`auras.sourceLeft`).
  */
 const leaveFor = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -89,8 +90,13 @@ const leaveFor = <G extends UnitTypes>(
       auras.enterState(bearer, to);
     }
   } finally {
-    leaveOwner(engine, bearer, to === 'despawned');
-    despawnBound(engine, bearer);
+    try {
+      leaveOwner(engine, bearer, to === 'despawned');
+      despawnBound(engine, bearer);
+    } finally {
+      // The auras it applied bound to it (a brand, a toxin) come off everyone it left them on.
+      auras.sourceLeft(unitOf<G>(bearer).id);
+    }
   }
 };
 

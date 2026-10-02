@@ -1,11 +1,11 @@
 // Hot path: list walks run every tick, so the loops are indexed.
 /* oxlint-disable typescript/prefer-for-of */
 import { createPool, type Pool, stepsUntil } from '../core/index.ts';
-import { type ActiveAura, AuraItem } from './active-aura.ts';
+import { type ActiveAura, AuraItem, NO_SOURCE } from './active-aura.ts';
 import type { AuraApplication, AuraHost } from './application.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 import type { AuraTables } from './compile.ts';
-import type { AuraRegistry } from './define-auras.ts';
+import { type AuraRegistry, BOUND_TO_SOURCE } from './define-auras.ts';
 import { AuraEvents, type EventParts } from './events.ts';
 import type { AuraSet } from './state.ts';
 
@@ -37,6 +37,12 @@ export class AuraEngine<G extends AuraTypes> {
   /** Whether the instance a spend just took from is now empty and goes: what `spendOne` reads. */
   isSpentEmpty = false;
 
+  /**
+   * By source, the bearers holding `boundToSource` auras from it, with how many each: what `sourceLeft` sweeps, so a
+   * source leaving costs the bearers it bound, not every bearer. A bearer is dropped once it holds none from it.
+   */
+  readonly #bound = new Map<number, Map<G['bearer'], number>>();
+
   /** What `watchRemovals` registered: each hears an aura come off a bearer. */
   readonly removalWatchers: ((bearer: G['bearer'], aura: AuraId) => void)[] = [];
 
@@ -65,6 +71,54 @@ export class AuraEngine<G extends AuraTypes> {
     for (const id of registry.ids) {
       this.#applications[id] = Object.freeze({ aura: id });
     }
+  }
+
+  /** Notes an aura on a bearer under its source, when it is bound to its source (`boundToSource`) and has one. */
+  bind(bearer: G['bearer'], item: AuraItem<G>): void {
+    if (!this.#isBound(item)) {
+      return;
+    }
+
+    let bearers = this.#bound.get(item.source);
+
+    if (bearers === undefined) {
+      bearers = new Map();
+      this.#bound.set(item.source, bearers);
+    }
+
+    bearers.set(bearer, (bearers.get(bearer) ?? 0) + 1);
+  }
+
+  /** Forgets what `bind` noted for an aura leaving its bearer or its source. */
+  unbind(bearer: G['bearer'], item: AuraItem<G>): void {
+    const bearers = this.#isBound(item) ? this.#bound.get(item.source) : undefined;
+    const count = bearers?.get(bearer) ?? 0;
+
+    if (bearers === undefined || count === 0) {
+      return;
+    }
+
+    if (count > 1) {
+      bearers.set(bearer, count - 1);
+
+      return;
+    }
+
+    bearers.delete(bearer);
+
+    if (bearers.size === 0) {
+      this.#bound.delete(item.source);
+    }
+  }
+
+  /** The bearers holding auras bound to a source, as a list of their own (a sweep changes the index as it goes). */
+  boundTo(source: number): G['bearer'][] {
+    return [...(this.#bound.get(source)?.keys() ?? [])];
+  }
+
+  /** Whether an aura is bound to a source it has. */
+  #isBound(item: AuraItem<G>): boolean {
+    return item.source !== NO_SOURCE && ((this.flags[item.id] ?? 0) & BOUND_TO_SOURCE) !== 0;
   }
 
   /** Tells every removal watcher an aura came off a bearer. */

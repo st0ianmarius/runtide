@@ -56,6 +56,7 @@ const takeOffAs =
     const { id } = item;
 
     cut(engine, set, index);
+    engine.unbind(bearer, item);
     set.changes += 1;
     engine.events.retire(item);
     engine.events.raise(change, bearer, item);
@@ -202,6 +203,7 @@ export const releaseAll = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G
     const item = set.items.pop();
 
     if (item !== undefined) {
+      engine.unbind(bearer, item);
       engine.events.retire(item);
     }
   }
@@ -222,6 +224,41 @@ export const releaseAll = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G
 /** Removes every aura bound to a source that is gone; how many went. */
 export const sourceGone = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], source: number): number =>
   removeWhere(engine, bearer, 'sourceGone', bySource, source);
+
+/**
+ * A source left (died, despawned, went down): every aura bound to it comes off every bearer that holds one, found
+ * through the engine's index, not by walking every bearer; how many went.
+ */
+export const sourceLeft = <G extends AuraTypes>(engine: AuraEngine<G>, source: number): number =>
+  sourceGoneFrom(engine, engine.boundTo(source), source, 0);
+
+/** Takes a source's bound auras off each bearer from `start`: one whose hook throws still has the rest go, then throws. */
+const sourceGoneFrom = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearers: readonly G['bearer'][],
+  source: number,
+  start: number
+): number => {
+  let removed = 0;
+
+  for (let i = start; i < bearers.length; i++) {
+    const bearer = bearers[i];
+
+    if (bearer === undefined) {
+      continue;
+    }
+
+    try {
+      removed += sourceGone(engine, bearer, source);
+    } catch (error) {
+      sourceGoneFrom(engine, bearers, source, i + 1);
+
+      throw error;
+    }
+  }
+
+  return removed;
+};
 
 /** The cleanse of an application: every tag its aura `removes`, tag by tag, each in list order. Dispatches nothing. */
 export const cleanse = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer'], id: AuraId): void => {

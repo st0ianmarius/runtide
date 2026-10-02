@@ -15,6 +15,7 @@ import {
   removeAura,
   removeByTag,
   sourceGone,
+  sourceLeft,
   spendStacks,
   spendValue
 } from './remove.ts';
@@ -37,6 +38,7 @@ type Operations<G extends AuraTypes> = Pick<
   | 'enterState'
   | 'hasState'
   | 'sourceGone'
+  | 'sourceLeft'
   | 'release'
 >;
 
@@ -85,6 +87,7 @@ export const operationsOf = <G extends AuraTypes>(engine: AuraEngine<G>): Operat
   enterState: (bearer: G['bearer'], state: G['state']) => enterState(engine, bearer, state),
   hasState: (state: string): state is G['state'] => engine.tables.stateNames.includes(state),
   sourceGone: (bearer: G['bearer'], source: number) => sourceGone(engine, bearer, source),
+  sourceLeft: (source: number) => sourceLeft(engine, source),
   release: (bearer: G['bearer']) => releaseAll(engine, bearer)
 });
 
