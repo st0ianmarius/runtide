@@ -4,10 +4,10 @@ import { type AuraItem, NO_SOURCE } from './active-aura.ts';
 import type { ApplyResult, AuraApplication } from './application.ts';
 import type { AuraId, AuraTypes } from './aura-types.ts';
 import { CHANGES } from './compile.ts';
-import { CREDIT_FIRST, CUSTOM_STACKING, PER_SOURCE, STACKINGS } from './define-auras.ts';
+import { CREDIT_FIRST, PER_SOURCE, STACKINGS } from './define-auras.ts';
 import type { AuraEngine } from './engine.ts';
 import { cleanse, evictFor } from './remove.ts';
-import { addedStacks, restack, stackingOf } from './restack.ts';
+import { addedStacks, restack } from './restack.ts';
 import { type AuraSet, setOf } from './state.ts';
 import { periodOf } from './tick.ts';
 
@@ -19,9 +19,6 @@ const REFRESHED = CHANGES.indexOf('refreshed');
 
 /** The code of the `independent` stacking rule. */
 const INDEPENDENT = STACKINGS.indexOf('independent');
-
-/** The code of the `stack` stacking rule. */
-const STACK = STACKINGS.indexOf('stack');
 
 /** A refused application: nothing landed, nothing changed. */
 const REFUSED: ApplyResult = Object.freeze({ applied: false, fresh: false, changed: false });
@@ -88,7 +85,10 @@ const land = <G extends AuraTypes>(
   }
 };
 
-/** Lands a fresh instance: evicts at the cap, fills it, inserts it in order and queues `applied`. */
+/**
+ * Lands a fresh instance: evicts at the cap, fills it, inserts it in order and queues `applied`. On a silent bearer (a
+ * prediction mirror) its beat never comes due and its period is never read: a live `every` may read server-only state.
+ */
 const fresh = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
@@ -107,9 +107,7 @@ const fresh = <G extends AuraTypes>(
   evictFor(engine, bearer, id);
   engine.events.setCause('apply');
   item.serial = isOwnInstance ? (set.serials += 1) : 0;
-  const stacking = stackingOf(engine, application);
-
-  item.stacks = Math.min(maxStacks, stacking === STACK || stacking === CUSTOM_STACKING ? addedStacks(application) : 1);
+  item.stacks = Math.min(maxStacks, addedStacks(application));
   item.value = application.value ?? engine.registry.get(id).value ?? 0;
   item.source = application.source ?? NO_SOURCE;
   engine.setClock(set, item, seconds);
@@ -117,12 +115,14 @@ const fresh = <G extends AuraTypes>(
   engine.bind(bearer, item);
   engine.refreshTags(set);
   set.changes += 1;
-  item.nextBeat = 0;
+  item.nextBeat = set.isSilent ? Number.POSITIVE_INFINITY : 0;
 
   // On its bearer now: `applied` goes out even when its first period or `onLand` throws, so its setup pairs with the
   // teardown its removal runs; then it throws.
   try {
-    item.nextBeat = periodOf(engine, bearer, item);
+    if (!set.isSilent) {
+      item.nextBeat = periodOf(engine, bearer, item);
+    }
 
     if (engine.registry.has.onLand.has(id)) {
       land(engine, bearer, item, application);
@@ -134,7 +134,10 @@ const fresh = <G extends AuraTypes>(
   return item;
 };
 
-/** Lands a re-application on the instance already there; true when it changed anything. */
+/**
+ * Lands a re-application on the instance already there; true when it changed anything (a custom rule's removal
+ * included). Only a change moves the credit; an instance the rule removed neither lands nor refreshes.
+ */
 const again = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
@@ -144,7 +147,12 @@ const again = <G extends AuraTypes>(
 ): boolean => {
   const isChanged = restack(engine, bearer, item, application, seconds);
 
+  if (!item.isActive) {
+    return true;
+  }
+
   if (
+    isChanged &&
     application.source !== undefined &&
     application.source !== item.source &&
     ((engine.flags[item.id] ?? 0) & CREDIT_FIRST) === 0
@@ -175,10 +183,21 @@ const checkSeconds = <G extends AuraTypes>(engine: AuraEngine<G>, id: AuraId, se
   }
 };
 
+/** Throws when an application picks its own stacking rule for an `independent` aura: it has no instance to restack. */
+const checkStacking = <G extends AuraTypes>(engine: AuraEngine<G>, application: AuraApplication<G>): void => {
+  const id = application.aura;
+
+  if (application.stacking !== undefined && engine.stacking[id] === INDEPENDENT) {
+    throw new RangeError(
+      `Aura ${engine.registry.name(id)}: an application cannot pick a stacking rule for an independent aura.`
+    );
+  }
+};
+
 /**
  * Lands one application by its aura's rules (after the host's policy): a `blockedBy` tag turns it away before
  * anything else, `removes` cleanses next, then it lands fresh or on the instance already there, then its lifecycle
- * events are dispatched.
+ * events are dispatched. An application picking its own stacking rule for an `independent` aura throws.
  */
 const landAura = <G extends AuraTypes>(
   engine: AuraEngine<G>,
@@ -188,6 +207,8 @@ const landAura = <G extends AuraTypes>(
   const set = setOf<G>(bearer);
   const id = application.aura;
   const blockedBy = engine.tables.blockedBy[id];
+
+  checkStacking(engine, application);
 
   if (engine.registry.isRetired(id) || (blockedBy !== undefined && set.tags.intersects(blockedBy))) {
     return REFUSED;
@@ -236,7 +257,8 @@ export const applyAura = <G extends AuraTypes>(
 
   const result = landAura(engine, bearer, decision?.apply ?? incoming);
 
-  if (result.applied && decision?.after !== undefined) {
+  // A fresh instance counts as changed; a re-application that changed nothing arms nothing after it.
+  if (result.changed && decision?.after !== undefined) {
     for (const next of decision.after) {
       landAura(engine, bearer, next);
     }

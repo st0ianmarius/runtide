@@ -207,4 +207,30 @@ describe('seeding a prediction mirror', () => {
     assert.equal(auras.isPredicted(id.glow), false);
     assert.throws(() => auras.seed(server, { views: [], clocks: [], serials: 0 }), /Only a silent aura state/);
   });
+
+  it('never reads a live period nor beats on a mirror that applies a periodic aura itself', () => {
+    let reads = 0;
+
+    const { auras, id, unit, run, log } = makeGame({
+      bleed: aura({
+        duration: 4,
+
+        periodic: {
+          every: () => {
+            reads += 1;
+
+            return 1;
+          },
+
+          onBeat: () => ['bled']
+        }
+      })
+    });
+
+    const mirror = unit(1, true);
+
+    assert.equal(auras.apply(mirror, id.bleed).fresh, true);
+    run(mirror, 32);
+    assert.deepEqual([reads, log], [0, []]);
+  });
 });

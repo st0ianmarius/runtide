@@ -237,4 +237,26 @@ describe("the host's application policy", () => {
     assert.deepEqual([auras.remaining(elite, id.stun), auras.remaining(elite, id.ward)], [0.75, 1.5]);
     assert.deepEqual(log, ['slowed']);
   });
+
+  it('arms more after only an application that changed anything', () => {
+    const { auras, id, unit, run } = makeGame(
+      { ...defs, freeze: aura({ duration: 2, stacking: 'highest' }) },
+      {
+        host: {
+          onIncomingAura: (_bearer, application): AuraDecision<TestAuras> | undefined =>
+            application.aura === id.freeze ? { after: [{ aura: id.ward, duration: 3 }] } : undefined
+        }
+      }
+    );
+
+    const u = unit();
+
+    auras.apply(u, id.freeze);
+    run(u, 4);
+    assert.equal(auras.remaining(u, id.ward), 2.5);
+    assert.equal(auras.apply(u, { aura: id.freeze, duration: 1 }).changed, false);
+    assert.equal(auras.remaining(u, id.ward), 2.5, 'a weaker freeze re-arms nothing');
+    assert.equal(auras.apply(u, { aura: id.freeze, duration: 2 }).changed, true);
+    assert.equal(auras.remaining(u, id.ward), 3);
+  });
 });

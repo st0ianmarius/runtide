@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { aura, makeGame } from '../helpers/aura-game.ts';
+import { aura, makeGame, TAGS } from '../helpers/aura-game.ts';
 
 const defs = {
   renew: aura({ duration: 4, stacking: 'refresh', tags: ['boon'] }),
@@ -19,7 +19,10 @@ const defs = {
 
     stacking: (ctx, incoming) =>
       incoming.seconds > incoming.remaining ? { seconds: incoming.seconds, stacks: ctx.aura.stacks + 1 } : undefined
-  })
+  }),
+
+  frost: aura({ duration: 2, stacking: 'highest', value: 1, merge: 'max' }),
+  pile: aura({ duration: 4, maxStacks: 5 })
 };
 
 describe('stacking rules (a re-application on the instance already there)', () => {
@@ -73,6 +76,10 @@ describe('stacking rules (a re-application on the instance already there)', () =
     assert.equal(auras.stacks(u, id.rend), 3);
     auras.apply(u, { aura: id.renew, stacks: 7 });
     assert.equal(auras.stacks(u, id.renew), 1, 'a one-stack aura starts at 1');
+    auras.apply(u, { aura: id.pile, stacks: 3 });
+    assert.equal(auras.stacks(u, id.pile), 3, 'whatever the rule');
+    auras.apply(u, { aura: id.chill, stacks: 3 });
+    assert.equal(auras.stacks(u, id.chill), 1);
   });
 
   it('highest keeps the later end; a shorter application changes nothing and counts as no change', () => {
@@ -177,6 +184,21 @@ describe('stacking rules (a re-application on the instance already there)', () =
     assert.equal(auras.find(u, id.first)?.source, 4);
   });
 
+  it('a re-application that changes nothing moves no credit', () => {
+    const { auras, id, unit } = makeGame(defs);
+    const u = unit();
+
+    auras.apply(u, { aura: id.frost, source: 4, value: 5 });
+
+    const changes = u.auras.changes;
+
+    assert.equal(auras.apply(u, { aura: id.frost, source: 5, value: 3, duration: 1 }).changed, false);
+    assert.deepEqual([auras.find(u, id.frost)?.source, auras.find(u, id.frost)?.value], [4, 5]);
+    assert.equal(u.auras.changes, changes);
+    assert.equal(auras.apply(u, { aura: id.frost, source: 5, value: 7, duration: 1 }).changed, true);
+    assert.deepEqual([auras.find(u, id.frost)?.source, auras.find(u, id.frost)?.value], [5, 7]);
+  });
+
   it("a game's own rule decides the clock and the stacks, or nothing", () => {
     const { auras, id, unit, run } = makeGame(defs);
     const u = unit();
@@ -193,6 +215,46 @@ describe('stacking rules (a re-application on the instance already there)', () =
     assert.equal(auras.remaining(u, id.halving), 8);
   });
 
+  it("a game's own rule may remove the instance (a toggle), as a removal by the application", () => {
+    const heard: string[] = [];
+
+    const { auras, id, unit } = makeGame({
+      toggle: aura({
+        duration: 'infinite',
+        tags: ['boon'],
+        stacking: () => ({ remove: true, seconds: 3, stacks: 2 }),
+
+        onLand: () => {
+          heard.push('land');
+        },
+
+        onRefreshed: () => {
+          heard.push('refreshed');
+
+          return undefined;
+        },
+
+        onRemoved: (ctx) => {
+          heard.push(`removed:${ctx.cause}`);
+
+          return undefined;
+        }
+      })
+    });
+
+    const u = unit();
+    const live = auras.pool.live;
+
+    auras.apply(u, { aura: id.toggle, source: 4 });
+    assert.equal(auras.hasTag(u, TAGS.id.boon), true);
+    assert.deepEqual(auras.apply(u, { aura: id.toggle, source: 5 }), { applied: true, fresh: false, changed: true });
+    assert.equal(auras.has(u, id.toggle), false);
+    assert.equal(auras.hasTag(u, TAGS.id.boon), false);
+    assert.deepEqual(heard, ['land', 'removed:apply']);
+    assert.equal(auras.pool.live, live);
+    assert.equal(auras.apply(u, id.toggle).fresh, true, 'the next application turns it on again');
+  });
+
   it('an application may pick its own built-in rule', () => {
     const { auras, id, unit, run } = makeGame(defs);
     const u = unit();
@@ -204,6 +266,14 @@ describe('stacking rules (a re-application on the instance already there)', () =
     auras.apply(u, { aura: id.rend, stacks: 2 });
     auras.apply(u, { aura: id.rend, stacking: 'refresh' });
     assert.equal(auras.stacks(u, id.rend), 2, 'a refresh leaves the stacks');
+  });
+
+  it('an independent aura refuses an application picking its own rule', () => {
+    const { auras, id, unit } = makeGame(defs);
+    const u = unit();
+
+    assert.throws(() => auras.apply(u, { aura: id.echo, stacking: 'refresh' }), RangeError);
+    assert.equal(u.auras.list.length, 0);
   });
 
   it('keeps the list in registry order, then application order, whatever the order of application', () => {

@@ -26,7 +26,7 @@ export interface AuraApplication<G extends AuraTypes = AuraTypes> {
   /** Who applies it (an entity id); with the default credit it becomes the aura's source. */
   readonly source?: number | undefined;
 
-  /** A built-in stacking rule for this application only, in place of the definition's. */
+  /** A built-in stacking rule for this application only, in place of the definition's; an `independent` aura throws. */
   readonly stacking?: Exclude<AuraStacking, 'independent'> | undefined;
 
   /** What the aura's `onLand` hook receives (a damage snapshot, a variant). */
@@ -59,7 +59,10 @@ export interface AuraDecision<G extends AuraTypes = AuraTypes> {
   /** The application that lands instead of the incoming one. */
   readonly apply?: AuraApplication<G>;
 
-  /** Applications landed after it, if it lands; the policy does not see them. */
+  /**
+   * Applications landed after it, if it lands and changes anything (fresh, or a changed instance): a weaker freeze
+   * losing a `highest` re-arms no immunity window. The policy does not see them.
+   */
   readonly after?: readonly AuraApplication<G>[];
 }
 

@@ -40,11 +40,18 @@ export interface Restack {
 
   /** Sets the stacks (kept within 1 and `maxStacks`); they stay when absent. */
   readonly stacks?: number;
+
+  /**
+   * True removes the instance instead (a toggle: re-applying turns it off), as `removed` with cause `apply`; `seconds`
+   * and `stacks` are then ignored.
+   */
+  readonly remove?: boolean;
 }
 
 /**
  * A game's own stacking rule: given the instance already there (`ctx.aura`) and the incoming application, what
- * changes; `undefined` changes nothing (and so raises nothing, unless the value merge changes the value).
+ * changes, or whether it goes (`remove`); `undefined` changes nothing (and so raises nothing, unless the value merge
+ * changes the value).
  */
 export type AuraStackingRule<G extends AuraTypes> = (
   ctx: AuraContext<G>,
@@ -144,7 +151,11 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
   /** Whether each source keeps its own instance (WoW's per-caster auras); one shared instance when absent. */
   readonly perSource?: boolean;
 
-  /** Whether a re-application's source takes the credit (`newest`, the default) or the first source keeps it. */
+  /**
+   * Whether a re-application's source takes the credit (`newest`, the default) or the first source keeps it. Only a
+   * re-application that changes the instance (its clock, its stacks or its value) moves the credit: a weaker caster
+   * losing a `highest` takes nothing.
+   */
   readonly credit?: 'newest' | 'first';
 
   /** Stat changes while it is active: an `add` lands `value × stacks`, a `mul` `value ^ stacks` (or linearly). */
@@ -222,7 +233,9 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
 
   /**
    * Runs on every application that lands on an instance (fresh or not), before any lifecycle event: the place to
-   * capture the application's payload into `ctx.aura.ext`.
+   * capture the application's payload into `ctx.aura.ext`. That includes a re-application that changed nothing and one
+   * from a source that takes no credit (`credit: 'first'`), so a hook capturing a payload decides itself whether to
+   * overwrite it. An instance its stacking rule removed does not land.
    */
   readonly onLand?: (ctx: AuraContext<G>, application: AuraApplication<G>) => void;
 

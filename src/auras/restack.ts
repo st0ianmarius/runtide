@@ -4,6 +4,7 @@ import type { Restack } from './aura-def.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { CUSTOM_MERGE, CUSTOM_STACKING, MERGES, STACKINGS } from './define-auras.ts';
 import type { AuraEngine } from './engine.ts';
+import { takeOff } from './remove.ts';
 import { type AuraSet, setOf } from './state.ts';
 
 /** The code of `refresh`. */
@@ -28,7 +29,7 @@ const ADD = MERGES.indexOf('add');
 export const addedStacks = (application: AuraApplication): number => Math.max(1, Math.floor(application.stacks ?? 1));
 
 /** The code of the stacking rule an application follows: its own built-in rule, else its aura's. */
-export const stackingOf = <G extends AuraTypes>(engine: AuraEngine<G>, application: AuraApplication<G>): number =>
+const stackingOf = <G extends AuraTypes>(engine: AuraEngine<G>, application: AuraApplication<G>): number =>
   application.stacking === undefined
     ? (engine.stacking[application.aura] ?? 0)
     : STACKINGS.indexOf(application.stacking);
@@ -93,7 +94,10 @@ const builtIn = <G extends AuraTypes>(
   return true;
 };
 
-/** The game's own stacking rule on the instance already there; true when the clock or the stacks changed. */
+/**
+ * The game's own stacking rule on the instance already there; true when the clock or the stacks changed, or when the
+ * rule removed the instance (it is then off its bearer, `isActive` false, with `removed` queued).
+ */
 const custom = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
@@ -128,6 +132,13 @@ const custom = <G extends AuraTypes>(
 
   if (outcome === undefined) {
     return false;
+  }
+
+  if (outcome.remove === true) {
+    takeOff(engine, bearer, set.items.indexOf(item));
+    engine.refreshTags(set);
+
+    return true;
   }
 
   const stacks = Math.min(maxStacks, Math.max(1, Math.floor(outcome.stacks ?? item.stacks)));
@@ -174,7 +185,8 @@ const mergeValue = <G extends AuraTypes>(
 
 /**
  * Lands a re-application on the instance already there by its stacking rule (the application's own built-in rule,
- * the definition's, or the game's function), then merges its value. True when anything changed.
+ * the definition's, or the game's function), then merges its value. True when anything changed; an instance the
+ * game's rule removed merges nothing.
  */
 export const restack = <G extends AuraTypes>(
   engine: AuraEngine<G>,
@@ -187,6 +199,10 @@ export const restack = <G extends AuraTypes>(
     stackingOf(engine, application) === CUSTOM_STACKING
       ? custom(engine, bearer, item, application, seconds)
       : builtIn(engine, setOf<G>(bearer), item, application, seconds);
+
+  if (!item.isActive) {
+    return true;
+  }
 
   return mergeValue(engine, item, application) || isRestacked;
 };
