@@ -378,6 +378,62 @@ describe('sweep: what a moving body touches', () => {
 });
 
 describe('motion and the point index', () => {
+  for (const index of ['grid', 'kd'] as const) {
+    it(`teleports without sweeping the jump, then tracks later motion (${index})`, () => {
+      const { world, mob } = worldOf([[1, 5, -5, 0, 0.5]], index);
+      const out: (Mob | undefined)[] = [];
+
+      world.tick();
+      world.place(mob(1), vec2(5, -4));
+      const { teleport } = world;
+
+      teleport(mob(1), vec2(5, 5));
+      assert.deepEqual(world.positionOf(mob(1), { x: 0, z: 0 }), vec2(5, 5));
+      assert.deepEqual(world.previousOf(mob(1), { x: 0, z: 0 }), vec2(5, 5));
+      assert.deepEqual(world.velocityOf(mob(1), { x: 0, z: 0 }), vec2(0, 0));
+      assert.equal(world.inside(circle(1, vec2(5, -5)), {}, out), 0);
+      assert.equal(world.inside(circle(1, vec2(5, 5)), {}, out), 1);
+      assert.equal(world.sweep(vec2(0, 0), vec2(10, 0), { relative: true }, out), 0);
+      assert.equal(world.sweep(vec2(0, 5), vec2(10, 5), { relative: true }, out), 1);
+
+      world.place(mob(1), vec2(5, -5));
+      assert.deepEqual(world.previousOf(mob(1), { x: 0, z: 0 }), vec2(5, 5));
+      assert.deepEqual(world.velocityOf(mob(1), { x: 0, z: 0 }), vec2(0, -10));
+      assert.equal(world.sweep(vec2(0, 0), vec2(10, 0), { relative: true }, out), 1);
+      world.tick();
+      assert.deepEqual(world.previousOf(mob(1), { x: 0, z: 0 }), vec2(5, -5));
+      assert.deepEqual(world.velocityOf(mob(1), { x: 0, z: 0 }), vec2(0, 0));
+    });
+
+    it(`refuses invalid teleports and preserves other units' motion (${index})`, () => {
+      const { world, mob } = worldOf(
+        [
+          [1, 5, -20, 0, 0.5],
+          [2, 30, 30, 0, 0.5]
+        ],
+        index
+      );
+
+      const out: (Mob | undefined)[] = [];
+
+      world.tick();
+      world.place(mob(1), vec2(5, 20));
+      world.place(mob(2), vec2(30, 31));
+      for (const at of [vec2(Number.NaN, 0), vec2(0, Number.POSITIVE_INFINITY)]) {
+        assert.throws(() => {
+          world.teleport(mob(2), at);
+        }, /finite position/);
+      }
+
+      assert.deepEqual(world.positionOf(mob(2), { x: 0, z: 0 }), vec2(30, 31));
+      assert.deepEqual(world.previousOf(mob(2), { x: 0, z: 0 }), vec2(30, 30));
+      assert.deepEqual(world.velocityOf(mob(2), { x: 0, z: 0 }), vec2(0, 1));
+      assert.equal(world.inside(circle(0.5, vec2(30, 31)), {}, out), 1);
+      world.teleport(mob(2), vec2(-30, -30));
+      assert.deepEqual(names(out, world.sweep(vec2(0, 0), vec2(10, 0), { relative: true }, out)), ['m1']);
+    });
+  }
+
   it('tracks previous positions and velocities over a tick', () => {
     const world = createMemoryWorld<Mob>({ bounds: BOUNDS, dt: 0.5 });
     const mob = { name: 'm1' };

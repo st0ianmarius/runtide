@@ -157,10 +157,10 @@ export interface WorldQuery<Unit> {
    */
   readonly positionOf: (unit: Unit, out: MutableVec2) => Vec2;
 
-  /** Where a unit stood at the start of this tick, read as `positionOf` is. */
+  /** Where a unit stood at the start of this tick, or its last teleport destination, read as `positionOf` is. */
   readonly previousOf: (unit: Unit, out: MutableVec2) => Vec2;
 
-  /** A unit's velocity over the last tick, read as `positionOf` is. */
+  /** A unit's displacement from `previousOf` divided by the tick's length, read as `positionOf` is. */
   readonly velocityOf: (unit: Unit, out: MutableVec2) => Vec2;
 
   /** A unit's body radius. */

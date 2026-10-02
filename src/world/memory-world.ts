@@ -69,6 +69,12 @@ export interface MemoryWorld<Unit> extends WorldQuery<Unit> {
   /** Moves a unit to `at` now; throws for a position that is not finite (a NaN from upstream), moving nothing. */
   readonly place: (unit: Unit, at: Vec2) => void;
 
+  /**
+   * Teleports a unit to `at`, resetting its previous position and velocity so relative sweeps see no path across
+   * the jump. Later `place` calls measure motion from the destination. Throws for a position that is not finite.
+   */
+  readonly teleport: (unit: Unit, at: Vec2) => void;
+
   /** Puts a unit on another side now (a charm, a flag for combat), which every query reads from here on. */
   readonly setSide: (unit: Unit, side: number) => void;
 
@@ -161,6 +167,17 @@ class World<Unit> implements MemoryWorld<Unit> {
     table.x[slot] = at.x;
     table.z[slot] = at.z;
     this.#maxMotion = Math.max(this.#maxMotion, motion);
+    this.#index.move(slot);
+  };
+
+  readonly teleport = (unit: Unit, at: Vec2): void => {
+    const table = this.#table;
+    const slot = table.slotOf(unit);
+
+    checkPosition(at, table.id[slot] ?? -1);
+    table.x[slot] = table.px[slot] = at.x;
+    table.z[slot] = table.pz[slot] = at.z;
+    // Keep the tick's conservative motion bound: other units may still have moved.
     this.#index.move(slot);
   };
 
