@@ -1,5 +1,6 @@
 import { type CastHandle, NO_CAST } from './ids.ts';
 import type { ReachRefusal } from './reach.ts';
+import type { SpellContext } from './spell-def.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 
 /**
@@ -86,10 +87,18 @@ export interface CastOptions<G extends SpellTypes> {
 
   /** Duration overrides captured for this cast; stage hooks, tracking, beats and interrupts still use the spell. */
   readonly stages?: CastStages | undefined;
+
+  /**
+   * A last gate, asked once the cast order admitted the cast (after its reach) and before `begin`: a press's commit,
+   * which pays its cost and runs its `activate`. It answers like a gate: true or nothing lets the cast on, false refuses
+   * it as `gate`, and one of the game's reasons refuses it for that reason. Unlike the cast order's hooks it may change
+   * the world; what it did stays whichever way it answers. A check (`spells.check`) never asks it.
+   */
+  readonly onAdmit?: ((cast: SpellContext<G>) => GateAnswer<G> | undefined) | undefined;
 }
 
 /** No options: every default. */
-export const NO_OPTIONS: CastOptions<never> = Object.freeze({});
+export const NO_OPTIONS: Readonly<Record<never, never>> = Object.freeze({});
 
 /** What a cast is asked for: who casts which spell, how; a system reuses one. */
 export interface CastRequest<G extends SpellTypes> {

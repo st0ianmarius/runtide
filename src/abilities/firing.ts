@@ -102,10 +102,13 @@ const pay = <G extends AbilityTypes>(
 
 /**
  * Commits a press of a button: pays its cost, runs `activate`, starts its spell's cooldowns when it commits at the
- * press (and on a prediction mirror, whose casts never start, as the cast would: release ones after the windup), lands its `applies` in order, then clears its `resets`. A prediction mirror lands only the `predicted` auras
- * of `applies`: the rest touch nothing it steps, and its seed replaces predicted auras alone, so it would keep them.
- * `cooldown` when an earlier slot of the same press started a cooldown it shares (a global cooldown, a category), and
- * `cost` when one spent what it needed.
+ * press (and on a prediction mirror, whose casts never start, as the cast would: release ones after the windup), clears
+ * its `clears`, lands its `applies` in order, then clears its `resets`. A prediction mirror lands only the `predicted`
+ * auras of `applies`: the rest touch nothing it steps, and its seed replaces predicted auras alone, so it would keep
+ * them. `cooldown` when an earlier slot of the same press started a cooldown it shares (a global cooldown, a category),
+ * and `cost` when one spent what it needed (or, for a button that commits on its cast, its cast's hooks did). On the
+ * server a button that commits on its cast commits inside its cast, at `onAdmit`, where the cast order has already
+ * refused a cooling spell: the cooldown read there is redundant, and harmless.
  */
 const commit = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
@@ -179,9 +182,66 @@ const castCommitted = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer:
 };
 
 /**
- * Why a button may not commit, asked before anything is: its `checkCast`, then, for a button that commits on its
- * cast, the server's cast order (a prediction mirror, which cannot ask it, leaves a button with no `checkCast` to the
- * server). `undefined` when it may.
+ * The `onAdmit` of a cast that commits its button: commits the engine's `committing` button on the cast's caster once
+ * the cast order admitted the cast; false, with the button's refusal on the engine, when it may not.
+ */
+const admitHookOf = <G extends AbilityTypes>(engine: AbilityEngine<G>) =>
+  (engine.admitHook ??= (cast) => {
+    const button = engine.committing;
+
+    if (button === undefined) {
+      return true;
+    }
+
+    const refused = commit(engine, cast.caster, button);
+
+    if (refused !== undefined) {
+      engine.admitRefusal = refused;
+
+      return false;
+    }
+
+    engine.committing = undefined;
+
+    return true;
+  });
+
+/**
+ * Casts the spell of a button that commits on its cast, on the server: the cast order runs once, and its `onAdmit`
+ * commits the button (pays, moves, lands its auras) after the reach and before `begin`, so a cast it refuses costs
+ * nothing, and a cast `activate` moves out of reach is not refused after paying. Whether it committed; the refusal, the
+ * button's own for one its commit made (`cost`, `cooldown`), the cast order's otherwise, on the engine.
+ */
+const castAdmitted = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  button: CompiledButton<G>
+): boolean => {
+  const { options } = engine;
+
+  engine.committing = button;
+  engine.admitRefusal = undefined;
+  options.onAdmit = admitHookOf(engine);
+
+  try {
+    const report = engine.spells.cast(bearer, button.spell, options);
+    const hasCommitted = engine.committing === undefined;
+    const refusal = report.status === 'refused' ? report.refusal : undefined;
+
+    engine.refusal = refusal === 'gate' ? (engine.admitRefusal ?? refusal) : refusal;
+
+    return hasCommitted;
+  } finally {
+    options.onAdmit = undefined;
+    engine.committing = undefined;
+    engine.admitRefusal = undefined;
+  }
+};
+
+/**
+ * Why a button may not commit, asked before anything is: its `checkCast`, then, on a prediction mirror, which cannot
+ * ask the server's cast order, `server` for a button that commits on its cast with no `checkCast` to judge it by.
+ * `undefined` when it may (the server's cast order judges a button that commits on its cast as it casts).
  */
 const admission = <G extends AbilityTypes>(
   engine: AbilityEngine<G>,
@@ -194,22 +254,51 @@ const admission = <G extends AbilityTypes>(
     return 'check';
   }
 
-  if (!button.commitsOnCast) {
-    return undefined;
-  }
-
-  if (engine.isMirror) {
-    return button.def.checkCast === undefined ? 'server' : undefined;
-  }
-
-  return engine.spells.check(bearer, spell, engine.options);
+  return engine.isMirror && button.commitsOnCast && button.def.checkCast === undefined ? 'server' : undefined;
 };
 
 /**
- * Fires the ability in a slot, already decided against its rules: asks its `checkCast`, then, for a button that
- * commits on its cast, the cast order (the server's; a prediction mirror cannot ask it, so it commits only what a
- * `checkCast` judged and leaves a button with none to the server); then commits and casts, with the cooldowns marked
- * started for a press that committed them. Whether it committed; why not, or why its cast was refused, on the engine.
+ * Asks a decided button's `admission`, then commits and casts it: inside its cast on the server for one that commits on
+ * its cast (`castAdmitted`), else commits, then casts with its cooldowns marked started for one that committed them.
+ * Whether it committed; why not, or why its cast was refused, on the engine.
+ */
+const commitAndCast = <G extends AbilityTypes>(
+  engine: AbilityEngine<G>,
+  bearer: G['bearer'],
+  button: CompiledButton<G>
+): boolean => {
+  const checked = admission(engine, bearer, button);
+
+  if (checked !== undefined) {
+    return engine.refuse(checked);
+  }
+
+  if (button.commitsOnCast && !engine.isMirror) {
+    return castAdmitted(engine, bearer, button);
+  }
+
+  const refused = commit(engine, bearer, button);
+
+  if (refused !== undefined) {
+    return engine.refuse(refused);
+  }
+
+  const { options } = engine;
+
+  engine.refusal = undefined;
+  options.committed = !button.commitsOnCast;
+  castCommitted(engine, bearer, button.spell);
+  options.committed = false;
+
+  return true;
+};
+
+/**
+ * Fires the ability in a slot, already decided against its rules: asks its `checkCast`, then commits and casts. A
+ * button that commits at the press commits, then casts with its cooldowns marked started. One that commits on its cast
+ * casts on the server, and commits inside the cast once the cast order admits it (`castAdmitted`); a prediction mirror,
+ * which cannot ask the cast order, commits it only on its `checkCast` and leaves one with none to the server. Whether
+ * it committed; why not, or why its cast was refused, on the engine.
  */
 const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['bearer'], slot: number): boolean => {
   const record = loadoutOf(bearer);
@@ -244,23 +333,15 @@ const fire = <G extends AbilityTypes>(engine: AbilityEngine<G>, bearer: G['beare
     }
   }
 
+  const rank = record.ranks[slot] ?? 0;
+
   options.input = engine.input;
   options.key = engine.key;
-  options.rank = record.ranks[slot] ?? 1;
+  // 0: equipped with no rank, so the cast reads the caster's own (`host.rankOf`), else 1.
+  options.rank = rank === 0 ? undefined : rank;
 
   // A press nested in `checkCast` or `activate` (a pet ordered along) gives all of this back as it found it.
-  const refused = admission(engine, bearer, button) ?? commit(engine, bearer, button);
-
-  if (refused !== undefined) {
-    return engine.refuse(refused);
-  }
-
-  engine.refusal = undefined;
-  options.committed = !button.commitsOnCast;
-  castCommitted(engine, bearer, spell);
-  options.committed = false;
-
-  return true;
+  return commitAndCast(engine, bearer, button);
 };
 
 /**

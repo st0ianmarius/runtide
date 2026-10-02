@@ -213,6 +213,9 @@ export interface AbilityGameOptions {
 
   /** Whether the ability system runs as a prediction mirror. */
   readonly mirror?: boolean;
+
+  /** The caster's own rank of a spell, handed to the spell host and the ability system alike; none when absent. */
+  readonly rankOf?: (hero: Hero, spell: SpellId) => number | undefined;
 }
 
 /**
@@ -271,7 +274,7 @@ export const makeAbilityGame = <const Spell extends string>(
   defs: Readonly<Record<Spell, AnySpellDef<AbilityGame> | Tombstone>>,
   options: AbilityGameOptions = {}
 ): AbilityTestGame<Spell> => {
-  const { slots = SLOTS, world, mirror } = options;
+  const { slots = SLOTS, world, mirror, rankOf } = options;
   const log: string[] = [];
   const clock = createClock({ dt: STEP });
   const late: { procs?: ProcSystem<AbilityGame> } = {};
@@ -281,7 +284,8 @@ export const makeAbilityGame = <const Spell extends string>(
     log,
     idOf: (hero: Hero) => hero.id,
     positionOf: (hero: Hero): Vec2 => hero.at,
-    statsOf: viewOf
+    statsOf: viewOf,
+    ...(rankOf === undefined ? {} : { rankOf })
   };
 
   const registry = defineSpells<AbilityGame, Spell>(defs, { stats: STATS });
@@ -317,7 +321,8 @@ export const makeAbilityGame = <const Spell extends string>(
     clock,
     world,
     mirror,
-    statsOf: viewOf
+    statsOf: viewOf,
+    rankOf
   });
 
   const procs = createProcSystem<AbilityGame>({

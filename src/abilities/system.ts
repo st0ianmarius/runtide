@@ -32,16 +32,19 @@ export interface Equipped {
   /** The button spell. */
   readonly spell: SpellId;
 
-  /** Its rank, from 1 to the spell's ranks; 1 when absent. */
+  /** Its rank, from 1 to the spell's ranks; the caster's own (`host.rankOf`), else 1, when absent. */
   readonly rank?: number;
 }
 
 /** What a press reads on its bearer: the auras and tags a prediction mirror must rebuild. */
 export interface MirrorReads {
-  /** Every button spell's cooldown auras and every button's cost aura, in id order. */
+  /**
+   * Every button spell's cooldown auras, every button's cost aura and every toggle, in id order. A button that commits
+   * on its cast pays its cost on a prediction mirror too (on its `checkCast`), so its cost aura is predicted as well.
+   */
   readonly auras: readonly AuraId[];
 
-  /** Every tag a button's `requires`, `blockedBy` or `resets` names, in id order. */
+  /** Every tag a button's `requires`, `blockedBy`, `clears` or `resets` names, in id order. */
   readonly tags: readonly AuraTagId[];
 }
 
@@ -58,9 +61,10 @@ export interface AbilitySystem<G extends AbilityTypes> {
   readonly slots: SlotTable<G['slot']>;
 
   /**
-   * The auras and tags a press reads on its bearer (its spells' cooldowns, its costs, the tags of `requires`,
-   * `blockedBy` and `resets`): what a prediction mirror must rebuild, so each such aura is `predicted`
-   * (`checkPredicted`). The auras a press lands are not reads: one that matters is read through a tag or through the
+   * The auras and tags a press reads on its bearer (its spells' cooldowns, its costs, its toggles, the tags of
+   * `requires`, `blockedBy`, `clears` and `resets`): what a prediction mirror must rebuild, so each such aura is
+   * `predicted` (`checkPredicted`); a button that commits on its cast pays its cost on the mirror too, on its
+   * `checkCast`. The auras a press lands are not reads: one that matters is read through a tag or through the
    * game's motion reads.
    */
   readonly mirrorReads: MirrorReads;
@@ -69,7 +73,8 @@ export interface AbilitySystem<G extends AbilityTypes> {
   readonly createLoadout: () => LoadoutState;
 
   /**
-   * Puts a button spell in a slot (at rank 1, or at the rank given with it), or empties the slot (`undefined`).
+   * Puts a button spell in a slot (at the rank given with it, else at the caster's own: `host.rankOf`, else 1), or
+   * empties the slot (`undefined`).
    * Throws for a spell that is not a live button spell, or a rank outside the spell's.
    */
   readonly equip: (bearer: G['bearer'], slot: SlotId, ability: SpellId | Equipped | undefined) => void;
@@ -129,7 +134,7 @@ const equipIn = <G extends AbilityTypes>(
 
   if (spell === undefined) {
     record.spells[slot] = -1;
-    record.ranks[slot] = 1;
+    record.ranks[slot] = 0;
 
     return;
   }
@@ -141,7 +146,8 @@ const equipIn = <G extends AbilityTypes>(
     throw new RangeError(`${spell} is not a live button spell.`);
   }
 
-  if (!Number.isInteger(rank) || rank < 1 || rank > (registry.columns.ranks[spell] ?? 1)) {
+  // 0: no rank given, so the caster's own.
+  if (rank !== 0 && (!Number.isInteger(rank) || rank < 1 || rank > (registry.columns.ranks[spell] ?? 1))) {
     throw new RangeError(`${registry.name(spell)} has no rank ${rank}.`);
   }
 
@@ -168,7 +174,7 @@ const mirrorReadsOf = <G extends AbilityTypes>(engine: AbilityEngine<G>): Mirror
         auras.add(button.toggle);
       }
 
-      for (const tag of [...button.requires, ...button.blockedBy, ...button.resets]) {
+      for (const tag of [...button.requires, ...button.blockedBy, ...button.clears, ...button.resets]) {
         tags.add(tag);
       }
     }
@@ -196,7 +202,8 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
     equip: (bearer, slot, ability) => {
       const isPlain = ability === undefined || typeof ability === 'number';
 
-      equipIn(engine, bearer, [slot, isPlain ? ability : ability.spell, isPlain ? 1 : (ability.rank ?? 1)]);
+      // Rank 0: none given, so its casts read the caster's own.
+      equipIn(engine, bearer, [slot, isPlain ? ability : ability.spell, isPlain ? 0 : (ability.rank ?? 0)]);
     },
 
     abilityOf: (bearer, slot) => {

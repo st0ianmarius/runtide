@@ -197,4 +197,49 @@ describe('a press, edge cases', () => {
     assert.deepEqual(game.abilities.mirrorReads.auras, [auraNamed('stance')]);
     assert.ok(explained !== undefined && Object.isFrozen(explained.applies));
   });
+
+  it('reads the tags a button clears for the mirror', () => {
+    const game = makeAbilityGame({
+      root: spell({ activation: { kind: 'button', clears: ['stance'], applies: ['root'] }, release })
+    });
+
+    assert.deepEqual(game.abilities.mirrorReads.tags, [game.auras.tags.id.stance]);
+  });
+
+  it('casts a button equipped with no rank at the caster’s own, and one equipped at a rank at that rank', () => {
+    const lines: string[] = [];
+
+    const ranked = (name: string) =>
+      spell({
+        ranks: 3,
+        activation: {
+          kind: 'button',
+
+          activate: (ctx) => {
+            lines.push(`activate ${name} rank ${ctx.rank}`);
+          }
+        },
+
+        release: (ctx) => {
+          lines.push(`release ${name} rank ${ctx.rank}`);
+
+          return undefined;
+        }
+      });
+
+    const game = makeAbilityGame({ own: ranked('own'), given: ranked('given') }, { rankOf: () => 3 });
+    const hero = game.hero(1);
+    const { abilities } = game;
+    const { dodge, skill } = abilities.slots.id;
+
+    abilities.equip(hero, dodge, game.id.own);
+    abilities.equip(hero, skill, { spell: game.id.given, rank: 2 });
+    abilities.tryActivate(hero, abilities.bit(dodge) | abilities.bit(skill));
+    assert.deepEqual(lines, [
+      'activate own rank 3',
+      'release own rank 3',
+      'activate given rank 2',
+      'release given rank 2'
+    ]);
+  });
 });

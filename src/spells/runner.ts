@@ -225,8 +225,8 @@ const beginCast = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>, 
 };
 
 /**
- * Starts a cast in the cast order: the gates, the stats, `canCast`, the target, then `begin`, and the
- * release at once for a spell with no windup. Writes what it did into `report` and returns it.
+ * Starts a cast in the cast order: the gates, the stats, `canCast`, the target, the press's `onAdmit`, then `begin`,
+ * and the release at once for a spell with no windup. Writes what it did into `report` and returns it.
  */
 export const startCast = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -236,7 +236,11 @@ export const startCast = <G extends SpellTypes>(
   // Checked before a record is taken: a retired or unknown spell throws here.
   const def = engine.registry.get(request.spell);
 
-  // Admitted on a scratch record, so a refusal takes no pool slot; only an admitted cast moves into the pool.
+  // Read before any hook runs: a nested cast (one `onAdmit` starts) may reuse the request.
+  const { onAdmit } = request.options;
+
+  // Admitted on a scratch record, so a refusal takes no pool slot; only an admitted cast moves into the pool. The
+  // scratch records nest, so an `onAdmit` that casts another spell asks it on a record of its own.
   const asked = engine.borrow(request.caster);
   let refusal: CastRefusal<G> | undefined;
   let interval = Number.NaN;
@@ -245,6 +249,12 @@ export const startCast = <G extends SpellTypes>(
     initCast(engine, asked, request);
     refusal = admit(engine, asked, def);
     interval = autoIntervalOf(engine, asked, def);
+
+    if (refusal === undefined && onAdmit !== undefined) {
+      refusal = refusalOf(onAdmit(asked), 'gate');
+      // A cast it started on the same caster took the ordinal this one asked with.
+      asked.ordinal = recordOf(asked.caster).ordinalAt(asked.startTick);
+    }
   } catch (error) {
     engine.giveBack(asked);
 

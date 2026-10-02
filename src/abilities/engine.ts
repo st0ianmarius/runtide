@@ -1,17 +1,29 @@
 import type { AuraSystem } from '../auras/index.ts';
 import type { StatView } from '../modifiers/index.ts';
-import { type CastOptions, OPEN_WORLD, type SpellId, type SpellSystem, type StaticWorld } from '../spells/index.ts';
+import {
+  type CastOptions,
+  type GateAnswer,
+  OPEN_WORLD,
+  type SpellContext,
+  type SpellId,
+  type SpellSystem,
+  type StaticWorld
+} from '../spells/index.ts';
 import { MirrorContext } from '../spells/mirror.ts';
-import type { AbilityTypes, PressRefusal } from './ability-types.ts';
+import type { AbilityTypes, ButtonRefusal, PressRefusal } from './ability-types.ts';
 import { compileButtons, type CompiledButton } from './buttons.ts';
 import type { SlotTable } from './slots.ts';
+
+/** What a cast's `onAdmit` is: a last gate, asked with the admitted cast. */
+type AdmitHook<G extends AbilityTypes> = (cast: SpellContext<G>) => GateAnswer<G>;
 
 /** The options a button casts with, reused: the cast order reads them before any hook runs. */
 class PressOptions<G extends AbilityTypes> implements CastOptions<G> {
   input: G['input'] | undefined = undefined;
   key = 0;
-  rank = 1;
+  rank: number | undefined = undefined;
   committed = false;
+  onAdmit: AdmitHook<G> | undefined = undefined;
 }
 
 /** What a nested press saves of the press it interrupts, and gives back as it leaves: one record per level. */
@@ -22,12 +34,12 @@ class SavedPress<G extends AbilityTypes> {
   refusals: (PressRefusal<G> | undefined)[] | undefined = undefined;
   optionsInput: G['input'] | undefined = undefined;
   optionsKey = 0;
-  rank = 1;
+  rank: number | undefined = undefined;
   committed = false;
+  onAdmit: AdmitHook<G> | undefined = undefined;
+  committing: CompiledButton<G> | undefined = undefined;
+  admitRefusal: ButtonRefusal | undefined = undefined;
 }
-
-/** The state of an engine no press is running on. */
-const IDLE = new SavedPress<AbilityTypes>();
 
 /** What an ability system is built from: the spell and aura systems, the slots, and the caster's stats. */
 export interface AbilityParts<G extends AbilityTypes> {
@@ -58,6 +70,12 @@ export interface AbilityParts<G extends AbilityTypes> {
 
   /** The caster's stats for one spell, which the motion hooks' `ctx.stats` read; none when absent. */
   readonly statsOf?: ((caster: G['bearer'], spell: SpellId) => StatView | undefined) | undefined;
+
+  /**
+   * The caster's own rank of a spell, which the motion hooks' `ctx.rank` read for a button equipped with no rank: the
+   * spell host's `rankOf`, which that button's cast reads. `undefined` (and an absent hook) gives rank 1.
+   */
+  readonly rankOf?: ((caster: G['bearer'], spell: SpellId) => number | undefined) | undefined;
 }
 
 /** The ability system's state: its parts, every button compiled, and reused scratch. */
@@ -93,7 +111,20 @@ export class AbilityEngine<G extends AbilityTypes> {
   /** How many presses run, nested (a pet's button pressed from a hero's hook): each level has its own scratch. */
   depth = 0;
 
+  /**
+   * The button that commits on its cast whose cast is running on the server: its `onAdmit` commits it, then clears
+   * this; `undefined` for none, or once it committed.
+   */
+  committing: CompiledButton<G> | undefined = undefined;
+
+  /** Why the commit at a cast's `onAdmit` refused (its cost, a cooldown), which the cast reports as `gate`. */
+  admitRefusal: ButtonRefusal | undefined = undefined;
+
+  /** The `onAdmit` a cast of a button that commits on its cast is handed, made once (`firing.ts`). */
+  admitHook: AdmitHook<G> | undefined = undefined;
+
   readonly #statsOf: AbilityParts<G>['statsOf'];
+  readonly #rankOf: AbilityParts<G>['rankOf'];
   readonly #world: StaticWorld;
 
   /** The reused mirror contexts, one per press level, so a nested press leaves the outer hook's context alone. */
@@ -105,12 +136,16 @@ export class AbilityEngine<G extends AbilityTypes> {
   /** What each press level saved of the one it interrupted. */
   readonly #saved: SavedPress<G>[] = [];
 
+  /** The state of the engine when no press is running on it, never written. */
+  readonly #idle = new SavedPress<G>();
+
   constructor(parts: AbilityParts<G>) {
     this.spells = parts.spells;
     this.auras = parts.auras;
     this.slots = parts.slots;
     this.buttons = compileButtons(parts.spells, parts.auras);
     this.#statsOf = parts.statsOf;
+    this.#rankOf = parts.rankOf;
     this.dt = parts.clock.dt;
     this.isMirror = parts.mirror === true;
     this.#world = parts.world ?? OPEN_WORLD;
@@ -125,7 +160,7 @@ export class AbilityEngine<G extends AbilityTypes> {
 
   /**
    * The reused mirror context for a hook of the spell being pressed, set to the bearer, its stats for the spell, the
-   * press's input and rank, and the step. Read it within the hook.
+   * press's input and rank (the slot's, else the caster's own, else 1), and the step. Read it within the hook.
    */
   mirrorFor(bearer: G['bearer'], spell: SpellId): MirrorContext<G> {
     const mirror = (this.#mirrors[this.depth] ??= new MirrorContext<G>(this.#world, bearer));
@@ -133,7 +168,7 @@ export class AbilityEngine<G extends AbilityTypes> {
     mirror.bearer = bearer;
     mirror.stats = this.#statsOf?.(bearer, spell);
     mirror.input = this.input;
-    mirror.rank = this.options.rank;
+    mirror.rank = this.options.rank ?? this.#rankOf?.(bearer, spell) ?? 1;
     mirror.dt = this.dt;
 
     return mirror;
@@ -153,6 +188,9 @@ export class AbilityEngine<G extends AbilityTypes> {
       saved.optionsKey = options.key;
       saved.rank = options.rank;
       saved.committed = options.committed;
+      saved.onAdmit = options.onAdmit;
+      saved.committing = this.committing;
+      saved.admitRefusal = this.admitRefusal;
     }
 
     this.depth += 1;
@@ -162,7 +200,7 @@ export class AbilityEngine<G extends AbilityTypes> {
   leave(): void {
     this.depth -= 1;
 
-    const saved = (this.depth > 0 ? this.#saved[this.depth] : undefined) ?? IDLE;
+    const saved = (this.depth > 0 ? this.#saved[this.depth] : undefined) ?? this.#idle;
     const { options } = this;
 
     this.input = saved.input;
@@ -173,6 +211,9 @@ export class AbilityEngine<G extends AbilityTypes> {
     options.key = saved.optionsKey;
     options.rank = saved.rank;
     options.committed = saved.committed;
+    options.onAdmit = saved.onAdmit;
+    this.committing = saved.committing;
+    this.admitRefusal = saved.admitRefusal;
   }
 
   /** The spells the running press decided its slots against, by slot. */

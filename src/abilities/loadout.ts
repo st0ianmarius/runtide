@@ -14,12 +14,12 @@ export class LoadoutRecord implements LoadoutState {
   /** The spell in each slot, −1 for none. */
   readonly spells: Int32Array;
 
-  /** The rank of each slot's spell, from 1. */
+  /** The rank of each slot's spell, from 1; 0 for the caster's own (`host.rankOf`, else 1), and for an empty slot. */
   readonly ranks: Uint8Array;
 
   constructor(size: number) {
     this.spells = new Int32Array(size).fill(-1);
-    this.ranks = new Uint8Array(size).fill(1);
+    this.ranks = new Uint8Array(size);
   }
 
   /** How many slots it has. */

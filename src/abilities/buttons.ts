@@ -15,7 +15,10 @@ export interface CompiledButton<G extends AbilityTypes> {
   /** The activation data, for its motion hooks. */
   readonly def: ButtonActivation<G>;
 
-  /** Whether a press commits only once its cast is admitted (`commitsOn: 'cast'`). */
+  /**
+   * Whether a press commits only once its cast is admitted (`commitsOn: 'cast'`): on the server inside its one cast, at
+   * the cast's `onAdmit` (after the reach, before `begin`); on a prediction mirror on its `checkCast`.
+   */
   readonly commitsOnCast: boolean;
 
   /** The aura its cost spends, or −1 for none. */
