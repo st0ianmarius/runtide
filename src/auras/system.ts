@@ -71,6 +71,15 @@ export type AuraSystemOptions<G extends AuraTypes> = AuraSystemBase<G> &
         readonly createExt: () => G['ext'];
       });
 
+/** An aura system's clock names in declared order, as a wire source (`wireTableOf`). */
+export interface AuraClockTable<Clock extends string = string> {
+  /** The table's kind: `auraClocks`. */
+  readonly kind: 'auraClocks';
+
+  /** The clock names by id. */
+  readonly names: readonly Clock[];
+}
+
 /** How a bearer's aura state is made. */
 export interface StateOptions {
   /** Whether it runs no hooks and raises no events (a preview or a prediction copy); false when absent. */
@@ -88,8 +97,19 @@ export interface AuraSystem<G extends AuraTypes> {
   /** The game's aura tags. */
   readonly tags: AuraTagTable<G['tag']>;
 
-  /** The id of every clock, by name. */
+  /**
+   * The id of every clock, by name: ids follow the order the system's `clocks` option declares them in, and the first
+   * is every aura's default.
+   */
   readonly clocks: Readonly<Record<G['clock'], number>>;
+
+  /**
+   * The clock names in declared order (their ids), as a wire source (`wireTableOf(auras.clockTable)`): an aura view
+   * and a seed carry clock ids, and an aura's wire signature names its clock only when it is not the default, so a
+   * client and a server compare this table at the handshake as well as the registry's, and one declaring its clocks in
+   * another order fails it instead of reading the wrong clock.
+   */
+  readonly clockTable: AuraClockTable<G['clock']>;
 
   /** How many aura slots the pool has made, and how many are live: a steady state makes no new ones. */
   readonly pool: {
@@ -169,6 +189,13 @@ export interface AuraSystem<G extends AuraTypes> {
 
   /** Steps the bearer's clock once: beats, then expiries. */
   readonly tick: (bearer: G['bearer'], clock: G['clock']) => void;
+
+  /**
+   * Steps every clock of the bearer once, in declared order (`clockTable`), each as `tick` does: the order a server and
+   * its prediction mirror both tick a bearer's clocks in, since it changes outcomes (a `world` beat that checks for a
+   * `motion` aura sees it expired or not). A game ticking clocks one by one keeps this order on both sides.
+   */
+  readonly tickAll: (bearer: G['bearer']) => void;
 
   /** Whether the bearer has an aura. */
   readonly has: (bearer: G['bearer'], aura: AuraId) => boolean;
@@ -315,11 +342,13 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
   const clockNames = Object.keys(options.clocks).filter((key): key is G['clock'] => Object.hasOwn(options.clocks, key));
 
   const clockIds = recordOf(clockNames, (name) => clockNames.indexOf(name));
+  const clockCount = clockNames.length;
 
   const system: AuraSystem<G> = {
     registry,
     tags: options.tags,
     clocks: clockIds,
+    clockTable: Object.freeze({ kind: 'auraClocks', names: Object.freeze(clockNames) }),
 
     pool: {
       get created() {
@@ -335,6 +364,12 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
 
     tick: (bearer, clock) => {
       tickAuras(engine, bearer, clockIds[clock] ?? 0);
+    },
+
+    tickAll: (bearer) => {
+      for (let clock = 0; clock < clockCount; clock++) {
+        tickAuras(engine, bearer, clock);
+      }
     },
 
     watchRemovals: (watch) => {

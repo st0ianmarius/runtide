@@ -112,7 +112,9 @@ export interface AuraRegistry<G extends AuraTypes = AuraTypes, Name extends stri
   /**
    * What of an aura a server and a prediction mirror must agree on, as a string (`wireTableOf` folds it into the
    * checksum): its stacking, stack cap, value merge and flags (audience, prediction, credit), less `quiet`, which only
-   * silences the server's bus and changes nothing on the wire. Empty for a retired aura.
+   * silences the server's bus and changes nothing on the wire; its clock's name (empty for the system's first clock,
+   * which the system's `clockTable` pins), its tag names in order, and its duration (seconds, `infinite`, `fn` for a
+   * function, empty when absent), since a seed and a view's end stamp count on them. Empty for a retired aura.
    */
   readonly signature: (aura: number) => string;
 }
@@ -135,6 +137,25 @@ const flagsOf = <G extends AuraTypes>(def: AuraDef<G>): number =>
   (def.boundToSource === true ? BOUND_TO_SOURCE : 0) |
   (def.predicted === true ? PREDICTED : 0) |
   (def.quiet === true ? QUIET : 0);
+
+/** A definition's duration as the wire signature writes it: its seconds, `infinite`, `fn` for a function, or empty. */
+const durationText = <G extends AuraTypes>(def: AuraDef<G>): string => {
+  const { duration } = def;
+
+  return typeof duration === 'function' ? 'fn' : String(duration ?? '');
+};
+
+/** The wire signature of one live aura: its columns less `quiet`, then its clock, tags and duration. */
+const signatureOf = <G extends AuraTypes>(columns: Record<AuraColumn, Column>, aura: number, def: AuraDef<G>): string =>
+  [
+    columns.stacking[aura],
+    columns.maxStacks[aura],
+    columns.merge[aura],
+    (columns.flags[aura] ?? 0) & ~QUIET,
+    def.clock ?? '',
+    (def.tags ?? []).join(','),
+    durationText(def)
+  ].join(' ');
 
 /** Whether a duration is sound: absent, infinite, a function, or a finite number of seconds from 0. */
 const isSoundDuration = (duration: unknown): boolean =>
@@ -347,15 +368,11 @@ export const defineAuras = <G extends AuraTypes, const Name extends string>(
 
     columns,
 
-    signature: (aura: number): string =>
-      slots[aura] === undefined
-        ? ''
-        : [
-            columns.stacking[aura],
-            columns.maxStacks[aura],
-            columns.merge[aura],
-            (columns.flags[aura] ?? 0) & ~QUIET
-          ].join(' '),
+    signature: (aura: number): string => {
+      const def = slots[aura];
+
+      return def === undefined ? '' : signatureOf(columns, aura, def);
+    },
 
     hooks: buildHooks(slots),
     has: buildHas(slots),

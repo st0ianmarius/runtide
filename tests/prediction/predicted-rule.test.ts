@@ -69,7 +69,8 @@ describe('the predicted rule', () => {
       unread: [id.ghost],
       unsafe: [],
       unseedable: [id.dash],
-      inexact: [id.dash]
+      inexact: [id.dash],
+      frozen: []
     });
   });
 
@@ -88,13 +89,39 @@ describe('the predicted rule', () => {
       unread: [id.dash],
       unsafe: [],
       unseedable: [id.dash],
-      inexact: []
+      inexact: [],
+      frozen: []
     });
 
     const motion = { tags: ['stun' as const] };
 
     Reflect.set(motion.tags, 0, 'frozen');
     assert.throws(() => checkPredicted({ auras, motion }), /no aura tag named frozen/);
+  });
+
+  it('finds every aura the mirror reads on a clock it does not tick, by id, tag or stat, given its clocks', () => {
+    const { auras, id } = makeGame({
+      cooldown: aura({ duration: 2, predicted: true }),
+      dodge: aura({ duration: 1, clock: 'motion', predicted: true }),
+      root: aura({ duration: 1, tags: ['stun'], predicted: true }),
+      slide: aura({ duration: 1, tags: ['stun'], clock: 'motion', predicted: true }),
+      unread: aura({ duration: 1, predicted: true })
+    });
+
+    const motion = { auras: [id.cooldown, id.dodge], tags: ['stun' as const] };
+
+    assert.deepEqual(checkPredicted({ auras, motion: { ...motion, clocks: ['motion'] } }).frozen, [
+      id.cooldown,
+      id.root
+    ]);
+    assert.deepEqual(checkPredicted({ auras, motion: { ...motion, clocks: ['world'] } }).frozen, [id.dodge, id.slide]);
+    assert.deepEqual(checkPredicted({ auras, motion: { ...motion, clocks: ['world', 'motion'] } }).frozen, []);
+    assert.deepEqual(checkPredicted({ auras, motion }).frozen, [], 'nothing is reported without the clocks');
+
+    const clocks = ['motion' as const];
+
+    Reflect.set(clocks, 0, 'astral');
+    assert.throws(() => checkPredicted({ auras, motion: { clocks } }), /no aura clock named astral/);
   });
 });
 

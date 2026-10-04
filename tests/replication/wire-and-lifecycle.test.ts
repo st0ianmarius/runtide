@@ -44,8 +44,16 @@ describe('wire tables', () => {
 
     const plain: CueDef = defineCue({ anchor: 'self', params: { amount: { kind: 'uint8' } } });
 
-    assert.equal(auraSum({ duration: 1 }), auraSum({ duration: 2 }));
     assert.equal(auraSum({ duration: 1 }), auraSum({ duration: 1, quiet: true }));
+    assert.equal(auraSum({ duration: 1 }), auraSum({ duration: 1, onApplied: () => [] }));
+    assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 2 }));
+    assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 'infinite' }));
+    assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: () => 1 }));
+    assert.notEqual(auraSum({ duration: 1 }), auraSum({}));
+    assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 1, clock: 'motion' }));
+    assert.notEqual(auraSum({ duration: 1, clock: 'motion' }), auraSum({ duration: 1, clock: 'world' }));
+    assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 1, tags: ['stun'] }));
+    assert.notEqual(auraSum({ duration: 1, tags: ['stun'] }), auraSum({ duration: 1, tags: ['magic'] }));
     assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 1, predicted: true }));
     assert.notEqual(auraSum({ duration: 1 }), auraSum({ duration: 1, stacking: 'stack', maxStacks: 3 }));
     assert.equal(cueSum(plain), cueSum(defineCue({ anchor: 'self', params: { amount: { kind: 'uint8' } } })));

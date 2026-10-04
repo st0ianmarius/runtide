@@ -56,6 +56,7 @@ export type { Dispel } from './dispel.ts';
 export type { AuraPipelineHook, CollectedHook } from './collect.ts';
 
 export {
+  type AuraClockTable,
   type AuraSystem,
   type AuraSystemBase,
   type AuraSystemOptions,

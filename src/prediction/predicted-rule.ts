@@ -14,6 +14,13 @@ export interface MotionReads<G extends AuraTypes> {
 
   /** Stats it folds (a move speed): every aura with a modifier on one of them is read. */
   readonly stats?: readonly G['stat'][];
+
+  /**
+   * The clocks the mirror ticks, by name. When given, every aura the mirror reads whose own clock is not among them is
+   * reported `frozen`: the mirror never counts it down, so it holds still between two acks (a cooldown on the default
+   * `world` clock that a motion-only mirror never ticks).
+   */
+  readonly clocks?: readonly G['clock'][];
 }
 
 /** What the predicted rule is checked over. */
@@ -78,6 +85,13 @@ export interface PredictedReport {
    * drift unless the mirror folds the whole stat itself.
    */
   readonly inexact: readonly AuraId[];
+
+  /**
+   * Auras the mirror reads (by id, a read tag or a folded stat) whose own clock (`clock`, else the system's first) is
+   * not one the mirror ticks (`motion.clocks`): their time left freezes on the mirror between acks, so a read of one
+   * (a cooldown's end, a root's) is stale until the next seed. Empty when `motion.clocks` is absent.
+   */
+  readonly frozen: readonly AuraId[];
 }
 
 /** The names of the tags the mirror reads: the game's motion tags and the presses' tags. */
@@ -146,14 +160,17 @@ const unsafeOf = <G extends AuraTypes>(options: PredictedRuleOptions<G>): AuraId
  * modifier on a stat the motion step folds, an aura the motion step names) must be `predicted`, and a `predicted` aura
  * nothing reads is reported as unread; with the condition tables, a predicted aura whose modifiers wait on a condition
  * that is not mirror-safe is reported as unsafe. An aura a press lands is not a read: a mirror lands only the predicted
- * ones, and one the mirror depends on is read through a tag or a declared motion read. A game runs it in its tests over
- * its registries.
+ * ones, and one the mirror depends on is read through a tag or a declared motion read. Given the clocks the mirror ticks
+ * (`motion.clocks`), an aura it reads on any other clock is reported as frozen. A game runs it in its tests over its
+ * registries.
  */
 export const checkPredicted = <G extends AuraTypes>(options: PredictedRuleOptions<G>): PredictedReport => {
   const { auras } = options;
   const reads = readsOf(options);
+  const ticked = tickedClocksOf(options);
   const unpredicted: UnpredictedRead[] = [];
   const unread: AuraId[] = [];
+  const frozen: AuraId[] = [];
 
   for (const aura of auras.registry.ids) {
     const reason = auras.registry.isRetired(aura) ? undefined : reasonOf(options, [aura, reads]);
@@ -164,9 +181,39 @@ export const checkPredicted = <G extends AuraTypes>(options: PredictedRuleOption
     } else if (reason === undefined && isPredicted) {
       unread.push(aura);
     }
+
+    if (reason !== undefined && ticked !== undefined && !ticked.has(clockOf(options, aura))) {
+      frozen.push(aura);
+    }
   }
 
-  return { unpredicted, unread, unsafe: unsafeOf(options), ...seedReport(options) };
+  return { unpredicted, unread, unsafe: unsafeOf(options), ...seedReport(options), frozen };
+};
+
+/** The names of the clocks the mirror ticks, checked against the system's; `undefined` when the game names none. */
+const tickedClocksOf = <G extends AuraTypes>(options: PredictedRuleOptions<G>): Set<string> | undefined => {
+  const clocks = options.motion?.clocks;
+
+  if (clocks === undefined) {
+    return undefined;
+  }
+
+  const known = new Set<string>(options.auras.clockTable.names);
+
+  for (const name of clocks) {
+    if (!known.has(name)) {
+      throw new RangeError(`checkPredicted: there is no aura clock named ${name}.`);
+    }
+  }
+
+  return new Set<string>(clocks);
+};
+
+/** The name of the clock an aura's lifetime counts on: its own, else the system's first. */
+const clockOf = <G extends AuraTypes>(options: PredictedRuleOptions<G>, aura: AuraId): string => {
+  const { auras } = options;
+
+  return auras.registry.get(aura).clock ?? auras.clockTable.names[0] ?? '';
 };
 
 /** The predicted auras a seed cannot rebuild, and those a split fold of the motion stats would fold inexactly. */

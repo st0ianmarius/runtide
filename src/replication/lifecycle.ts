@@ -37,6 +37,13 @@ export interface AuraViewChange {
  * `clocks` (the bearer's steps per clock at the later view) is an expiry, gone before it a removal; then new stacks,
  * then a new value, then an end moved earlier with the same duration is nothing (a time-left change), then a new end
  * stamp or duration is a refresh.
+ *
+ * Two of these are exact only at one view per tick of the aura's clock. Expired against removed: a client reading
+ * views less often sees an aura dispelled within one view interval of its end, its end stamp reached by the later
+ * view, as `expired`. A shared instance (serial 0, the one of a non-`independent`, non-`perSource` aura) cleansed and
+ * applied again between two views keeps its key, so it reads as `refreshed` (or `stacked`, `changed`, or nothing, by
+ * what differs), not as `removed` then `applied`. A game that cues on these exactly reads a view every tick, or takes
+ * them from the server's events.
  */
 export const auraLifecycle = (
   before: AuraView | undefined,
@@ -72,6 +79,8 @@ const keyOf = (view: AuraView): string => `${view.aura}:${view.serial}`;
 /**
  * Every aura instance's change between two views of one bearer, matched by aura and serial: the later
  * view's instances in its order, then the ones that left, in the earlier view's order. For a client: it allocates.
+ * Exact only at one view per tick of each aura's clock (`auraLifecycle`): read less often, a dispel near an aura's end
+ * reads `expired`, and a shared instance cleansed and applied again between the views reads as one that stayed.
  */
 export const auraChanges = (
   before: readonly AuraView[],
