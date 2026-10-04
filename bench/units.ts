@@ -339,6 +339,10 @@ export const UNIT_TASKS: readonly (readonly [string, () => void])[] = [
     () => {
       const units = crowd('plain');
 
+      // A step reads the tick's collect: nothing comes due here, so it costs a wheel look.
+      CLOCK.step();
+      SCRIPTS.collect();
+
       for (const unit of units) {
         SCRIPTS.step(unit);
       }
@@ -348,6 +352,10 @@ export const UNIT_TASKS: readonly (readonly [string, () => void])[] = [
     'scripts: step 2,000 scripted units, nothing due (tick)',
     () => {
       const units = crowd('idle');
+
+      // A step reads the tick's collect: nothing comes due here, so it costs a wheel look.
+      CLOCK.step();
+      SCRIPTS.collect();
 
       for (const unit of units) {
         SCRIPTS.step(unit);

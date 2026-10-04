@@ -16,6 +16,36 @@ export const DEAD_HOLD = 'dead';
 /** The most hold reasons a system takes: each is one bit of a brain's holds. */
 const MAX_HOLDS = 31;
 
+/**
+ * The clock ticks the timers were last stepped on each way, firing (`step`) and collecting (`collect`): both read one
+ * wheel, so a tick one took leaves the other nothing due.
+ */
+class StepTicks {
+  /** The tick `step` last ran on; −1 before it ever ran. */
+  stepped = -1;
+
+  /** The tick `collect` last ran on; −1 before it ever ran. */
+  collected = -1;
+
+  /** Notes a step on `tick`, collecting with `keep`; throws when the other way already took that tick. */
+  claim(tick: number, keep: boolean): void {
+    if (keep ? this.stepped === tick : this.collected === tick) {
+      const [ran, now] = keep ? ['ai.step', 'ai.collect'] : ['ai.collect (scripts.collect)', 'ai.step'];
+
+      throw new Error(
+        `${now} on tick ${tick}, which ${ran} already took: a game steps the AI timers one way, ai.step(fire) or ` +
+          'scripts.collect(), once a tick.'
+      );
+    }
+
+    if (keep) {
+      this.collected = tick;
+    } else {
+      this.stepped = tick;
+    }
+  }
+}
+
 /** What an AI system is built from. */
 export interface AiSystemOptions<G extends AiTypes> {
   /** The spell system its picks check against (`spells.check`). */
@@ -45,6 +75,18 @@ export interface AiSystemOptions<G extends AiTypes> {
 export interface AiSystem<G extends AiTypes> {
   /** The game's timers. */
   readonly timers: TimerTable<G['timerName']>;
+
+  /** The fixed-step clock its timers count on (the spell system's). */
+  readonly clock: SpellClock;
+
+  /**
+   * The clock tick `step` last ran on, −1 before it ever ran: a timer system that reads the same wheel (the script
+   * system's `collect`) checks it to refuse a tick `step` already took.
+   */
+  readonly steppedTick: number;
+
+  /** The clock tick `collect` last ran on, −1 before it ever ran. */
+  readonly collectedTick: number;
 
   /** How many brains are live, and how many records were made: a steady state makes no new ones. */
   readonly brains: {
@@ -82,14 +124,16 @@ export interface AiSystem<G extends AiTypes> {
   /**
    * Fires every timer due by the clock's tick, in due order (timers due on one tick in the order they were started),
    * each once and stopped first, so `fire` may start it again; returns how many fired. The host calls it once a tick,
-   * with the same function each time.
+   * after stepping the clock, with the same function each time; a second call on the same tick fires nothing. A game
+   * whose units run scripts calls `scripts.collect()` in its place, never both: `step` throws on a tick `collect` (the
+   * script system's) already took, as the timers it would fire were handed to the scripted units' steps.
    */
   readonly step: (fire: (unit: G['bearer'], timer: TimerId) => void) => number;
 
   /**
    * Collects every timer due by the clock's tick as `step` does, for a system that delivers them later in each unit's
    * own step (the script system): each stays collected until `take`, and a start, a cancel or a hold of it in between
-   * drops it (a held one fires again once let go). Returns how many.
+   * drops it (a held one fires again once let go). Returns how many. Throws on a tick `step` already took.
    */
   readonly collect: (mark: (unit: G['bearer'], timer: TimerId) => void) => number;
 
@@ -134,6 +178,7 @@ export interface AiSystem<G extends AiTypes> {
 export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): AiSystem<G> => {
   const { spells, timers } = options;
   const scheduler = new Scheduler<G>(options.clock, timers.names.length);
+  const ticks = new StepTicks();
   const picker = new Picker<G>(spells);
   const given = options.holds ?? [];
 
@@ -154,6 +199,15 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
 
   const system: AiSystem<G> = {
     timers,
+    clock: options.clock,
+
+    get steppedTick() {
+      return ticks.stepped;
+    },
+
+    get collectedTick() {
+      return ticks.collected;
+    },
 
     brains: {
       get live() {
@@ -175,8 +229,18 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
 
     cancel: (unit, timer) => scheduler.cancel(unit, timer),
     remaining: (unit, timer) => scheduler.remaining(unit, timer),
-    step: (fire) => scheduler.step(fire, false),
-    collect: (mark) => scheduler.step(mark, true),
+    step: (fire) => {
+      ticks.claim(options.clock.tick, false);
+
+      return scheduler.step(fire, false);
+    },
+
+    collect: (mark) => {
+      ticks.claim(options.clock.tick, true);
+
+      return scheduler.step(mark, true);
+    },
+
     take: (unit, timer) => scheduler.take(unit, timer),
     hold: (unit, reason, isOn) => scheduler.hold(unit, { bits: holdBits.get(reason) ?? 0, isOn }),
 

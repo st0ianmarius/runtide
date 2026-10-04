@@ -48,7 +48,7 @@ export interface ScriptSystemOptions<G extends ScriptTypes> {
   /** The game's scripts (`defineScripts`). */
   readonly registry: ScriptRegistry<G>;
 
-  /** The AI system, whose timers `collect` gathers onto their units. */
+  /** The AI system, whose timers `collect` gathers onto their units, on its clock's ticks. */
   readonly ai: AiSystem<G>;
 
   /** The proc system handlers' procs run through, or a function returning it. */
@@ -68,7 +68,8 @@ export interface ScriptSystemOptions<G extends ScriptTypes> {
  * A script system: it runs each scripted unit's behaviours and decides nothing itself. A unit whose
  * template names a script gets a record at spawn (each behaviour's state, then its `spawn` handlers); its timers are
  * gathered once a tick (`collect`) and delivered in its own step (`step`), with its `tick` handlers; bound game events
- * reach the unit their binding names. Units with no script cost nothing.
+ * reach the unit their binding names. Units with no script cost nothing. A tick runs `clock.step()`, `scripts.collect()`,
+ * then each unit's `scripts.step(unit)`; `collect` replaces `ai.step`, and each refuses a tick the other took.
  *
  * `died` handlers run nested inside whatever killed the unit (another handler's procs, a blow), before it returns. A
  * dead unit's script never hears its own `despawned`, so its `died` does all its cleanup; a living unit's despawn runs
@@ -91,15 +92,22 @@ export interface ScriptSystem<G extends ScriptTypes> {
   readonly forUnits: UnitScripts<G>;
 
   /**
-   * Once a tick, before the units' loop: gathers every due timer (`ai.step`) onto its unit, to be delivered in that
-   * unit's step. A due timer of a unit with no script, or whose script has no `timer` handler, is taken at once and goes
-   * to `fire`, when given. Returns how many came due.
+   * Once a tick, after stepping the clock and before the units' loop: gathers every due timer onto its unit, to be
+   * delivered in that unit's step. A due timer of a unit with no script, or whose script has no `timer` handler, is
+   * taken at once and goes to `fire`, when given. Returns how many came due; a second call on the same tick gathers
+   * none.
+   *
+   * Each tick runs `clock.step()`, then `scripts.collect()` once, then each unit's `scripts.step(unit)`. It takes the
+   * place of `ai.step`, which reads the same timers: it throws on a tick `ai.step` already took (a game uses one or the
+   * other).
    */
   readonly collect: (fire?: (unit: G['bearer'], timer: TimerId) => void) => number;
 
   /**
-   * In the unit's own slot of the game's loop: delivers its due timers to its `timer` handlers, then runs its `tick`
-   * handlers. Does nothing for a unit with no script.
+   * In the unit's own slot of the game's loop, after this tick's `collect`: delivers its due timers to its `timer`
+   * handlers, then runs its `tick` handlers. Does nothing for a unit with no script. Throws when `collect` has not run
+   * on the clock's tick, for any unit: stepped before it, a unit would hear its timers a tick late, and later each time
+   * a handler starts one again.
    */
   readonly step: (unit: G['bearer']) => void;
 
@@ -130,6 +138,9 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
   readonly #runner: ScriptRunner<G>;
   #fallback: ((unit: G['bearer'], timer: TimerId) => void) | undefined = undefined;
 
+  /** The clock tick `collect` last ran on; −1 before it ever ran. */
+  #collectedTick = -1;
+
   constructor(options: ScriptSystemOptions<G>) {
     this.#options = options;
     this.registry = options.registry;
@@ -159,16 +170,34 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
   }
 
   readonly collect = (fire?: (unit: G['bearer'], timer: TimerId) => void): number => {
+    const { ai } = this.#options;
+    const { tick } = ai.clock;
+
+    if (ai.steppedTick === tick) {
+      throw new Error(
+        `scripts.collect() on tick ${tick}, which ai.step already took: a game whose units run scripts calls ` +
+          'scripts.collect() in place of ai.step, once a tick, then each unit’s scripts.step(unit).'
+      );
+    }
+
+    this.#collectedTick = tick;
     this.#fallback = fire;
 
     try {
-      return this.#options.ai.collect(this.#mark);
+      return ai.collect(this.#mark);
     } finally {
       this.#fallback = undefined;
     }
   };
 
   readonly step = (unit: G['bearer']): void => {
+    if (this.#collectedTick !== this.#options.ai.clock.tick) {
+      throw new Error(
+        `scripts.step(unit) on tick ${this.#options.ai.clock.tick} before scripts.collect(): each tick calls ` +
+          'scripts.collect() once, then each unit’s scripts.step(unit), or its timers fire late.'
+      );
+    }
+
     const slot = unit.scriptSlot;
 
     if (slot < 0) {

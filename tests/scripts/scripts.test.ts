@@ -360,6 +360,7 @@ describe('scripts', () => {
 
     const boss = game.units.spawn(game.id.boss, { side: 1 });
 
+    game.scripts.collect();
     game.scripts.step(boss);
 
     const [add] = game.units.summonsOf(boss);
@@ -433,6 +434,8 @@ describe('scripts under hooks that despawn or throw', () => {
       );
 
       const unit = game.units.spawn(game.id.boss, { side: 1 });
+
+      game.scripts.collect();
 
       if (moment === 'tick') {
         game.scripts.step(unit);

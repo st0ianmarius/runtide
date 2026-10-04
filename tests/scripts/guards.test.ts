@@ -31,6 +31,7 @@ describe('scripts guard their procs and their definitions', () => {
 
     const boss = game.units.spawn(game.id.boss, { side: 1 });
 
+    game.scripts.collect();
     game.scripts.step(boss);
     assert.deepEqual(ran, [0], 'ctx.run runs nothing once its unit is dead');
     assert.equal(game.ai.remaining(boss, TIMERS.id.raise), undefined, 'the returned timer is dropped');
@@ -86,6 +87,7 @@ describe('scripts guard their procs and their definitions', () => {
 
     const boss = game.units.spawn(game.id.boss, { side: 1 });
 
+    game.scripts.collect();
     game.scripts.step(boss);
     assert.deepEqual([game.scripts.has(boss), game.scripts.count(scripts.id.boss)], [true, 1]);
     assert.equal(game.scripts.stateOf(boss, life)?.ticks, 0, 'no step while dead');
@@ -120,6 +122,7 @@ describe('scripts guard their procs and their definitions', () => {
     const boss = game.units.spawn(game.id.boss, { side: 1 });
     const dummy = game.units.spawn(game.id.dummy, { side: 2 });
 
+    game.scripts.collect();
     game.scripts.step(boss);
     assert.deepEqual(
       outcomes.map(({ status, amount }) => `${status} ${amount}`),
@@ -143,6 +146,7 @@ describe('scripts guard their procs and their definitions', () => {
     const victim = game.units.spawn(game.id.add, { side: 2 });
 
     game.procs.apply(damage<UnitGame>(500), { self: necromancer, target: victim });
+    game.scripts.collect();
     game.scripts.step(necromancer);
     assert.deepEqual(seen, [`- ${victim.id}`, '- -'], 'the kill’s other unit, cleared after');
 
