@@ -8,7 +8,8 @@
  * a client that wants finer cues keys on them. A time left lengthened (a factor above 1) reads as `refreshed`: two
  * views cannot tell it from a refresh of the same length.
  */
-import type { AuraView } from '../auras/index.ts';
+import { auraCue, type AuraId, type AuraRegistry, type AuraTypes, type AuraView } from '../auras/index.ts';
+import type { CueId } from '../cues/index.ts';
 
 /**
  * What happened to one aura between two views of its bearer, as a client derives it at zero bytes:
@@ -108,4 +109,25 @@ export const auraChanges = (
   }
 
   return changes;
+};
+
+/**
+ * The cue a client plays for an aura's derived lifecycle change (`auraLifecycle`, `auraChanges`): the aura's own cue for
+ * it (`AuraDef.cues`), and for a `stacked` or `changed` it declares none for, its `refreshed` cue, since the server
+ * raises one `refreshed` for all three. `undefined` when it has none (or for a retired aura). A `stateEntered` cue is
+ * never derived: a state entered leaves nothing in the views, so that cue is local only, fired from the server's own
+ * aura events (`auraCue`).
+ */
+export const lifecycleCue = <G extends AuraTypes>(
+  registry: AuraRegistry<G>,
+  aura: AuraId,
+  change: AuraLifecycle
+): CueId | undefined => {
+  const own = auraCue(registry, aura, change);
+
+  if (own !== undefined || (change !== 'stacked' && change !== 'changed')) {
+    return own;
+  }
+
+  return auraCue(registry, aura, 'refreshed');
 };

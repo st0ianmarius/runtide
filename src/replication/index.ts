@@ -4,7 +4,7 @@
  * replicates. No schema library: the game's transport encodes the numbers.
  */
 
-export { auraChanges, type AuraLifecycle, auraLifecycle, type AuraViewChange } from './lifecycle.ts';
+export { auraChanges, type AuraLifecycle, auraLifecycle, type AuraViewChange, lifecycleCue } from './lifecycle.ts';
 
 export { defineProjection, type ProjectionSpec, type StatProjection } from './projection.ts';
 export { checkWireTable, type WireSource, type WireTable, wireTableOf } from './wire.ts';

@@ -71,6 +71,14 @@ export type AuraMergeRule = (current: number, incoming: number) => number;
 export type AuraChange = 'applied' | 'refreshed' | 'expired' | 'removed' | 'stateEntered';
 
 /**
+ * What an aura may declare a cue for (`AuraDef.cues`): every lifecycle change, and the two finer cases of a refresh a
+ * client derives from views, `stacked` (its stacks changed) and `changed` (its value changed). A client without a
+ * `stacked` or `changed` cue plays the `refreshed` one for them (`lifecycleCue`). A `stateEntered` cue is local only:
+ * the server's own aura events fire it, and no client derives it from views.
+ */
+export type AuraCueChange = AuraChange | 'stacked' | 'changed';
+
+/**
  * Why a change happened: the operation (or the step of an application) that caused it, WoW's aura remove mode and
  * more. `cleanse` and `evict` are the removals an application makes before it lands; `tick` covers expiries and beats.
  */
@@ -223,10 +231,12 @@ export interface AuraDef<G extends AuraTypes = AuraTypes> extends AuraDamageHook
 
   /**
    * Cues by lifecycle change, each a `self` or `entity` cue that sits on the bearer: the client
-   * plays them from what it sees of the aura on the wire (zero bytes), or a local game fires them from the aura events
-   * (`auraCue`). The aura system never reads them; `checkAuraCues` holds them against the cue registry at load.
+   * plays them from what it sees of the aura on the wire (zero bytes, `lifecycleCue`), or a local game fires them from
+   * the aura events (`auraCue`). `stacked` and `changed` are the finer refreshes a client derives (its `refreshed` cue
+   * when absent); `stateEntered` is local only, never derived. The aura system never reads them; `checkAuraCues` holds
+   * them against the cue registry at load.
    */
-  readonly cues?: Readonly<Partial<Record<AuraChange, CueId>>>;
+  readonly cues?: Readonly<Partial<Record<AuraCueChange, CueId>>>;
 
   /** The game's own data, which the framework never reads. */
   readonly data?: G['data'];
