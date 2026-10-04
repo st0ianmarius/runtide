@@ -260,7 +260,11 @@ export interface SpellCooldown<G extends SpellTypes, Source extends StatsSource<
    * it holds it (its charges are still read from the caster). Asked at each check and landing, so it must answer
    * without allocating. The spell system does not judge the holder's life: what the aura system holds on it is the
    * cooldown (see `SpellSystem.isCooling`). A prediction mirror rebuilds a button's bearer, not its holder, and a
-   * button's `resets` clear the bearer's auras only, so a held cooldown suits casters the server alone runs (a horde).
+   * button's `resets` clear the bearer's auras only, so a held cooldown suits casters the server alone runs (a horde):
+   * the ability system refuses a button spell with one at load. The holder's aura counts the holder's own ticks, not
+   * the casters': tick the holder's auras once every tick, before every caster that reads it or after every one, never
+   * between them, or the gaps a cooldown leaves alternate (a 4-tick cooldown on a holder ticked mid-loop spaces casts
+   * 3, 5, 3, 5 ticks apart); a holder never ticked keeps its cooldown for good.
    */
   readonly holder?: (caster: G['bearer']) => G['bearer'];
 }

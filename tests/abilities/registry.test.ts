@@ -33,6 +33,33 @@ describe('button activation data', () => {
     );
   });
 
+  it('refuses a button whose cooldown is kept on a holder, which a mirror cannot predict, at load', () => {
+    const held = (holdsAll: boolean): AnySpellDef<AbilityGame> =>
+      spell({
+        activation: { kind: 'button' },
+        cooldown: [
+          { aura: 'skillCooldown', seconds: 1 },
+          holdsAll ? { aura: 'dodgeCooldown', holder: (hero) => hero } : { aura: 'dodgeCooldown' }
+        ],
+        release
+      });
+
+    assert.throws(
+      () => makeAbilityGame({ bad: held(true) }),
+      /spell bad: .*held cooldown suits server-run casters only, and cannot be predicted/
+    );
+    assert.doesNotThrow(() => makeAbilityGame({ good: held(false) }));
+    assert.doesNotThrow(() =>
+      makeAbilityGame({
+        swing: spell({
+          activation: { kind: 'trigger' },
+          cooldown: { aura: 'skillCooldown', holder: (hero) => hero },
+          release
+        })
+      })
+    );
+  });
+
   it('refuses unknown tags and dead auras, at load', () => {
     assert.throws(() => makeAbilityGame({ bad: forged('requires', ['frozen']) }), /spell bad: there is no aura tag/);
     assert.throws(

@@ -92,6 +92,35 @@ const liveAura = (
   return id;
 };
 
+/** What `checkUnheld` reads of a spell's cooldown. */
+interface HeldCooldown {
+  /** Its aura. */
+  readonly aura: unknown;
+
+  /** The unit it is kept on, when not the caster. */
+  readonly holder?: unknown;
+}
+
+/** Whether a cooldown is kept on a holder. */
+const isHeld = (cooldown: HeldCooldown): boolean => cooldown.holder !== undefined;
+
+/**
+ * Throws for a button spell with a cooldown kept on a `holder`: a prediction mirror rebuilds a button's bearer, not its
+ * holder, so it would read the button ready (and land its auras wherever the client's holder answers) while the server
+ * refuses it as `cooldown`.
+ */
+const checkUnheld = (what: string, cooldown: HeldCooldown | readonly HeldCooldown[] | undefined): void => {
+  if (cooldown === undefined) {
+    return;
+  }
+
+  if ('aura' in cooldown ? isHeld(cooldown) : cooldown.some(isHeld)) {
+    throw new TypeError(
+      `${what}: a button cannot keep its cooldown on a holder; a held cooldown suits server-run casters only, and cannot be predicted.`
+    );
+  }
+};
+
 /** Compiles one button spell's activation. */
 const compileButton = <G extends AbilityTypes>(state: Compiling<G>, def: ButtonActivation<G>): CompiledButton<G> => {
   const { cost } = def;
@@ -113,7 +142,7 @@ const compileButton = <G extends AbilityTypes>(state: Compiling<G>, def: ButtonA
 
 /**
  * Compiles every button spell of a registry, by spell id (`undefined` for any other spell or a
- * retired one), checked at load: every tag and aura it names must exist.
+ * retired one), checked at load: every tag and aura it names must exist, and none keeps a cooldown on a `holder`.
  */
 export const compileButtons = <G extends AbilityTypes>(
   spells: SpellSystem<G>,
@@ -127,8 +156,14 @@ export const compileButtons = <G extends AbilityTypes>(
       return undefined;
     }
 
-    const { activation } = registry.get(id);
+    const { activation, cooldown } = registry.get(id);
     const state = { auras, spell: id, what: `spell ${registry.name(id)}` };
 
-    return isButton<G>(activation) ? compileButton(state, activation) : undefined;
+    if (!isButton<G>(activation)) {
+      return undefined;
+    }
+
+    checkUnheld(state.what, cooldown);
+
+    return compileButton(state, activation);
   });
