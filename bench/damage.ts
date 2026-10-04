@@ -181,7 +181,10 @@ const damage = createDamageSystem<BenchGame>({
 
     statsOf: (unit) => unit.view,
     idOf: (unit) => unit.id,
-    roll: () => MAIN()
+    roll: () => MAIN(),
+
+    // The bench's hooks change blows and return no procs: nothing to run.
+    run: () => undefined
   }
 });
 
