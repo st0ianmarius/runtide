@@ -325,14 +325,14 @@ const moveHeroes = (): void => {
   }
 };
 
-/** A mob walks toward its hero until its swing reaches, at its folded speed. */
+/** A mob walks toward its hero until its swing reaches, at its folded speed, and measures the gap it is left at. */
 const walk = (mob: Unit<CoopGame>): void => {
   const hero = heroes[mob.ext.hero] ?? missing();
   const at = WORLD.positionOf(mob, HERE);
   const goal = WORLD.positionOf(hero, THERE);
   const dx = goal.x - at.x;
   const dz = goal.z - at.z;
-  const gap = hypot(dx, dz);
+  let gap = hypot(dx, dz);
 
   if (gap > REACH && UNITS.canMove(mob)) {
     const step = Math.min(gap - REACH, WALK * UNITS.statsOf(mob).total(STATS.id.speed)) / gap;
@@ -340,6 +340,7 @@ const walk = (mob: Unit<CoopGame>): void => {
     AT.x = at.x + dx * step;
     AT.z = at.z + dz * step;
     WORLD.place(mob, AT);
+    gap = hypot(goal.x - AT.x, goal.z - AT.z);
   }
 
   mob.ext.gap = gap;
