@@ -21,6 +21,12 @@ export class Brain implements BrainState {
   /** How many times each timer was put on the wheel, wrapped: what tells its live entry from a stale one. */
   readonly starts: Uint32Array;
 
+  /**
+   * When each timer was last started, or collected (`ai.collect`), on the system's count: a held brain's timers go back
+   * on the wheel in this order, so timers due on one tick still fire in the order they were started.
+   */
+  readonly stamps: Float64Array;
+
   /** The bits of the reasons holding its timers (`ai.hold`); 0 when they count. */
   holds = 0;
 
@@ -34,6 +40,7 @@ export class Brain implements BrainState {
     this.due = new Float64Array(timers).fill(Number.NaN);
     this.left = new Float64Array(timers).fill(Number.NaN);
     this.starts = new Uint32Array(timers);
+    this.stamps = new Float64Array(timers);
   }
 }
 

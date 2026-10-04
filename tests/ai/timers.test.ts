@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { cancelTimer, defineTimers, setTimer } from '../../src/ai/index.ts';
+import { cancelTimer, createAiSystem, DEAD_HOLD, defineTimers, setTimer } from '../../src/ai/index.ts';
 import type { TimerId } from '../../src/ai/index.ts';
+import { toId } from '../../src/core/ids.ts';
 import type { Unit } from '../../src/units/index.ts';
 import { auraId, makeUnitGame, TIMERS, type UnitGame } from '../helpers/unit-game.ts';
 
@@ -195,6 +196,7 @@ describe('named timers (EventMap)', () => {
       /fire/
     );
     assert.equal(ai.remaining(b, raise), 0);
+    assert.equal(ai.step(fire), 0);
     tick();
     assert.deepEqual(fired, ['raise@2@3', 'raise@1@3']);
     assert.equal(ai.remaining(a, raise), undefined);
@@ -226,5 +228,96 @@ describe('named timers (EventMap)', () => {
     assert.throws(() => {
       ai.start(a, defineTimers(['a', 'b', 'c']).id.c, 1);
     }, /Timer 2/);
+  });
+
+  it('refuse a timer id that is not an integer of the table', () => {
+    const { ai, a, procs } = timed();
+
+    for (const timer of [1.5, 32, -1, Number.NaN]) {
+      assert.throws(() => {
+        ai.start(a, toId<'timers'>(timer), 1);
+      }, /Timer/);
+      assert.throws(() => ai.take(a, toId<'timers'>(timer)), /Timer/);
+      assert.throws(() => ai.remaining(a, toId<'timers'>(timer)), /Timer/);
+      assert.throws(() => procs.prepare([setTimer<UnitGame>(toId<'timers'>(timer), 1)], 'Test'), /unknown timer/);
+    }
+  });
+
+  it('take a name like __proto__ as a timer of its own', () => {
+    const table = defineTimers(['__proto__', 'nap']);
+
+    assert.equal(Object.getOwnPropertyDescriptor(table.id, '__proto__')?.value, 0);
+    assert.equal(Object.getPrototypeOf(table.id), Object.prototype);
+  });
+
+  it('refuse the death hold among the game’s reasons', () => {
+    const { spells, clock } = timed();
+
+    assert.throws(() => createAiSystem({ spells, clock, timers: TIMERS, holds: ['intro', DEAD_HOLD] }), /system's own/);
+  });
+
+  it('come back from a hold in the order they were started, and collected ones in the order they were collected', () => {
+    const { ai, a, fired, tick, clock } = timed();
+    const { pick, raise } = TIMERS.id;
+
+    ai.start(a, raise, 0.5);
+    ai.start(a, pick, 0.5);
+    ai.hold(a, 'intro', true);
+    ai.hold(a, 'intro', false);
+    tick(2);
+    assert.deepEqual(fired, ['raise@1@2', 'pick@1@2']);
+
+    const marked: string[] = [];
+
+    const mark = (_unit: unknown, timer: TimerId): void => {
+      marked.push(TIMERS.names[timer] ?? '?');
+    };
+
+    ai.start(a, raise, 0.25);
+    ai.start(a, pick, 0.5);
+    clock.step();
+    assert.equal(ai.collect(mark), 1);
+    // A tick on, raise still waits for delivery as pick falls due: the hold puts raise back first.
+    clock.step();
+    ai.hold(a, 'intro', true);
+    ai.hold(a, 'intro', false);
+    assert.equal(ai.collect(mark), 2);
+    assert.deepEqual(marked, ['raise', 'raise', 'pick']);
+  });
+
+  it('read 0 left on a timer collected and not yet taken, as cancel finds it running', () => {
+    const { ai, a, clock } = timed();
+
+    ai.start(a, TIMERS.id.pick, 0.25);
+    clock.step();
+    ai.collect(() => undefined);
+    assert.equal(ai.remaining(a, TIMERS.id.pick), 0);
+    assert.equal(ai.cancel(a, TIMERS.id.pick), true);
+    assert.equal(ai.remaining(a, TIMERS.id.pick), undefined);
+  });
+
+  it('round a held start to whole ticks, as a running one is', () => {
+    const { ai, a } = timed();
+
+    ai.start(a, TIMERS.id.pick, 0.3);
+    ai.hold(a, 'intro', true);
+    ai.start(a, TIMERS.id.raise, 0.3);
+    assert.deepEqual([ai.remaining(a, TIMERS.id.pick), ai.remaining(a, TIMERS.id.raise)], [0.5, 0.5]);
+  });
+
+  it('tell whether a brain is held, and by which reason', () => {
+    const { ai, units, auras, a, b } = timed();
+
+    assert.equal(ai.isHeld(a), false);
+    ai.hold(a, 'intro', true);
+    auras.apply(b, auraId('freeze'));
+    assert.deepEqual(
+      [ai.isHeld(a), ai.isHeld(a, 'intro'), ai.isHeld(a, 'freeze'), ai.isHeld(a, 'nap'), ai.isHeld(b, 'freeze')],
+      [true, true, false, false, true]
+    );
+    ai.hold(a, 'intro', false);
+    assert.equal(ai.isHeld(a), false);
+    units.despawn(b);
+    assert.equal(ai.isHeld(b), false);
   });
 });

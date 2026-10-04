@@ -29,8 +29,9 @@ export interface AiSystemOptions<G extends AiTypes> {
 
   /**
    * The reasons that hold a brain's timers (`ai.hold`), the game's own: an intro or a blink, and the unit states'
-   * interrupts its creatures wait out (a freeze, which the unit system passes on). None when absent; at most 31, with
-   * `DEAD_HOLD`, which every system has, listed here or not.
+   * interrupts its creatures wait out (a freeze, which the unit system passes on). None when absent; at most 30, each
+   * once. `DEAD_HOLD` is every system's own and may not be listed: a unit state named after it would let go of a dead
+   * unit's brain.
    */
   readonly holds?: readonly string[];
 }
@@ -63,13 +64,19 @@ export interface AiSystem<G extends AiTypes> {
   /** Frees a unit's brain as it leaves (its timers stop, its record is reused); false when already freed. */
   readonly release: (unit: G['bearer']) => boolean;
 
-  /** Starts (or restarts) a timer, due `seconds` from now; a held brain's waits until it is released. */
+  /**
+   * Starts (or restarts) a timer, due `seconds` from now, rounded up to whole ticks; a held brain's waits until it is
+   * released. Throws for a timer id that is not an integer of the table.
+   */
   readonly start: (unit: G['bearer'], timer: TimerId, seconds: number) => void;
 
   /** Stops a timer; false when it was not running. */
   readonly cancel: (unit: G['bearer'], timer: TimerId) => boolean;
 
-  /** The seconds left on a timer, held or not; `undefined` when it is not running. */
+  /**
+   * The seconds left on a timer, held or not, rounded up to whole ticks: 0 for one `collect` handed out and not yet
+   * taken; `undefined` when it is not running.
+   */
   readonly remaining: (unit: G['bearer'], timer: TimerId) => number | undefined;
 
   /**
@@ -96,6 +103,13 @@ export interface AiSystem<G extends AiTypes> {
    */
   readonly hold: (unit: G['bearer'], reason: string, isOn: boolean) => boolean;
 
+  /**
+   * Whether a unit's brain is held: by any reason, or by `reason` when given (false for one the system was not given,
+   * and for a freed brain). A game's own per-unit logic (a script's `tick`) runs on while its timers are held, and asks
+   * this to wait out an intro or a freeze too.
+   */
+  readonly isHeld: (unit: G['bearer'], reason?: string) => boolean;
+
   /** Picks a spell from a pool, weighted; `undefined` for none. */
   readonly pick: (caster: G['bearer'], pool: readonly SpellId[], options: PickOptions<G>) => SpellId | undefined;
 
@@ -109,7 +123,10 @@ export interface AiSystem<G extends AiTypes> {
   /** The entity id a unit focuses (a tether's target, a sticky target); −1 for none. */
   readonly focusOf: (unit: G['bearer']) => number;
 
-  /** Sets the entity id a unit focuses; −1 clears it. */
+  /**
+   * Sets the entity id a unit focuses; −1 clears it. A freed brain keeps none (a late call on a despawned unit does
+   * nothing); throws for an id that is not an integer.
+   */
   readonly setFocus: (unit: G['bearer'], focus: number) => void;
 }
 
@@ -119,10 +136,17 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
   const scheduler = new Scheduler<G>(options.clock, timers.names.length);
   const picker = new Picker<G>(spells);
   const given = options.holds ?? [];
-  const holds = given.includes(DEAD_HOLD) ? given : [...given, DEAD_HOLD];
+
+  if (given.includes(DEAD_HOLD)) {
+    throw new RangeError(
+      `The hold reason '${DEAD_HOLD}' is the system's own (DEAD_HOLD); name the game's another way.`
+    );
+  }
+
+  const holds = [...given, DEAD_HOLD];
 
   if (holds.length > MAX_HOLDS || new Set(holds).size !== holds.length) {
-    throw new RangeError(`An AI system takes at most ${MAX_HOLDS} hold reasons, each once.`);
+    throw new RangeError(`An AI system takes at most ${MAX_HOLDS - 1} hold reasons, each once.`);
   }
 
   // Each reason's bit, looked up once: a freeze edge reads one map.
@@ -155,6 +179,12 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
     collect: (mark) => scheduler.step(mark, true),
     take: (unit, timer) => scheduler.take(unit, timer),
     hold: (unit, reason, isOn) => scheduler.hold(unit, { bits: holdBits.get(reason) ?? 0, isOn }),
+
+    isHeld: (unit, reason) => {
+      const bits = scheduler.holdsOf(unit);
+
+      return reason === undefined ? bits !== 0 : (bits & (holdBits.get(reason) ?? 0)) !== 0;
+    },
 
     pick: (caster, pool, pick) => picker.pick(caster, pool, pick),
     first: (caster, list, first) => picker.first(caster, list, first),

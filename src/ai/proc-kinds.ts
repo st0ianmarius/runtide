@@ -20,7 +20,7 @@ const timerIdOf = <G extends AiTypes>(timers: TimerTable<G['timerName']>, timer:
   const ids: Readonly<Record<string, TimerId | undefined>> = timers.id;
   const id = typeof timer === 'string' ? ownValue(ids, timer) : timer;
 
-  if (id === undefined || !(id >= 0 && id < timers.names.length)) {
+  if (id === undefined || !(Number.isInteger(id) && id >= 0 && id < timers.names.length)) {
     throw new RangeError(`unknown timer ${timer}.`);
   }
 

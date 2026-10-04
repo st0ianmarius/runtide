@@ -1,4 +1,5 @@
 import { toId } from '../core/ids.ts';
+import { recordOf } from '../core/records.ts';
 import type { TimerId } from './ai-types.ts';
 
 /** The most timers a game may declare: each is a slot of every brain. */
@@ -27,21 +28,8 @@ export const defineTimers = <const Name extends string>(names: readonly Name[]):
     throw new RangeError(`At most ${MAX_TIMERS} timers; got ${names.length}.`);
   }
 
-  const id: Partial<Record<Name, TimerId>> = {};
+  // Built as own data properties, so a name like `__proto__` is a timer like any other, read with `ownValue`.
+  const id = recordOf(names, (name) => toId<'timers'>(names.indexOf(name)));
 
-  for (const [index, name] of names.entries()) {
-    id[name] = toId<'timers'>(index);
-  }
-
-  if (!isComplete(id, names)) {
-    throw new Error('A timer table lost a name while it was built.');
-  }
-
-  return Object.freeze({ names: Object.freeze([...names]), id: Object.freeze(id) });
+  return Object.freeze({ names: Object.freeze([...names]), id });
 };
-
-/** Whether a record has an id for every name. */
-const isComplete = <Name extends string>(
-  record: Partial<Record<Name, TimerId>>,
-  names: readonly Name[]
-): record is Record<Name, TimerId> => names.every((name) => record[name] !== undefined);
