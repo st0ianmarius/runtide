@@ -30,6 +30,12 @@ export class CasterRecord implements CasterState {
   /** The caster's step on which each armed clock runs out (`stepsUntil` its seconds from when it was set). */
   readonly dues: number[] = [];
 
+  /** The clock tick on which each armed clock was last set or armed from outside a step; NaN for none. */
+  readonly setTicks: number[] = [];
+
+  /** The clock tick on which a clock was last set or armed from outside a step (`stamp`); NaN for none. */
+  stampedTick = Number.NaN;
+
   /** How many times its clocks were stepped: they count on the caster's own steps, so one not stepped waits. */
   steps = 0;
 
@@ -88,6 +94,7 @@ export class CasterRecord implements CasterState {
     this.lefts.splice(index, 0, 0);
     this.sets.splice(index, 0, 0);
     this.dues.splice(index, 0, 0);
+    this.setTicks.splice(index, 0, Number.NaN);
     // Armed during a step, after the spell being walked: the walk reaches it, so it counts this step as before.
     this.setClock(index, seconds, dt);
 
@@ -111,6 +118,42 @@ export class CasterRecord implements CasterState {
     if (due < this.nextDue) {
       this.nextDue = due;
     }
+  }
+
+  /**
+   * Stamps an armed clock as set or armed on `tick` from outside a step: should the caster's step of that same tick
+   * come after, it passes the clock by (`passStamped`), so the clock counts from the tick's next step as one set after
+   * the step does. A clock set during a step (its walk's own casts) is not stamped.
+   */
+  stamp(index: number, tick: number): void {
+    if (this.walking >= 0) {
+      return;
+    }
+
+    this.setTicks[index] = tick;
+    this.stampedTick = tick;
+  }
+
+  /**
+   * At the caster's step on `tick` (its `steps` counted already), moves every clock set or armed earlier on the same
+   * tick one step on, so this step neither counts it down nor runs it out: it is as though set just after the step.
+   */
+  passStamped(tick: number): void {
+    if (tick !== this.stampedTick) {
+      return;
+    }
+
+    const { steps, sets, dues, setTicks } = this;
+
+    for (let i = 0; i < dues.length; i++) {
+      if (setTicks[i] === tick && sets[i] === steps - 1) {
+        sets[i] = steps;
+        dues[i] = Math.max((dues[i] ?? 0) + 1, steps + 1);
+      }
+    }
+
+    this.stampedTick = Number.NaN;
+    this.resetDue();
   }
 
   /** The seconds left on an armed clock: what it was set to, less the steps since, and 0 once it ran out. */
@@ -172,6 +215,7 @@ export class CasterRecord implements CasterState {
     this.lefts.splice(index, 1);
     this.sets.splice(index, 1);
     this.dues.splice(index, 1);
+    this.setTicks.splice(index, 1);
 
     return true;
   }

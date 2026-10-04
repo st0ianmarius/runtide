@@ -192,7 +192,9 @@ const stepHeld = <G extends SpellTypes>(engine: SpellEngine<G>, cast: Cast<G>): 
 
 /**
  * Steps every cast a caster runs by one step of the clock, in the order they started (stepped per caster so the
- * game keeps its own per-unit order; pausing is not counting down). A cast started during the step waits for the next.
+ * game keeps its own per-unit order; pausing is not counting down). A cast started on this tick, before the step or
+ * during it, waits for the next step: its stages count from the step after the tick it began, wherever in the tick it
+ * was issued (a script's, an input's or another brain's cast runs its full windup like one cast after the step).
  */
 export const stepCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['bearer']): void => {
   const count = recordOf(caster).count;
@@ -202,12 +204,13 @@ export const stepCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caster:
   }
 
   const handles = snapshot(engine, caster);
+  const { tick } = engine.clock;
 
   try {
     for (let i = 0; i < count; i++) {
       const cast = engine.castOf(handles[i] ?? NO_CAST);
 
-      if (cast !== undefined && !isEnded(cast)) {
+      if (cast !== undefined && !isEnded(cast) && cast.startTick !== tick) {
         stepHeld(engine, cast);
       }
     }

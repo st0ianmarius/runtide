@@ -43,8 +43,9 @@ describe('states interrupting casts', () => {
   });
 
   it('raise an interrupt once for overlapping auras, ending it with the last', () => {
-    const { auras, spells, units, grunt, handle } = casting();
+    const { auras, spells, units, clock, grunt, handle } = casting();
 
+    clock.step();
     auras.apply(grunt, auraId('freeze'));
     auras.apply(grunt, auraId('root'));
     assert.equal(units.syncStates(grunt), 0);

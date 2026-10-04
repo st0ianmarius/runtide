@@ -1,7 +1,7 @@
 import { type AutoActivation, isAuto } from './activation.ts';
 import type { CastReport, Report } from './cast-request.ts';
 import { recordOf } from './caster.ts';
-import type { SpellEngine } from './engine.ts';
+import type { SpellClock, SpellEngine } from './engine.ts';
 import type { SpellCaster, SpellId, SpellTypes } from './spell-types.ts';
 
 /** The reach rules' refusals: where the target stands, which the next step may change. */
@@ -71,9 +71,10 @@ const countClock = <G extends SpellTypes>(
  * its spell. After the cast the clock is set, with no carry-over, to what its activation's `next` answers (`autoNext`
  * by default: the interval read at the cast, or the next step). A clock whose activation says the caster is not
  * `ready` waits at zero, casting nothing. The walk goes by spell, not by index, since a cast may arm or disarm clocks:
- * one armed during it after the spell that cast is stepped too, as it would have been armed before. The clocks
- * count the caster's own steps, stamped with the step each runs out on, so a caster none of whose clocks is due costs
- * an increment and a compare.
+ * one armed during it after the spell that cast is stepped too, as it would have been armed before. A clock set or
+ * armed earlier on this tick (`setClock`, `arm`) is passed by: it counts from the tick's next step, as one set after
+ * this step does. The clocks count the caster's own steps, stamped with the step each runs out on, so a caster none of
+ * whose clocks is due costs an increment and a compare or two.
  */
 export const stepAutoClocks = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -83,6 +84,7 @@ export const stepAutoClocks = <G extends SpellTypes>(
   const record = recordOf(caster);
 
   record.steps += 1;
+  record.passStamped(engine.clock.tick);
 
   if (record.steps < record.nextDue) {
     return;
@@ -124,9 +126,10 @@ export const autoClockOf = (caster: SpellCaster, spell: SpellId, dt: number): nu
 
 /**
  * Sets the seconds left on a caster's armed `auto` clock for a spell (a creature's swing reset as its other cast
- * ends); false for a spell it has not armed. Throws for seconds that are not finite from 0.
+ * ends), counted from the caster's first step after this tick whether it comes before or after this tick's step;
+ * false for a spell it has not armed. Throws for seconds that are not finite from 0.
  */
-export const setAutoClock = (caster: SpellCaster, spell: SpellId, seconds: number, dt: number): boolean => {
+export const setAutoClock = (caster: SpellCaster, spell: SpellId, seconds: number, clock: SpellClock): boolean => {
   if (!(seconds >= 0) || !Number.isFinite(seconds)) {
     throw new RangeError(`An auto clock is set to finite seconds from 0; got ${seconds}.`);
   }
@@ -138,15 +141,18 @@ export const setAutoClock = (caster: SpellCaster, spell: SpellId, seconds: numbe
     return false;
   }
 
-  record.setClock(index, seconds, dt);
+  record.setClock(index, seconds, clock.dt);
+  record.stamp(index, clock.tick);
   record.resetDue();
 
   return true;
 };
 
 /**
- * Arms a caster's `auto` clock for a spell with `seconds` left (0 by default: it casts on the caster's next step, as a
- * spell gained mid-fight fires at once); false when it was armed already. Throws for a spell that is not `auto`.
+ * Arms a caster's `auto` clock for a spell with `seconds` left, counted from the caster's first step after this tick
+ * (0 by default: it casts on that step, as a spell gained mid-fight fires at once); false when it was armed already.
+ * Armed during the caster's own step, after the spell being walked, it counts that step as before. Throws for a spell
+ * that is not `auto`.
  */
 export const armAuto = <G extends SpellTypes>(
   engine: SpellEngine<G>,
@@ -159,7 +165,15 @@ export const armAuto = <G extends SpellTypes>(
     throw new RangeError(`An auto clock is armed with finite seconds from 0; got ${at.seconds}.`);
   }
 
-  return recordOf(caster).arm(at.spell, at.seconds, engine.clock.dt);
+  const record = recordOf(caster);
+
+  if (!record.arm(at.spell, at.seconds, engine.clock.dt)) {
+    return false;
+  }
+
+  record.stamp(record.autoAt(at.spell), engine.clock.tick);
+
+  return true;
 };
 
 /** A rescale of a caster's pending clocks: what `spells.rescaleClocks` takes and the `rescaleClocks` proc makes. */

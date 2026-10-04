@@ -115,6 +115,7 @@ describe('the rescaleClocks proc kind', () => {
     const game = procGame();
     const [hero, idle] = [game.unit(1), game.unit(2)];
 
+    game.step();
     game.spells.stepAuto(hero);
     game.spells.disarm(idle, game.id.swing);
     game.spells.disarm(idle, game.id.volley);
@@ -128,6 +129,7 @@ describe('the rescaleClocks proc kind', () => {
     const game = procGame();
     const hero = game.unit(1);
 
+    game.step();
     game.spells.stepAuto(hero);
     assert.equal(
       game.procs.apply(rescaleClocks<Game>(0.5, { tag: SPELL_TAGS.id.melee }), { self: hero }).status,

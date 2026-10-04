@@ -343,6 +343,7 @@ describe('rescaling clocks', () => {
     const game = clockGame();
     const hero = game.unit(1);
 
+    game.step();
     game.spells.stepAuto(hero);
     assert.deepEqual([game.spells.autoClock(hero, game.id.swing), game.spells.autoClock(hero, game.id.bolt)], [2, 4]);
     assert.equal(game.spells.rescaleClocks(hero, { factor: 0.5, tag: SPELL_TAGS.id.melee }), 1);
@@ -356,6 +357,7 @@ describe('rescaling clocks', () => {
     const game = clockGame();
     const hero = game.unit(1);
 
+    game.step();
     game.spells.stepAuto(hero);
 
     game.spells.rescaleClocks(hero, { factor: 0.75 });

@@ -347,6 +347,7 @@ describe('pooled casts', () => {
     const hero = game.unit(1);
     const { handle } = game.spells.cast(hero, game.id.beam);
 
+    game.step();
     game.spells.step(hero);
     assert.deepEqual([game.spells.isRunning(handle), game.spells.pool.live], [false, 0]);
     assert.equal(game.log.at(-1), 'end beam@1 cancelled');

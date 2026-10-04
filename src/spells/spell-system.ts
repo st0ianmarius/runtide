@@ -112,7 +112,10 @@ export interface SpellSystem<G extends SpellTypes> {
   /**
    * Steps every cast a caster runs by one step of the clock, in the order they started: windups count down,
    * track and release, channels beat, recoveries end. The host calls it for each caster in its own order; a paused
-   * cast does not count down.
+   * cast does not count down. A cast started on this tick is not stepped by it, so its stages count from the next
+   * tick's step wherever in the tick it was cast (before this step, by a script, an input or a brain stepped first, or
+   * after it): a 0.5 s windup at a 0.25 s step cast on tick 0 releases on tick 2 either way. Zero-length stages still
+   * pass at the cast itself.
    */
   readonly step: (caster: G['bearer']) => void;
 
@@ -120,13 +123,15 @@ export interface SpellSystem<G extends SpellTypes> {
    * Steps a caster's armed `auto` clocks by one step, in registry order: one that ran out casts its spell and
    * is set to what its activation's `next` answers (the interval read at the cast, or sooner). Each cast this step
    * starts goes with `options` (the step's `input`, its credited `source`), as `cast`'s would; with none, no input and
-   * the caster's own credit. A caster with none armed costs nothing.
+   * the caster's own credit. A clock set or armed earlier on this tick is not stepped by it: it counts from the next
+   * tick's step, as one set after this step does. A caster with none armed costs nothing.
    */
   readonly stepAuto: (caster: G['bearer'], options?: AutoOptions<G>) => void;
 
   /**
-   * Arms a caster's `auto` clock for a spell it has now (a template's swing, a card), with `seconds` left (0: it casts
-   * on the next step), so a unit steps its own attacks, never the game's; false when armed already.
+   * Arms a caster's `auto` clock for a spell it has now (a template's swing, a card), with `seconds` left counted from
+   * the caster's first step after this tick (0: it casts on that step), so a unit steps its own attacks, never the
+   * game's; false when armed already.
    */
   readonly arm: (caster: G['bearer'], spell: SpellId, seconds?: number) => boolean;
 
@@ -136,7 +141,10 @@ export interface SpellSystem<G extends SpellTypes> {
   /** The seconds left on a caster's `auto` clock for a spell; 0 for one it has not armed. */
   readonly autoClock: (caster: G['bearer'], spell: SpellId) => number;
 
-  /** Sets the seconds left on a caster's armed `auto` clock (a swing reset as another cast ends); false if unarmed. */
+  /**
+   * Sets the seconds left on a caster's armed `auto` clock (a swing reset as another cast ends), counted from the
+   * caster's first step after this tick whether set before or after its `stepAuto` this tick; false if unarmed.
+   */
   readonly setClock: (caster: G['bearer'], spell: SpellId, seconds: number) => boolean;
 
   /**

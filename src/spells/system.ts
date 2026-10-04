@@ -166,7 +166,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     autoClockOf(caster, spell, this.#engine.clock.dt);
 
   readonly setClock = (caster: G['bearer'], spell: SpellId, seconds: number): boolean =>
-    setAutoClock(caster, spell, seconds, this.#engine.clock.dt);
+    setAutoClock(caster, spell, seconds, this.#engine.clock);
 
   readonly stepDelayed = (slot?: TickSlotId): number => this.#engine.delayed.land(slot ?? 0);
 

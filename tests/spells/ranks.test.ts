@@ -41,9 +41,10 @@ describe('the caster’s own rank', () => {
   });
 
   it('reach an auto clock’s casts: a card’s rank', () => {
-    const { spells, hero, ranks, key, lines } = ranked();
+    const { spells, hero, ranks, key, lines, step } = ranked();
 
     ranks.set(key('glaive'), 4);
+    step();
     spells.stepAuto(hero);
     assert.deepEqual(lines(), ['r4@1']);
   });
