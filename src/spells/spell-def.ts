@@ -230,9 +230,10 @@ export interface SpellCues<G extends SpellTypes, Source extends StatsSource<G>, 
 }
 
 /**
- * One of a spell's cooldowns: an aura on the caster that refuses its casts (as `cooldown`) while held, landed as a cast
- * starts (or releases), for `seconds` or the aura's own duration. Spells that name one aura share it (a category: every
- * potion, a global cooldown). `spells.check`, a picker and a button see it, as they see the gates.
+ * One of a spell's cooldowns: an aura on the caster (or its `holder`) that refuses its casts (as `cooldown`) while held,
+ * landed as a cast starts (or releases), for `seconds` or the aura's own duration. Spells that name one aura share it
+ * (a category: every potion, a global cooldown); casters that name one holder share it too (a gap after any big cast
+ * across a horde). `spells.check`, a picker and a button see it, as they see the gates.
  */
 export interface SpellCooldown<G extends SpellTypes, Source extends StatsSource<G> = StatsSource<G>> {
   /** The aura: its name in data, its id in code. */
@@ -252,6 +253,16 @@ export interface SpellCooldown<G extends SpellTypes, Source extends StatsSource<
    * `maxStacks` must allow the most it can answer.
    */
   readonly charges?: number | ((caster: G['bearer']) => number);
+
+  /**
+   * The unit the cooldown aura is applied to and read from; the caster when absent. A director's world unit shares
+   * one cooldown across every caster that answers it: each cast lands the aura on it, and every caster is refused while
+   * it holds it (its charges are still read from the caster). Asked at each check and landing, so it must answer
+   * without allocating. The spell system does not judge the holder's life: what the aura system holds on it is the
+   * cooldown (see `SpellSystem.isCooling`). A prediction mirror rebuilds a button's bearer, not its holder, and a
+   * button's `resets` clear the bearer's auras only, so a held cooldown suits casters the server alone runs (a horde).
+   */
+  readonly holder?: (caster: G['bearer']) => G['bearer'];
 }
 
 /**

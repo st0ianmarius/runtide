@@ -63,10 +63,18 @@ export interface SpellSystem<G extends SpellTypes> {
   /** A spell's cooldown auras (its own, a category's, a global one), in the order it names them. */
   readonly cooldownsOf: (spell: SpellId) => readonly AuraId[];
 
-  /** Whether a caster holds any of a spell's cooldowns, so its casts are refused as `cooldown`. */
+  /**
+   * Whether a caster holds any of a spell's cooldowns, so its casts are refused as `cooldown`: read on the cooldown's
+   * `holder` when it names one. A holder is taken as it answers, its life unjudged: the cooldown is what the aura system
+   * holds on it, so its death frees every caster only when the aura is `removedOn` that state, its despawn
+   * (`auras.release`) frees them all, and a cast after either lands the aura on whatever unit it answers again.
+   */
   readonly isCooling: (caster: G['bearer'], spell: SpellId) => boolean;
 
-  /** The seconds until a caster may cast a spell again: the most left on any of its cooldowns; 0 when none runs. */
+  /**
+   * The seconds until a caster may cast a spell again: the most left on any of its cooldowns (on their holders); 0 when
+   * none runs.
+   */
   readonly cooldownLeft: (caster: G['bearer'], spell: SpellId) => number;
 
   /**

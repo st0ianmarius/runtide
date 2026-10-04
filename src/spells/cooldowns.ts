@@ -7,7 +7,10 @@ import type { Cast } from './cast.ts';
 import type { AnySpellDef, SpellCooldown } from './spell-def.ts';
 import type { SpellTypes } from './spell-types.ts';
 
-/** One of a spell's cooldowns, resolved at load: its aura, its seconds, and whether it lands at the release. */
+/**
+ * One of a spell's cooldowns, resolved at load: its aura, its seconds, whether it lands at the release, and the unit it
+ * lives on.
+ */
 export interface CompiledCooldown<G extends SpellTypes> {
   /** The aura. */
   readonly aura: AuraId;
@@ -20,6 +23,9 @@ export interface CompiledCooldown<G extends SpellTypes> {
 
   /** How many of its aura's stacks hold the spell: a number, or read from the caster at each check. */
   readonly charges: number | ((caster: G['bearer']) => number);
+
+  /** The unit its aura is landed on and read from, asked with the caster; the caster itself when absent. */
+  readonly holder: ((caster: G['bearer']) => G['bearer']) | undefined;
 }
 
 /** When cooldowns land: as a cast starts, as it releases, or all at once (a press that commits them). */
@@ -58,9 +64,13 @@ const compileOne = <G extends SpellTypes>(
   cooldown: SpellCooldown<G>,
   name: string
 ): CompiledCooldown<G> => {
-  const { seconds, startsOn, charges = 1 } = cooldown;
+  const { seconds, startsOn, charges = 1, holder } = cooldown;
 
   checkNumbers(cooldown, name);
+
+  if (holder !== undefined && typeof holder !== 'function') {
+    throw new TypeError(`Spell ${name}: a cooldown's holder is a function of the caster.`);
+  }
 
   const ids: Readonly<Record<string, AuraId | undefined>> = auras.registry.id;
   const id = typeof cooldown.aura === 'string' ? ids[cooldown.aura] : cooldown.aura;
@@ -69,7 +79,7 @@ const compileOne = <G extends SpellTypes>(
     throw new RangeError(`Spell ${name}: its cooldown aura ${cooldown.aura} is not a live aura.`);
   }
 
-  return Object.freeze({ aura: id, seconds, onRelease: startsOn === 'release', charges });
+  return Object.freeze({ aura: id, seconds, onRelease: startsOn === 'release', charges, holder });
 };
 
 /** A cooldown's charges for a caster now: its number, or what its function answers, checked. */
@@ -86,6 +96,10 @@ const chargesOf = <G extends SpellTypes>(caster: G['bearer'], cooldown: Compiled
 
   return read;
 };
+
+/** The unit a cooldown's aura lives on for a caster: its holder's answer, or the caster. */
+const bearerOf = <G extends SpellTypes>(caster: G['bearer'], cooldown: CompiledCooldown<G>): G['bearer'] =>
+  cooldown.holder === undefined ? caster : cooldown.holder(caster);
 
 /** Whether a spell names a list of cooldowns, not one. */
 const isList = <G extends SpellTypes>(
@@ -137,7 +151,7 @@ export class Cooldowns<G extends SpellTypes> {
     return this.#bySpell[spell] ?? NONE;
   }
 
-  /** Whether a caster holds any of a spell's cooldowns. */
+  /** Whether a caster holds any of a spell's cooldowns (on itself, or on a cooldown's holder). */
   isCooling(caster: G['bearer'], spell: number): boolean {
     const list = this.of(spell);
 
@@ -164,7 +178,7 @@ export class Cooldowns<G extends SpellTypes> {
         most = Math.max(
           most,
           chargesOf(caster, cooldown) === 1
-            ? this.#auras.remaining(caster, cooldown.aura)
+            ? this.#auras.remaining(bearerOf(caster, cooldown), cooldown.aura)
             : this.#chargeLeft(caster, cooldown)
         );
       }
@@ -175,13 +189,14 @@ export class Cooldowns<G extends SpellTypes> {
 
   /**
    * The seconds until a charged cooldown frees a charge: until enough of its aura's instances run out, soonest first,
-   * that the stacks left fall below its charges.
+   * that the stacks left fall below its charges (read from the caster, the instances from its holder).
    */
   #chargeLeft(caster: G['bearer'], cooldown: CompiledCooldown<G>): number {
     const auras = this.#auras;
-    const list = auras.list(caster);
+    const bearer = bearerOf(caster, cooldown);
+    const list = auras.list(bearer);
     const charges = chargesOf(caster, cooldown);
-    let held = auras.stacks(caster, cooldown.aura);
+    let held = auras.stacks(bearer, cooldown.aura);
     let at = 0;
 
     while (held >= charges) {
@@ -189,7 +204,7 @@ export class Cooldowns<G extends SpellTypes> {
       let going = 0;
 
       for (const item of list) {
-        const left = item.id === cooldown.aura ? auras.remainingOf(caster, item) : 0;
+        const left = item.id === cooldown.aura ? auras.remainingOf(bearer, item) : 0;
 
         if (left > at && left < next) {
           next = left;
@@ -200,7 +215,7 @@ export class Cooldowns<G extends SpellTypes> {
       }
 
       if (going === 0) {
-        return next === Number.POSITIVE_INFINITY ? auras.remaining(caster, cooldown.aura) : next;
+        return next === Number.POSITIVE_INFINITY ? auras.remaining(bearer, cooldown.aura) : next;
       }
 
       held -= going;
@@ -224,8 +239,8 @@ export class Cooldowns<G extends SpellTypes> {
   }
 
   /**
-   * Lands a cast's cooldowns of a moment on its caster, each for its seconds read from the cast, in order; those that
-   * start on the release `releaseAfter` seconds longer (a prediction of a cast's release).
+   * Lands a cast's cooldowns of a moment on its caster (or their holders), each for its seconds read from the cast, in
+   * order; those that start on the release `releaseAfter` seconds longer (a prediction of a cast's release).
    */
   start(cast: Cast<G>, moment: CooldownMoment, releaseAfter = 0): void {
     const list = this.of(cast.spell);
@@ -257,18 +272,22 @@ export class Cooldowns<G extends SpellTypes> {
     }
   }
 
-  /** Whether a cooldown holds its spell on a caster: its aura is on it, as many stacks as its charges. */
+  /**
+   * Whether a cooldown holds its spell on a caster: its aura is on the caster (or its holder), as many stacks as the
+   * caster's charges.
+   */
   #holds(caster: G['bearer'], cooldown: CompiledCooldown<G>): boolean {
     const charges = chargesOf(caster, cooldown);
+    const bearer = bearerOf(caster, cooldown);
 
     return charges === 1
-      ? this.#auras.has(caster, cooldown.aura)
-      : this.#auras.stacks(caster, cooldown.aura) >= charges;
+      ? this.#auras.has(bearer, cooldown.aura)
+      : this.#auras.stacks(bearer, cooldown.aura) >= charges;
   }
 
   /**
-   * Lands one cooldown aura for some seconds, or its own duration; none for 0 seconds or less (a cooldown reduced to
-   * nothing), which would hold the spell until the next step.
+   * Lands one cooldown aura on the caster (or its holder) for some seconds, or its own duration there; none for 0
+   * seconds or less (a cooldown reduced to nothing), which would hold the spell until the next step.
    */
   #land(caster: G['bearer'], cooldown: CompiledCooldown<G>, read: number | undefined, releaseAfter: number): void {
     // A cooldown read as nothing lands nothing, before its release as after it.
@@ -276,9 +295,11 @@ export class Cooldowns<G extends SpellTypes> {
       return;
     }
 
+    const bearer = bearerOf(caster, cooldown);
+
     const seconds =
       cooldown.onRelease && releaseAfter > 0
-        ? (read ?? this.#auras.lengthOf(cooldown.aura, caster)) + releaseAfter
+        ? (read ?? this.#auras.lengthOf(cooldown.aura, bearer)) + releaseAfter
         : read;
 
     if (seconds !== undefined && seconds <= 0) {
@@ -293,7 +314,7 @@ export class Cooldowns<G extends SpellTypes> {
     application.duration = seconds;
 
     try {
-      this.#auras.apply(caster, application);
+      this.#auras.apply(bearer, application);
     } finally {
       this.#depth = depth;
     }
