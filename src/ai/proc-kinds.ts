@@ -1,7 +1,6 @@
 import { ownValue } from '../core/records.ts';
 import { PROC_LANDED, PROC_SKIPPED, type ProcContext, type ProcKindDef } from '../procs/index.ts';
 import type { AiTypes, TimerId } from './ai-types.ts';
-import { brainOf } from './brain.ts';
 import type { AiProcKinds, CancelTimerProc, SetFocusProc, SetTimerProc } from './procs.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { TimerTable } from './timers.ts';
@@ -94,19 +93,25 @@ const focusIdOf = <G extends AiTypes>(proc: SetFocusProc<G>, ctx: ProcContext<G>
   return idOf(unit);
 };
 
-/** The `setFocus` kind. */
-const setFocusKind = <G extends AiTypes>(): ProcKindDef<SetFocusProc<G>, G> => ({
+/** Throws unless a `setFocus` proc names a focus it knows. */
+const checkFocus = <G extends AiTypes>(proc: SetFocusProc<G>): SetFocusProc<G> => {
+  const { focus } = proc;
+
+  if (focus !== undefined && focus !== 'target' && focus !== 'eventUnit' && focus !== 'none') {
+    throw new RangeError(`a setFocus proc focuses 'target', 'eventUnit' or 'none'; got ${String(focus)}.`);
+  }
+
+  return proc;
+};
+
+/** The `setFocus` kind: skipped on a freed brain (a late proc on a despawned unit), which keeps no focus. */
+const setFocusKind = <G extends AiTypes>(parts: KindParts<G>): ProcKindDef<SetFocusProc<G>, G> => ({
   targetOf: (proc) => proc.to ?? 'self',
 
-  apply: (proc, ctx, unit) => {
-    if (unit === undefined) {
-      return PROC_SKIPPED;
-    }
+  apply: (proc, ctx, unit) =>
+    unit !== undefined && parts.scheduler.setFocus(unit, focusIdOf(proc, ctx)) ? PROC_LANDED : PROC_SKIPPED,
 
-    brainOf(unit.brain).focus = focusIdOf(proc, ctx);
-
-    return PROC_LANDED;
-  }
+  prepare: checkFocus
 });
 
 /** Builds the AI system's proc kinds. */
@@ -114,5 +119,5 @@ export const createAiProcKinds = <G extends AiTypes>(parts: KindParts<G>): AiPro
   Object.freeze({
     setTimer: setTimerKind(parts),
     cancelTimer: cancelTimerKind(parts),
-    setFocus: setFocusKind<G>()
+    setFocus: setFocusKind(parts)
   });

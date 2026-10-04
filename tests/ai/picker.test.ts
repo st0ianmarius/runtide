@@ -100,6 +100,19 @@ describe('the weighted picker', () => {
     assert.equal(ai.first(beast, [nova, slam]), slam);
     assert.equal(ai.first(beast, [nova, slam], { allows: () => false }), undefined);
   });
+
+  it('refuses a weight that is not finite, and weights whose total is not', () => {
+    const { ai, beast, pool, bolt } = picking();
+
+    for (const top of [Number.POSITIVE_INFINITY, Number.NaN, Number.NEGATIVE_INFINITY]) {
+      const weight = (_unit: unknown, spell: SpellId): number => (spell === bolt ? top : 1);
+
+      assert.throws(() => ai.pick(beast, pool, { random: fixed(0.5), weight }), RangeError);
+    }
+
+    assert.throws(() => ai.pick(beast, pool, { random: fixed(0.5), weight: () => Number.MAX_VALUE }), /add up to/);
+    assert.equal(ai.pick(beast, pool, { random: fixed(0.5), weight: () => 1 }), bolt);
+  });
 });
 
 describe('the focus', () => {
@@ -114,5 +127,33 @@ describe('the focus', () => {
     assert.equal(ai.focusOf(beast), -1);
     ai.setFocus(beast, 7);
     assert.equal(beast.brain.focus, 7);
+  });
+
+  it('refuses a focus that is not an entity id, and a setFocus proc naming no focus it knows', () => {
+    const { ai, procs, beast } = picking();
+
+    for (const focus of [Number.NaN, 1.5, Number.POSITIVE_INFINITY]) {
+      assert.throws(() => {
+        ai.setFocus(beast, focus);
+      }, /entity id/);
+    }
+
+    const forged = setFocus<UnitGame>();
+
+    Reflect.set(forged, 'focus', 'targt');
+    assert.throws(() => procs.prepare([forged], 'Test'), /targt/);
+    assert.doesNotThrow(() => procs.prepare([setFocus<UnitGame>({ focus: 'eventUnit' })], 'Test'));
+  });
+
+  it('is left alone by a late setFocus proc on a despawned unit, whose brain the next unit gets', () => {
+    const { ai, procs, units, id, beast } = picking();
+    const hero = units.spawn(id.beast, { side: 0 });
+
+    units.despawn(beast);
+
+    const next = units.spawn(id.beast, { side: 1 });
+
+    assert.equal(procs.apply(setFocus<UnitGame>(), { self: beast, target: hero }).status, 'skipped');
+    assert.deepEqual([ai.focusOf(beast), ai.focusOf(next)], [-1, -1]);
   });
 });

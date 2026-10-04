@@ -21,7 +21,8 @@ export interface PickOptions<G extends AiTypes> {
 
   /**
    * A spell's weight for this caster now (distance, hugged, clumped: the game's reading, or its own per-spell
-   * weights); 1 when absent. A weight of 0 or less leaves the spell out.
+   * weights); 1 when absent. A weight of 0 or less leaves the spell out; one that is not a finite number (NaN, an
+   * infinity) throws a `RangeError`.
    */
   readonly weight?: (caster: G['bearer'], spell: SpellId) => number;
 
@@ -44,7 +45,10 @@ export class Picker<G extends AiTypes> {
     this.#spells = spells;
   }
 
-  /** Picks a spell from `pool` for `caster`, or `undefined`, drawing nothing, when none fits. */
+  /**
+   * Picks a spell from `pool` for `caster`, or `undefined`, drawing nothing, when none fits. Throws a `RangeError` for a
+   * weight that is not finite, or weights whose total is not.
+   */
   pick(caster: G['bearer'], pool: readonly SpellId[], options: PickOptions<G>): SpellId | undefined {
     const depth = this.#depth;
     let weights = this.#weights[depth];
@@ -62,6 +66,12 @@ export class Picker<G extends AiTypes> {
 
       for (let i = 0; i < pool.length; i++) {
         total += weights[i] ?? 0;
+      }
+
+      if (!Number.isFinite(total)) {
+        throw new RangeError(
+          `The picker's weights add up to ${total}; keep them finite and far below the largest number.`
+        );
       }
 
       // Nothing fits: no draw is taken, so an empty pick shifts no later draw of the stream (a crit, a placement).
@@ -95,6 +105,10 @@ export class Picker<G extends AiTypes> {
       const spell = pool[i];
 
       const weight = spell === undefined ? 0 : (options.weight?.(caster, spell) ?? 1);
+
+      if (!Number.isFinite(weight)) {
+        throw new RangeError(`A pick weight is a finite number; got ${weight} for spell ${spell}.`);
+      }
 
       const fits =
         spell !== undefined &&
