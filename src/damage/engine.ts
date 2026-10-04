@@ -144,6 +144,12 @@ export class DamageEngine<G extends DamageTypes> {
   /** How many deaths are running, each inside the one before. */
   chain = 0;
 
+  /**
+   * The units whose death is running, innermost last: pushed and popped by the death pipeline, a short reused list. A
+   * unit in it is gone to `kill`, blows, heals, forces and `setHealth`, so nothing restarts its death.
+   */
+  readonly dying: G['bearer'][] = [];
+
   /** How many blows, heals, forces and lethal `setHealth`s were skipped for nesting too deep. */
   dropped = 0;
   #system: DamageSystem<G> | undefined = undefined;
@@ -206,16 +212,23 @@ export class DamageEngine<G extends DamageTypes> {
     return (host.creditOf === undefined ? host.idOf?.(unit) : host.creditOf(unit)) ?? NO_SOURCE;
   }
 
-  /** Whether a unit can die no more: the host's `isGone`, or by health alone for a host without one. */
+  /**
+   * Whether a unit can die no more: one whose death is running (until the host takes it out it may still look alive),
+   * else the host's `isGone`, or by health alone for a host without one.
+   */
   isGoneNow(unit: G['bearer']): boolean {
+    if (this.dying.includes(unit)) {
+      return true;
+    }
+
     const { isGone } = this.host;
 
     return isGone === undefined ? this.isDead(this.host.health(unit), unit) : isGone(unit);
   }
 
-  /** Whether a unit is dead now, by the system's rule. */
+  /** Whether a unit is dead now: its death running, the host's `isGone`, or the system's rule by its health. */
   isDeadNow(unit: G['bearer']): boolean {
-    return this.host.isGone?.(unit) === true || this.isDead(this.host.health(unit), unit);
+    return this.dying.includes(unit) || this.host.isGone?.(unit) === true || this.isDead(this.host.health(unit), unit);
   }
 
   /**

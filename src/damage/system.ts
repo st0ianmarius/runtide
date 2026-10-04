@@ -84,19 +84,20 @@ export interface DamageSystem<G extends DamageTypes> {
   /**
    * Sets a unit's health outright, bypassing the heal stages. A unit that was alive and is dead by the
    * system's rule afterwards goes through the death pipeline, credited as given. A dead unit is `skipped`, a unit the
-   * rule already counts dead at its health included: `kill` takes such a unit out.
+   * rule already counts dead at its health included (`kill` takes such a unit out), and so is a dying one.
    */
   readonly setHealth: (unit: G['bearer'], health: number, credit?: HealthCredit<G>) => ProcOutcome;
 
   /**
    * Kills a unit outright, whatever its health: sets its health to 0 through the host (which clamps it), then runs the
    * death pipeline (its rewards, the `death` and `kill` events, the removal), credited as given. Returns whether it
-   * killed: `false` for a unit already gone (the host's `isGone`, or by health alone for a host without one), and for
-   * one nested too deep (counted in `dropped`, as a lethal `setHealth` is).
+   * killed: `false` for a unit already gone (the host's `isGone`, or by health alone for a host without one) or dying
+   * (its death running: a kill from inside it), and for one nested too deep (counted in `dropped`, as a lethal
+   * `setHealth` is).
    */
   readonly kill: (unit: G['bearer'], credit?: HealthCredit<G>) => boolean;
 
-  /** Whether a unit is dead by the system's rule. */
+  /** Whether a unit is dead by the system's rule, or dying (its death running). */
   readonly isDead: (unit: G['bearer']) => boolean;
 
   /**

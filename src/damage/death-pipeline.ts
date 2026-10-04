@@ -116,7 +116,9 @@ const runPhases = <G extends DamageTypes>(engine: DamageEngine<G>, death: DeathR
  * own before any reward (`dying`) enters it from a `death.before` step (`auras.enterState(unit, 'dying')`, a state the
  * game declares); rewards and the `kill` event settle before the `dead` state's `onState` bursts, which is intended. A
  * despawn is not a death and never comes here. What a death sets off nests from it afresh (`maxDepth`), up to
- * `maxKillChain` deaths. `DamageSystem.kill` runs it for a unit outright, whatever its health.
+ * `maxKillChain` deaths. `DamageSystem.kill` runs it for a unit outright, whatever its health. While it runs the unit
+ * counts gone (`DamageEngine.dying`): a kill, blow, heal, force or `setHealth` on it from inside its own death (a soul
+ * link's step, a lethal proc) is refused, so a death never runs twice.
  */
 export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: DeathSpec<G>): void => {
   const death = engine.deathRecord(spec.unit);
@@ -128,10 +130,12 @@ export const runDeath = <G extends DamageTypes>(engine: DamageEngine<G>, spec: D
   engine.depth += 1;
   engine.chain += 1;
   engine.base = engine.depth;
+  engine.dying.push(spec.unit);
 
   try {
     runPhases(engine, death);
   } finally {
+    engine.dying.pop();
     procs?.restoreBase(procBase);
     engine.base = base;
     engine.chain -= 1;
