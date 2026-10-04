@@ -17,6 +17,13 @@ import {
 } from '../src/spells/index.ts';
 import { defineUnits, defineUnitStates, defineUnitTags, type Unit, type UnitProcs } from '../src/units/index.ts';
 
+/** Where a unit stands, and how far it was from its hero this tick (what the game measured to steer). */
+interface Place {
+  x: number;
+  z: number;
+  gap: number;
+}
+
 /** The horde game's types: a whole unit game, as swarm's will be. */
 interface HordeGame extends ScriptTypes, AreaTriggerTypes {
   /** A unit. */
@@ -124,8 +131,8 @@ interface HordeGame extends ScriptTypes, AreaTriggerTypes {
   /** Two derived states. */
   readonly unitState: 'stunned' | 'rooted';
 
-  /** No game fields on a unit. */
-  readonly unitExt: undefined;
+  /** Where a unit stands. */
+  readonly unitExt: Place;
 
   /** One timer. */
   readonly timerName: 'pick';
@@ -204,11 +211,6 @@ const missing = (): never => {
   throw new Error('The horde bench is not wired.');
 };
 
-/** Each mob's position, by entity id, and the distance to its hero this tick (what the game measured to steer). */
-const X = new Float64Array(8192);
-const Z = new Float64Array(8192);
-const GAP = new Float64Array(8192);
-
 /** 36 more spells no mob casts, beside the swing and the four a mob picks from: a swarm-sized spell registry. */
 const OTHER_SPELLS = Object.fromEntries(
   Array.from({ length: 36 }, (_unused, i): [string, AnySpellDef<HordeGame>] => [
@@ -242,7 +244,7 @@ const SPELL_DEFS = defineSpells<HordeGame, string>({
     activation: {
       kind: 'auto',
       interval: SWING_INTERVAL,
-      ready: (caster) => (GAP[caster.id] ?? 0) <= REACH && late.spells?.isCasting(caster) !== true
+      ready: (caster) => caster.ext.gap <= REACH && late.spells?.isCasting(caster) !== true
     },
     target: () => late.hero,
     release: () => late.swing
@@ -274,6 +276,7 @@ const GAME = createGame<HordeGame>({
   units: {
     registry: TEMPLATES,
     health: { stat: 'maxHealth' },
+    createExt: () => ({ x: 0, z: 0, gap: 0 }),
     states: defineUnitStates(TAGS, {
       stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' },
       rooted: { tags: ['root'], blocks: ['move'] }
@@ -321,8 +324,9 @@ const spawnMob = (): Unit<HordeGame> => {
   const angle = DRAW() * 2 * Math.PI;
   const distance = 10 + 20 * DRAW();
 
-  X[mob.id] = Math.sin(angle) * distance;
-  Z[mob.id] = Math.cos(angle) * distance;
+  mob.ext.x = Math.sin(angle) * distance;
+  mob.ext.z = Math.cos(angle) * distance;
+  mob.ext.gap = distance;
   AURA_SYSTEM.apply(mob, HASTE);
   AURA_SYSTEM.apply(mob, MARK);
   AI.start(mob, TIMERS.id.pick, 3 * DRAW());
@@ -361,19 +365,17 @@ const firePick = (unit: Unit<HordeGame>): void => {
 
 /** A mob walks toward the centre until its swing reaches, at its folded speed. */
 const walk = (mob: Unit<HordeGame>): void => {
-  const { id } = mob;
-  const x = X[id] ?? 0;
-  const z = Z[id] ?? 0;
-  const gap = hypot(x, z);
+  const place = mob.ext;
+  const gap = hypot(place.x, place.z);
 
   if (gap > REACH && UNITS.canMove(mob)) {
     const step = Math.min(gap - REACH, (WALK * UNITS.statsOf(mob).total(STATS.id.speed)) / 4) / gap;
 
-    X[id] = x - x * step;
-    Z[id] = z - z * step;
+    place.x -= place.x * step;
+    place.z -= place.z * step;
   }
 
-  GAP[id] = hypot(X[id] ?? 0, Z[id] ?? 0);
+  place.gap = hypot(place.x, place.z);
 };
 
 /** The heroes cut down a few mobs, which fall and are replaced at the edge. */
@@ -418,7 +420,7 @@ export const hordeStats = (): { readonly swings: number; readonly inReach: numbe
 
   return {
     swings: hero === undefined ? 0 : Math.round((hero.maxHealth - hero.health) / 5),
-    inReach: mobs.filter((mob) => (GAP[mob.id] ?? 0) <= REACH).length
+    inReach: mobs.filter((mob) => mob.ext.gap <= REACH).length
   };
 };
 

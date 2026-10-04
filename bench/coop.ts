@@ -24,6 +24,12 @@ import { defineSpells, type SpellId, type SpellProcs } from '../src/spells/index
 import { defineUnits, defineUnitStates, defineUnitTags, type Unit, type UnitProcs } from '../src/units/index.ts';
 import { createMemoryWorld } from '../src/world/index.ts';
 
+/** Which hero a unit walks to (its index), and its distance to it this tick. */
+interface Chase {
+  hero: number;
+  gap: number;
+}
+
 /** The co-op game's types: a whole unit game with area triggers and a world, as swarm's will be. */
 interface CoopGame extends ScriptTypes, AreaTriggerTypes {
   readonly bearer: Unit<CoopGame>;
@@ -68,7 +74,7 @@ interface CoopGame extends ScriptTypes, AreaTriggerTypes {
   readonly unitName: string;
   readonly unitTag: 'horde' | 'hero';
   readonly unitState: 'stunned';
-  readonly unitExt: undefined;
+  readonly unitExt: Chase;
   readonly timerName: 'pick';
   readonly scriptName: string;
   readonly scriptEvents: object;
@@ -134,18 +140,11 @@ const missing = (): never => {
   throw new Error('The co-op bench is not wired.');
 };
 
-/**
- * Each unit's hero (the one it walks to) and its distance to it this tick, by entity id: room for the ids a long run
- * hands out, area triggers drawing from the same counter as units.
- */
-const CHASES = new Int32Array(1 << 16);
-const GAP = new Float64Array(1 << 16);
-
 const SPELL_DEFS = defineSpells<CoopGame, 'swing'>({
   swing: {
-    activation: { kind: 'auto', interval: 1, ready: (caster) => (GAP[caster.id] ?? 0) <= REACH },
-    target: (ctx) => heroes[CHASES[ctx.caster.id] ?? 0],
-    release: (ctx) => late.swings?.[CHASES[ctx.caster.id] ?? 0]
+    activation: { kind: 'auto', interval: 1, ready: (caster) => caster.ext.gap <= REACH },
+    target: (ctx) => heroes[ctx.caster.ext.hero],
+    release: (ctx) => late.swings?.[ctx.caster.ext.hero]
   }
 });
 
@@ -227,6 +226,7 @@ const GAME = createGame<CoopGame>({
   units: {
     registry: TEMPLATES,
     health: { stat: 'maxHealth' },
+    createExt: () => ({ hero: 0, gap: Infinity }),
     states: defineUnitStates(TAGS, {
       stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' }
     })
@@ -281,7 +281,7 @@ const spawnMob = (): Unit<CoopGame> => {
   AT.z = Math.cos(angle) * distance;
   WORLD.add(mob, { id: mob.id, at: AT, radius: 0.4, side: 1 });
   AURA_SYSTEM.apply(mob, HASTE);
-  CHASES[mob.id] = mob.id % HEROES;
+  mob.ext.hero = mob.id % HEROES;
 
   return mob;
 };
@@ -327,7 +327,7 @@ const moveHeroes = (): void => {
 
 /** A mob walks toward its hero until its swing reaches, at its folded speed. */
 const walk = (mob: Unit<CoopGame>): void => {
-  const hero = heroes[CHASES[mob.id] ?? 0] ?? missing();
+  const hero = heroes[mob.ext.hero] ?? missing();
   const at = WORLD.positionOf(mob, HERE);
   const goal = WORLD.positionOf(hero, THERE);
   const dx = goal.x - at.x;
@@ -342,7 +342,7 @@ const walk = (mob: Unit<CoopGame>): void => {
     WORLD.place(mob, AT);
   }
 
-  GAP[mob.id] = gap;
+  mob.ext.gap = gap;
 };
 
 /** The heroes' casts: a bolt from each every 0.25 s, a pool from each every 2 s, staggered. */
@@ -411,7 +411,7 @@ const tick = (): void => {
 export const coopStats = (): { readonly live: number; readonly swings: number; readonly inReach: number } => ({
   live: AREAS.pool.live,
   swings: Math.round(heroes.reduce((sum, hero) => sum + hero.maxHealth - hero.health, 0) / 3),
-  inReach: mobs.filter((mob) => (GAP[mob.id] ?? 0) <= REACH).length
+  inReach: mobs.filter((mob) => mob.ext.gap <= REACH).length
 });
 
 /** The co-op benchmark task, and how many operations each call of its function is. */
