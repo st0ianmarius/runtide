@@ -1,44 +1,24 @@
-import { type AiProcs, createAiSystem, defineTimers } from '../src/ai/index.ts';
-import {
-  auraGates,
-  auraStacks,
-  createAuraSystem,
-  defineAura,
-  defineAuras,
-  defineAuraTags
-} from '../src/auras/index.ts';
+import { type AiProcs, defineTimers } from '../src/ai/index.ts';
+import type { AreaTriggerTypes } from '../src/area-triggers/index.ts';
+import { auraGates, auraStacks, defineAura, defineAuras, defineAuraTags } from '../src/auras/index.ts';
 import { createClock, stream } from '../src/core/index.ts';
-import {
-  type Blow,
-  createDamageSystem,
-  damage,
-  type DamageProcs,
-  defineDamageKinds,
-  type Force
-} from '../src/damage/index.ts';
+import { type Blow, damage, type DamageProcs, defineDamageKinds, type Force } from '../src/damage/index.ts';
+import { createGame } from '../src/game/index.ts';
 import { hypot } from '../src/math/index.ts';
-import { createModifierSystem, defineSources, defineStats, mul, plus } from '../src/modifiers/index.ts';
-import { applyAura, CORE_PROCS, createProcRegistry, createProcSystem, type Proc } from '../src/procs/index.ts';
+import { defineSources, defineStats, mul, plus } from '../src/modifiers/index.ts';
+import { applyAura, CORE_PROCS, createProcRegistry, type Proc } from '../src/procs/index.ts';
 import type { ScriptTypes } from '../src/scripts/index.ts';
 import {
   type AnySpellDef,
-  createSpellSystem,
   defineSpells,
   type SpellId,
   type SpellProcs,
   type SpellSystem
 } from '../src/spells/index.ts';
-import {
-  createUnitSystem,
-  defineUnits,
-  defineUnitStates,
-  defineUnitTags,
-  type Unit,
-  type UnitProcs
-} from '../src/units/index.ts';
+import { defineUnits, defineUnitStates, defineUnitTags, type Unit, type UnitProcs } from '../src/units/index.ts';
 
 /** The horde game's types: a whole unit game, as swarm's will be. */
-interface HordeGame extends ScriptTypes {
+interface HordeGame extends ScriptTypes, AreaTriggerTypes {
   /** A unit. */
   readonly bearer: Unit<HordeGame>;
 
@@ -155,6 +135,21 @@ interface HordeGame extends ScriptTypes {
 
   /** No script events. */
   readonly scriptEvents: object;
+
+  /** No area triggers. */
+  readonly areaTriggerName: never;
+
+  /** No area tags. */
+  readonly areaTag: never;
+
+  /** No area input. */
+  readonly areaInput: undefined;
+
+  /** No area fields. */
+  readonly areaExt: undefined;
+
+  /** No end reasons. */
+  readonly endReason: never;
 }
 
 /** How many results the bench read, so no call is optimised away. */
@@ -197,17 +192,8 @@ const AURAS = defineAuras<HordeGame, string>({
 });
 
 const CLOCK = createClock({ dt: DT });
-const SOURCES = defineSources(['base', 'auras']);
-
-const MODIFIERS = createModifierSystem({
-  stats: STATS,
-  sources: SOURCES,
-  stacks: auraStacks,
-  held: auraGates
-});
 
 const late: {
-  procs?: ReturnType<typeof createProcSystem<HordeGame>>;
   hero?: Unit<HordeGame>;
   swing?: readonly Proc<HordeGame>[];
   spells?: SpellSystem<HordeGame>;
@@ -217,16 +203,6 @@ const late: {
 const missing = (): never => {
   throw new Error('The horde bench is not wired.');
 };
-
-const AURA_SYSTEM = createAuraSystem<HordeGame>({
-  registry: AURAS,
-  tags: TAGS,
-  clocks: { world: CLOCK },
-  states: ['dead', 'despawned'],
-  modifiers: MODIFIERS,
-  fold: 'auras',
-  host: { run: (procs, ctx) => late.procs?.runAura(procs, ctx) }
-});
 
 /** Each mob's position, by entity id, and the distance to its hero this tick (what the game measured to steer). */
 const X = new Float64Array(8192);
@@ -278,18 +254,7 @@ const SPELL_DEFS = defineSpells<HordeGame, string>({
   ...OTHER_SPELLS
 });
 
-const SPELLS = createSpellSystem<HordeGame>({
-  registry: SPELL_DEFS,
-  auras: AURA_SYSTEM,
-  procs: () => late.procs ?? missing(),
-  clock: CLOCK,
-  host: {}
-});
-
-late.spells = SPELLS;
-
 const TIMERS = defineTimers(['pick']);
-const AI = createAiSystem<HordeGame>({ spells: SPELLS, clock: CLOCK, timers: TIMERS });
 
 const TEMPLATES = defineUnits<HordeGame, 'grunt' | 'hero'>(
   {
@@ -299,37 +264,31 @@ const TEMPLATES = defineUnits<HordeGame, 'grunt' | 'hero'>(
   { stats: STATS, tags: defineUnitTags(['horde', 'hero']) }
 );
 
-const UNITS = createUnitSystem<HordeGame>({
-  registry: TEMPLATES,
-  ai: AI,
-  auras: AURA_SYSTEM,
-  spells: SPELLS,
-  modifiers: { system: MODIFIERS },
-  health: { stat: 'maxHealth' },
-  states: defineUnitStates(TAGS, {
-    stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' },
-    rooted: { tags: ['root'], blocks: ['move'] }
-  })
+/** The whole game, assembled: every host member and late edge bound, its wiring checked. */
+const GAME = createGame<HordeGame>({
+  clock: CLOCK,
+  modifiers: { stats: STATS, sources: defineSources(['base', 'auras']), stacks: auraStacks, held: auraGates },
+  auras: { registry: AURAS, tags: TAGS, clocks: { world: CLOCK }, states: ['dead', 'despawned'], fold: 'auras' },
+  spells: { registry: SPELL_DEFS, host: {}, interrupts: ['stun'] },
+  ai: { timers: TIMERS },
+  units: {
+    registry: TEMPLATES,
+    health: { stat: 'maxHealth' },
+    states: defineUnitStates(TAGS, {
+      stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' },
+      rooted: { tags: ['root'], blocks: ['move'] }
+    })
+  },
+  damage: { kinds: defineDamageKinds({ physical: {} }), stats: STATS },
+  procs: {
+    kinds: (k) => createProcRegistry<HordeGame>({ ...CORE_PROCS, ...k.damage, ...k.spells, ...k.units, ...k.ai }),
+    host: {}
+  }
 });
 
-const DAMAGE = createDamageSystem<HordeGame>({
-  auras: AURA_SYSTEM,
-  kinds: defineDamageKinds({ physical: {} }),
-  stats: STATS,
-  host: { ...UNITS.damageHost, run: (procs, ctx) => late.procs?.runAura(procs, ctx) }
-});
+const { auras: AURA_SYSTEM, spells: SPELLS, ai: AI, units: UNITS, damage: DAMAGE } = GAME;
 
-late.procs = createProcSystem<HordeGame>({
-  kinds: createProcRegistry<HordeGame>({
-    ...CORE_PROCS,
-    ...DAMAGE.procKinds,
-    ...SPELLS.procKinds,
-    ...UNITS.procKinds,
-    ...AI.procKinds
-  }),
-  auras: AURA_SYSTEM,
-  host: { idOf: (unit) => unit.id }
-});
+late.spells = SPELLS;
 
 /** The draw the picks and the spawn points take. */
 const DRAW = stream(9, 31);

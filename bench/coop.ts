@@ -1,43 +1,27 @@
-import { type AiProcs, createAiSystem, defineTimers } from '../src/ai/index.ts';
+import { type AiProcs, defineTimers } from '../src/ai/index.ts';
 import {
   type AnyAreaTriggerDef,
   type AreaTriggerProcs,
   type AreaTriggerTypes,
-  createAreaTriggerSystem,
   defineAreaTriggers
 } from '../src/area-triggers/index.ts';
-import {
-  auraGates,
-  auraRevision,
-  auraStacks,
-  createAuraSystem,
-  defineAura,
-  defineAuras,
-  defineAuraTags
-} from '../src/auras/index.ts';
+import { auraGates, auraRevision, auraStacks, defineAura, defineAuras, defineAuraTags } from '../src/auras/index.ts';
 import { createClock, stream } from '../src/core/index.ts';
 import {
   type Blow,
   type BlowSpec,
-  createDamageSystem,
   damage,
   type DamageProcs,
   defineDamageKinds,
   type Force
 } from '../src/damage/index.ts';
+import { createGame } from '../src/game/index.ts';
 import { circle, hypot } from '../src/math/index.ts';
-import { createModifierSystem, defineSources, defineStats, mul } from '../src/modifiers/index.ts';
-import { CORE_PROCS, createProcRegistry, createProcSystem, type Proc } from '../src/procs/index.ts';
+import { defineSources, defineStats, mul } from '../src/modifiers/index.ts';
+import { CORE_PROCS, createProcRegistry, type Proc } from '../src/procs/index.ts';
 import type { ScriptTypes } from '../src/scripts/index.ts';
-import { createSpellSystem, defineSpells, type SpellId, type SpellProcs } from '../src/spells/index.ts';
-import {
-  createUnitSystem,
-  defineUnits,
-  defineUnitStates,
-  defineUnitTags,
-  type Unit,
-  type UnitProcs
-} from '../src/units/index.ts';
+import { defineSpells, type SpellId, type SpellProcs } from '../src/spells/index.ts';
+import { defineUnits, defineUnitStates, defineUnitTags, type Unit, type UnitProcs } from '../src/units/index.ts';
 import { createMemoryWorld } from '../src/world/index.ts';
 
 /** The co-op game's types: a whole unit game with area triggers and a world, as swarm's will be. */
@@ -122,15 +106,6 @@ const AURAS = defineAuras<CoopGame, 'haste' | 'chill'>({
 });
 
 const CLOCK = createClock({ dt: DT });
-const SOURCES = defineSources(['base', 'auras']);
-
-const MODIFIERS = createModifierSystem({
-  stats: STATS,
-  sources: SOURCES,
-  stacks: auraStacks,
-  held: auraGates,
-  revision: auraRevision
-});
 
 const WORLD = createMemoryWorld<Unit<CoopGame>>({
   bounds: { minX: -60, minZ: -60, maxX: 60, maxZ: 60 },
@@ -150,7 +125,6 @@ const WORLD = createMemoryWorld<Unit<CoopGame>>({
 type ReusedBlow = { -readonly [K in keyof BlowSpec<CoopGame>]: BlowSpec<CoopGame>[K] };
 
 const late: {
-  procs?: ReturnType<typeof createProcSystem<CoopGame>>;
   swing?: readonly Proc<CoopGame>[];
   blow?: ReusedBlow;
 } = {};
@@ -160,19 +134,12 @@ const missing = (): never => {
   throw new Error('The co-op bench is not wired.');
 };
 
-const AURA_SYSTEM = createAuraSystem<CoopGame>({
-  registry: AURAS,
-  tags: TAGS,
-  clocks: { world: CLOCK },
-  states: ['dead', 'despawned'],
-  modifiers: MODIFIERS,
-  fold: 'auras',
-  host: { run: (procs, ctx) => late.procs?.runAura(procs, ctx) }
-});
-
-/** Each unit's hero (the one it walks to) and its distance to it this tick, by entity id. */
-const CHASES = new Int32Array(8192);
-const GAP = new Float64Array(8192);
+/**
+ * Each unit's hero (the one it walks to) and its distance to it this tick, by entity id: room for the ids a long run
+ * hands out, area triggers drawing from the same counter as units.
+ */
+const CHASES = new Int32Array(1 << 16);
+const GAP = new Float64Array(1 << 16);
 
 const SPELL_DEFS = defineSpells<CoopGame, 'swing'>({
   swing: {
@@ -182,20 +149,6 @@ const SPELL_DEFS = defineSpells<CoopGame, 'swing'>({
   }
 });
 
-const SPELLS = createSpellSystem<CoopGame>({
-  registry: SPELL_DEFS,
-  auras: AURA_SYSTEM,
-  procs: () => late.procs ?? missing(),
-  clock: CLOCK,
-  host: {}
-});
-
-const AI = createAiSystem<CoopGame>({
-  spells: SPELLS,
-  clock: CLOCK,
-  timers: defineTimers(['pick'])
-});
-
 const TEMPLATES = defineUnits<CoopGame, 'grunt' | 'hero'>(
   {
     grunt: { stats: { maxHealth: 40 }, tags: ['horde'], autoAttack: 'swing' },
@@ -203,25 +156,6 @@ const TEMPLATES = defineUnits<CoopGame, 'grunt' | 'hero'>(
   },
   { stats: STATS, tags: defineUnitTags(['horde', 'hero']) }
 );
-
-const UNITS = createUnitSystem<CoopGame>({
-  registry: TEMPLATES,
-  ai: AI,
-  auras: AURA_SYSTEM,
-  spells: SPELLS,
-  modifiers: { system: MODIFIERS },
-  health: { stat: 'maxHealth' },
-  states: defineUnitStates(TAGS, {
-    stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' }
-  })
-});
-
-const DAMAGE = createDamageSystem<CoopGame>({
-  auras: AURA_SYSTEM,
-  kinds: defineDamageKinds({ physical: {} }),
-  stats: STATS,
-  host: { ...UNITS.damageHost, run: (procs, ctx) => late.procs?.runAura(procs, ctx) }
-});
 
 /** Hits every unit a delivery caught for an amount, as a hero's area spell does. */
 const hitAll =
@@ -272,28 +206,49 @@ const KINDS: Readonly<Record<'field' | 'nova' | 'bolt' | 'pool', AnyAreaTriggerD
 
 const AREA_KINDS = defineAreaTriggers<CoopGame, 'field' | 'nova' | 'bolt' | 'pool'>(KINDS);
 
-const AREAS = createAreaTriggerSystem<CoopGame>({
-  registry: AREA_KINDS,
-  spells: SPELLS,
-  auras: AURA_SYSTEM,
-  procs: () => late.procs ?? missing(),
-  world: WORLD,
+/**
+ * The whole game, assembled: every host member and late edge bound (the units end a gone owner's areas, units and
+ * areas draw ids from one counter), its wiring checked. The bench keeps its memory world itself, as the game's own.
+ */
+const GAME = createGame<CoopGame>({
   clock: CLOCK,
-  host: { idOf: (unit) => unit.id }
+  modifiers: {
+    stats: STATS,
+    sources: defineSources(['base', 'auras']),
+    stacks: auraStacks,
+    held: auraGates,
+    revision: auraRevision
+  },
+  auras: { registry: AURAS, tags: TAGS, clocks: { world: CLOCK }, states: ['dead', 'despawned'], fold: 'auras' },
+  spells: { registry: SPELL_DEFS, host: {}, interrupts: ['stun'] },
+  ai: { timers: defineTimers(['pick']) },
+  world: { query: WORLD, digest: WORLD.digest },
+  areas: { registry: AREA_KINDS, host: { idOf: (unit) => unit.id } },
+  units: {
+    registry: TEMPLATES,
+    health: { stat: 'maxHealth' },
+    states: defineUnitStates(TAGS, {
+      stunned: { tags: ['stun'], blocks: ['act', 'move'], interrupt: 'stun' }
+    })
+  },
+  damage: { kinds: defineDamageKinds({ physical: {} }), stats: STATS },
+  procs: {
+    kinds: (k) =>
+      createProcRegistry<CoopGame>({
+        ...CORE_PROCS,
+        ...k.damage,
+        ...k.spells,
+        ...k.units,
+        ...k.ai,
+        ...(k.areas ?? missing())
+      }),
+    host: {}
+  }
 });
 
-late.procs = createProcSystem<CoopGame>({
-  kinds: createProcRegistry<CoopGame>({
-    ...CORE_PROCS,
-    ...DAMAGE.procKinds,
-    ...SPELLS.procKinds,
-    ...UNITS.procKinds,
-    ...AI.procKinds,
-    ...AREAS.procKinds
-  }),
-  auras: AURA_SYSTEM,
-  host: { idOf: (unit) => unit.id }
-});
+const { auras: AURA_SYSTEM, units: UNITS, damage: DAMAGE } = GAME;
+const SPELLS = GAME.spells;
+const AREAS = GAME.areas ?? missing();
 
 /** The draw spawn points and headings take. */
 const DRAW = stream(5, 61);
