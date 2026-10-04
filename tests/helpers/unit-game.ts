@@ -480,12 +480,22 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
 
   const holder: { procs?: ProcSystem<UnitGame> } = {};
 
+  // The unit system's spell host members, read late: the spell system is made before it.
+  const spellHost = {
+    canAct: (unit: Unit<UnitGame>, spell: SpellId) => late.units?.hosts.spell.canAct(unit, spell) ?? true,
+
+    statsOf: (unit: Unit<UnitGame>, spell: SpellId) =>
+      late.units === undefined ? undefined : late.units.hosts.spell.statsOf(unit, spell),
+
+    isGone: (unit: Unit<UnitGame>) => late.units?.hosts.spell.isGone(unit) ?? false
+  };
+
   const spells = createSpellSystem<UnitGame>({
     registry: spellRegistry,
     auras,
     procs: () => holder.procs ?? missing(),
     clock,
-    host: { canAct: (unit) => late.units?.canAct(unit) ?? true }
+    host: spellHost
   });
 
   const ai = createAiSystem<UnitGame>({

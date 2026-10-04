@@ -207,7 +207,7 @@ export const endOwned = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, owne
 };
 
 /** Whether an area trigger needs its owner in the world: its lifetime, its bound or its anchor is its owner. */
-const needsOwner = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): boolean =>
+export const needsOwner = <G extends AreaTriggerTypes>(engine: AreaEngine<G>, area: AreaTrigger<G>): boolean =>
   area.isOwnerLifetime ||
   engine.registry.get(area.kind).bound?.owner === 'present' ||
   ((engine.registry.columns.flags[area.kind] ?? 0) & ANCHOR_OWNER) !== 0;

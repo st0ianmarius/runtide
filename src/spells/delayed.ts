@@ -140,14 +140,16 @@ export class DelayedProcs<G extends SpellTypes> {
 
   /**
    * Schedules a list for the origin of the running proc context, held by the cast the running list belongs to (if any),
-   * due `seconds` from now or from the landing list's due time. Returns false when a source owner cannot be resolved.
-   * Throws a `TypeError` for an unowned list with a bound: there is nobody to ask.
+   * due `seconds` from now or from the landing list's due time. Returns false when a source owner cannot be resolved,
+   * and for an owned list whose owner has left life (the host's `isGone`): its leave-life withdrawal ran already, so
+   * the list is refused rather than left to land after it. Throws a `TypeError` for an unowned list with a bound: there
+   * is nobody to ask.
    */
   schedule(ctx: ProcContext<G>, spec: DelaySpec<G>): boolean {
     const engine = this.#engine;
     const parent = spec.from === 'due' ? this.landing : undefined;
     const cast = engine.castFor(ctx);
-    const owner = this.#ownerFor(ctx, spec, cast);
+    const owner = this.#presentOwnerFor(ctx, spec, cast);
 
     if (owner === false) {
       return false;
@@ -315,6 +317,17 @@ export class DelayedProcs<G extends SpellTypes> {
   #free(record: Delayed<G>): void {
     this.#unlist(record);
     this.#release(record);
+  }
+
+  /** `#ownerFor`, or false for an owner that has left life (the host's `isGone`): its withdrawal ran already. */
+  #presentOwnerFor(
+    ctx: ProcContext<G>,
+    spec: DelaySpec<G>,
+    cast: Cast<G> | undefined
+  ): G['bearer'] | undefined | false {
+    const owner = this.#ownerFor(ctx, spec, cast);
+
+    return owner !== undefined && owner !== false && this.#engine.host.isGone?.(owner) === true ? false : owner;
   }
 
   /**

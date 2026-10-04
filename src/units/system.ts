@@ -142,8 +142,9 @@ export interface UnitSystem<G extends UnitTypes> {
   readonly damageHost: ReturnType<typeof damageHostOf<G>>;
 
   /**
-   * The spell and aura host members the system provides: spread `hosts.spell` into the spell host (`canAct`, `statsOf`)
-   * and `hosts.aura` into the aura host (`onTagsChanged`), lazily where the host is made before the unit system.
+   * The spell, aura and area trigger host members the system provides: spread `hosts.spell` into the spell host
+   * (`canAct`, `statsOf`, `isGone`), `hosts.aura` into the aura host (`onTagsChanged`) and `hosts.area` into the area
+   * trigger host (`isGone`), lazily where the host is made before the unit system.
    */
   readonly hosts: UnitHosts<G>;
 

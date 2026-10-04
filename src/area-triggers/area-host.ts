@@ -19,4 +19,12 @@ export interface AreaTriggerHost<G extends AreaTriggerTypes> extends SpellHost<G
    * and its `spawn` procs without `at`.
    */
   readonly sideOf?: (unit: G['bearer']) => number;
+
+  /**
+   * Whether a unit has left life (dead or despawned). An area trigger whose lifetime, bound or anchor is its owner,
+   * spawned for an owner already gone (by a proc list still running for it after a hook killed it, past `ownerGone`),
+   * ends at once as `source-gone`. Without it, only `ownerGone` ends an owner's area triggers. The unit system's
+   * `units.hosts.area` provides it.
+   */
+  readonly isGone?: (unit: G['bearer']) => boolean;
 }

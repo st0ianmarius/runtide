@@ -2,7 +2,7 @@ import type { AiSystem } from '../ai/index.ts';
 import type { AuraHost, AuraSystem } from '../auras/index.ts';
 import type { ProcSystem } from '../procs/index.ts';
 import type { SpellHost, SpellId, SpellSystem } from '../spells/index.ts';
-import type { UnitEngine } from './engine.ts';
+import { type UnitEngine, unitOf } from './engine.ts';
 import { scopeFor } from './hosts.ts';
 import type { UnitProcKinds } from './procs.ts';
 import type { UnitTypes } from './unit-types.ts';
@@ -25,13 +25,28 @@ export interface UnitWiring<G extends UnitTypes> {
   readonly areaTriggers?: object;
 }
 
+/** The liveness gate the unit system gives the hosts that ask it. */
+export interface UnitLiveness<G extends UnitTypes> {
+  /** Whether a unit has left life (dead or despawned): its lifecycle is not `alive`. */
+  readonly isGone: (unit: G['bearer']) => boolean;
+}
+
 /** The host members the unit system provides, built from its own rules, for a game to spread into each host. */
 export interface UnitHosts<G extends UnitTypes> {
-  /** The spell host's: a unit acts while `units.canAct`, and reads its stats within a spell's scopes, as the damage host does. */
-  readonly spell: Required<Pick<SpellHost<G>, 'canAct' | 'statsOf'>>;
+  /**
+   * The spell host's: a unit acts while `units.canAct`, reads its stats within a spell's scopes, as the damage host
+   * does, and has left life once its lifecycle is not `alive` (`isGone`).
+   */
+  readonly spell: Required<Pick<SpellHost<G>, 'canAct' | 'statsOf'>> & UnitLiveness<G>;
 
   /** The aura host's: a tagged aura's edge brings the unit's interrupts in line (`units.syncStates`). */
   readonly aura: Required<Pick<AuraHost<G>, 'onTagsChanged'>>;
+
+  /**
+   * The area trigger host's: a unit has left life once its lifecycle is not `alive` (`isGone`), so an area trigger
+   * that needs its owner, spawned for one already gone, ends at once.
+   */
+  readonly area: UnitLiveness<G>;
 }
 
 /** Throws a `RangeError` naming a gate the game left unwired. */
@@ -124,16 +139,22 @@ export const hostsOf = <G extends UnitTypes>(
     /** Brings a unit's interrupts in line with its states. */
     readonly syncStates: (unit: G['bearer']) => number;
   }
-): UnitHosts<G> =>
-  Object.freeze({
+): UnitHosts<G> => {
+  const isGone = (unit: G['bearer']): boolean => unitOf<G>(unit).lifecycle !== 'alive';
+
+  return Object.freeze({
     spell: Object.freeze({
       canAct: (caster: G['bearer']) => rules.canAct(caster),
-      statsOf: (caster: G['bearer'], spell: SpellId) => engine.statsOf(caster, undefined, scopeFor(engine, spell))
+      statsOf: (caster: G['bearer'], spell: SpellId) => engine.statsOf(caster, undefined, scopeFor(engine, spell)),
+      isGone
     }),
 
     aura: Object.freeze({
       onTagsChanged: (bearer: G['bearer']) => {
         rules.syncStates(bearer);
       }
-    })
+    }),
+
+    area: Object.freeze({ isGone })
   });
+};

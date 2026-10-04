@@ -34,4 +34,11 @@ export interface SpellHost<G extends SpellTypes> extends ProcHost<G> {
    * (and an absent hook) gives rank 1.
    */
   readonly rankOf?: (caster: G['bearer'], spell: SpellId) => number | undefined;
+
+  /**
+   * Whether a unit has left life (dead or despawned): owned delayed lists are refused for it, since its leave-life
+   * `withdrawDelayed` ran already (a list a proc schedules after its owner died mid-list would land later otherwise).
+   * Unowned lists (`owner: 'none'`) are not asked. Every owner is taken as present when absent.
+   */
+  readonly isGone?: (unit: G['bearer']) => boolean;
 }

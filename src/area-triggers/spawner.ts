@@ -14,7 +14,7 @@ import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
 import { closeLedgers, openLedgers } from './ledgers.ts';
 import { linkKind } from './order.ts';
 import { beatOnEntry, joinPulses } from './pulses.ts';
-import { stepArea } from './stepper.ts';
+import { needsOwner, stepArea } from './stepper.ts';
 
 /** What a spawn is asked with: who owns it, where, and what it starts with. */
 export interface SpawnSpec<G extends AreaTriggerTypes> {
@@ -204,7 +204,8 @@ const admitLimit = <G extends AreaTriggerTypes>(
 
 /**
  * Gives it its id and lifetime, puts an owner-anchored one on its owner and opens its ledgers: nothing links it
- * anywhere yet.
+ * anywhere yet. One that needs its owner, whose owner is gone already (the host's `isGone`: a proc list still running
+ * for an owner its hook killed, past `ownerGone`), is asked to end as `source-gone`, which it does once it has entered.
  */
 const settle = <G extends AreaTriggerTypes>(
   engine: AreaEngine<G>,
@@ -224,6 +225,10 @@ const settle = <G extends AreaTriggerTypes>(
   }
 
   openLedgers(engine, area);
+
+  if (engine.host.isGone?.(area.owner) === true && needsOwner(engine, area)) {
+    area.pending = 'source-gone';
+  }
 };
 
 /**

@@ -70,7 +70,7 @@ export interface AfterProc<G extends SpellTypes> extends ProcShape {
    * Who owns this list for `bound` and withdrawal. Defaults to its parent delayed list's owner for follow-ups,
    * otherwise the cast's caster or the list's self. `self` names the scheduling list's self; `source` resolves its
    * credit through the proc host's `unitOf` (required for this selector). An absent or missing source schedules
-   * nothing. `none` leaves it unowned: no unit's withdrawal (`withdrawDelayed`, a death's) takes it, so a death burst
+   * nothing, nor does an owner that has left life (the spell host's `isGone`). `none` leaves it unowned: no unit's withdrawal (`withdrawDelayed`, a death's) takes it, so a death burst
    * written as `onState(dead) → after(1, …)` still lands; it takes no `bound` (nobody to ask), and its follow-ups are
    * unowned too unless they name an owner. Does not change targets, source credit, or cast retention.
    */

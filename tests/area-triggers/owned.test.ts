@@ -8,6 +8,7 @@ import {
   NO_AREA_TRIGGER,
   spawn
 } from '../../src/area-triggers/index.ts';
+import { setHealth } from '../../src/damage/index.ts';
 import { circle } from '../../src/math/index.ts';
 import { after, castSpell } from '../../src/spells/index.ts';
 import { type Game, makeSpellGame, mark, spell, type Unit } from '../helpers/spell-game.ts';
@@ -187,5 +188,34 @@ describe('withdrawing what a unit owns', () => {
     assert.equal(game.log.includes('landed@1'), true);
     assert.equal(game.log.includes('never@1'), false);
     assert.equal(game.spells.delayed.pending, 0);
+  });
+});
+
+describe('an area trigger spawned for an owner already gone', () => {
+  it('ends at once as source-gone when it needs its owner, and lives on when it does not', () => {
+    const game = makeSpellGame(
+      {},
+      {
+        host: { isGone: (unit) => unit.hp <= 0 },
+        areaTriggers: {
+          ward: { shape: circle(1), lifetime: 'owner' },
+          patch: { shape: circle(1), lifetime: 2 }
+        }
+      }
+    );
+
+    const elite = game.unit(1);
+    const other = game.unit(2);
+
+    // The list's first proc kills its self; the rest, landing on its target, still runs, past the owner's `ownerGone`.
+    const list = [
+      setHealth<Game>(0, { to: 'self' }),
+      spawn<Game>('ward', { to: 'target' }),
+      spawn<Game>('patch', { to: 'target' })
+    ];
+
+    assert.equal(game.procs.run(list, { self: elite, target: other }), 3);
+    assert.deepEqual(game.log, ['spawned ward@1', 'ended ward@1 source-gone', 'spawned patch@1']);
+    assert.equal(game.areaTriggers.query({ owner: elite }, []), 1);
   });
 });

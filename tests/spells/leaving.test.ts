@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
+import { run } from '../../src/procs/index.ts';
+import { after } from '../../src/spells/index.ts';
+import { type Game, makeSpellGame, mark, spell } from '../helpers/spell-game.ts';
 
 /** A one-second windup whose end throws `message`, stopped by a stun. */
 const brittle = (message: string) =>
@@ -70,5 +72,54 @@ describe('ending a caster’s casts in bulk', () => {
         error.suppressed.message === 'second end'
     );
     assert.equal(game.spells.isCasting(hero), false);
+  });
+});
+
+describe('a delayed list for an owner gone', () => {
+  /** A game whose host answers gone units from a set, with a spell that kills its caster mid-list then delays. */
+  const goneGame = () => {
+    const gone = new Set<number>();
+
+    const game = makeSpellGame(
+      {
+        doom: spell({
+          activation: { kind: 'trigger' },
+
+          release: (ctx) => [
+            run<Game>('die', () => {
+              gone.add(ctx.caster.id);
+              game.spells.withdrawDelayed(ctx.caster);
+            }),
+            after<Game>(0.25, [mark('owned')]),
+            after<Game>(0.25, [mark('unowned')], { owner: 'none' })
+          ]
+        })
+      },
+      { host: { isGone: (unit) => gone.has(unit.id) } }
+    );
+
+    return { game, gone };
+  };
+
+  it('is refused when its owner left life before it was scheduled; an unowned list still lands', () => {
+    const { game } = goneGame();
+    const hero = game.unit(1);
+
+    game.spells.cast(hero, game.id.doom);
+    game.step();
+    assert.equal(game.spells.stepDelayed(), 1);
+    assert.deepEqual(
+      game.log.filter((line) => line === 'owned@1' || line === 'unowned@1'),
+      ['unowned@1']
+    );
+  });
+
+  it('is scheduled for an owner still there', () => {
+    const { game } = goneGame();
+    const hero = game.unit(1);
+
+    assert.equal(game.procs.apply(after<Game>(0.25, [mark('owned')]), { self: hero }).status, 'landed');
+    game.step();
+    assert.equal(game.spells.stepDelayed(), 1);
   });
 });
