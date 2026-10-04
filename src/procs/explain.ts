@@ -20,7 +20,10 @@ export interface ProcExplanation {
   /** The proc kind's id in the registry. */
   readonly proc: ProcKindId;
 
-  /** Its odds: 1 for an always-proc. */
+  /**
+   * Its odds: 1 for an always-proc. Reported as written, not clamped: a prepared proc's is in (0, 1]; an unprepared
+   * one's above 1 goes off always and one at 0 or below never.
+   */
   readonly chance: number;
 
   /** Where it lands. */

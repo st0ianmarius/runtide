@@ -1,8 +1,9 @@
 import type { AuraId, AuraSystem, AuraTagId } from '../auras/index.ts';
 import { ownValue } from '../core/records.ts';
 import type { CueId, CueRegistry } from '../cues/index.ts';
+import { checkTarget } from './apply.ts';
 import type { Proc } from './proc-data.ts';
-import type { ProcResolver } from './proc-kind.ts';
+import type { ProcResolver, ProcService } from './proc-kind.ts';
 import type { ProcTypes } from './proc-types.ts';
 import type { ProcRegistry } from './registry.ts';
 
@@ -20,8 +21,11 @@ export interface ResolverParts<G extends ProcTypes> {
   /** The cue registry of the system's buffer, if it has one. */
   readonly cues: CueRegistry | undefined;
 
-  /** Whether the host can resolve party targets. */
-  readonly hasParty: boolean;
+  /** The services the system and its host have: `party` and `grant` on the host, the system's `bus`. */
+  readonly services: ReadonlySet<ProcService>;
+
+  /** Whether a chance between 0 and 1 can roll: the system has a random stream or a chance rule. */
+  readonly canRoll: boolean;
 
   /** Notes a hatch name for the escape report. */
   readonly noteHatch: (name: string) => void;
@@ -32,7 +36,32 @@ const fail = (what: string | undefined, message: string): never => {
   throw new RangeError(what === undefined ? message : `${what}: ${message}`);
 };
 
-/** Resolves a nested list at load: each proc's chance checked, its kind known, its names resolved. */
+/** What a missing service's refusal says. */
+const NEEDS: Readonly<Record<ProcService, string>> = {
+  party: 'a party target needs the proc host to have a party service.',
+  grant: 'a grant proc needs the proc host to have a grant service.',
+  bus: 'an event proc needs the proc system to have a bus.'
+};
+
+/** Throws unless a chance is in (0, 1], and one that rolls has something to roll on. */
+const checkChance = <G extends ProcTypes>(parts: ResolverParts<G>, chance: number | undefined): void => {
+  if (chance === undefined) {
+    return;
+  }
+
+  if (!(chance > 0 && chance <= 1)) {
+    throw new RangeError(`a proc's chance must be in (0, 1]; got ${chance}.`);
+  }
+
+  if (chance < 1 && !parts.canRoll) {
+    throw new RangeError(`a chance of ${chance} needs the proc system to have a random stream or a rollChance rule.`);
+  }
+};
+
+/**
+ * Resolves a nested list at load: each proc's chance checked, its kind known, its names resolved, its target one the
+ * runner knows, and the services it needs present.
+ */
 const prepareList = <G extends ProcTypes>(
   parts: ResolverParts<G>,
   procs: readonly Proc<G>[],
@@ -40,17 +69,16 @@ const prepareList = <G extends ProcTypes>(
 ): readonly Proc<G>[] =>
   Object.freeze(
     procs.map((proc) => {
-      const { chance } = proc;
-
-      if (chance !== undefined && !(chance > 0 && chance <= 1)) {
-        throw new RangeError(`a proc's chance must be in (0, 1]; got ${chance}.`);
-      }
+      checkChance(parts, proc.chance);
 
       const kind = parts.kinds.defs[parts.kinds.kindOf(proc)];
       const prepared = kind?.prepare?.(proc, resolve) ?? proc;
+      const to = kind?.targetOf?.(prepared);
 
-      if (!parts.hasParty && kind?.targetOf?.(prepared) === 'party') {
-        throw new RangeError('a party target needs the proc host to have a party service.');
+      checkTarget(to);
+
+      if (to === 'party') {
+        resolve.need('party');
       }
 
       return prepared;
@@ -93,7 +121,9 @@ export const createResolver = <G extends ProcTypes>(
 
     tag: (tag) => {
       if (typeof tag !== 'string') {
-        return isChecked && !Number.isInteger(tag) ? fail(what, `${tag} is not a tag id.`) : tag;
+        return isChecked && !(Number.isInteger(tag) && tag >= 0 && tag < parts.auras.tags.size)
+          ? fail(what, `${tag} is not a tag id.`)
+          : tag;
       }
 
       return ownValue(tagIds, tag) ?? fail(what, `unknown aura tag ${tag}.`);
@@ -116,11 +146,20 @@ export const createResolver = <G extends ProcTypes>(
     resource: (resource) => {
       const id = typeof resource === 'number' ? resource : parts.resources.indexOf(resource);
 
-      return id >= 0 && id < parts.resources.length ? id : fail(what, `unknown resource ${resource}.`);
+      return Number.isInteger(id) && id >= 0 && id < parts.resources.length
+        ? id
+        : fail(what, `unknown resource ${resource}.`);
     },
 
     procs: (procs) => prepareList(parts, procs, resolve),
-    hatch: parts.noteHatch
+    hatch: parts.noteHatch,
+    isIndependent: (aura) => parts.auras.registry.get(aura).stacking === 'independent',
+
+    need: (service) => {
+      if (!parts.services.has(service)) {
+        fail(what, NEEDS[service]);
+      }
+    }
   };
 
   return resolve;
@@ -137,7 +176,7 @@ export const prepareProcs = <G extends ProcTypes>(
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
 
-    throw new RangeError(message.startsWith(what) ? message : `${what}: ${message}`, {
+    throw new RangeError(message.startsWith(`${what}:`) ? message : `${what}: ${message}`, {
       cause: error
     });
   }

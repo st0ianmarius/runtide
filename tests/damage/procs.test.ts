@@ -242,7 +242,8 @@ describe('the damage system’s proc kinds', () => {
       runs: [{ hatch: 'detached', count: 1 }],
       stages: ['damage.horde'],
       activationKinds: [],
-      queryExtensions: []
+      queryExtensions: [],
+      slots: []
     });
     assert.deepEqual(escapeReport({ procs: game.procs }).procKinds, ['damage', 'heal', 'setHealth', 'force']);
   });

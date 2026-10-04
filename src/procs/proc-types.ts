@@ -13,8 +13,9 @@ export interface ProcShape {
   readonly kind: string;
 
   /**
-   * The odds it goes off. Absent, or 1 and more: always, and nothing is rolled, so an always-proc never shifts a
-   * stream. 0 or less: never. In between: one roll on the procs' own stream.
+   * The odds it goes off, in (0, 1]: `procs.prepare` refuses anything else. Absent or 1: always, and nothing is rolled,
+   * so an always-proc never shifts a stream. Below 1: one roll on the procs' own stream (or the game's chance rule).
+   * An unprepared proc above 1 still always goes off, and one at 0 or below never does.
    */
   readonly chance?: number;
 }
@@ -60,7 +61,11 @@ export type ProcTarget<G extends ProcTypes> = 'self' | 'target' | 'eventUnit' | 
  */
 export type ProcStatus = 'skipped' | 'refused' | 'ignored' | 'blocked' | 'absorbed' | 'landed' | 'avoided';
 
-/** What applying one proc did, which `ctx.apply` returns and the runner reads. */
+/**
+ * What applying one proc did, which `ctx.apply` returns and the runner reads. The record may be pooled (a frame's
+ * settled outcome for a proc with follow-ups, the damage engine's blow record): it is valid until the next apply at the
+ * same nesting level, so a caller that keeps it copies it first with `procOutcome(o.status, o)`.
+ */
 export interface ProcOutcome {
   /** What became of it. */
   readonly status: ProcStatus;
@@ -203,10 +208,17 @@ export interface ProcContext<G extends ProcTypes> {
   /** A random source: the procs' own stream, or a named stream of the host's table. */
   readonly random: (stream?: G['stream']) => Random;
 
-  /** Applies one proc now, in this list (its kills count for the list), and returns what it did. */
+  /**
+   * Applies one proc now, in this list (its kills count for the list), and returns what it did. The outcome may be a
+   * pooled record, valid until the next apply at this level: copy it with `procOutcome(o.status, o)` to keep it.
+   */
   readonly apply: (proc: Proc<G>) => ProcOutcome;
 
-  /** Runs procs one level deeper, for the same origin: what a delivery or a landed aura sets off. */
+  /**
+   * Runs procs one level deeper, for the same origin: what a delivery or a landed aura sets off. The deeper list
+   * starts a fresh kill set (a unit this list killed is not skipped there), and its default target is this context's
+   * `target` as it is now: inside a follow-up, the unit the followed proc landed on. Returns how many went off.
+   */
   readonly run: (procs: readonly Proc<G>[]) => number;
 }
 

@@ -9,6 +9,7 @@ import {
   type ProcContext,
   type ProcHost,
   type ProcOutcome,
+  type ProcStatus,
   type ProcTarget,
   type ProcTypes
 } from './proc-types.ts';
@@ -37,8 +38,21 @@ export const missing = (what: string): never => {
   throw new TypeError(`This proc needs ${what}, which the proc system was not given.`);
 };
 
-/** Resolves a target other than `party` (a unit passes through); `undefined` when the list has no such unit. */
-const unitOf = <G extends ProcTypes>(frame: ProcFrame<G>, to: ProcTarget<G>): G['bearer'] | undefined => {
+/** The symbolic targets the runner knows. */
+const TARGETS: ReadonlySet<unknown> = new Set(['self', 'target', 'eventUnit', 'other', 'party']);
+
+/** Throws at load for a string target the runner does not know (a unit or `undefined` passes). */
+export const checkTarget = (to: unknown): void => {
+  if (typeof to === 'string' && !TARGETS.has(to)) {
+    throw new RangeError(`unknown target ${to}; a proc lands on self, target, eventUnit, other, party or a unit.`);
+  }
+};
+
+/**
+ * Resolves a target other than `party` (a unit passes through); `undefined` when the list has no such unit, or for a
+ * string the runner does not know (refused at load by `checkTarget`).
+ */
+export const unitOf = <G extends ProcTypes>(frame: ProcFrame<G>, to: ProcTarget<G>): G['bearer'] | undefined => {
   if (to === 'self') {
     return frame.self;
   }
@@ -139,27 +153,38 @@ export const createApplier = <G extends ProcTypes>(parts: ApplyParts<G>): Applie
   };
 
   /**
-   * A proc on each party member, copied first so a proc that changes the party changes no one's turn: landed when it
-   * landed on any. Kept small, as `applyIn` inlines it.
+   * A proc on each party member, copied first so a proc that changes the party changes no one's turn. It reports the
+   * first member's outcome that `landed` (its `amount` and `hasKilled` are that member's), else the last one that was
+   * not `skipped`, else `skipped`; copied into the frame's reused outcome when a later member's apply rewrote the
+   * pooled record it came in. The members stack is popped even when a member's apply throws.
    */
   const toParty = (frame: ProcFrame<G>, proc: Proc<G>): ProcOutcome => {
     const from = frame.pushParty((parts.host.party ?? missing('host.party'))(frame.self));
     const to = frame.partyTop;
-    let last = PROC_SKIPPED;
-    let landed = PROC_SKIPPED;
+    let chosen = PROC_SKIPPED;
+    let status: ProcStatus = 'skipped';
+    let amount = 0;
+    let hasKilled = false;
 
-    for (let i = from; i < to; i++) {
-      const member = frame.party[i];
+    try {
+      for (let i = from; i < to; i++) {
+        const member = frame.party[i];
+        const outcome = member === undefined ? PROC_SKIPPED : applyTo(frame, proc, member);
 
-      if (member !== undefined) {
-        last = applyTo(frame, proc, member);
-        landed = last.status === 'skipped' ? landed : PROC_LANDED;
+        if (outcome.status !== 'skipped' && status !== 'landed') {
+          chosen = outcome;
+          status = outcome.status;
+          amount = outcome.amount;
+          hasKilled = outcome.hasKilled;
+        }
       }
+    } finally {
+      frame.partyTop = from;
     }
 
-    frame.partyTop = from;
-
-    return last.status === 'skipped' ? landed : last;
+    return chosen.status === status && chosen.amount === amount && chosen.hasKilled === hasKilled
+      ? chosen
+      : frame.settle(status, { amount, hasKilled });
   };
 
   const applyIn = (frame: ProcFrame<G>, proc: Proc<G>): ProcOutcome => {

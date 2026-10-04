@@ -30,9 +30,38 @@ export interface ProcRegistry<G extends ProcTypes> {
 /** Whether a kind definition acts on a unit. */
 const hasTarget = <G extends ProcTypes>(def: ProcKindDef<Proc<G>, G>): boolean => Object.hasOwn(def, 'targetOf');
 
+/** The optional functions of a kind definition. */
+const OPTIONAL: readonly ('targetOf' | 'follow' | 'prepare' | 'explain')[] = [
+  'targetOf',
+  'follow',
+  'prepare',
+  'explain'
+];
+
+/**
+ * Throws for a kind definition the runner could not dispatch: no `apply` function, an optional member present but not
+ * a function, or a `follow` on a kind with no `targetOf` (follow-ups aim at the unit the proc landed on).
+ */
+const checkKind = <G extends ProcTypes>(name: string, def: ProcKindDef<Proc<G>, G>): void => {
+  if (typeof def.apply !== 'function') {
+    throw new TypeError(`Proc kind ${name} needs an apply function.`);
+  }
+
+  for (const member of OPTIONAL) {
+    if ((Object.hasOwn(def, member) || def[member] !== undefined) && typeof def[member] !== 'function') {
+      throw new TypeError(`Proc kind ${name}: its ${member} must be a function.`);
+    }
+  }
+
+  if (def.follow !== undefined && def.targetOf === undefined) {
+    throw new TypeError(`Proc kind ${name} has a follow but no targetOf: follow-ups aim at the unit a proc lands on.`);
+  }
+};
+
 /**
  * Registers the proc kinds: `createProcRegistry({ ...CORE_PROCS, ...GAME_PROCS })` gives each
- * kind its id by key order, freezes the definitions, and builds the dispatch table. A game adds kinds by listing them,
+ * kind its id by key order, freezes the definitions, and builds the dispatch table. Throws for a kind with no `apply`,
+ * an optional member that is not a function, or a `follow` without a `targetOf`. A game adds kinds by listing them,
  * and may replace a core kind with its own (the escape report lists both).
  */
 export const createProcRegistry = <G extends ProcTypes>(kinds: ProcKinds<G>): ProcRegistry<G> => {
@@ -41,9 +70,7 @@ export const createProcRegistry = <G extends ProcTypes>(kinds: ProcKinds<G>): Pr
   const defs = base.ids.map((id) => base.get(id));
 
   for (const [index, def] of defs.entries()) {
-    if (typeof def.apply !== 'function') {
-      throw new TypeError(`Proc kind ${base.names[index] ?? index} needs an apply function.`);
-    }
+    checkKind(base.names[index] ?? String(index), def);
   }
 
   const ids: Readonly<Record<string, ProcKindId>> = base.id;

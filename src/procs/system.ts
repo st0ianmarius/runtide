@@ -6,7 +6,7 @@ import type { CueBuffer } from '../cues/index.ts';
 import { createApplier, missing } from './apply.ts';
 import { type FrameRunner, type FrameShared, ProcFrame } from './frame.ts';
 import type { Proc } from './proc-data.ts';
-import type { ProcResolver } from './proc-kind.ts';
+import type { ProcResolver, ProcService } from './proc-kind.ts';
 import {
   PROC_SKIPPED,
   type ProcBus,
@@ -108,7 +108,10 @@ export interface ProcSystem<G extends ProcTypes> {
    */
   readonly run: (procs: readonly (Proc<G> | undefined)[], origin: ProcOrigin<G>) => number;
 
-  /** Applies one proc for an origin, as a list of one, and returns what it did. */
+  /**
+   * Applies one proc for an origin, as a list of one, and returns what it did. The outcome may be a pooled record,
+   * valid until the next apply at the same nesting level: copy it with `procOutcome(o.status, o)` to keep it.
+   */
   readonly apply: (proc: Proc<G>, origin: ProcOrigin<G>) => ProcOutcome;
 
   /**
@@ -118,8 +121,10 @@ export interface ProcSystem<G extends ProcTypes> {
   readonly runAura: (procs: readonly Proc<G>[], ctx: AuraContext<G>) => void;
 
   /**
-   * Prepares a static list at load: checks every chance is in (0, 1] and every kind and name is known, and resolves
-   * names to ids, so the list applies with no lookups. Throws a `RangeError` naming `what`.
+   * Prepares a static list at load: checks every chance is in (0, 1] (and that one below 1 has a stream or rule to roll
+   * on), every kind, name, id and target is known, each kind's numbers are sound and the services its procs need
+   * (`host.party`, `host.grant`, the bus, the cues) are there, and resolves names to ids, so the list applies with no
+   * lookups. Throws a `RangeError` naming `what`.
    */
   readonly prepare: (procs: readonly Proc<G>[], what: string) => readonly Proc<G>[];
 }
@@ -282,13 +287,33 @@ const createRunner = <G extends ProcTypes>(
   return runner;
 };
 
+/** The services a system and its host have, which kinds' `prepare` asks for (`ProcResolver.need`). */
+const servicesOf = <G extends ProcTypes>(options: ProcSystemOptions<G>): ReadonlySet<ProcService> => {
+  const services = new Set<ProcService>();
+
+  if (options.host.party !== undefined) {
+    services.add('party');
+  }
+
+  if (options.host.grant !== undefined) {
+    services.add('grant');
+  }
+
+  if (options.bus !== undefined) {
+    services.add('bus');
+  }
+
+  return services;
+};
+
 /** The parts every resolver of a system reads. */
 const partsOf = <G extends ProcTypes>(options: ProcSystemOptions<G>, state: RunnerState<G>): ResolverParts<G> => ({
   auras: options.auras,
   kinds: options.kinds,
   resources: options.resources ?? [],
   cues: options.cues?.registry,
-  hasParty: options.host.party !== undefined,
+  services: servicesOf(options),
+  canRoll: options.random !== undefined || options.rollChance !== undefined,
 
   noteHatch: (name: string) => {
     if (!state.runs.has(name)) {

@@ -1,3 +1,4 @@
+import type { AuraId } from '../auras/index.ts';
 import { pick } from '../core/index.ts';
 import { CUE_KIND } from './cue-kind.ts';
 import { frameOf } from './frame.ts';
@@ -93,19 +94,68 @@ export interface CoreProcKind<Kind extends CoreProcName> {
 const numbersOf = (values: Readonly<Record<string, number | undefined>>): Readonly<Record<string, number>> =>
   Object.fromEntries(Object.entries(values).filter((entry): entry is [string, number] => entry[1] !== undefined));
 
-/** Applies each proc of a list in the context's own list, in order. */
-const applyEach = <G extends ProcTypes>(ctx: ProcContext<G>, procs: readonly Proc<G>[] | undefined): void => {
-  const list = procs ?? [];
+/**
+ * Applies each proc of a list in the context's own list, in order; returns how many were not `skipped`, so a control
+ * kind inside which nothing happened reports `skipped` too.
+ */
+const applyEach = <G extends ProcTypes>(ctx: ProcContext<G>, procs: readonly Proc<G>[] | undefined): number => {
+  if (procs === undefined) {
+    return 0;
+  }
+
+  let went = 0;
 
   // An indexed loop: groups run here, and an iterator over a frozen list allocates.
   // oxlint-disable-next-line typescript/prefer-for-of
-  for (let i = 0; i < list.length; i++) {
-    const proc = list[i];
+  for (let i = 0; i < procs.length; i++) {
+    const proc = procs[i];
 
-    if (proc !== undefined) {
-      ctx.apply(proc);
+    if (proc !== undefined && ctx.apply(proc).status !== 'skipped') {
+      went += 1;
     }
   }
+
+  return went;
+};
+
+/** `landed` when some of a control kind's procs went off, `skipped` when none did. */
+const wentOff = (went: number): ProcOutcome => (went === 0 ? PROC_SKIPPED : PROC_LANDED);
+
+/** The built-in stacking rules an application may pick (`independent` is an aura's own, never an application's). */
+const STACKING_RULES: ReadonlySet<unknown> = new Set(['refresh', 'extend', 'stack', 'highest']);
+
+/** Throws unless an optional number of a proc is from 0 (not NaN); `Infinity` passes when `infinite` allows it. */
+const checkCount = (name: string, value: number | undefined, infinite = false): void => {
+  if (value !== undefined && !(value >= 0 && (infinite || Number.isFinite(value)))) {
+    throw new RangeError(
+      `an applyAura proc's ${name} must be a ${infinite ? '' : 'finite '}number from 0; got ${value}.`
+    );
+  }
+};
+
+/**
+ * Checks an `applyAura` at load: its stacking rule a built-in one its aura may take (not on an `independent` aura),
+ * its length a number from 0 (`Infinity` for an aura that stays), its stacks a finite one.
+ */
+const checkApplication = <G extends ProcTypes>(
+  proc: ApplyAuraProc<G>,
+  aura: AuraId,
+  resolve: ProcResolver<G>
+): void => {
+  const { stacking } = proc;
+
+  if (stacking !== undefined && !STACKING_RULES.has(stacking)) {
+    throw new RangeError(
+      `unknown stacking rule ${String(stacking)}; an applyAura takes refresh, extend, stack or highest.`
+    );
+  }
+
+  if (stacking !== undefined && resolve.isIndependent(aura)) {
+    throw new RangeError(`an applyAura cannot pick a stacking rule for an independent aura.`);
+  }
+
+  checkCount('duration', proc.duration, true);
+  checkCount('stacks', proc.stacks);
 };
 
 /** Lands an aura through the aura system, with the frame's reused application, credited to the list's source. */
@@ -141,7 +191,13 @@ const applyAuraKind: CoreProcKind<'applyAura'> = {
     return ctx.auras.apply(target, application).applied ? PROC_LANDED : PROC_REFUSED;
   },
 
-  prepare: (proc, resolve) => ({ ...proc, aura: resolve.aura(proc.aura) }),
+  prepare: (proc, resolve) => {
+    const aura = resolve.aura(proc.aura);
+
+    checkApplication(proc, aura, resolve);
+
+    return { ...proc, aura };
+  },
 
   explain: (proc, resolve) => ({
     values: numbersOf({
@@ -183,10 +239,14 @@ const removeByTagKind: CoreProcKind<'removeByTag'> = {
   explain: (proc, resolve) => ({ values: { tag: resolve.tag(proc.tag) } })
 };
 
-/** Throws unless a time change's factor and cap are numbers from 0. */
+/** Throws unless a time change has a factor or a cap, its factor a finite number from 0 and its cap a number from 0. */
 const checkTimeLeft = <G extends ProcTypes>(proc: TimeLeftProc<G>): void => {
-  if (!((proc.factor ?? 1) >= 0) || !((proc.max ?? 0) >= 0)) {
-    throw new RangeError(`A timeLeft proc takes a factor and a max from 0.`);
+  if (proc.factor === undefined && proc.max === undefined) {
+    throw new RangeError(`A timeLeft proc takes a factor, a max or both.`);
+  }
+
+  if (!(Number.isFinite(proc.factor ?? 1) && (proc.factor ?? 1) >= 0) || !((proc.max ?? 0) >= 0)) {
+    throw new RangeError(`A timeLeft proc takes a finite factor from 0 and a max from 0.`);
   }
 };
 
@@ -242,7 +302,15 @@ const grantKind: CoreProcKind<'grant'> = {
     return PROC_LANDED;
   },
 
-  prepare: (proc, resolve) => ({ ...proc, resource: resolve.resource(proc.resource) }),
+  prepare: (proc, resolve) => {
+    resolve.need('grant');
+
+    if (!Number.isFinite(proc.amount)) {
+      throw new RangeError(`a grant proc's amount must be a finite number; got ${proc.amount}.`);
+    }
+
+    return { ...proc, resource: resolve.resource(proc.resource) };
+  },
 
   explain: (proc, resolve) => ({
     values: { resource: resolve.resource(proc.resource), amount: proc.amount }
@@ -270,31 +338,35 @@ const eventKind: CoreProcKind<'event'> = {
     return PROC_LANDED;
   },
 
+  prepare: (proc, resolve) => {
+    resolve.need('bus');
+
+    return proc;
+  },
+
   explain: (proc) => ({ values: { event: proc.event } })
 };
 
-/** Applies its procs in order, in the same list. */
+/** Applies its procs in order, in the same list; `skipped` when none of them went off. */
 const groupKind: CoreProcKind<'group'> = {
-  apply: (proc, ctx) => {
-    applyEach(ctx, proc.procs);
-
-    return PROC_LANDED;
-  },
+  apply: (proc, ctx) => wentOff(applyEach(ctx, proc.procs)),
 
   prepare: (proc, resolve) => ({ ...proc, procs: resolve.procs(proc.procs) }),
   explain: (proc) => ({ procs: proc.procs })
 };
 
-/** Applies the procs its function decides now, in the same list. */
+/**
+ * Applies the procs its function decides now, in the same list; `skipped` when none of them went off (what the
+ * function applied itself through `ctx.apply` does not count).
+ */
 const andThenKind: CoreProcKind<'andThen'> = {
-  apply: (proc, ctx) => {
-    applyEach(ctx, proc.fn(ctx));
-
-    return PROC_LANDED;
-  }
+  apply: (proc, ctx) => wentOff(applyEach(ctx, proc.fn(ctx)))
 };
 
-/** Draws one candidate now, then applies the procs decided for it, in the same list; `skipped` with none. */
+/**
+ * Draws one candidate now, then applies the procs decided for it, in the same list; `skipped` with no candidate or
+ * when none of its procs went off.
+ */
 const pickOneKind: CoreProcKind<'pickOne'> = {
   apply: (proc, ctx) => {
     const candidates = proc.from(ctx);
@@ -303,13 +375,11 @@ const pickOneKind: CoreProcKind<'pickOne'> = {
       return PROC_SKIPPED;
     }
 
-    applyEach(ctx, proc.onPick(ctx, pick(ctx.random(proc.stream), candidates)));
-
-    return PROC_LANDED;
+    return wentOff(applyEach(ctx, proc.onPick(ctx, pick(ctx.random(proc.stream), candidates))));
   }
 };
 
-/** Runs the game's code, counted under its hatch name. */
+/** Runs the game's code, counted under its hatch name: opaque, so always `landed`. */
 const runKind: CoreProcKind<'run'> = {
   apply: (proc, ctx) => {
     frameOf(ctx).countRun(proc.hatch);

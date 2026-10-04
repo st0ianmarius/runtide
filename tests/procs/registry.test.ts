@@ -67,7 +67,8 @@ describe('the escape report', () => {
       ],
       stages: [],
       activationKinds: [],
-      queryExtensions: []
+      queryExtensions: [],
+      slots: []
     });
   });
 

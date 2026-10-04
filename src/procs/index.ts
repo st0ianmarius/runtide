@@ -29,6 +29,7 @@ export {
   type EscapeReport,
   escapeReport,
   type EscapeRun,
+  type EscapeSlots,
   type EscapeSpells,
   type EscapeWorld
 } from './escape.ts';
@@ -51,7 +52,14 @@ export type {
   TimeLeftProc
 } from './proc-data.ts';
 
-export { defineProcKind, type ProcDetail, type ProcKindDef, type ProcKinds, type ProcResolver } from './proc-kind.ts';
+export {
+  defineProcKind,
+  type ProcDetail,
+  type ProcKindDef,
+  type ProcKinds,
+  type ProcResolver,
+  type ProcService
+} from './proc-kind.ts';
 
 export {
   PROC_LANDED,

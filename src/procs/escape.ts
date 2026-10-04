@@ -13,8 +13,9 @@ export interface EscapeRun {
 
 /**
  * Every escape hatch a game registered, counted so the escapes stay visible and few: a game prints it in CI,
- * and a hatch several mechanics share is a candidate for a framework feature. Later systems add their hatches (the
- * damage pipeline's stages, the world query's extensions, the game-owned tick slots).
+ * and a hatch several mechanics share is a candidate for a framework feature. The numbers are the hatches of the plan's
+ * list (§I.5.6); hatch 4 (typed `ext` slots on framework records) and hatch 7 (the bus) are types and listeners, not
+ * registrations, so nothing here counts them.
  */
 export interface EscapeReport {
   /** The game's own proc kinds, and core kinds it replaced, in registry order (hatch 1). */
@@ -23,14 +24,23 @@ export interface EscapeReport {
   /** Every `run` hatch prepared at load or run so far, in the order first seen (hatch 3). */
   readonly runs: readonly EscapeRun[];
 
-  /** The game's own pipeline stages (`damage.name`, `heal.name`, `force.name`), in declaration order (hatch 5). */
+  /**
+   * The game's own pipeline stages (`damage.name`, `heal.name`, `force.name`), in declaration order (hatch 5, host
+   * extension points).
+   */
   readonly stages: readonly string[];
 
   /** The game's own activation kinds, and core kinds it replaced, in registry order (hatch 2). */
   readonly activationKinds: readonly string[];
 
-  /** The game's own world-query extensions (`WorldQuery & GameQuery`), in declaration order (hatch 5). */
+  /** The game's own world-query extensions (`WorldQuery & GameQuery`), in declaration order (hatch 5 too). */
   readonly queryExtensions: readonly string[];
+
+  /**
+   * The game's tick slots (`defineTickSlots`), in id order: where it steps the framework's systems and its own between
+   * them (hatch 6, game-owned steps); none when the report is given no slot registry.
+   */
+  readonly slots: readonly string[];
 }
 
 /**
@@ -72,6 +82,12 @@ export interface EscapeWorld {
   readonly extensions: readonly string[];
 }
 
+/** What the escape report reads from the game's tick slots (a `defineTickSlots` registry is one): their names. */
+export interface EscapeSlots {
+  /** The slots' names, in id order. */
+  readonly names: readonly string[];
+}
+
 /** The framework's kinds, by name. */
 const CORE: Readonly<Record<string, object | undefined>> = CORE_PROCS;
 
@@ -108,6 +124,9 @@ export const escapeReport = <G extends ProcTypes>(registries: {
 
   /** The game's world, if it asks one. */
   readonly world?: EscapeWorld;
+
+  /** The game's tick slots (`defineTickSlots`), if it declares them. */
+  readonly tickSlots?: EscapeSlots;
 }): EscapeReport => {
   const { kinds, runs } = registries.procs;
   const { damage, spells } = registries;
@@ -120,6 +139,7 @@ export const escapeReport = <G extends ProcTypes>(registries: {
     runs: [...runs].map(([hatch, count]) => ({ hatch, count })),
     stages: damage?.gameStages ?? [],
     activationKinds: spells?.gameActivations ?? [],
-    queryExtensions: registries.world?.extensions ?? []
+    queryExtensions: registries.world?.extensions ?? [],
+    slots: registries.tickSlots?.names ?? []
   };
 };

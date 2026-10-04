@@ -95,7 +95,8 @@ describe('a proc list applies in order', () => {
     );
 
     assert.deepEqual(seen, ['refused', 'skipped', 'landed', 'landed']);
-    assert.equal(went, 2);
+    // The andThen returned no procs, so it counts as skipped: what its function applied itself is not its own.
+    assert.equal(went, 1);
   });
 
   it('does nothing with a proc aimed at a unit the same list already killed', () => {

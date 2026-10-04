@@ -4,6 +4,12 @@ import type { Proc } from './proc-data.ts';
 import type { ProcContext, ProcOutcome, ProcShape, ProcTarget, ProcTypes } from './proc-types.ts';
 
 /**
+ * A service a proc kind may need from its system, which `ProcResolver.need` checks at load: the host's `party` or
+ * `grant`, or the system's `bus`.
+ */
+export type ProcService = 'party' | 'grant' | 'bus';
+
+/**
  * Turns the names data procs carry into ids, at load (`procs.prepare`) or when a proc naming one applies. Every
  * function throws a `RangeError` naming what it could not find.
  */
@@ -28,6 +34,12 @@ export interface ProcResolver<G extends ProcTypes> {
 
   /** Notes a `run` hatch's name for the escape report. */
   readonly hatch: (name: string) => void;
+
+  /** Whether an aura (by id) is an `independent` one, which an application may not pick a stacking rule for. */
+  readonly isIndependent: (aura: AuraId) => boolean;
+
+  /** Throws a `RangeError` naming the service when the system or its host lacks it (at load: a kind's `prepare`). */
+  readonly need: (service: ProcService) => void;
 }
 
 /** A proc's own numbers explained as data, and the procs nested in it. */

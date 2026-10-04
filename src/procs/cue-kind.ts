@@ -12,11 +12,11 @@ import {
   NO_ENTITY
 } from '../cues/index.ts';
 import type { Vec2 } from '../math/index.ts';
-import { missing } from './apply.ts';
+import { checkTarget, missing, unitOf } from './apply.ts';
 import type { CoreProcKind } from './core-procs.ts';
 import { frameOf, type ProcFrame } from './frame.ts';
 import type { CueProc } from './proc-data.ts';
-import { PROC_LANDED, PROC_SKIPPED, type ProcOutcome, type ProcTarget, type ProcTypes } from './proc-types.ts';
+import { PROC_LANDED, PROC_SKIPPED, type ProcOutcome, type ProcTypes } from './proc-types.ts';
 
 /** The spec and place a frame's `cue` procs fire with, reused so a cue proc allocates nothing. */
 export class CueFiring implements CueSpec, CuePlace {
@@ -33,27 +33,6 @@ export class CueFiring implements CueSpec, CuePlace {
     this.cue = cue;
   }
 }
-
-/** The unit a symbolic target names in a frame (a unit passes through); `undefined` when the list has none. */
-const unitIn = <G extends ProcTypes>(frame: ProcFrame<G>, on: ProcTarget<G>): G['bearer'] | undefined => {
-  if (on === 'self') {
-    return frame.self;
-  }
-
-  if (on === 'target') {
-    return frame.target;
-  }
-
-  if (on === 'eventUnit') {
-    return frame.eventUnit;
-  }
-
-  if (on === 'other') {
-    return frame.other;
-  }
-
-  return typeof on === 'string' ? undefined : on;
-};
 
 /** The point a unit's position is read into, read at once. */
 const POINT = { x: 0, z: 0 };
@@ -101,7 +80,7 @@ const applyCue = <G extends ProcTypes>(proc: CueProc<G>, frame: ProcFrame<G>): P
     return members.length === 0 ? PROC_SKIPPED : PROC_LANDED;
   }
 
-  const unit = unitIn(frame, on);
+  const unit = unitOf(frame, on);
 
   if (unit === undefined) {
     return PROC_SKIPPED;
@@ -112,9 +91,18 @@ const applyCue = <G extends ProcTypes>(proc: CueProc<G>, frame: ProcFrame<G>): P
   return PROC_LANDED;
 };
 
-/** Checks that a cue proc can be placed by its anchor. */
+/**
+ * Checks that a cue proc can be fired by a proc and placed by its anchor: not a predicted cue (a proc has no press key,
+ * so the client's echo ring would never drop the server's copy), its `to` a target the runner knows.
+ */
 const checkPlacement = <G extends ProcTypes>(cues: CueRegistry, proc: CueProc<G>, cue: CueId): void => {
   const anchor = cues.anchorOf(cue);
+
+  if (cues.columns.isPredicted[cue] === 1) {
+    throw new RangeError(`cue ${cues.name(cue)} is predicted: a predicted cue is fired by its cast, not by a proc.`);
+  }
+
+  checkTarget(proc.to);
 
   if (anchor === 'self' && (proc.to !== undefined || proc.at !== undefined)) {
     throw new RangeError(`cue ${cues.name(cue)} sits on the procs' self, so it takes no to or at.`);
@@ -127,7 +115,8 @@ const checkPlacement = <G extends ProcTypes>(cues: CueRegistry, proc: CueProc<G>
 
 /**
  * The `cue` proc kind: presentation only, so it acts on no unit the runner resolves (a cue plays even on a unit
- * its list killed), and is checked at load against the system's cue registry.
+ * its list killed), and is checked at load against the system's cue registry (a predicted cue is refused: its cast
+ * fires it, with the press key a proc does not have) and the host (a `party` cue needs `host.party`).
  */
 export const CUE_KIND: CoreProcKind<'cue'> = {
   apply: (proc, ctx) => applyCue(proc, frameOf(ctx)),
@@ -138,6 +127,10 @@ export const CUE_KIND: CoreProcKind<'cue'> = {
 
     checkCueSpec(cues, { cue, ...(proc.params === undefined ? {} : { params: proc.params }) }, 'a cue proc');
     checkPlacement(cues, proc, cue);
+
+    if (proc.to === 'party') {
+      resolve.need('party');
+    }
 
     return { ...proc, cue };
   },
