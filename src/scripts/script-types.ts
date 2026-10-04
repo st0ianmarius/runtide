@@ -2,6 +2,7 @@ import type { TimerId } from '../ai/index.ts';
 import type { Id } from '../core/index.ts';
 import type { Proc, ProcOutcome } from '../procs/index.ts';
 import type { UnitTypes } from '../units/index.ts';
+import { checkBehaviour } from './define-scripts.ts';
 
 /** The id of a script: its position in the game's script registry (`defineScripts`). */
 export type ScriptId = Id<'scripts'>;
@@ -116,9 +117,14 @@ export type AnyBehaviour<G extends ScriptTypes> = Behaviour<G>;
 
 /**
  * Fixes a behaviour's game types and returns the identity that infers its state: `const behaviour =
- * defineBehaviour<Game>();` then `export const enrage = behaviour({ state: () => ({ isEnraged: false }), … })`.
+ * defineBehaviour<Game>();` then `export const enrage = behaviour({ state: () => ({ isEnraged: false }), … })`. Throws
+ * for a behaviour that is not an object, has a key a behaviour does not, or a handler that is not a function;
+ * `defineScripts` checks every behaviour again, naming its script.
  */
 export const defineBehaviour =
   <G extends ScriptTypes>() =>
-  <State = undefined>(behaviour: Behaviour<G, State>): Behaviour<G, State> =>
-    behaviour;
+  <State = undefined>(behaviour: Behaviour<G, State>): Behaviour<G, State> => {
+    checkBehaviour<G>(behaviour, 'A behaviour');
+
+    return behaviour;
+  };

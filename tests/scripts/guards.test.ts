@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { setTimer } from '../../src/ai/index.ts';
 import { damage } from '../../src/damage/index.ts';
 import { type ProcOutcome, run } from '../../src/procs/index.ts';
-import { defineBehaviour, defineScripts } from '../../src/scripts/index.ts';
+import { type AnyBehaviour, defineBehaviour, defineScripts } from '../../src/scripts/index.ts';
 import { makeUnitGame, TIMERS, type UnitGame } from '../helpers/unit-game.ts';
 
 const behaviour = defineBehaviour<UnitGame>();
@@ -152,5 +152,28 @@ describe('scripts guard their procs and their definitions', () => {
     game.units.kill(add);
     game.units.revive(add, 50);
     assert.equal(add.health, 25, 'struck as the change’s event unit');
+  });
+
+  it('refuse a behaviour listed twice, an unknown key, a script that is no list and a behaviour that is no object', () => {
+    const once = behaviour({ tick: () => undefined });
+    const loose = { tick: () => undefined, tock: () => undefined };
+
+    assert.throws(
+      () => defineScripts<UnitGame, 'twice'>({ twice: [once, behaviour({}), once] }),
+      /Script twice lists one behaviour twice, as behaviours 0 and 2/
+    );
+    assert.throws(
+      () => defineScripts<UnitGame, 'odd'>({ odd: [loose] }),
+      /Script odd, behaviour 0 has an unknown key tock/
+    );
+    assert.throws(() => behaviour(loose), /A behaviour has an unknown key tock/);
+
+    const flat: Record<string, readonly AnyBehaviour<UnitGame>[]> = {};
+    const holey = [once, once];
+
+    Reflect.set(flat, 'flat', once);
+    Reflect.set(holey, 1, null);
+    assert.throws(() => defineScripts<UnitGame, string>(flat), /Script flat is not a list of behaviours/);
+    assert.throws(() => defineScripts<UnitGame, 'holey'>({ holey }), /Script holey, behaviour 1 is not an object/);
   });
 });

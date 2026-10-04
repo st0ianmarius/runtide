@@ -56,16 +56,47 @@ const having = <G extends ScriptTypes>(
   has: (behaviour: AnyBehaviour<G>) => boolean
 ): readonly number[] => Object.freeze(behaviours.flatMap((behaviour, index) => (has(behaviour) ? [index] : [])));
 
-/** Throws unless every handler a behaviour declares is a function. */
-const checkBehaviour = <G extends ScriptTypes>(behaviour: AnyBehaviour<G>, where: string): void => {
+/** The keys a behaviour may have. */
+const BEHAVIOUR_KEYS: ReadonlySet<string> = new Set(['state', 'spawn', 'tick', 'timer', 'died', 'revived', 'on']);
+
+/**
+ * Throws unless a behaviour is an object with only a behaviour's keys, every handler it declares a function: `where`
+ * names it in the message.
+ */
+export const checkBehaviour = <G extends ScriptTypes>(behaviour: AnyBehaviour<G>, where: string): void => {
+  const value: unknown = behaviour;
+
+  if (typeof value !== 'object' || value === null) {
+    throw new TypeError(`${where} is not an object.`);
+  }
+
+  for (const key of Object.keys(behaviour)) {
+    if (!BEHAVIOUR_KEYS.has(key)) {
+      throw new TypeError(`${where} has an unknown key ${key}.`);
+    }
+  }
+
   for (const key of ['state', 'spawn', 'tick', 'timer', 'died', 'revived'] as const) {
     if (behaviour[key] !== undefined && typeof behaviour[key] !== 'function') {
       throw new TypeError(`${where}: its ${key} is not a function.`);
     }
   }
 
-  for (const [event, handler] of Object.entries<unknown>(behaviour.on ?? {})) {
-    if (typeof handler !== 'function') {
+  checkEvents(behaviour.on, where);
+};
+
+/** Throws unless a behaviour's `on` is absent or an object of functions. */
+const checkEvents = (on: unknown, where: string): void => {
+  if (on === undefined) {
+    return;
+  }
+
+  if (typeof on !== 'object' || on === null) {
+    throw new TypeError(`${where}: its on is not an object.`);
+  }
+
+  for (const event of Object.keys(on)) {
+    if (typeof Reflect.get(on, event) !== 'function') {
       throw new TypeError(`${where}: its handler of ${event} is not a function.`);
     }
   }
@@ -77,12 +108,26 @@ const compile = <G extends ScriptTypes>(
   behaviours: readonly AnyBehaviour<G>[],
   freeze: boolean
 ): CompiledScript<G> => {
-  const events = new Set(behaviours.flatMap((behaviour) => Object.keys(behaviour.on ?? {})));
+  const list: unknown = behaviours;
+
+  if (!Array.isArray(list)) {
+    throw new TypeError(`Script ${name} is not a list of behaviours.`);
+  }
 
   for (const [index, behaviour] of behaviours.entries()) {
     checkBehaviour(behaviour, `Script ${name}, behaviour ${index}`);
 
-    if (freeze) {
+    const first = behaviours.indexOf(behaviour);
+
+    if (first !== index) {
+      throw new TypeError(`Script ${name} lists one behaviour twice, as behaviours ${first} and ${index}.`);
+    }
+  }
+
+  const events = new Set(behaviours.flatMap((behaviour) => Object.keys(behaviour.on ?? {})));
+
+  if (freeze) {
+    for (const behaviour of behaviours) {
       deepFreeze(behaviour);
     }
   }
