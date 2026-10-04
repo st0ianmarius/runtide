@@ -2,6 +2,7 @@
 /* oxlint-disable typescript/prefer-for-of */
 import { isRunOut } from '../core/index.ts';
 import type { AuraItem } from './active-aura.ts';
+import { countTick } from './audit.ts';
 import { MIN_PERIOD } from './aura-def.ts';
 import type { AuraTypes } from './aura-types.ts';
 import type { AuraEngine } from './engine.ts';
@@ -111,7 +112,8 @@ const hasWork = <G extends AuraTypes>(set: AuraSet<G>, clock: number): boolean =
   (!set.isSilent && (set.beats[clock] ?? 0) > 0) || set.isDueOn(clock);
 
 /**
- * Steps a bearer's clock once: the clock's count rises; in list order the beats counting on it come due, and the
+ * Steps a bearer's clock once: the clock's count rises (and the step is counted against the clock's tick, for
+ * `auras.tickCount`); in list order the beats counting on it come due, and the
  * beats are dispatched; then every aura on that clock that has run out expires, in list order, and those events are
  * dispatched. So a beat due on the tick an aura runs out fires before its expiry, and an aura on another clock (one
  * at 0 left included) waits for a tick of its own.
@@ -121,6 +123,7 @@ export const tickAuras = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G[
   const { items } = set;
 
   set.clocks[clock] = (set.clocks[clock] ?? 0) + 1;
+  countTick(engine, set, clock);
 
   if (!hasWork(set, clock)) {
     return;

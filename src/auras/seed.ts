@@ -1,4 +1,5 @@
 import type { ActiveAura, AuraItem } from './active-aura.ts';
+import type { AuraHeader } from './audit.ts';
 import type { AuraTypes } from './aura-types.ts';
 import { PREDICTED } from './define-auras.ts';
 import type { AuraEngine } from './engine.ts';
@@ -7,22 +8,16 @@ import { type AuraSet, setOf } from './state.ts';
 import type { AuraView } from './view.ts';
 
 /**
- * What a prediction mirror is seeded from: a bearer's aura views as the server sent them, and the steps the
- * server's bearer had taken on each clock when they were taken (`AuraState.clocks`), which the views' end stamps count
- * against.
+ * What a prediction mirror is seeded from: a bearer's aura views as the server sent them, and its header
+ * (`auras.headerOf` on the server): the steps the server's bearer had taken on each clock when they were taken, which
+ * the views' end stamps count against, and the serials it had handed out, which the mirror's count goes on from.
  */
-export interface AuraSeed<G extends AuraTypes = AuraTypes> {
+export interface AuraSeed<G extends AuraTypes = AuraTypes> extends AuraHeader {
   /** The views (`auras.view(bearer, out, { for: 'owner' })` on the server). */
   readonly views: readonly AuraView[];
 
   /** How many of `views` to seed from, the first; all of them when absent. */
   readonly count?: number;
-
-  /** The server bearer's steps on each clock, by clock id, as the views were taken. */
-  readonly clocks: ArrayLike<number>;
-
-  /** The serials the server's bearer had handed out (`AuraState.serials`), which the mirror's count goes on from. */
-  readonly serials: number;
 
   /**
    * Fills a seeded aura's game fields (its `ext`, reset) from what the game sent beside view `index`: a dash's
@@ -50,6 +45,53 @@ const setSeededClock = <G extends AuraTypes>(
   item.duration = view.duration;
   item.end = Number.isFinite(view.end) ? (set.clocks[item.clock] ?? 0) + Math.max(0, view.end - serverNow) : Infinity;
   set.noteEnd(item);
+};
+
+/** Whether an aura is `predicted`. */
+const isPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, aura: number): boolean =>
+  ((engine.flags[aura] ?? 0) & PREDICTED) !== 0;
+
+/** Whether a number is a whole count from 0. */
+const isCount = (value: number | undefined): boolean => Number.isSafeInteger(value) && (value ?? 0) >= 0;
+
+/** Throws a `RangeError` unless a seed's header counts every clock of the system, each a whole number from 0. */
+const checkClocks = <G extends AuraTypes>(engine: AuraEngine<G>, seed: AuraSeed<G>): void => {
+  const count = engine.tables.clocks.length;
+
+  if (seed.clocks.length < count) {
+    throw new RangeError(`An aura seed needs the steps of all ${count} clocks; got ${seed.clocks.length}.`);
+  }
+
+  for (let clock = 0; clock < count; clock++) {
+    if (!isCount(seed.clocks[clock])) {
+      throw new RangeError(
+        `An aura seed's steps of clock ${clock} must be a whole number from 0; got ${String(seed.clocks[clock])}.`
+      );
+    }
+  }
+};
+
+/**
+ * Throws a `RangeError` for a seed whose header is not a server's (`auras.headerOf`): steps missing for a clock or not
+ * whole, or a serial count that is not a whole number from 0 or is below a seeded view's serial, which the mirror
+ * would hand out again.
+ */
+const checkSeed = <G extends AuraTypes>(engine: AuraEngine<G>, seed: AuraSeed<G>): void => {
+  checkClocks(engine, seed);
+
+  if (!isCount(seed.serials)) {
+    throw new RangeError(`An aura seed's serials must be a whole number from 0; got ${String(seed.serials)}.`);
+  }
+
+  for (let i = 0; i < (seed.count ?? seed.views.length); i++) {
+    const view = seed.views[i];
+
+    if (view !== undefined && isPredicted(engine, view.aura) && view.serial > seed.serials) {
+      throw new RangeError(
+        `An aura seed's serials (${seed.serials}) are below its view ${i}'s serial (${view.serial}).`
+      );
+    }
+  }
 };
 
 /**
@@ -83,7 +125,8 @@ const seedOne = <G extends AuraTypes>(
  * clock set by the stamp contract, and the bearer's serial count set to the server's; the rest of the bearer's auras,
  * and views of auras that are not predicted, are left alone. A silent state dispatches no beats, so a seeded aura has
  * none due. Only a silent state (a mirror's, `createState({ isSilent: true })`) may be seeded, so nothing is raised.
- * Returns how many auras it seeded.
+ * Throws a `RangeError`, changing nothing, for a header that is not a server's (`checkSeed`). Returns how many auras it
+ * seeded.
  */
 export const seedAuras = <G extends AuraTypes>(
   engine: AuraEngine<G>,
@@ -96,12 +139,14 @@ export const seedAuras = <G extends AuraTypes>(
     throw new TypeError('Only a silent aura state (a prediction mirror) may be seeded.');
   }
 
+  checkSeed(engine, seed);
+
   const from = engine.events.open('apply');
   let seeded = 0;
 
   try {
     for (let i = set.items.length - 1; i >= 0; i--) {
-      if (((engine.flags[set.items[i]?.id ?? 0] ?? 0) & PREDICTED) !== 0) {
+      if (isPredicted(engine, set.items[i]?.id ?? 0)) {
         takeOff(engine, bearer, i);
       }
     }
@@ -109,7 +154,7 @@ export const seedAuras = <G extends AuraTypes>(
     for (let i = 0; i < (seed.count ?? seed.views.length); i++) {
       const view = seed.views[i];
 
-      if (view !== undefined && ((engine.flags[view.aura] ?? 0) & PREDICTED) !== 0) {
+      if (view !== undefined && isPredicted(engine, view.aura)) {
         engine.bind(bearer, seedOne(engine, set, view, i, seed));
         seeded += 1;
       }
@@ -148,10 +193,6 @@ const isSeededAs = <G extends AuraTypes>(
   );
 };
 
-/** Whether an aura is `predicted`. */
-const isPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, aura: number): boolean =>
-  ((engine.flags[aura] ?? 0) & PREDICTED) !== 0;
-
 /** The index of the first view of a predicted aura at or after `at`, or `count` for none. */
 const nextPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, seed: AuraSeed<G>, at: number): number => {
   const count = seed.count ?? seed.views.length;
@@ -167,7 +208,8 @@ const nextPredicted = <G extends AuraTypes>(engine: AuraEngine<G>, seed: AuraSee
 /**
  * Whether a prediction mirror's predicted auras already are what `seedAuras` would make of a seed, game fields too
  * when the seed says how to compare them (a correction that changes nothing): a client compares at each acknowledged step and replays its pending inputs only on a
- * difference, as a seed and a replay otherwise cost every step. Reads only; seeds nothing.
+ * difference, as a seed and a replay otherwise cost every step. Reads only; seeds nothing. Throws a `RangeError` for
+ * a header `seedAuras` would refuse.
  */
 export const matchesSeed = <G extends AuraTypes>(
   engine: AuraEngine<G>,
@@ -175,6 +217,8 @@ export const matchesSeed = <G extends AuraTypes>(
   seed: AuraSeed<G>
 ): boolean => {
   const set = setOf<G>(bearer);
+
+  checkSeed(engine, seed);
   const count = seed.count ?? seed.views.length;
   let at = nextPredicted(engine, seed, 0);
 

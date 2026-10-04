@@ -9,6 +9,7 @@ import type { SpellRegistry } from './define-spells.ts';
 import type { CastHandle } from './ids.ts';
 import type { SpellProcKinds } from './procs.ts';
 import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
+import type { SpellHost } from './spell-host.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import type { StatsBox } from './stats-box.ts';
 import type { CastView } from './view.ts';
@@ -35,6 +36,12 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /** The game's own activation kinds (and core kinds it replaced), in registry order, for the escape report. */
   readonly gameActivations: readonly string[];
+
+  /** The host the system was built with (`SpellSystemBase.host`): read it to check the wiring, never replace it. */
+  readonly host: SpellHost<G> & G['host'];
+
+  /** How many tick slots delayed lists land in (the game's `slots`, else 1): an audit walks `delayedStepped` over them. */
+  readonly delayedSlots: number;
 
   /** How many delayed proc lists wait to land, and how many records the pool has made. */
   readonly delayed: {
@@ -118,6 +125,45 @@ export interface SpellSystem<G extends SpellTypes> {
    * pass at the cast itself.
    */
   readonly step: (caster: G['bearer']) => void;
+
+  /**
+   * How many times `step` ran for a caster on the clock's current tick: 0 before its first (an end-of-tick audit finds a
+   * caster stepped twice or never). Counted on the caster's record, stamped with the tick, so it reads 0 on a new tick.
+   */
+  readonly stepCount: (caster: G['bearer']) => number;
+
+  /** How many times `stepAuto` ran for a caster on the clock's current tick, counted as `stepCount` counts. */
+  readonly autoStepCount: (caster: G['bearer']) => number;
+
+  /**
+   * Whether `stepDelayed` ran for a tick slot (the first when absent) on the clock's current tick, landing or not; false
+   * for a slot outside the game's (`delayedSlots`).
+   */
+  readonly delayedStepped: (slot?: TickSlotId) => boolean;
+
+  /**
+   * Folds a caster's spell state into `hash` (from `DIGEST_START`, or a digest so far) and returns it: its running
+   * casts in start order (each spell, rank, start tick and ordinal, credit, press key, target as an id by the host's
+   * `idOf` or a point, stage, ticks left and elapsed in it, stage lengths, pauses, beats, counters and outcome), the
+   * tick ordinal its next cast takes, its `auto` clocks (spell, steps left, seconds as set) and the interrupts it holds.
+   * Allocates nothing; two games driven alike fold alike, so peers compare it to find the tick they part.
+   */
+  readonly digest: (caster: G['bearer'], hash: number) => number;
+
+  /**
+   * Folds every delayed list waiting to land into `hash` and returns it, in due order (by due tick, then tick slot, then
+   * the order they were scheduled): each by its due tick, slot, anchor and offset, owner, origin (self, target, event
+   * and other unit by the host's `idOf`, credit), proc count and cast's spell. Allocates nothing once its scratch has
+   * grown to the most lists ever waiting.
+   */
+  readonly digestDelayed: (hash: number) => number;
+
+  /**
+   * Whether an interrupt is one the system knows: declared in `interrupts` or named by a spell's timeline, so
+   * `interrupt`, `endInterrupt` and `isInterrupted` take it rather than throw. For a wiring check (a unit system's
+   * states' interrupts).
+   */
+  readonly hasInterrupt: (reason: string) => boolean;
 
   /**
    * Steps a caster's armed `auto` clocks by one step, in registry order: one that ran out casts its spell and

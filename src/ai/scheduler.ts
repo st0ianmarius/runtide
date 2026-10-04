@@ -1,8 +1,9 @@
+import { digest } from '../core/digest.ts';
 import { toId } from '../core/ids.ts';
 import { createTimingWheel, stepsUntil, type TimingWheel } from '../core/index.ts';
 import type { SpellClock } from '../spells/index.ts';
 import type { AiTypes, TimerId } from './ai-types.ts';
-import { Brain, brainOf } from './brain.ts';
+import { Brain, brainOf, digestBrain } from './brain.ts';
 import { MAX_TIMERS } from './timers.ts';
 
 /**
@@ -110,6 +111,18 @@ export class Scheduler<G extends AiTypes> {
     this.#free.push(brain.slot);
 
     return true;
+  }
+
+  /**
+   * Folds a unit's brain into a running digest (`digestBrain`), or −1 alone for a unit with no live brain (the shared
+   * empty one, or one freed as it despawned).
+   */
+  digest(unit: G['bearer'], hash: number): number {
+    const brain = unit.brain;
+
+    return brain instanceof Brain && brain.slot >= 0 && this.#isLiveBrain(brain)
+      ? digestBrain(brain, this.#clock.tick, hash)
+      : digest(hash, -1);
   }
 
   /** Whether a brain is the live one of its slot, not a freed unit's old record. */

@@ -63,6 +63,12 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
    */
   readonly buckets = new Uint16Array(32);
 
+  /** By clock, the clock's tick on which this bearer was last stepped on it (`tickCount`); NaN before the first. */
+  readonly tickStamps: Float64Array;
+
+  /** By clock, how many times this bearer was stepped on it on the tick its stamp holds. */
+  readonly tickCounts: Uint32Array;
+
   changes = 0;
   serials = 0;
 
@@ -76,6 +82,8 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
     this.clocks = new Float64Array(clocks);
     this.due = new Float64Array(clocks).fill(Number.POSITIVE_INFINITY);
     this.beats = new Int32Array(clocks);
+    this.tickStamps = new Float64Array(clocks).fill(Number.NaN);
+    this.tickCounts = new Uint32Array(clocks);
     this.isSilent = isSilent;
   }
 

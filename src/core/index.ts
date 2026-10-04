@@ -12,7 +12,7 @@ export { type ClockOptions, createClock, type SimClock, type Stamp } from './clo
 export { countDown, COUNTDOWN_EPSILON, isRunOut, stepsUntil } from './countdown.ts';
 
 export type { Defined } from './defined.ts';
-export { digest, DIGEST_START, digestOf } from './digest.ts';
+export { digest, DIGEST_START, digestOf, digestText } from './digest.ts';
 export { createEntityIds, type EntityIds } from './entity-ids.ts';
 export { int, pick, shuffle, weighted } from './draws.ts';
 export type { EventKind, Handle, Id } from './ids.ts';

@@ -1,3 +1,5 @@
+import { digest } from '../core/digest.ts';
+
 /**
  * What the AI system keeps on a unit (`AiBearer.brain`): its timers and its focus. The game reads the focus here,
  * and changes it through the system; where a unit wants to go is the game's own.
@@ -43,6 +45,24 @@ export class Brain implements BrainState {
     this.stamps = new Float64Array(timers);
   }
 }
+
+/**
+ * Folds a brain into a running digest on clock tick `tick`: per timer the ticks until it is due (NaN when it is not on
+ * the wheel) and the seconds a held one has left (NaN for none), then its collected bits, holds and focus.
+ */
+export const digestBrain = (brain: Brain, tick: number, hash: number): number => {
+  let next = hash;
+
+  for (let timer = 0; timer < brain.due.length; timer++) {
+    next = digest(next, (brain.due[timer] ?? Number.NaN) - tick);
+    next = digest(next, brain.left[timer] ?? Number.NaN);
+  }
+
+  next = digest(next, brain.collected);
+  next = digest(next, brain.holds);
+
+  return digest(next, brain.focus);
+};
 
 /** The brain of a unit that does not think (a hero, a wall): no timers, shared, never written. */
 export const NO_BRAIN: BrainState = Object.freeze(new Brain(-1, 0));

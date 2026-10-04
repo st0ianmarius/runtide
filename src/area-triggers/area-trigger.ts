@@ -285,6 +285,11 @@ export class AreaTrigger<G extends AreaTriggerTypes> implements AreaTriggerConte
     return (this.#insides[index] ??= new AuraInside<G>(this, index));
   }
 
+  /** The units inside one of its auras, or `undefined` before its first use; makes nothing (a digest reads it). */
+  insideIfAny(index: number): AuraInside<G> | undefined {
+    return this.#insides[index];
+  }
+
   /** Moves it to a point: where it spawns, or its owner's position for an owner-anchored one. */
   moveTo(at: Vec2): void {
     this.position.x = at.x;

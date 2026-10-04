@@ -131,6 +131,12 @@ export class Unit<G extends UnitTypes> implements UnitShape {
   /** What the limit it was summoned under counts (`limit.of`): its template's summons, or every one of its owner's. */
   perOwnerOf: 'template' | 'any' = 'template';
 
+  /**
+   * The index of the variant it was spawned with (`units.variant`, counted from 0 in the order they were made); −1 for
+   * none. What `units.digest` folds for it, since a variant's bases are shared and not its own.
+   */
+  variant = -1;
+
   /** The cast it was summoned by, held alive while it lives; `NO_CAST` for none. */
   cast: CastHandle = NO_CAST;
 

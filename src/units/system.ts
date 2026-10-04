@@ -3,6 +3,7 @@ import { ownValue } from '../core/records.ts';
 import type { StatView } from '../modifiers/index.ts';
 import type { SpellId } from '../spells/index.ts';
 import type { UnitVariant } from './bases.ts';
+import { digestUnits, listUnits } from './digest.ts';
 import { type SpawnUnit, UnitEngine, unitOf, type UnitSystemOptions } from './engine.ts';
 import { damageHostOf, syncHealth } from './hosts.ts';
 import { syncStates } from './interrupts.ts';
@@ -25,6 +26,22 @@ export interface UnitSystem<G extends UnitTypes> {
 
   /** How many units are live (spawned and not despawned). */
   readonly live: () => number;
+
+  /**
+   * Fills `out` (emptied first, so a caller reuses one array) with every unit not despawned, alive and dead, in
+   * ascending entity id order, and returns how many: a snapshot's or a digest's walk. The system keeps them so ordered
+   * (a spawn naming a lower id of its own is inserted in place), so a call sorts nothing.
+   */
+  readonly list: (out: G['bearer'][]) => number;
+
+  /**
+   * Folds every unit `list` gives into a running state digest (`DIGEST_START` to begin), in its order: each one's id,
+   * template, side, lifecycle, health, maximum health, owner's id (−1 for none), summon limit (`perOwner`) and what it
+   * counts (`perOwnerOf`), and variant (its index among `variant`'s, in the order made; −1 for none). Its auras, casts,
+   * loadout and brain are their systems' to digest (`ai.digest`), and its script's record and `ext` are game-owned
+   * objects the game digests itself. Allocation-free.
+   */
+  readonly digest: (hash: number) => number;
 
   /**
    * Spawns a unit of a template: alive, at full health, its stats its template's with the spawn's on top. Throws a
@@ -203,6 +220,8 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     procKinds,
 
     live: () => engine.byId.size,
+    list: (out) => listUnits(engine, out),
+    digest: (hash) => digestUnits(engine, hash),
 
     spawn: spawnUnit,
 

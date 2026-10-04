@@ -78,6 +78,9 @@ export class UnitTable<Unit> {
   readonly #slots = new Map<Unit, number>();
   readonly #free: number[] = [];
 
+  /** The live slots in ascending entity id order, kept as units come and go: what a digest walks. */
+  readonly #ordered: number[] = [];
+
   /** The game's entity id of a unit, when it gave one: slots are then found by id, not by the unit object. */
   readonly #idOf: ((unit: Unit) => number) | undefined;
   readonly #byId = new IdSlots();
@@ -93,6 +96,11 @@ export class UnitTable<Unit> {
   /** How many slots exist, free ones included: every live slot is below it. */
   get span(): number {
     return this.units.length;
+  }
+
+  /** The live slots in ascending entity id order, valid up to `size`: read it, never change it. */
+  get ordered(): readonly number[] {
+    return this.#ordered;
   }
 
   /** How many units there are. */
@@ -163,8 +171,38 @@ export class UnitTable<Unit> {
     this.radius[slot] = spec.radius ?? 0;
     this.side[slot] = spec.side ?? 0;
     this.id[slot] = spec.id;
+    this.#enlist(slot);
 
     return slot;
+  }
+
+  /** Where an id stands, or would stand, in `#ordered`: the first slot there whose id is not below it. */
+  #rank(id: number): number {
+    const ordered = this.#ordered;
+    let lo = 0;
+    let hi = ordered.length;
+
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+
+      if ((this.id[ordered[mid] ?? -1] ?? Number.POSITIVE_INFINITY) < id) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    return lo;
+  }
+
+  /** Puts a new slot into `#ordered` by its id: appended when its id is the highest, as ids mostly come in. */
+  #enlist(slot: number): void {
+    const ordered = this.#ordered;
+    const at = this.#rank(this.id[slot] ?? 0);
+
+    ordered.push(slot);
+    ordered.copyWithin(at + 1, at, ordered.length - 1);
+    ordered[at] = slot;
   }
 
   /** Throws unless a unit may come in under an id: a whole id its `idOf` gives, neither already here. */
@@ -209,6 +247,15 @@ export class UnitTable<Unit> {
       this.#byId.delete(this.id[slot] ?? -1);
     }
 
+    let at = this.#rank(this.id[slot] ?? 0);
+
+    // Without `idOf` two units may share an id: the slot is among the run of it.
+    while (at < this.#ordered.length && this.#ordered[at] !== slot) {
+      at += 1;
+    }
+
+    this.#ordered.copyWithin(at, at + 1);
+    this.#ordered.length -= 1;
     this.#count -= 1;
     this.units[slot] = undefined;
     this.#free.push(slot);

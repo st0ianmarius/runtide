@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { digest, DIGEST_START, digestOf } from '../../src/core/index.ts';
+import { digest, DIGEST_START, digestOf, digestText } from '../../src/core/index.ts';
 
 describe('the state digest', () => {
   it('holds the frozen table of its own folds', () => {
@@ -27,5 +27,11 @@ describe('the state digest', () => {
     assert.notEqual(digestOf([-1, -1]), base, 'two sign flips do not cancel');
     assert.notEqual(digestOf([1, 2]), digestOf([2, 1]));
     assert.equal(digest(DIGEST_START, Number.NaN), digest(DIGEST_START, 0 / 0));
+  });
+
+  it('folds a text by its length and code units, so its split shows', () => {
+    assert.equal(digestText(DIGEST_START, 'ab'), digestOf([2, 97, 98]));
+    assert.equal(digestText(DIGEST_START, ''), digest(DIGEST_START, 0));
+    assert.notEqual(digestText(digestText(DIGEST_START, 'ab'), 'c'), digestText(digestText(DIGEST_START, 'a'), 'bc'));
   });
 });

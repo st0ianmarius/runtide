@@ -27,7 +27,7 @@ const NO_PROCS: readonly never[] = Object.freeze([]);
  * the cast it belongs to (held alive until it lands), and its due time as an anchor tick plus seconds, so a chained
  * delay is due from its parent's due time.
  */
-class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
+export class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
   self: G['bearer'];
   target: G['bearer'];
   eventUnit: G['bearer'] | undefined = undefined;
@@ -46,6 +46,12 @@ class Delayed<G extends SpellTypes> implements ProcOrigin<G> {
 
   /** Its tick slot. */
   slot = 0;
+
+  /** The tick it lands on: its wheel tick, or the wheel's cursor for one scheduled late. */
+  due = 0;
+
+  /** Its place in scheduling order over every slot: lists due on the same tick and slot land in this order. */
+  sequence = 0;
 
   /** Its index in the live list. */
   index = -1;
@@ -114,6 +120,9 @@ export class DelayedProcs<G extends SpellTypes> {
   /** The delayed list landing now, which a `due` delay counts from; none outside a landing. */
   landing: Delayed<G> | undefined = undefined;
 
+  /** How many lists were ever scheduled: the next one's `sequence`. */
+  #sequence = 0;
+
   constructor(engine: SpellEngine<G>, slots: number) {
     this.#engine = engine;
     this.#pool = createPool({ create: () => new Delayed<G>(this.#pending ?? missing('a unit')) });
@@ -136,6 +145,11 @@ export class DelayedProcs<G extends SpellTypes> {
   /** How many tick slots there are. */
   get slots(): number {
     return this.#wheels.length;
+  }
+
+  /** The lists waiting, in no order (a digest sorts them by `due`, `slot` and `sequence`); read, never written. */
+  get live(): readonly Delayed<G>[] {
+    return this.#live;
   }
 
   /**
@@ -179,7 +193,13 @@ export class DelayedProcs<G extends SpellTypes> {
     const { dt } = engine.clock;
     const wheel = this.#wheels[record.slot] ?? missing(`tick slot ${record.slot}`);
 
-    wheel.schedule(record.anchor + stepsUntil(record.offset, dt), handle);
+    const at = record.anchor + stepsUntil(record.offset, dt);
+
+    // Where the wheel files it: a tick it collected already is late, and lands at its cursor.
+    record.due = Math.max(Math.trunc(at), wheel.cursor);
+    record.sequence = this.#sequence;
+    this.#sequence += 1;
+    wheel.schedule(at, handle);
 
     return true;
   }

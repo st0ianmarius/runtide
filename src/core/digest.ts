@@ -50,3 +50,18 @@ export const digestOf = (values: Iterable<number>, hash = DIGEST_START): number 
 
   return next;
 };
+
+/**
+ * Folds a string into a running digest: its length, then each UTF-16 code unit in order, so `'ab'` then `'c'` and
+ * `'a'` then `'bc'` differ. For a name a state table is keyed by (a static group, a script's), folded where its order
+ * matters.
+ */
+export const digestText = (hash: number, text: string): number => {
+  let next = digest(hash, text.length);
+
+  for (let i = 0; i < text.length; i++) {
+    next = digest(next, text.charCodeAt(i));
+  }
+
+  return next;
+};

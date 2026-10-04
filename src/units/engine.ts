@@ -6,7 +6,7 @@ import { ownValue } from '../core/records.ts';
 import type { Vec2 } from '../math/index.ts';
 import { basesView, type ModifierSystem, type StatId, type StatView } from '../modifiers/index.ts';
 import type { SpellId, SpellSystem } from '../spells/index.ts';
-import { UnitBases, type UnitVariant } from './bases.ts';
+import { UnitBases, type UnitVariant, variantIndexOf } from './bases.ts';
 import type { UnitEvents } from './events.ts';
 import type { InterruptingState, UnitStateTable } from './states.ts';
 import type { UnitRegistry } from './unit-def.ts';
@@ -202,6 +202,12 @@ export class UnitEngine<G extends UnitTypes> {
   /** The live units by entity id (despawned ones leave it). */
   readonly byId = new Map<number, G['bearer']>();
 
+  /**
+   * The live units in ascending entity id order (despawned ones leave it): ids mostly come in increasing, so a spawn
+   * appends, and one naming a lower id of its own is inserted where it belongs. `units.list` and `units.digest` read it.
+   */
+  readonly ordered: G['bearer'][] = [];
+
   /** The maximum health stat's id. */
   readonly healthStat: StatId;
 
@@ -284,9 +290,52 @@ export class UnitEngine<G extends UnitTypes> {
     this.foldBases(made, unit);
     unit.maxHealth = this.statsOf(made).total(this.healthStat);
     unit.health = unit.maxHealth;
+    unit.variant = variantIndexOf(spawn);
     this.byId.set(id, made);
+    this.#enlist(made);
 
     return made;
+  }
+
+  /** Puts a new unit into `ordered` by its id: at the end, unless a spawn named a lower id of its own. */
+  #enlist(unit: G['bearer']): void {
+    const { ordered } = this;
+    let at = ordered.length;
+
+    ordered.push(unit);
+
+    while (at > 0 && (ordered[at - 1]?.id ?? -1) > unit.id) {
+      ordered[at] = ordered[at - 1] ?? unit;
+      at -= 1;
+    }
+
+    ordered[at] = unit;
+  }
+
+  /** Takes a despawned unit out of `byId` and `ordered`, closing the gap in place. */
+  forget(unit: G['bearer']): void {
+    const { ordered } = this;
+
+    this.byId.delete(unit.id);
+
+    let lo = 0;
+    let hi = ordered.length;
+
+    // A binary search by id: the list is kept ascending.
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+
+      if ((ordered[mid]?.id ?? Number.POSITIVE_INFINITY) < unit.id) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    if (ordered[lo] === unit) {
+      ordered.copyWithin(lo, lo + 1);
+      ordered.length -= 1;
+    }
   }
 
   /** Throws unless a spawn's bases give it a maximum health that is a finite number above 0. */

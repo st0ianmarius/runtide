@@ -10,16 +10,25 @@ export interface UnitVariant {
   readonly template: UnitId;
 }
 
-/** A variant's record: its bases. */
+/** A variant's record: its bases, and its index among its system's variants, in the order they were made. */
 class VariantRecord implements UnitVariant {
   readonly template: UnitId;
   readonly base: ArrayLike<number>;
+  readonly index: number;
 
-  constructor(template: UnitId, base: ArrayLike<number>) {
+  constructor(template: UnitId, base: ArrayLike<number>, index: number) {
     this.template = template;
     this.base = base;
+    this.index = index;
   }
 }
+
+/**
+ * The index of a spawn's variant among its system's variants, from 0 in the order `units.variant` made them; −1 for a
+ * spawn with none. Read once `baseOf` has checked the spawn.
+ */
+export const variantIndexOf = <G extends UnitTypes>(spawn: SpawnUnit<G>): number =>
+  spawn.variant instanceof VariantRecord ? spawn.variant.index : -1;
 
 /**
  * The units' base stats: a template's, a variant's (made once), or a spawn's own (made for it), which its stat sheet
@@ -27,6 +36,9 @@ class VariantRecord implements UnitVariant {
  */
 export class UnitBases<G extends UnitTypes> {
   readonly #options: UnitSystemOptions<G>;
+
+  /** How many variants were made: the next one's index. */
+  #variants = 0;
 
   constructor(options: UnitSystemOptions<G>) {
     this.#options = options;
@@ -36,7 +48,11 @@ export class UnitBases<G extends UnitTypes> {
   variant(template: UnitId, stats: Readonly<Partial<Record<G['stat'], number>>>): UnitVariant {
     const base = this.baseFor(template, stats);
 
-    return Object.freeze(new VariantRecord(template, base));
+    const made = new VariantRecord(template, base, this.#variants);
+
+    this.#variants += 1;
+
+    return Object.freeze(made);
   }
 
   /** A spawn's bases: its variant's, its own over its template's, or its template's. */

@@ -3,6 +3,7 @@ import type { AreaTriggerContext, EndReason } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import { areaEngineOf } from './build-engine.ts';
 import type { AreaTriggerRegistry } from './define-area-triggers.ts';
+import { AreaDigest } from './digest.ts';
 import { endArea } from './ender.ts';
 import type { AreaEngine } from './engine.ts';
 import { type AreaTriggerHandle, NO_AREA_TRIGGER } from './ids.ts';
@@ -58,6 +59,27 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
   /** Steps one owner's area triggers of a tick slot (the first when absent), in the same order: a per-owner stepper. */
   readonly stepOwner: (owner: G['bearer'], slot?: TickSlotId) => number;
 
+  /** How many tick slots it steps (`slots.size` of its options, 1 when absent): an audit walks ids 0 up to it. */
+  readonly slots: number;
+
+  /**
+   * Whether `step` ran for a tick slot (the first when absent) on the clock's current tick, so a host's audit finds a
+   * slot its loop forgot. `stepOwner` does not count; a slot outside `slots` is never stepped.
+   */
+  readonly stepped: (slot?: TickSlotId) => boolean;
+
+  /**
+   * Folds every live area trigger into a running `digest` hash (`DIGEST_START`, or a game's digest so far), by
+   * ascending id, allocating nothing: its id, kind, handle (pool slot and generation), owner's entity id, side, source,
+   * cast, parent and rank; its position, heading and previous position; its tick slot, spawn tick, last stepped tick,
+   * lifetime left, age, frame timing, suspension, owner lifetime and pending end; its placed shape's numbers; each
+   * pulse's clock; each aura's wait and the entity ids inside; its cast's stat snapshot; each ledger's counts, limits
+   * and every unit's id and last hit tick (in insertion order, the same for a given history). Then how many. Equal for
+   * identically driven games; any difference in that state changes it. The kind's `state` and the game's `ext` fields
+   * are the game's to fold.
+   */
+  readonly digest: (hash: number) => number;
+
   /** Whether an area trigger is live. */
   readonly isLive: (handle: AreaTriggerHandle) => boolean;
 
@@ -96,10 +118,18 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
   readonly viewOf: AreaQueries<G>['viewOf'];
   readonly coveredBy: AreaQueries<G>['coveredBy'];
   readonly intercept: AreaQueries<G>['intercept'];
+  readonly slots: number;
   readonly #engine: AreaEngine<G>;
+  readonly #digest: AreaDigest<G>;
+
+  /** The clock's tick each slot's `step` last ran on, by slot id; NaN before its first. */
+  readonly #steppedOn: Float64Array;
 
   constructor(engine: AreaEngine<G>) {
     this.#engine = engine;
+    this.#digest = new AreaDigest(engine);
+    this.slots = engine.slotKinds.length;
+    this.#steppedOn = new Float64Array(this.slots).fill(Number.NaN);
     this.registry = engine.registry;
 
     this.pool = {
@@ -133,7 +163,19 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
     return spawnArea(this.#engine, kind, spec);
   };
 
-  readonly step = (slot?: TickSlotId): number => stepSlot(this.#engine, slot ?? 0, undefined);
+  readonly step = (slot?: TickSlotId): number => {
+    const index = slot ?? 0;
+
+    if (index < this.slots) {
+      this.#steppedOn[index] = this.#engine.clock.tick;
+    }
+
+    return stepSlot(this.#engine, index, undefined);
+  };
+
+  readonly stepped = (slot?: TickSlotId): boolean => this.#steppedOn[slot ?? 0] === this.#engine.clock.tick;
+
+  readonly digest = (hash: number): number => this.#digest.fold(hash);
 
   readonly stepOwner = (owner: G['bearer'], slot?: TickSlotId): number => stepSlot(this.#engine, slot ?? 0, owner);
 

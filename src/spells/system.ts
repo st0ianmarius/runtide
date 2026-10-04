@@ -16,6 +16,8 @@ import {
 } from './cast-request.ts';
 import { CasterRecord, type CasterState, recordOf } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
+import type { Delayed } from './delayed.ts';
+import { digestCaster, digestDelayed } from './digest.ts';
 import type { SpellEngine } from './engine.ts';
 import { hitCast } from './hit.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
@@ -23,6 +25,7 @@ import { createSpellProcKinds } from './proc-kinds.ts';
 import type { SpellProcKinds } from './procs.ts';
 import { checkCast, startCast, startCooldowns } from './runner.ts';
 import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
+import type { SpellHost } from './spell-host.ts';
 import type { SpellSystem } from './spell-system.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import type { StatsBox } from './stats-box.ts';
@@ -51,14 +54,25 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly delayed: SpellSystem<G>['delayed'];
   readonly procKinds: SpellProcKinds<G>;
   readonly gameActivations: readonly string[];
+  readonly host: SpellHost<G> & G['host'];
+  readonly delayedSlots: number;
   readonly #engine: SpellEngine<G>;
   readonly #report = new Report<G>();
   readonly #cooldownAuras: readonly (readonly AuraId[])[];
   #request: MutableRequest<G> | undefined = undefined;
 
+  /** By tick slot, the clock tick its delayed lists were last landed on (`stepDelayed`); NaN for never. */
+  readonly #landedTicks: Float64Array;
+
+  /** The scratch `digestDelayed` sorts the waiting lists in. */
+  readonly #delayedOrder: (Delayed<G> | undefined)[] = [];
+
   constructor(engine: SpellEngine<G>) {
     this.#engine = engine;
     this.registry = engine.registry;
+    this.host = engine.host;
+    this.delayedSlots = engine.delayed.slots;
+    this.#landedTicks = new Float64Array(engine.delayed.slots).fill(Number.NaN);
     this.#cooldownAuras = engine.registry.ids.map((id) =>
       Object.freeze(engine.cooldowns.of(id).map((cooldown) => cooldown.aura))
     );
@@ -145,6 +159,8 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly castsOf = (caster: G['bearer'], out: CastHandle[]): number => recordOf(caster).copyInto(out);
 
   readonly stepAuto = (caster: G['bearer'], options?: AutoOptions<G>): void => {
+    recordOf(caster).countAuto(this.#engine.clock.tick);
+
     // Restored after, so an auto step a cast's procs run for another caster leaves this one's options as they were.
     const outer = this.#autoOptions;
 
@@ -168,11 +184,41 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly setClock = (caster: G['bearer'], spell: SpellId, seconds: number): boolean =>
     setAutoClock(caster, spell, seconds, this.#engine.clock);
 
-  readonly stepDelayed = (slot?: TickSlotId): number => this.#engine.delayed.land(slot ?? 0);
+  readonly stepDelayed = (slot?: TickSlotId): number => {
+    const at = slot ?? 0;
+
+    // Stamped before it lands, so a landing that throws still counts as run; a slot outside the table stamps nothing.
+    if (at >= 0 && at < this.#landedTicks.length) {
+      this.#landedTicks[at] = this.#engine.clock.tick;
+    }
+
+    return this.#engine.delayed.land(at);
+  };
 
   readonly step = (caster: G['bearer']): void => {
+    recordOf(caster).countStep(this.#engine.clock.tick);
     stepCaster(this.#engine, caster);
   };
+
+  readonly stepCount = (caster: G['bearer']): number => {
+    const record = recordOf(caster);
+
+    return record.stepTick === this.#engine.clock.tick ? record.stepRuns : 0;
+  };
+
+  readonly autoStepCount = (caster: G['bearer']): number => {
+    const record = recordOf(caster);
+
+    return record.autoTick === this.#engine.clock.tick ? record.autoRuns : 0;
+  };
+
+  readonly delayedStepped = (slot?: TickSlotId): boolean => this.#landedTicks[slot ?? 0] === this.#engine.clock.tick;
+
+  readonly digest = (caster: G['bearer'], hash: number): number => digestCaster(this.#engine, caster, hash);
+
+  readonly digestDelayed = (hash: number): number => digestDelayed(this.#engine, this.#delayedOrder, hash);
+
+  readonly hasInterrupt = (reason: string): boolean => this.#engine.interruptBits.has(reason);
 
   readonly withdrawDelayed = (owner: G['bearer']): number => this.#engine.delayed.withdraw(owner);
 

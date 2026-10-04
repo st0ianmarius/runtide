@@ -58,6 +58,26 @@ export class CasterRecord implements CasterState {
   lastTick = Number.NaN;
   started = 0;
 
+  /** The clock tick of its last `spells.step`, and how many ran on that tick: an end-of-tick audit's count. */
+  stepTick = Number.NaN;
+  stepRuns = 0;
+
+  /** The clock tick of its last `spells.stepAuto`, and how many ran on that tick. */
+  autoTick = Number.NaN;
+  autoRuns = 0;
+
+  /** Counts a `spells.step` on `tick`: the count starts again at 1 on a tick after the last one counted. */
+  countStep(tick: number): void {
+    this.stepRuns = tick === this.stepTick ? this.stepRuns + 1 : 1;
+    this.stepTick = tick;
+  }
+
+  /** Counts a `spells.stepAuto` on `tick`, as `countStep` counts a step. */
+  countAuto(tick: number): void {
+    this.autoRuns = tick === this.autoTick ? this.autoRuns + 1 : 1;
+    this.autoTick = tick;
+  }
+
   /**
    * The ordinal of a cast starting on `tick`: 0 for the tick's first, then 1, 2 and on. Asking takes nothing, so a
    * check, a refusal or a cooldown read shares the ordinal of the next cast that starts (`countStart`).

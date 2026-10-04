@@ -1,3 +1,4 @@
+import { digest } from '../core/digest.ts';
 import { type Box, hypot, type MutableVec2, type Shape, type Vec2 } from '../math/index.ts';
 import { Placement } from './placement.ts';
 import { GridIndex, KdIndex, type PointIndex } from './point-index.ts';
@@ -94,6 +95,14 @@ export interface MemoryWorld<Unit> extends WorldQuery<Unit> {
 
   /** Starts a tick: every unit's previous position becomes its current one. */
   readonly tick: () => void;
+
+  /**
+   * Folds the world into a running state digest (`DIGEST_START` to begin): every body in ascending entity id order
+   * (its id, position, radius, side, and the previous position relative sweeps measure motion from), then the static
+   * geometry by group name order (each group's name, shape count and shapes' numbers). The same on every platform for
+   * the same world, whatever order its units came in. Allocation-free.
+   */
+  readonly digest: (hash: number) => number;
 }
 
 /** A memory world: a class for fast properties, its functions arrow fields so they work detached. */
@@ -197,6 +206,26 @@ class World<Unit> implements MemoryWorld<Unit> {
     table.px.set(table.x);
     table.pz.set(table.z);
     this.#maxMotion = 0;
+  };
+
+  readonly digest = (hash: number): number => {
+    const table = this.#table;
+    const { ordered } = table;
+    let next = digest(hash, table.size);
+
+    for (let i = 0; i < table.size; i++) {
+      const slot = ordered[i] ?? -1;
+
+      next = digest(next, table.id[slot] ?? Number.NaN);
+      next = digest(next, table.x[slot] ?? Number.NaN);
+      next = digest(next, table.z[slot] ?? Number.NaN);
+      next = digest(next, table.radius[slot] ?? Number.NaN);
+      next = digest(next, table.side[slot] ?? Number.NaN);
+      next = digest(next, table.px[slot] ?? Number.NaN);
+      next = digest(next, table.pz[slot] ?? Number.NaN);
+    }
+
+    return digest(next, this.#statics.digest);
   };
 
   readonly positionOf = (unit: Unit, out: MutableVec2): Vec2 => {

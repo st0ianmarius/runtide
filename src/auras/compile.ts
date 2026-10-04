@@ -15,6 +15,12 @@ export const CHANGES: readonly AuraChange[] = ['applied', 'refreshed', 'expired'
 export interface AuraClock {
   /** The fixed step, in seconds, of one tick of this clock. */
   readonly dt: number;
+
+  /**
+   * The clock's current tick (a `SimClock`'s), read live: what `auras.tickCount` counts a bearer's steps per. A clock
+   * without one reads as at tick 0 throughout, so its counts only rise.
+   */
+  readonly tick?: number;
 }
 
 /** What an aura system needs from a modifier system: compiling gated lists and sharing them at a fold position. */

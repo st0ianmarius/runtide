@@ -2,6 +2,7 @@
 /* oxlint-disable typescript/prefer-for-of */
 import Flatbush from 'flatbush';
 
+import { digest, DIGEST_START, digestText } from '../core/digest.ts';
 import {
   boundsOf,
   type Box,
@@ -33,6 +34,24 @@ const STEP = { x: 0, z: 0 };
 /** A piece of static geometry: a wall, a pillar, a zone that never moves. */
 export type StaticShape = Circle | Polygon;
 
+/**
+ * Folds a static shape's numbers into a digest: its kind, then a circle's centre and radius, or a polygon's band and
+ * corners.
+ */
+const digestShape = (hash: number, shape: StaticShape): number => {
+  if (shape.kind === 'circle') {
+    return digest(digest(digest(digest(hash, 0), shape.at.x), shape.at.z), shape.r);
+  }
+
+  let next = digest(digest(digest(hash, 1), shape.band), shape.points.length);
+
+  for (const point of shape.points) {
+    next = digest(digest(next, point.x), point.z);
+  }
+
+  return next;
+};
+
 /** Where a swept body first met static geometry: the share along the move, and which shape it met. */
 interface Contact {
   share: number;
@@ -49,6 +68,9 @@ export class StaticGeometry {
   #shapes: readonly StaticShape[] = [];
   readonly #groups = new Map<string, readonly StaticShape[]>();
   #tree: Flatbush | undefined = undefined;
+
+  /** The digest of every group, folded as they are set (`digest`). */
+  #digest = DIGEST_START;
   readonly #box = emptyBox();
   readonly #times: number[] = [];
   readonly #contact: Contact = { share: 1, index: -1 };
@@ -74,7 +96,29 @@ export class StaticGeometry {
       this.#groups.set(group, [...shapes]);
     }
 
-    this.#build([...this.#groups.keys()].toSorted().flatMap((key) => this.#groups.get(key) ?? []));
+    const keys = [...this.#groups.keys()].toSorted();
+
+    this.#build(keys.flatMap((key) => this.#groups.get(key) ?? []));
+    this.#digest = digest(DIGEST_START, keys.length);
+
+    for (const key of keys) {
+      const groupShapes = this.#groups.get(key) ?? [];
+
+      this.#digest = digest(digestText(this.#digest, key), groupShapes.length);
+
+      for (const shape of groupShapes) {
+        this.#digest = digestShape(this.#digest, shape);
+      }
+    }
+  }
+
+  /**
+   * The digest of the static geometry, from `DIGEST_START`: by group name order, each group's name, its shape count,
+   * and each shape's numbers (a circle's centre and radius, a polygon's band and corners). Folded as groups are set,
+   * since the shapes never change, so reading it costs nothing.
+   */
+  get digest(): number {
+    return this.#digest;
   }
 
   /** Builds the tree for the shapes of every group. */

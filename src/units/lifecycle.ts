@@ -166,7 +166,7 @@ const despawned = <G extends UnitTypes>(
   const unit = unitOf<G>(bearer);
   let errors: Caught | undefined;
 
-  engine.byId.delete(unit.id);
+  engine.forget(bearer);
   orphanSummons(bearer);
   engine.options.ai?.release(bearer);
 

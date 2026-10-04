@@ -64,6 +64,7 @@ export {
   explainAura,
   type StateOptions
 } from './system.ts';
+export type { AuraHeader, AuraHeaderBuffer } from './audit.ts';
 
 export { type AuraTagDef, type AuraTagTable, defineAuraTags } from './tags.ts';
 export type { AuraSeed } from './seed.ts';

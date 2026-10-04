@@ -164,6 +164,14 @@ export interface AiSystem<G extends AiTypes> {
     options?: Pick<PickOptions<G>, 'input' | 'inputOf' | 'allows'>
   ) => SpellId | undefined;
 
+  /**
+   * Folds a unit's brain into a running state digest (`DIGEST_START` to begin): per timer the ticks until it is due
+   * (NaN when it is not on the wheel) and the seconds a held one has left (NaN for none), then the bits of its timers
+   * collected and not yet taken, its holds and its focus; −1 alone for a unit with no live brain. The script records a
+   * scripted unit's step reads are game-owned objects the game digests itself. Allocation-free.
+   */
+  readonly digest: (unit: G['bearer'], hash: number) => number;
+
   /** The entity id a unit focuses (a tether's target, a sticky target); −1 for none. */
   readonly focusOf: (unit: G['bearer']) => number;
 
@@ -252,6 +260,7 @@ export const createAiSystem = <G extends AiTypes>(options: AiSystemOptions<G>): 
 
     pick: (caster, pool, pick) => picker.pick(caster, pool, pick),
     first: (caster, list, first) => picker.first(caster, list, first),
+    digest: (unit, hash) => scheduler.digest(unit, hash),
     focusOf: (unit) => unit.brain.focus,
 
     setFocus: (unit, focus) => {

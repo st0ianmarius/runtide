@@ -2,6 +2,7 @@ import type { EventKind } from '../core/index.ts';
 import { recordOf } from '../core/records.ts';
 import type { ActiveAura, AuraContext } from './active-aura.ts';
 import type { ApplyResult, AuraApplication, AuraHost } from './application.ts';
+import { type AuraHeaderBuffer, digestAuras, tickCountOf, writeHeader } from './audit.ts';
 import type { AuraEvent, AuraEventBus } from './aura-event.ts';
 import type { AuraId, AuraTagId, AuraTypes } from './aura-types.ts';
 import type { CollectedHook } from './collect.ts';
@@ -111,6 +112,12 @@ export interface AuraSystem<G extends AuraTypes> {
    */
   readonly clockTable: AuraClockTable<G['clock']>;
 
+  /**
+   * The host the system was built with (`{}` when it was given none), read only: for a wiring check that the game's
+   * host has the members it relies on (`run`, `onTagsChanged`).
+   */
+  readonly host: AuraHost<G>;
+
   /** How many aura slots the pool has made, and how many are live: a steady state makes no new ones. */
   readonly pool: {
     /** Slots ever made. */
@@ -196,6 +203,28 @@ export interface AuraSystem<G extends AuraTypes> {
    * `motion` aura sees it expired or not). A game ticking clocks one by one keeps this order on both sides.
    */
   readonly tickAll: (bearer: G['bearer']) => void;
+
+  /**
+   * How many times the bearer was stepped on a clock (`tick`, `tickAll`) on the clock's current tick (its `tick`, as a
+   * `SimClock` reports it); 0 when it was not stepped this tick. For an end-of-tick audit (each bearer stepped once per
+   * clock): nothing throws as it steps. Reads only; allocates nothing.
+   */
+  readonly tickCount: (bearer: G['bearer'], clock: G['clock']) => number;
+
+  /**
+   * Folds the bearer's whole aura state into `hash` (a `digest`, from `DIGEST_START` or a digest so far) and returns
+   * it: its steps on each clock, its serial count, then every aura in list order (id, source, stacks, value, duration,
+   * end stamp, clock, serial, next beat). Two games driven alike give equal digests; any difference a game can see
+   * changes it. An aura's `ext` is opaque and left out: a game folds what of it matters. Allocates nothing.
+   */
+  readonly digest: (bearer: G['bearer'], hash: number) => number;
+
+  /**
+   * Writes the bearer's header into `out` and returns it: its steps on each clock (from index 0) and its serial count.
+   * What a server sends beside its aura views, so a prediction mirror seeds from `{ views, ...header }` (`seed`).
+   * Throws a `RangeError` for a typed array too short for every clock. Allocates nothing.
+   */
+  readonly headerOf: <Out extends AuraHeaderBuffer>(bearer: G['bearer'], out: Out) => Out;
 
   /** Whether the bearer has an aura. */
   readonly has: (bearer: G['bearer'], aura: AuraId) => boolean;
@@ -349,6 +378,7 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
     tags: options.tags,
     clocks: clockIds,
     clockTable: Object.freeze({ kind: 'auraClocks', names: Object.freeze(clockNames) }),
+    host,
 
     pool: {
       get created() {
@@ -371,6 +401,10 @@ export const createAuraSystem = <G extends AuraTypes>(options: AuraSystemOptions
         tickAuras(engine, bearer, clock);
       }
     },
+
+    tickCount: (bearer, clock) => tickCountOf(engine, bearer, clockIds[clock] ?? 0),
+    digest: (bearer, hash) => digestAuras(bearer, hash),
+    headerOf: (bearer, out) => writeHeader(bearer, out),
 
     watchRemovals: (watch) => {
       engine.removalWatchers.push(watch);
