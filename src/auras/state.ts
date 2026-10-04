@@ -66,6 +66,12 @@ export class AuraSet<G extends AuraTypes> implements AuraState {
   changes = 0;
   serials = 0;
 
+  /**
+   * Whether its bearer was released (`auras.release`: gone for good): an application landing after it (a delayed list,
+   * a burst) is refused. A set is made for one bearer and never handed to another, so the mark is never cleared.
+   */
+  isReleased = false;
+
   constructor(clocks: number, isSilent: boolean) {
     this.clocks = new Float64Array(clocks);
     this.due = new Float64Array(clocks).fill(Number.POSITIVE_INFINITY);

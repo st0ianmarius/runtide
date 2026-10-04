@@ -103,7 +103,10 @@ export interface AuraSystem<G extends AuraTypes> {
   /** A new, empty aura state for one bearer; a silent one runs no hooks and raises no events. */
   readonly createState: (options?: StateOptions) => AuraState;
 
-  /** Applies an aura (by id, or with an application's options); see `ApplyResult`. */
+  /**
+   * Applies an aura (by id, or with an application's options); see `ApplyResult`. A bearer already released refuses
+   * it outright (`applied` false), running no policy, hook or tag edge and raising nothing.
+   */
   readonly apply: (bearer: G['bearer'], aura: AuraId | AuraApplication<G>) => ApplyResult;
 
   /** Removes every instance of an aura; true when there was one. */
@@ -151,7 +154,9 @@ export interface AuraSystem<G extends AuraTypes> {
 
   /**
    * The bearer is gone for good (a despawned unit): every aura still on it comes off, raising nothing, and its slot goes
-   * back to the pool; how many went. Enter its last state first, so its auras hear it.
+   * back to the pool; how many went. Enter its last state first, so its auras hear it. Its state is marked released:
+   * every later `apply` on it (a delayed list or a burst landing after the despawn) is refused, so nothing leaks a slot,
+   * runs a tag edge or keeps a source binding on a bearer nobody ticks.
    */
   readonly release: (bearer: G['bearer']) => number;
 

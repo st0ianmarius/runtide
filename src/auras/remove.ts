@@ -192,11 +192,14 @@ const hearState = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer
 
 /**
  * Takes every aura off a bearer gone for good (a despawned unit), raising nothing: its auras heard the state it left
- * in already. Their slots go back to the pool; how many went.
+ * in already. Their slots go back to the pool, and the set is marked released, so any later application on it is
+ * refused; how many went.
  */
 export const releaseAll = <G extends AuraTypes>(engine: AuraEngine<G>, bearer: G['bearer']): number => {
   const set = setOf<G>(bearer);
   const count = set.items.length;
+
+  set.isReleased = true;
   const from = engine.events.open('remove');
 
   for (let i = count - 1; i >= 0; i--) {

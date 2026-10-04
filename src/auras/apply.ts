@@ -210,7 +210,7 @@ const landAura = <G extends AuraTypes>(
 
   checkStacking(engine, application);
 
-  if (engine.registry.isRetired(id) || (blockedBy !== undefined && set.tags.intersects(blockedBy))) {
+  if (set.isReleased || engine.registry.isRetired(id) || (blockedBy !== undefined && set.tags.intersects(blockedBy))) {
     return REFUSED;
   }
 
@@ -241,13 +241,18 @@ const landAura = <G extends AuraTypes>(
 
 /**
  * Applies an aura to a bearer: the host's application policy first (refuse, replace, then more), then the
- * aura's own rules. Bookkeeping applications with `bypassPolicy` skip the host's policy. A refusal raises nothing.
+ * aura's own rules. Bookkeeping applications with `bypassPolicy` skip the host's policy. A refusal raises nothing. A
+ * released bearer (`auras.release`) refuses every application before its policy: no slot, hook, tag edge or event.
  */
 export const applyAura = <G extends AuraTypes>(
   engine: AuraEngine<G>,
   bearer: G['bearer'],
   input: AuraId | AuraApplication<G>
 ): ApplyResult => {
+  if (setOf<G>(bearer).isReleased) {
+    return REFUSED;
+  }
+
   const incoming = typeof input === 'number' ? engine.applicationOf(input) : input;
   const decision = incoming.bypassPolicy === true ? undefined : engine.host.onIncomingAura?.(bearer, incoming);
 
@@ -258,11 +263,22 @@ export const applyAura = <G extends AuraTypes>(
   const result = landAura(engine, bearer, decision?.apply ?? incoming);
 
   // A fresh instance counts as changed; a re-application that changed nothing arms nothing after it.
-  if (result.changed && decision?.after !== undefined) {
-    for (const next of decision.after) {
-      landAura(engine, bearer, next);
-    }
+  if (result.changed) {
+    landAfter(engine, bearer, decision?.after);
   }
 
   return result;
+};
+
+/** Lands the applications a policy arms after one that changed its aura, each refused if a hook released the bearer. */
+const landAfter = <G extends AuraTypes>(
+  engine: AuraEngine<G>,
+  bearer: G['bearer'],
+  after: readonly AuraApplication<G>[] | undefined
+): void => {
+  if (after !== undefined) {
+    for (const next of after) {
+      landAura(engine, bearer, next);
+    }
+  }
 };

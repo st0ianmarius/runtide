@@ -118,14 +118,24 @@ describe('a cooldown kept on a holder', () => {
       'the gap goes with its holder’s death; the spacing does not'
     );
 
-    game.auras.release(director);
-    assert.equal(game.spells.check(second, game.id.roar), undefined);
-
     game.spells.cast(second, game.id.smash);
     assert.deepEqual(
       [game.auras.has(director, game.auraId.gap), game.spells.check(first, game.id.smash)],
       [true, 'cooldown'],
-      'a cast after lands on the unit the holder still answers'
+      'a cast after a death lands on the unit the holder still answers'
+    );
+
+    game.auras.release(director);
+    assert.deepEqual(
+      [game.spells.check(second, game.id.roar), game.spells.check(first, game.id.smash)],
+      [undefined, undefined]
+    );
+
+    game.spells.cast(second, game.id.smash);
+    assert.deepEqual(
+      [game.auras.has(director, game.auraId.gap), game.spells.check(first, game.id.smash)],
+      [false, undefined],
+      'a cast after a despawn lands nothing on the released holder, so the casters stay free'
     );
   });
 

@@ -66,8 +66,9 @@ export interface SpellSystem<G extends SpellTypes> {
   /**
    * Whether a caster holds any of a spell's cooldowns, so its casts are refused as `cooldown`: read on the cooldown's
    * `holder` when it names one. A holder is taken as it answers, its life unjudged: the cooldown is what the aura system
-   * holds on it, so its death frees every caster only when the aura is `removedOn` that state, its despawn
-   * (`auras.release`) frees them all, and a cast after either lands the aura on whatever unit it answers again.
+   * holds on it, so its death frees every caster only when the aura is `removedOn` that state, and a cast after it
+   * lands the aura on whatever unit it answers again; its despawn (`auras.release`) frees them all, and a cast after
+   * that lands nothing on it (a released bearer takes no aura), so the casters stay free while it answers that unit.
    */
   readonly isCooling: (caster: G['bearer'], spell: SpellId) => boolean;
 
