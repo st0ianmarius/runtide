@@ -53,10 +53,24 @@ const fireOn = <G extends ProcTypes>(frame: ProcFrame<G>, firing: CueFiring, uni
   fireCue(frame.cues ?? missing('cues'), firing, firing);
 };
 
-/** Fires a `cue` proc: on the self for a `self` cue, else on its `to` unit (each party member) or at its point. */
+/** Throws for a predicted cue: a proc has no press key, so the client's echo ring would never drop the server's copy. */
+const refusePredicted = (cues: CueRegistry, cue: CueId): void => {
+  if (cues.columns.isPredicted[cue] === 1) {
+    throw new RangeError(`cue ${cues.name(cue)} is predicted: a predicted cue is fired by its cast, not by a proc.`);
+  }
+};
+
+/**
+ * Fires a `cue` proc: on the self for a `self` cue, else on its `to` unit (each party member) or at its point. A
+ * predicted cue throws here too, not only in `prepare`: a list an aura hook, a script, a spell hook or `procs.run`
+ * returns at run time is never prepared.
+ */
 const applyCue = <G extends ProcTypes>(proc: CueProc<G>, frame: ProcFrame<G>): ProcOutcome => {
   const out = frame.cues ?? missing('cues');
   const cue = frame.resolve.cue(proc.cue);
+
+  refusePredicted(out.registry, cue);
+
   const firing = (frame.firing ??= new CueFiring(cue));
 
   firing.cue = cue;
@@ -98,10 +112,7 @@ const applyCue = <G extends ProcTypes>(proc: CueProc<G>, frame: ProcFrame<G>): P
 const checkPlacement = <G extends ProcTypes>(cues: CueRegistry, proc: CueProc<G>, cue: CueId): void => {
   const anchor = cues.anchorOf(cue);
 
-  if (cues.columns.isPredicted[cue] === 1) {
-    throw new RangeError(`cue ${cues.name(cue)} is predicted: a predicted cue is fired by its cast, not by a proc.`);
-  }
-
+  refusePredicted(cues, cue);
   checkTarget(proc.to);
 
   if (anchor === 'self' && (proc.to !== undefined || proc.at !== undefined)) {
