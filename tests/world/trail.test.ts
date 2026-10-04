@@ -50,4 +50,17 @@ describe('a trail of positions', () => {
     trail.record(-1, vec2(1, 1));
     assert.equal(trail.newest, -1);
   });
+
+  it('reads the line between replicated sends however many ticks apart, at fractional ticks', () => {
+    const trail = new Trail(4);
+    const out = { x: 0, z: 0 };
+
+    // Sent at a reduced rate: ticks 0, 3 and 4.
+    trail.record(0, vec2(0, 0));
+    trail.record(3, vec2(6, -3));
+    trail.record(4, vec2(10, -3));
+    assert.deepEqual({ ...trail.at(1.5, out) }, { x: 3, z: -1.5 });
+    assert.deepEqual({ ...trail.at(2, out) }, { x: 4, z: -2 });
+    assert.deepEqual({ ...trail.at(3.25, out) }, { x: 7, z: -3 });
+  });
 });

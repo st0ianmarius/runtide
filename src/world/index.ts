@@ -27,6 +27,7 @@ export type {
 
 export { nearestClear, type NearestClearOptions } from './nearest-clear.ts';
 
+export { type RewindOptions, rewoundQuery } from './rewound.ts';
 export type { ReactionRule, SideTargetRule, TargetRule } from './selector.ts';
 export type { StaticShape } from './statics.ts';
 export { Trail } from './trail.ts';

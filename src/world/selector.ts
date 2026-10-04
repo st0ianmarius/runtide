@@ -33,7 +33,7 @@ export interface SelectorRules<Unit> {
 }
 
 /** Orders two sort keys: less first, equal (infinities included) as ties, NaN after every number. */
-const compareKeys = (x: number, y: number): number => {
+export const compareKeys = (x: number, y: number): number => {
   if (x < y) {
     return -1;
   }

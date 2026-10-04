@@ -1,9 +1,12 @@
 import type { MutableVec2, Vec2 } from '../math/index.ts';
 
 /**
- * A unit's recent positions, one per tick, in a ring of fixed size: what lag compensation reads to test a hit
- * against where a client saw the unit (`at(tick)`, the tick the client's view showed), not where it stands now. The
- * game keeps one on each unit it may rewind and records it once a tick, after the world moved.
+ * A unit's recent positions as they were replicated, in a ring of fixed size: what lag compensation reads to test a
+ * hit against where a client drew the unit (`at(tick)`, the fractional tick the client's view showed), not where it
+ * stands now. The game keeps one on each unit it may rewind and records the position each replication sends, at the
+ * tick it was sent (every tick, or every few ticks at a reduced send rate), so a rewind tests exactly what the client
+ * interpolated between: `at` reads the straight line between two records however many ticks apart they are.
+ * `rewoundQuery` reads a world through them.
  */
 export class Trail {
   readonly #ticks: Float64Array;
@@ -28,8 +31,8 @@ export class Trail {
   }
 
   /**
-   * Records where the unit stands on a tick, finite and later than the last recorded (any tick, negative ones included,
-   * when it is empty); the oldest goes past the capacity.
+   * Records where the unit stood as a replication sent it, on the tick it was sent: finite and later than the last
+   * recorded (any tick, negative ones included, when it is empty); the oldest goes past the capacity.
    */
   record(tick: number, at: Vec2): void {
     if (!Number.isFinite(tick)) {
@@ -76,7 +79,7 @@ export class Trail {
       const at = this.#ticks[slot] ?? 0;
 
       if (at <= tick || i === this.#count) {
-        return this.#between([slot, newer], tick, out);
+        return this.#between(slot, newer, tick, out);
       }
 
       newer = slot;
@@ -93,7 +96,7 @@ export class Trail {
   }
 
   /** The position at `tick` from the record in `slot` toward the newer one in `newer` (-1 for none). */
-  #between([slot, newer]: readonly [number, number], tick: number, out: MutableVec2): Vec2 {
+  #between(slot: number, newer: number, tick: number, out: MutableVec2): Vec2 {
     const t0 = this.#ticks[slot] ?? 0;
     const x0 = this.#xs[slot] ?? 0;
     const z0 = this.#zs[slot] ?? 0;
