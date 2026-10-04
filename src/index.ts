@@ -14,6 +14,7 @@ export * from './conditions/index.ts';
 export * from './core/index.ts';
 export * from './cues/index.ts';
 export * from './damage/index.ts';
+export * from './game/index.ts';
 export * from './math/index.ts';
 export * from './modifiers/index.ts';
 export * from './prediction/index.ts';

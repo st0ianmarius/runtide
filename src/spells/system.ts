@@ -18,7 +18,7 @@ import { CasterRecord, type CasterState, recordOf } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
 import type { Delayed } from './delayed.ts';
 import { digestCaster, digestDelayed } from './digest.ts';
-import type { SpellEngine } from './engine.ts';
+import type { SpellClock, SpellEngine } from './engine.ts';
 import { hitCast } from './hit.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
 import { checkPressKey } from './press-key.ts';
@@ -56,6 +56,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
   readonly procKinds: SpellProcKinds<G>;
   readonly gameActivations: readonly string[];
   readonly host: SpellHost<G> & G['host'];
+  readonly clock: SpellClock;
   readonly delayedSlots: number;
   readonly #engine: SpellEngine<G>;
   readonly #report = new Report<G>();
@@ -72,6 +73,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
     this.#engine = engine;
     this.registry = engine.registry;
     this.host = engine.host;
+    this.clock = engine.clock;
     this.delayedSlots = engine.delayed.slots;
     this.#landedTicks = new Float64Array(engine.delayed.slots).fill(Number.NaN);
     this.#cooldownAuras = engine.registry.ids.map((id) =>

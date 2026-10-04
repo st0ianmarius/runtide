@@ -1,4 +1,5 @@
 import type { TickSlotId } from '../core/index.ts';
+import type { SpellClock } from '../spells/index.ts';
 import type { AreaTriggerContext, EndReason } from './area-def.ts';
 import type { AreaTriggerId, AreaTriggerTypes } from './area-types.ts';
 import { areaEngineOf } from './build-engine.ts';
@@ -62,6 +63,9 @@ export interface AreaTriggerSystem<G extends AreaTriggerTypes> extends AreaQueri
   /** How many tick slots it steps (`slots.size` of its options, 1 when absent): an audit walks ids 0 up to it. */
   readonly slots: number;
 
+  /** The clock the system was built with (`clock` of its options), read only: for a check that systems share one. */
+  readonly clock: SpellClock;
+
   /**
    * Whether `step` ran for a tick slot (the first when absent) on the clock's current tick, so a host's audit finds a
    * slot its loop forgot. `stepOwner` does not count; a slot outside `slots` is never stepped.
@@ -119,6 +123,7 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
   readonly coveredBy: AreaQueries<G>['coveredBy'];
   readonly intercept: AreaQueries<G>['intercept'];
   readonly slots: number;
+  readonly clock: SpellClock;
   readonly #engine: AreaEngine<G>;
   readonly #digest: AreaDigest<G>;
 
@@ -129,6 +134,7 @@ class AreaTriggers<G extends AreaTriggerTypes> implements AreaTriggerSystem<G> {
     this.#engine = engine;
     this.#digest = new AreaDigest(engine);
     this.slots = engine.slotKinds.length;
+    this.clock = engine.clock;
     this.#steppedOn = new Float64Array(this.slots).fill(Number.NaN);
     this.registry = engine.registry;
 

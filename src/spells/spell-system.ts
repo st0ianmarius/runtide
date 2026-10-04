@@ -6,6 +6,7 @@ import type { ClockScale } from './auto.ts';
 import type { AutoOptions, CastOptions, CastRefusal, CastReport } from './cast-request.ts';
 import type { CasterState } from './caster.ts';
 import type { SpellRegistry } from './define-spells.ts';
+import type { SpellClock } from './engine.ts';
 import type { CastHandle } from './ids.ts';
 import type { SpellProcKinds } from './procs.ts';
 import type { CastOutcome, SpellContext, SpellHit } from './spell-def.ts';
@@ -39,6 +40,9 @@ export interface SpellSystem<G extends SpellTypes> {
 
   /** The host the system was built with (`SpellSystemBase.host`): read it to check the wiring, never replace it. */
   readonly host: SpellHost<G> & G['host'];
+
+  /** The clock the system was built with (`SpellSystemBase.clock`), read only: for a check that systems share one. */
+  readonly clock: SpellClock;
 
   /** How many tick slots delayed lists land in (the game's `slots`, else 1): an audit walks `delayedStepped` over them. */
   readonly delayedSlots: number;

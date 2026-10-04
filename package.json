@@ -21,6 +21,7 @@
     "./core": "./src/core/index.ts",
     "./cues": "./src/cues/index.ts",
     "./damage": "./src/damage/index.ts",
+    "./game": "./src/game/index.ts",
     "./math": "./src/math/index.ts",
     "./modifiers": "./src/modifiers/index.ts",
     "./prediction": "./src/prediction/index.ts",

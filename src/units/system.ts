@@ -166,7 +166,7 @@ export interface UnitSystem<G extends UnitTypes> {
   readonly hosts: UnitHosts<G>;
 
   /**
-   * Checks the game's wiring once it is assembled (`units.checkWiring({ spells, auras, ai, procs, areaTriggers })`):
+   * Checks the game's wiring once it is assembled (`units.checkWiring({ spells, auras, ai, procs, areaTriggers, damage })`):
    * throws a `RangeError` naming the first gate left unwired that the systems let it see.
    */
   readonly checkWiring: (wiring: UnitWiring<G>) => void;
@@ -214,6 +214,7 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     isAlive(unit) && (states === undefined || !unit.auras.tags.intersects(states.blocksAct));
 
   const procKinds = createUnitProcKinds<G>({ engine, spawn: spawnUnit, revive: reviveUnit, despawn: despawnUnit });
+  const damageHost = damageHostOf(engine);
 
   const system: UnitSystem<G> = {
     registry,
@@ -275,10 +276,10 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
     statsOf: (unit, against, scope) => engine.statsOf(unit, against, scope),
     autoAttackOf: (unit) => engine.autoAttacks[unitOf<G>(unit).template],
     syncHealth: (unit) => syncHealth(engine, unit),
-    damageHost: damageHostOf(engine),
+    damageHost,
     hosts: hostsOf(engine, { canAct, syncStates: (unit) => syncStates(engine, unit) }),
     checkWiring: (wiring) => {
-      checkWiring(engine, procKinds, wiring);
+      checkWiring(engine, { kinds: procKinds, damageHost }, wiring);
     }
   };
 
