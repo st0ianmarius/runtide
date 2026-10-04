@@ -39,8 +39,8 @@ export const isBoundToGone = <G extends UnitTypes>(spawn: SpawnUnit<G>): boolean
 
 /**
  * A revived unit joins its owner's summons again, last, if it still has an owner (alive or dead) and the limit it was
- * summoned under (`limit.perOwner`) has room among them. With no room it is let go, as an orphan: it lives on
- * ownerless, crediting its owner, and no longer despawns with it.
+ * summoned under (`limit.perOwner`) has room among them, counting its template's or (`limit.of: 'any'`) every one. With
+ * no room it is let go, as an orphan: it lives on ownerless, crediting its owner, and no longer despawns with it.
  */
 export const rejoinOwner = (bearer: UnitTypes['bearer']): void => {
   const unit = unitOf<UnitTypes>(bearer);
@@ -52,7 +52,9 @@ export const rejoinOwner = (bearer: UnitTypes['bearer']): void => {
 
   const record = unitOf<UnitTypes>(owner);
 
-  if (countOf(record.summons, unit.template) < unit.perOwner) {
+  const template = unit.perOwnerOf === 'any' ? undefined : unit.template;
+
+  if (countOf(record.summons, template) < unit.perOwner) {
     record.summons.push(bearer);
 
     return;
@@ -63,8 +65,12 @@ export const rejoinOwner = (bearer: UnitTypes['bearer']): void => {
   unit.owner = undefined;
 };
 
-/** How many units of a list are of a template. */
-const countOf = (list: readonly UnitTypes['bearer'][], template: UnitId): number => {
+/** How many units of a list are of a template; all of them for `undefined`. */
+const countOf = (list: readonly UnitTypes['bearer'][], template: UnitId | undefined): number => {
+  if (template === undefined) {
+    return list.length;
+  }
+
   let count = 0;
 
   for (const other of list) {

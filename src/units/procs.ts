@@ -37,8 +37,15 @@ export interface SummonProc<G extends UnitTypes> extends ProcShape {
   /** The discriminant. */
   readonly kind: 'summon';
 
-  /** The template: its name in data, its id in code. */
+  /** The template: its name in data, its id in code. Each summon's when `unitOf` is absent or reads `undefined`. */
   readonly unit: G['unitName'] | UnitId;
+
+  /**
+   * Reads each summon's template by its index in the count, from 0 (a skipped one keeps its index), in place of
+   * `unit`; `undefined` keeps `unit` (raise three dead rotating through kinds: `(_ctx, i) => KINDS[i % 3]`). A name is
+   * resolved through the registry's ids as each summon is made, and one it does not have throws there.
+   */
+  readonly unitOf?: (ctx: ProcContext<G>, index: number) => G['unitName'] | UnitId | undefined;
 
   /** How many; 1 when absent. */
   readonly count?: number;
@@ -80,8 +87,10 @@ export interface SummonProc<G extends UnitTypes> extends ProcShape {
   readonly side?: number;
 
   /**
-   * How many of the template the owner may keep at once: a summon past it ends the owner's oldest of the template (it
-   * despawns, reason `replaced`: a sentry replacing the last), or is refused (`refuse`: a cap of six adds).
+   * How many the owner may keep at once, of the summon's template or (`of: 'any'`) of every template: a summon past it
+   * ends the owner's oldest it counts (it despawns, reason `replaced`: a sentry replacing the last), or is refused
+   * (`refuse`: a cap of six adds), which stops the proc there. A summon revived later rejoins its owner only with room
+   * under the limit it was made under, counted the same way.
    */
   readonly limit?: {
     /** The most at once, from 1. */
@@ -89,6 +98,13 @@ export interface SummonProc<G extends UnitTypes> extends ProcShape {
 
     /** What a summon past the limit does; `oldest` when absent. */
     readonly replace?: 'oldest' | 'refuse';
+
+    /**
+     * What counts toward it: the owner's live summons of the summon's template (`template`), or all its live summons
+     * whatever their template (`any`: a cap of six across skeletons and ghouls, whose `oldest` is the oldest of
+     * either); `template` when absent.
+     */
+    readonly of?: 'template' | 'any';
   };
 }
 

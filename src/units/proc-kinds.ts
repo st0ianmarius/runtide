@@ -142,6 +142,7 @@ const spawnSummon = <G extends UnitTypes>(
   const cast = spells.castFor(ctx);
 
   unitOf<G>(unit).perOwner = proc.limit?.perOwner ?? Number.POSITIVE_INFINITY;
+  unitOf<G>(unit).perOwnerOf = proc.limit?.of ?? 'template';
 
   // A summon its own `spawned` listeners despawned holds nothing.
   if (cast !== NO_CAST && isAlive(unit) && spells.retain(cast)) {
@@ -150,8 +151,9 @@ const spawnSummon = <G extends UnitTypes>(
 };
 
 /**
- * Whether one more summon of a template fits its owner's limit: under it, yes; at it, the owner's oldest of the template
- * despawns as `replaced` (`oldest`), or the summon is refused (`refuse`).
+ * Whether one more summon of a template fits its owner's limit, counting that template or (`of: 'any'`) every one:
+ * under it, yes; at it, the owner's oldest it counts despawns as `replaced` (`oldest`), or the summon is refused
+ * (`refuse`).
  */
 const admitSummon = <G extends UnitTypes>(
   parts: UnitKindParts<G>,
@@ -164,35 +166,45 @@ const admitSummon = <G extends UnitTypes>(
     return true;
   }
 
-  if (occupied(parts.engine, owner, template) < limit.perOwner) {
+  const scope = limit.of === 'any' ? undefined : template;
+
+  if (occupied(parts.engine, owner, scope) < limit.perOwner) {
     return true;
   }
 
-  const oldest = oldestOf<G>(owner, template);
+  const oldest = oldestOf<G>(owner, scope);
 
   if (limit.replace === 'refuse' || oldest === undefined) {
     return false;
   }
 
-  return replaceSummon(parts, owner, oldest, template, limit.perOwner);
+  return replaceSummon(parts, [owner, oldest], [template, scope], limit.perOwner);
 };
 
+/** Whether a template counts toward a limit scoped to `scope`: that template, or every one for `undefined`. */
+const counts = (template: UnitId | undefined, scope: UnitId | undefined): boolean =>
+  scope === undefined || template === scope;
+
 /**
- * The slots of a template an owner fills: its summons of it, and the replacements reserved for it while their
- * callbacks run, so a nested summon cannot take a slot an outer one is freeing.
+ * The slots an owner fills of a template, or of every one for `undefined`: its summons, and the replacements reserved
+ * while their callbacks run, so a nested summon cannot take a slot an outer one is freeing.
  */
-const occupied = <G extends UnitTypes>(engine: UnitEngine<G>, owner: G['bearer'], template: UnitId): number => {
+const occupied = <G extends UnitTypes>(
+  engine: UnitEngine<G>,
+  owner: G['bearer'],
+  scope: UnitId | undefined
+): number => {
   const { admittingOwners, admittingTemplates } = engine;
   let count = 0;
 
   for (let i = 0; i < admittingOwners.length; i++) {
-    if (admittingOwners[i] === owner && admittingTemplates[i] === template) {
+    if (admittingOwners[i] === owner && counts(admittingTemplates[i], scope)) {
       count += 1;
     }
   }
 
   for (const summon of unitOf<G>(owner).summons) {
-    if (unitOf<G>(summon).template === template) {
+    if (counts(unitOf<G>(summon).template, scope)) {
       count += 1;
     }
   }
@@ -200,10 +212,10 @@ const occupied = <G extends UnitTypes>(engine: UnitEngine<G>, owner: G['bearer']
   return count;
 };
 
-/** An owner's oldest summon of a template, if it has one. */
-const oldestOf = <G extends UnitTypes>(owner: G['bearer'], template: UnitId): G['bearer'] | undefined => {
+/** An owner's oldest summon of a template, or of any for `undefined`, if it has one. */
+const oldestOf = <G extends UnitTypes>(owner: G['bearer'], scope: UnitId | undefined): G['bearer'] | undefined => {
   for (const summon of unitOf<G>(owner).summons) {
-    if (unitOf<G>(summon).template === template) {
+    if (counts(unitOf<G>(summon).template, scope)) {
       return summon;
     }
   }
@@ -211,12 +223,14 @@ const oldestOf = <G extends UnitTypes>(owner: G['bearer'], template: UnitId): G[
   return undefined;
 };
 
-/** Reserves the replacement slot across callbacks, then checks nothing else filled it. */
+/**
+ * Reserves the replacement slot (for `template`, scope toward `scope`) across callbacks, then checks nothing else
+ * filled it.
+ */
 const replaceSummon = <G extends UnitTypes>(
   parts: UnitKindParts<G>,
-  owner: G['bearer'],
-  oldest: G['bearer'],
-  template: UnitId,
+  [owner, oldest]: readonly [G['bearer'], G['bearer']],
+  [template, scope]: readonly [UnitId, UnitId | undefined],
   limit: number
 ): boolean => {
   const { admittingOwners, admittingTemplates } = parts.engine;
@@ -229,7 +243,7 @@ const replaceSummon = <G extends UnitTypes>(
     }
 
     // A callback may spawn directly, bypassing this proc: recount, every reservation but this one included.
-    return occupied(parts.engine, owner, template) - 1 < limit;
+    return occupied(parts.engine, owner, scope) - 1 < limit;
   } finally {
     admittingOwners.pop();
     admittingTemplates.pop();
@@ -240,6 +254,17 @@ const replaceSummon = <G extends UnitTypes>(
 const summonCount = <G extends UnitTypes>(proc: SummonProc<G>, ctx: ProcContext<G>): number =>
   Math.max(0, Math.floor(proc.countOf?.(ctx) ?? proc.count ?? 1));
 
+/** One summon's template: what `unitOf` reads for its index, resolved to an id, else the proc's own. */
+const summonTemplate = <G extends UnitTypes>(
+  engine: UnitEngine<G>,
+  [proc, ctx]: readonly [SummonProc<G>, ProcContext<G>],
+  [fallback, index]: readonly [UnitId, number]
+): UnitId => {
+  const unit = proc.unitOf?.(ctx, index);
+
+  return unit === undefined ? fallback : templateOf(engine, unit);
+};
+
 /**
  * Makes one summon of a summon proc: `made`; `skipped` when `atOf` finds no point and the proc skips; `stop` when it
  * stops there, the game does not admit it (a crowd cap, asked before the owner's limit so a refusal ends no older
@@ -248,13 +273,15 @@ const summonCount = <G extends UnitTypes>(proc: SummonProc<G>, ctx: ProcContext<
 const summonOne = <G extends UnitTypes>(
   parts: UnitKindParts<G>,
   [proc, ctx, owner]: readonly [SummonProc<G>, ProcContext<G>, G['bearer']],
-  [template, stats]: readonly [UnitId, Readonly<Partial<Record<G['stat'], number>>> | undefined]
+  [fallback, stats, index]: readonly [UnitId, Readonly<Partial<Record<G['stat'], number>>> | undefined, number]
 ): 'made' | 'skipped' | 'stop' => {
   const at = proc.atOf === undefined ? proc.at : proc.atOf(ctx);
 
   if (proc.atOf !== undefined && at === undefined) {
     return proc.onNoPoint === 'stop' ? 'stop' : 'skipped';
   }
+
+  const template = summonTemplate(parts.engine, [proc, ctx], [fallback, index]);
 
   const spec = summonSpec([proc, ctx, owner], stats, at);
 
@@ -270,6 +297,34 @@ const summonOne = <G extends UnitTypes>(
   spawnSummon(parts, [proc, ctx], [template, spec]);
 
   return 'made';
+};
+
+/** Throws unless a summon proc's limit counts from 1, and counts `template` or `any`. */
+const checkLimit = (limit: SummonProc<UnitTypes>['limit']): void => {
+  const perOwner = limit?.perOwner;
+
+  if (perOwner !== undefined && !(Number.isInteger(perOwner) && perOwner >= 1)) {
+    throw new RangeError(`a summon proc's limit is a whole number from 1; got ${perOwner}.`);
+  }
+
+  const of: unknown = limit?.of;
+
+  if (of !== undefined && of !== 'template' && of !== 'any') {
+    throw new RangeError(`a summon proc's limit counts 'template' or 'any'; got ${JSON.stringify(of)}.`);
+  }
+};
+
+/** Throws unless a summon proc's count, limit and `unitOf` are what they may be. */
+const checkSummon = <G extends UnitTypes>(proc: SummonProc<G>): void => {
+  if (proc.count !== undefined && !(Number.isInteger(proc.count) && proc.count >= 0)) {
+    throw new RangeError(`a summon proc's count is a whole number from 0; got ${proc.count}.`);
+  }
+
+  checkLimit(proc.limit);
+
+  if (proc.unitOf !== undefined && typeof proc.unitOf !== 'function') {
+    throw new TypeError(`a summon proc's unitOf is a function; got ${typeof proc.unitOf}.`);
+  }
 };
 
 /** The `summon` kind. */
@@ -291,7 +346,7 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
 
     // `atOf`, `admit`, a replaced summon's despawn and the spawn's listeners are callbacks: each may take the owner out.
     for (let i = 0; i < count && isAlive(owner); i++) {
-      const made = summonOne(parts, [proc, ctx, owner], [template, stats]);
+      const made = summonOne(parts, [proc, ctx, owner], [template, stats, i]);
 
       if (made === 'stop') {
         break;
@@ -304,15 +359,7 @@ const summonKind = <G extends UnitTypes>(parts: UnitKindParts<G>): ProcKindDef<S
   },
 
   prepare: (proc) => {
-    if (proc.count !== undefined && !(Number.isInteger(proc.count) && proc.count >= 0)) {
-      throw new RangeError(`a summon proc's count is a whole number from 0; got ${proc.count}.`);
-    }
-
-    const limit = proc.limit?.perOwner;
-
-    if (limit !== undefined && !(Number.isInteger(limit) && limit >= 1)) {
-      throw new RangeError(`a summon proc's limit is a whole number from 1; got ${limit}.`);
-    }
+    checkSummon(proc);
 
     return { ...proc, unit: templateOf(parts.engine, proc.unit) };
   }

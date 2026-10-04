@@ -128,6 +128,9 @@ export class Unit<G extends UnitTypes> implements UnitShape {
    */
   perOwner = Number.POSITIVE_INFINITY;
 
+  /** What the limit it was summoned under counts (`limit.of`): its template's summons, or every one of its owner's. */
+  perOwnerOf: 'template' | 'any' = 'template';
+
   /** The cast it was summoned by, held alive while it lives; `NO_CAST` for none. */
   cast: CastHandle = NO_CAST;
 
