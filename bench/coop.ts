@@ -125,7 +125,7 @@ const WORLD = createMemoryWorld<Unit<CoopGame>>({
 type ReusedBlow = { -readonly [K in keyof BlowSpec<CoopGame>]: BlowSpec<CoopGame>[K] };
 
 const late: {
-  swing?: readonly Proc<CoopGame>[];
+  swings?: readonly (readonly Proc<CoopGame>[])[];
   blow?: ReusedBlow;
 } = {};
 
@@ -145,7 +145,7 @@ const SPELL_DEFS = defineSpells<CoopGame, 'swing'>({
   swing: {
     activation: { kind: 'auto', interval: 1, ready: (caster) => (GAP[caster.id] ?? 0) <= REACH },
     target: (ctx) => heroes[CHASES[ctx.caster.id] ?? 0],
-    release: () => late.swing
+    release: (ctx) => late.swings?.[CHASES[ctx.caster.id] ?? 0]
   }
 });
 
@@ -303,7 +303,9 @@ const setUp = (): void => {
     AREAS.spawn(AREA_KINDS.id.nova, { owner: hero, at: AT });
   }
 
-  late.swing = [damage<CoopGame>(3, { to: 'target' })];
+  // A cast's procs land on its caster for `to: 'target'` (the cast's own target is the spell's, not the procs'), so
+  // each hero has its swing aimed at it.
+  late.swings = heroes.map((hero) => [damage<CoopGame>(3, { to: hero })]);
   late.blow = { target: heroes[0] ?? missing(), amount: 0 };
 
   for (let i = 0; i < MOBS; i++) {
@@ -402,9 +404,13 @@ const tick = (): void => {
   replaceDead();
 };
 
-/** What the co-op game did so far: the area triggers live and the mobs in reach of their hero now. */
-export const coopStats = (): { readonly live: number; readonly inReach: number } => ({
+/**
+ * What the co-op game did so far: the area triggers live, the swings that landed on the heroes, and the mobs in reach
+ * of their hero now.
+ */
+export const coopStats = (): { readonly live: number; readonly swings: number; readonly inReach: number } => ({
   live: AREAS.pool.live,
+  swings: Math.round(heroes.reduce((sum, hero) => sum + hero.maxHealth - hero.health, 0) / 3),
   inReach: mobs.filter((mob) => (GAP[mob.id] ?? 0) <= REACH).length
 });
 
