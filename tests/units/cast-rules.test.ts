@@ -120,6 +120,28 @@ describe('states interrupting casts', () => {
     assert.equal(spells.get(channel)?.remaining, 0.75);
     assert.equal(ai.remaining(grunt, TIMERS.id.pick), 0.75);
   });
+  it('hold a frozen unit’s brain when a cast hook throws as the freeze cancels its cast', () => {
+    const game = makeUnitGame(TEMPLATES, {
+      spells: {
+        brittle: {
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 1 }, interrupts: { freeze: 'cancel' } },
+          release: () => undefined,
+          onEnd: () => {
+            throw new Error('cast hook');
+          }
+        }
+      }
+    });
+
+    const { auras, spells, ai, units, spellId } = game;
+    const grunt = units.spawn(game.id.grunt, { side: 1 });
+
+    spells.cast(grunt, spellId.brittle);
+    assert.throws(() => auras.apply(grunt, auraId('freeze')), /cast hook/);
+    assert.equal(spells.isInterrupted(grunt, 'freeze'), true);
+    assert.equal(ai.isHeld(grunt, 'freeze'), true);
+  });
 });
 
 describe('leaving life', () => {

@@ -330,23 +330,21 @@ describe('moves asked for during a move, in order', () => {
     assert.equal(hero.lifecycle, 'despawned');
   });
 
-  it('drops the moves a throwing listener asked for, leaving none for the next move to run', () => {
+  it('runs the moves a throwing listener asked for, then surfaces its error', () => {
     const game = makeUnitGame(TEMPLATES);
     const { units } = game;
     const hero = units.spawn(game.id.hero, { side: 0 });
-    let isBroken = true;
 
     game.on('changed', (event) => {
-      if (isBroken && event.to === 'dead' && event.unit !== undefined) {
+      if (event.to === 'dead' && event.unit !== undefined) {
         units.despawn(event.unit);
 
         throw new Error('game bug');
       }
     });
     assert.throws(() => units.kill(hero), /game bug/);
-    isBroken = false;
-    assert.equal(units.revive(hero), true);
-    assert.equal(hero.lifecycle, 'alive');
+    assert.equal(hero.lifecycle, 'despawned');
+    assert.equal(units.revive(hero), false);
   });
 
   it('refuses a revive health that is not a finite number above 0', () => {

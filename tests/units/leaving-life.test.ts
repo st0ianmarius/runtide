@@ -95,6 +95,53 @@ describe('what a unit owns as it leaves life', () => {
     assert.equal(hero.lifecycle, 'dead');
   });
 
+  it('enters its dead state when a cast hook throws as its death cancels the cast', () => {
+    const game = makeUnitGame(TEMPLATES, {
+      spells: {
+        broken: {
+          activation: { kind: 'trigger' },
+          timeline: { windup: { seconds: 1 } },
+          release: () => undefined,
+          onEnd: () => {
+            throw new Error('cast hook');
+          }
+        }
+      }
+    });
+
+    const hero = game.units.spawn(game.id.hero, { side: 0 });
+
+    HEARD.length = 0;
+    game.auras.apply(hero, auraId('mark'));
+    game.spells.cast(hero, game.spellId.broken);
+    assert.throws(() => game.units.kill(hero), /cast hook/);
+    assert.deepEqual(HEARD, [`dead ${hero.id}`]);
+    assert.equal(game.auras.has(hero, auraId('mark')), false);
+    assert.equal(game.log.includes(`changed ${hero.id} alive>dead`), true);
+  });
+
+  it('raises its change and runs the revive its death asked for when its cleanup throws, then surfaces the error', () => {
+    const game = makeUnitGame(TEMPLATES, {
+      areaTriggers: {
+        ownerGone: () => {
+          throw new Error('area hook');
+        }
+      }
+    });
+
+    const hero = game.units.spawn(game.id.hero, { side: 0 });
+
+    game.auras.apply(hero, auraId('lastStand'));
+    assert.throws(() => game.units.kill(hero), /area hook/);
+    assert.equal(hero.lifecycle, 'alive');
+    assert.equal(hero.health, 50);
+
+    assert.deepEqual(
+      game.log.filter((line) => line.startsWith('changed')),
+      [`changed ${hero.id} alive>dead`, `changed ${hero.id} dead>alive`]
+    );
+  });
+
   it('despawns every bound summon when their despawns throw, surfacing the first', () => {
     const game = makeUnitGame(TEMPLATES);
     const owner = game.units.spawn(game.id.hero, { side: 0 });

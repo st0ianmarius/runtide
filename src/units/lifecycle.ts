@@ -83,11 +83,17 @@ const leaveFor = <G extends UnitTypes>(
   const { auras } = engine.options;
   let errors: Caught | undefined;
 
+  // A cast's `onEnd` that throws as it is cancelled still lets the unit enter its state (its death bursts, its
+  // `removedOn` auras going).
   try {
     if (from === 'alive') {
       engine.options.spells.cancelAll(bearer);
     }
+  } catch (error) {
+    errors = caught(errors, error);
+  }
 
+  try {
     if (auras.hasState(to)) {
       auras.enterState(bearer, to);
     }
@@ -197,9 +203,11 @@ const despawned = <G extends UnitTypes>(
  * default) and rejoins its owner's summons, if it still has one and its summon limit has room. Raises `changed`, or
  * `despawned` with its reason for a despawn, which also forgets the unit's entity id and frees its brain. A move asked
  * for from its hooks or events (a revive from a death's `onState`) waits until this one is done, so its events follow
- * this one's; such moves run in the order asked, each checked when its turn comes. False when the move is not allowed;
- * true when it was made, or queued behind the running move (it may still be refused when its turn comes: read the
- * unit's `lifecycle` after the outer move to know).
+ * this one's; such moves run in the order asked, each checked when its turn comes. A hook or listener that throws stops
+ * nothing: the move's event is still raised and the queued moves still run, then the first error surfaces, the later
+ * ones suppressed behind it (`SuppressedError`). False when the move is not allowed; true when it was made, or queued
+ * behind the running move (it may still be refused when its turn comes: read the unit's `lifecycle` after the outer
+ * move to know).
  */
 export const moveTo = <G extends UnitTypes>(
   engine: UnitEngine<G>,
@@ -228,25 +236,31 @@ export const moveTo = <G extends UnitTypes>(
   unit.isMoving = true;
   unit.lifecycle = to;
 
+  let errors: Caught | undefined;
+
   try {
     enter(engine, bearer, from, health, reason);
   } catch (error) {
-    // A hook threw: the move stops where it is, and the moves it asked for are dropped, not left for the next one.
-    unit.nextMoves.length = 0;
-
-    throw error;
+    errors = caught(errors, error);
   } finally {
     unit.isMoving = false;
   }
 
-  // Each asked-for move is checked when its turn comes: a despawn queued after a revive still despawns.
+  // Each asked-for move is checked when its turn comes: a despawn queued after a revive still despawns, and a revive
+  // a death's hook asked for still revives when another of its hooks threw.
   while (unit.nextMoves.length > 0 && !unit.isMoving) {
     const next = unit.nextMoves.shift();
 
-    if (next !== undefined) {
-      moveTo(engine, bearer, next[0], next[1], next[2]);
+    try {
+      if (next !== undefined) {
+        moveTo(engine, bearer, next[0], next[1], next[2]);
+      }
+    } catch (error) {
+      errors = caught(errors, error);
     }
   }
+
+  rethrow(errors);
 
   return true;
 };
@@ -258,7 +272,11 @@ const checkHealth = (health: number | undefined): void => {
   }
 };
 
-/** Runs a move's work and events, the unit in its new state already: what joining life, or leaving it, does. */
+/**
+ * Runs a move's work and events, the unit in its new state already: what joining life, or leaving it, does, then
+ * `changed` (a despawn raises `despawned` in its own work), raised even when the work threw, since the unit moved. The
+ * first error surfaces.
+ */
 const enter = <G extends UnitTypes>(
   engine: UnitEngine<G>,
   bearer: G['bearer'],
@@ -268,25 +286,34 @@ const enter = <G extends UnitTypes>(
 ): void => {
   const unit = unitOf<G>(bearer);
   const to = unit.lifecycle;
+  let errors: Caught | undefined;
 
-  if (to === 'alive') {
-    unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
-    rejoinOwner(bearer);
-    lifeChanged(engine, bearer, true);
-  } else {
-    // A kill's health is set before anything hears the death.
-    if (health !== undefined) {
-      unit.health = clampHealth(health, unit.maxHealth);
+  try {
+    if (to === 'alive') {
+      unit.health = Math.min(health ?? unit.maxHealth, unit.maxHealth);
+      rejoinOwner(bearer);
+      lifeChanged(engine, bearer, true);
+    } else {
+      // A kill's health is set before anything hears the death.
+      if (health !== undefined) {
+        unit.health = clampHealth(health, unit.maxHealth);
+      }
+
+      leaveLife(engine, bearer, from, reason);
     }
-
-    leaveLife(engine, bearer, from, reason);
-
-    if (to === 'despawned') {
-      return;
-    }
+  } catch (error) {
+    errors = caught(errors, error);
   }
 
-  raise(engine, engine.options.events?.changed, [bearer, from, to, undefined, '']);
+  try {
+    if (to !== 'despawned') {
+      raise(engine, engine.options.events?.changed, [bearer, from, to, undefined, '']);
+    }
+  } catch (error) {
+    errors = caught(errors, error);
+  }
+
+  rethrow(errors);
 };
 
 /**

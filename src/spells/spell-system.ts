@@ -186,8 +186,10 @@ export interface SpellSystem<G extends SpellTypes> {
    * An interrupt hits a caster (a stun, a freeze): the caster holds it until as many `endInterrupt` calls as raises, so
    * two overlapping stuns hold it until both end. As it is first raised, each running cast answers it as its timeline
    * says, pausing until it ends or cancelling; returns how many answered (0 for a raise while it is held already, or
-   * one no running cast answers). A unit system raises its states' interrupts itself (`units.syncStates`). Throws a
-   * `RangeError` for an interrupt the game did not declare (`interrupts`) and no timeline names.
+   * one no running cast answers). A unit system raises its states' interrupts itself (`units.syncStates`). A cast
+   * whose end hooks throw as it cancels leaves the others to answer; the first error is thrown after them, later ones
+   * suppressed into it. Throws a `RangeError` for an interrupt the game did not declare (`interrupts`) and no timeline
+   * names.
    */
   readonly interrupt: (caster: G['bearer'], reason: G['interrupt']) => number;
 
@@ -205,7 +207,10 @@ export interface SpellSystem<G extends SpellTypes> {
    */
   readonly isInterrupted: (caster: G['bearer'], reason: G['interrupt']) => boolean;
 
-  /** Cancels every cast a caster runs (its death), in the order they started; how many. */
+  /**
+   * Cancels every cast a caster runs (its death), in the order they started; how many. One whose end hooks throw is
+   * cancelled all the same, as are the casts after it; then the first error is thrown, later ones suppressed into it.
+   */
   readonly cancelAll: (caster: G['bearer']) => number;
 
   /**

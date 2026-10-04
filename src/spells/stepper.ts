@@ -7,6 +7,7 @@ import { afterPayload, endCast, isEnded, releaseCast } from './payload.ts';
 import type { CastOutcome } from './spell-def.ts';
 import type { SpellId, SpellTypes } from './spell-types.ts';
 import { refreshLive } from './take-stats.ts';
+import { Thrown } from './thrown.ts';
 
 /** The pause bit `spells.pause` sets; each interrupt that pauses has a bit of its own above it. */
 export const MANUAL_PAUSE = 1;
@@ -203,8 +204,8 @@ export const stepCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caster:
     return;
   }
 
-  const handles = snapshot(engine, caster);
   const { tick } = engine.clock;
+  const handles = snapshot(engine, caster);
 
   try {
     for (let i = 0; i < count; i++) {
@@ -380,24 +381,37 @@ export const interruptCaster = <G extends SpellTypes>(
 
   const handles = snapshot(engine, caster);
   let answered = 0;
+  let thrown: Thrown | undefined;
 
   try {
     for (let i = 0; i < count; i++) {
-      // A cast's hooks may end (or raise again) this interrupt mid-loop, so each cast answers its state as it now is.
-      answered += answer(engine, handles[i] ?? NO_CAST, {
-        reason: change.reason,
-        isOn: (record.interrupts & bits) !== 0,
-        bits
-      });
+      // A cast's hooks may end (or raise again) this interrupt mid-loop, so each cast answers its state as it now is;
+      // one whose `onEnd` throws still leaves the casts after it to answer, and the first error surfaces after.
+      try {
+        answered += answer(engine, handles[i] ?? NO_CAST, {
+          reason: change.reason,
+          isOn: (record.interrupts & bits) !== 0,
+          bits
+        });
+      } catch (error) {
+        thrown ??= new Thrown();
+        thrown.keep(error);
+      }
     }
   } finally {
     engine.giveHandles(handles, count);
   }
 
+  thrown?.rethrow();
+
   return answered;
 };
 
-/** Cancels every cast a caster runs (its death), in the order they started; how many it cancelled. */
+/**
+ * Cancels every cast a caster runs (its death), in the order they started; how many it cancelled. A cast whose end
+ * hooks throw is cancelled all the same and the casts after it are too; the first error is thrown after, any later
+ * ones suppressed into it.
+ */
 export const cancelCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caster: G['bearer']): number => {
   const { count } = recordOf(caster);
 
@@ -407,14 +421,23 @@ export const cancelCaster = <G extends SpellTypes>(engine: SpellEngine<G>, caste
 
   const handles = snapshot(engine, caster);
   let cancelled = 0;
+  let thrown: Thrown | undefined;
 
   try {
     for (let i = 0; i < count; i++) {
-      cancelled += cancelCast(engine, handles[i] ?? NO_CAST) ? 1 : 0;
+      try {
+        cancelled += cancelCast(engine, handles[i] ?? NO_CAST) ? 1 : 0;
+      } catch (error) {
+        // `endCast` ended it before its hooks ran: it is cancelled all the same.
+        thrown ??= new Thrown();
+        thrown.keep(error);
+      }
     }
   } finally {
     engine.giveHandles(handles, count);
   }
+
+  thrown?.rethrow();
 
   return cancelled;
 };
