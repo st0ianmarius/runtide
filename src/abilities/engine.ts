@@ -20,7 +20,7 @@ type AdmitHook<G extends AbilityTypes> = (cast: SpellContext<G>) => GateAnswer<G
 /** The options a button casts with, reused: the cast order reads them before any hook runs. */
 class PressOptions<G extends AbilityTypes> implements CastOptions<G> {
   input: G['input'] | undefined = undefined;
-  key = 0;
+  key: number | undefined = undefined;
   rank: number | undefined = undefined;
   committed = false;
   onAdmit: AdmitHook<G> | undefined = undefined;
@@ -29,11 +29,11 @@ class PressOptions<G extends AbilityTypes> implements CastOptions<G> {
 /** What a nested press saves of the press it interrupts, and gives back as it leaves: one record per level. */
 class SavedPress<G extends AbilityTypes> {
   input: G['input'] | undefined = undefined;
-  key = 0;
+  key: number | undefined = undefined;
   refusal: PressRefusal<G> | undefined = undefined;
   refusals: (PressRefusal<G> | undefined)[] | undefined = undefined;
   optionsInput: G['input'] | undefined = undefined;
-  optionsKey = 0;
+  optionsKey: number | undefined = undefined;
   rank: number | undefined = undefined;
   committed = false;
   onAdmit: AdmitHook<G> | undefined = undefined;
@@ -96,8 +96,8 @@ export class AbilityEngine<G extends AbilityTypes> {
   /** The input of the press being fired, read at once by each slot's firing. */
   input: G['input'] | undefined = undefined;
 
-  /** The key of the press being fired, which its cast cues carry; 0 outside a press. */
-  key = 0;
+  /** The key of the press being fired, which its cast cues carry; `undefined` for none, and outside a press. */
+  key: number | undefined = undefined;
 
   /** Why the slot being fired did not fire, or why its committed cast was refused; `undefined` for neither. */
   refusal: PressRefusal<G> | undefined = undefined;

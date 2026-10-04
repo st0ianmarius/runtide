@@ -51,7 +51,10 @@ export const cueReaches = (registry: CueRegistry, event: CueEvent, recipient: Cu
  * predicted cue carries the same cue, owner and key. A fixed ring of the latest ones; nothing allocates once made.
  */
 export interface CueEchoes {
-  /** Notes an event the client fired itself; one with no key (0) or of a cue that is not predicted is not noted. */
+  /**
+   * Notes an event the client fired itself; one with no key (0) or of a cue that is not predicted is not noted. Press
+   * keys count from 1, increase with each press and never wrap, since `settle` compares them as numbers.
+   */
   readonly note: (event: CueEvent) => void;
 
   /** Whether a received event is the echo of a noted one; a match is forgotten, so each echo is dropped once. */
@@ -60,7 +63,8 @@ export interface CueEchoes {
   /**
    * Settles the noted events the server has had its chance to confirm: every one whose key is at or below `key` (the
    * last press the server acknowledged) and was not echoed is handed to `unconfirmed` (a predicted cast bar to cancel,
-   * a miss to count) and forgotten. Returns how many.
+   * a miss to count) and forgotten. Returns how many. Call it after reading the same snapshot's cue events, so an echo
+   * that snapshot carries is matched before its press is settled.
    */
   readonly settle: (key: number, unconfirmed?: (cue: number, owner: number, key: number) => void) => number;
 

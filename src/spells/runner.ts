@@ -8,6 +8,7 @@ import { recordOf, stopThrown } from './caster.ts';
 import type { SpellEngine } from './engine.ts';
 import { NO_CAST } from './ids.ts';
 import { isEnded, releaseCast } from './payload.ts';
+import { checkPressKey } from './press-key.ts';
 import { checkReach } from './reach.ts';
 import type { AnySpellDef } from './spell-def.ts';
 import type { ActivationShape, SpellId, SpellTypes } from './spell-types.ts';
@@ -43,7 +44,7 @@ const initCast = <G extends SpellTypes>(
   cast.origin.source = cast.source;
   cast.startTick = engine.clock.tick;
   cast.ordinal = recordOf(cast.caster).ordinalAt(cast.startTick);
-  cast.cueKey = options.key ?? 0;
+  cast.cueKey = checkPressKey(options.key) ?? 0;
   cast.isCommitted = options.committed === true;
   cast.ignoresCooldown = options.ignoreCooldown === true;
   cast.windupSeconds = options.stages?.windup;

@@ -14,7 +14,10 @@ const corrupt = (problem: string): never => {
 /** An entity id's wire form: the id plus one, 0 for nobody (anything that is not a whole id from 0). */
 const entityWire = (id: number): number => (Number.isSafeInteger(id) && id >= 0 ? id + 1 : 0);
 
-/** A key's wire form: a whole number from 0, anything else as 0. */
+/**
+ * A key's wire form: a whole number from 0, anything else as 0 (no key). Press keys count from 1, increase and never
+ * wrap (`abilities.tryActivate` and the spell system throw for any other), so a keyed event's key crosses as it is.
+ */
 const keyWire = (key: number): number => (Number.isSafeInteger(key) && key >= 0 ? key : 0);
 
 /**

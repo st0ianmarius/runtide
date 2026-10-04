@@ -4,6 +4,11 @@ import { compileCondition, type ConditionTables, isMirrorSafe } from '../conditi
 /**
  * What the shared motion step reads beyond the presses, by the game's names: auras, aura tags and stats, the reads of
  * its mirror-safe hooks (`activate`, `checkCast`) included, since only what is declared here is held predicted.
+ *
+ * The step itself runs once per consumed input on both sides: the mirror steps its motion clock once for each input
+ * it consumes, and the server once for each it consumes from that client, never stepping a gap with no input until the
+ * game's stall threshold. So both run the same steps over the same reads, step for step; a read declared here is then
+ * the same on both at every step.
  */
 export interface MotionReads<G extends AuraTypes> {
   /** Auras it reads by id (a knockback guard, a dodge's own state). */

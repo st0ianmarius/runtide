@@ -322,7 +322,8 @@ export interface SpellSystem<G extends SpellTypes> {
    * The prediction mirror's side of a cast: fires only the spell's mirror-safe cast cue
    * (`SpellCues.cast`) on the caster, with the options' input and key, into the system's cue buffer, and starts no
    * cast. The client notes the event in its echo ring, so the server's copy (same cue, owner and key) is dropped.
-   * Returns whether a cue was fired.
+   * Returns whether a cue was fired. Throws a `RangeError` for a key given that is not a whole number from 1 (keys count
+   * from 1, increase and never wrap).
    */
   readonly predictCast: (caster: G['bearer'], spell: SpellId, options?: CastOptions<G>) => boolean;
 }

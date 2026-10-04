@@ -1,6 +1,7 @@
 import type { AuraId, AuraTagId } from '../auras/index.ts';
 import { toId } from '../core/ids.ts';
 import type { SpellId } from '../spells/index.ts';
+import { checkPressKey } from '../spells/press-key.ts';
 import type { AbilityTypes, ButtonRefusal, PressRefusal, SlotId } from './ability-types.ts';
 import { AbilityEngine, type AbilityParts } from './engine.ts';
 import { type ButtonExplanation, explainButton } from './explain.ts';
@@ -15,7 +16,9 @@ export interface Press<G extends AbilityTypes> {
 
   /**
    * The press's key (the game's input sequence), the same on the server and the predicting client, which each fired
-   * spell's cast cue carries; 0 when absent.
+   * spell's cast cue carries (its echo is matched by it); none when absent. Keys count from 1 (0 is no key: a press
+   * keyed 0 would play its cue twice), increase with every press, and never wrap (a client settles its echoes by
+   * comparing keys as numbers): one that is not a whole number from 1 to 2^53 − 1 throws a `RangeError`.
    */
   readonly key?: number | undefined;
 
@@ -104,7 +107,10 @@ export interface AbilitySystem<G extends AbilityTypes> {
    * commits (pays its cost, runs `activate` with a `MirrorCtx` of the press, starts its spell's cooldowns, lands
    * `applies` then `resets`) and casts its spell with the press's input, rank and key (a no-windup spell releases here,
    * before the game moves the bearer). Returns the mask of the slots that committed, and writes the refusals into the
-   * press's `refusals`. The game calls it inside its motion step, on the server and on a prediction mirror alike.
+   * press's `refusals`. The game calls it inside its motion step, on the server and on a prediction mirror alike: once
+   * per consumed input, the mirror and the server each stepping their motion clock once per input and never across a
+   * gap with no input (until the game's stall threshold), so the two agree step for step. Throws a `RangeError` for a
+   * press key that is not a whole number from 1 (`Press.key`), before anything fires.
    */
   readonly tryActivate: (bearer: G['bearer'], pressed: number, press?: Press<G>) => number;
 
@@ -235,12 +241,14 @@ export const createAbilitySystem = <G extends AbilityTypes>(options: AbilitySyst
     },
 
     tryActivate: (bearer, pressed, data) => {
+      const key = checkPressKey(data?.key);
+
       // A press from a hook of another (a pet ordered along) leaves the one it interrupted as it found it.
       engine.enter();
 
       try {
         engine.input = data?.input;
-        engine.key = data?.key ?? 0;
+        engine.key = key;
         engine.refusals = data?.refusals;
 
         return press(engine, bearer, pressed);

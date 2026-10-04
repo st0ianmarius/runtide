@@ -72,7 +72,9 @@ export interface CastOptions<G extends SpellTypes> {
 
   /**
    * The key its predicted cast cue carries: the game's press key (its input sequence), the same on the
-   * server and the predicting client; 0 (none) when absent.
+   * server and the predicting client; none (0 on the cue) when absent. Keys count from 1, increase with every press and
+   * never wrap (a client settles its echoes by comparing them as numbers): a key given that is not a whole number from 1
+   * to 2^53 − 1 throws a `RangeError`.
    */
   readonly key?: number | undefined;
 

@@ -21,6 +21,7 @@ import { digestCaster, digestDelayed } from './digest.ts';
 import type { SpellEngine } from './engine.ts';
 import { hitCast } from './hit.ts';
 import { type CastHandle, NO_CAST } from './ids.ts';
+import { checkPressKey } from './press-key.ts';
 import { createSpellProcKinds } from './proc-kinds.ts';
 import type { SpellProcKinds } from './procs.ts';
 import { checkCast, startCast, startCooldowns } from './runner.ts';
@@ -285,7 +286,7 @@ class Spells<G extends SpellTypes> implements SpellSystem<G> {
 
     const rank = options.rank ?? this.#engine.host.rankOf?.(caster, spell) ?? 1;
 
-    return fireCastCue(this.#engine, caster, [spell, options.input, options.key ?? 0, rank]);
+    return fireCastCue(this.#engine, caster, [spell, options.input, checkPressKey(options.key) ?? 0, rank]);
   };
 
   readonly shareOf = (spell: SpellId, stat: StatId): number | undefined => {

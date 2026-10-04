@@ -31,7 +31,7 @@ export interface CueEvent {
   /** Where it sits: the forward coordinate. */
   z: number;
 
-  /** A predicted cue's key, which the server's copy repeats; 0 for none. A whole number from 0. */
+  /** A predicted cue's key, which the server's copy repeats; 0 for none. Press keys count from 1 and never wrap. */
   key: number;
 
   /** The params' slots, at the cue's defaults until written. Only the cue's own slots mean anything. */
