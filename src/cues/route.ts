@@ -1,4 +1,4 @@
-import { type CueRegistry, WORLD } from './define-cues.ts';
+import type { CueRegistry } from './define-cues.ts';
 import type { CueEvent } from './event.ts';
 
 /** The audience column code of `owner`. */
@@ -7,28 +7,39 @@ const OWNER = 0;
 /** The audience column code of `party`. */
 const PARTY = 1;
 
-/** One client a server routes cues to: its unit's entity id and, for `party` cues, its party. */
+/**
+ * One client a server routes cues to: its unit's entity id, what else it owns (its summons and pets) and, for `party`
+ * cues, its party.
+ */
 export interface CueRecipient {
   /** The entity id of the recipient's own unit. */
   readonly id: number;
+
+  /**
+   * Whether the recipient owns the entity a cue is credited to: a summon's or a pet's cue carries the summon's entity
+   * id, which is not the recipient's `id`, so its owning player is asked here (a game answers it from
+   * `units.creditOf`, or its own ownership map). Nothing beyond `id` when absent.
+   */
+  readonly owns?: (owner: number) => boolean;
 
   /** Whether the recipient shares a party with an owner; nobody else does when absent. */
   readonly sharesParty?: (owner: number) => boolean;
 }
 
 /**
- * Whether an event reaches a recipient by its cue's audience: a `world` cue and an `all` cue reach
- * everyone, an `owner` cue its owner alone, a `party` cue its owner and whoever shares the owner's party. The server's
+ * Whether an event reaches a recipient by its cue's audience: an `all` cue (every `world` cue is one) reaches
+ * everyone; an `owner` cue its owner, that is a recipient whose `id` is the cue's owner or who `owns` it (a pet's
+ * cue reaches the pet's player); a `party` cue its owner so found and whoever shares the owner's party. The server's
  * routing, as `encodeCues`'s `admit`.
  */
 export const cueReaches = (registry: CueRegistry, event: CueEvent, recipient: CueRecipient): boolean => {
   const audience = registry.columns.audience[event.cue];
 
-  if (registry.columns.anchor[event.cue] === WORLD || (audience !== OWNER && audience !== PARTY)) {
+  if (audience !== OWNER && audience !== PARTY) {
     return true;
   }
 
-  if (recipient.id === event.owner) {
+  if (recipient.id === event.owner || recipient.owns?.(event.owner) === true) {
     return true;
   }
 

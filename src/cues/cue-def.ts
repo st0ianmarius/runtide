@@ -151,7 +151,10 @@ export interface CueDef {
   /** Where it sits and whose it is. */
   readonly anchor: CueAnchor;
 
-  /** Who receives it; everyone when absent. */
+  /**
+   * Who receives it; everyone when absent. An `owner` or `party` cue reaches its owner (a recipient whose id is the
+   * owner, or who `owns` it) and, for `party`, the owner's party; a `world` cue has no owner and may only be `all`.
+   */
   readonly audience?: CueAudience;
 
   /**

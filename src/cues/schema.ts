@@ -110,7 +110,10 @@ const checkDefault = (kind: number, scale: number, parts: { value: number; where
   }
 };
 
-/** Checks the rules a whole definition must keep: its anchor, audience, param count and the prediction rule. */
+/**
+ * Checks the rules a whole definition must keep: its anchor, audience (a `world` cue's is `all`: it has no owner to
+ * narrow it to), param count and the prediction rule.
+ */
 const checkDef = (cue: string, def: CueDef, names: readonly string[]): void => {
   if (!['self', 'entity', 'target', 'world'].includes(def.anchor)) {
     refuse(cue, `unknown anchor ${String(def.anchor)}.`);
@@ -118,6 +121,10 @@ const checkDef = (cue: string, def: CueDef, names: readonly string[]): void => {
 
   if (def.audience !== undefined && !['owner', 'party', 'all'].includes(def.audience)) {
     refuse(cue, `unknown audience ${String(def.audience)}.`);
+  }
+
+  if (def.anchor === 'world' && def.audience !== undefined && def.audience !== 'all') {
+    refuse(cue, `a world cue has no owner, so it reaches everyone: its audience is all, not ${def.audience}.`);
   }
 
   if (names.length > MAX_PARAMS) {

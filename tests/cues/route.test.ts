@@ -14,12 +14,12 @@ import {
   fireCue
 } from '../../src/cues/index.ts';
 
-/** A neutral cue table: one cue per audience, a world cue claiming an owner audience, and two predicted cues. */
+/** A neutral cue table: one cue per audience, a world cue, and two predicted cues. */
 const CUES = defineCues({
   mine: defineCue({ anchor: 'self', audience: 'owner' }),
   ours: defineCue({ anchor: 'target', audience: 'party' }),
   all: defineCue({ anchor: 'entity' }),
-  horn: defineCue({ anchor: 'world', audience: 'owner' }),
+  horn: defineCue({ anchor: 'world' }),
   step: defineCue({ anchor: 'self', isPredicted: true }),
   leap: defineCue({ anchor: 'target', isPredicted: true })
 });
