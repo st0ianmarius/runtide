@@ -180,8 +180,9 @@ export const createUnitSystem = <G extends UnitTypes>(options: UnitSystemOptions
       moveTo(engine, unit, 'despawned', undefined, 'owner');
     }
 
-    // A `spawned` listener that despawned it at once (a refused spawn point) leaves nothing to attach.
-    if (unitOf<G>(unit).lifecycle === 'alive') {
+    // A `spawned` listener that despawned it at once (a refused spawn point) leaves nothing to attach; one that killed
+    // it leaves it its script, attached dead (its `died` handlers in place of its `spawn` ones), to go on at a revive.
+    if (unitOf<G>(unit).lifecycle !== 'despawned') {
       attachScript(engine, [unit, spawn.script]);
     }
 

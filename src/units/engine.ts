@@ -136,7 +136,7 @@ export interface UnitScripts<G extends UnitTypes> {
   /** Attaches a spawned unit to its template's script, making its record; returns the record's slot. */
   readonly attach: (unit: G['bearer'], script: G['scriptName']) => number;
 
-  /** Runs an attached unit's `spawn` handlers, once its slot is set. */
+  /** Runs an attached unit's `spawn` handlers, once its slot is set; a unit dead already at attach runs its `died` ones. */
   readonly start: (unit: G['bearer']) => void;
 
   /** Detaches a despawned unit: its record is freed. */

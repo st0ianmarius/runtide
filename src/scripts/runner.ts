@@ -1,5 +1,5 @@
 import type { TimerId } from '../ai/index.ts';
-import type { ProcSystem } from '../procs/index.ts';
+import { type Proc, PROC_SKIPPED, type ProcOutcome, type ProcSystem } from '../procs/index.ts';
 import type { CompiledScript, ScriptRegistry } from './define-scripts.ts';
 import { ScriptContext, ScriptOrigin, type ScriptRecord } from './record.ts';
 import type { AnyEventHandler, ScriptEventName, ScriptReturn, ScriptTypes } from './script-types.ts';
@@ -56,6 +56,8 @@ export class ScriptRunner<G extends ScriptTypes> {
       if (handler !== undefined && record.serial === serial && (moment === 'died' || !record.isDead)) {
         const ctx = this.#enter(record, index);
 
+        ctx.isDying = moment === 'died';
+
         try {
           this.#runProcs(ctx, handler(ctx));
         } finally {
@@ -94,8 +96,17 @@ export class ScriptRunner<G extends ScriptTypes> {
     }
   }
 
-  /** Delivers a bound event to a record's handlers of it. */
-  dispatch(record: ScriptRecord<G>, event: string, payload: unknown): void {
+  /**
+   * Delivers a bound event to a record's handlers of it; their procs' `eventUnit` and `other` targets are the event's
+   * units its binding names (`eventUnitOf`, `otherOf`).
+   */
+  dispatch(
+    record: ScriptRecord<G>,
+    event: string,
+    payload: unknown,
+    eventUnit: G['bearer'] | undefined,
+    other: G['bearer'] | undefined
+  ): void {
     const script = this.scriptOf(record);
     const { serial } = record;
 
@@ -104,6 +115,10 @@ export class ScriptRunner<G extends ScriptTypes> {
 
       if (handler !== undefined && record.serial === serial && !record.isDead) {
         const ctx = this.#enter(record, index);
+
+        ctx.eventUnit = eventUnit;
+        ctx.other = other;
+        ctx.payload = payload;
 
         try {
           this.#runProcs(ctx, handler(ctx, payload));
@@ -141,11 +156,14 @@ export class ScriptRunner<G extends ScriptTypes> {
     const ctx: ScriptContext<G> = (this.#contexts[depth] ??= new ScriptContext<G>({
       unit: record.unit,
       host: this.#parts.host,
-      run: (procs): number => this.#runProcs(ctx, procs)
+      run: (procs): number => this.#runProcs(ctx, procs),
+      apply: (proc): ProcOutcome => this.#apply(ctx, proc)
     }));
 
     ctx.unit = record.unit;
     ctx.state = record.states[index];
+    ctx.record = record;
+    ctx.serial = record.serial;
     this.#depth = depth + 1;
 
     return ctx;
@@ -159,23 +177,47 @@ export class ScriptRunner<G extends ScriptTypes> {
 
     if (ctx !== undefined) {
       ctx.state = undefined;
+      ctx.record = undefined;
+      ctx.isDying = false;
+      ctx.eventUnit = undefined;
+      ctx.other = undefined;
+      ctx.payload = undefined;
     }
   }
 
-  /** Runs procs for a context's unit, credited to it; how many went off. */
+  /** Runs procs for a context's unit, credited to it, while its handler still may; how many went off. */
   #runProcs(ctx: ScriptContext<G>, procs: ScriptReturn<G>): number {
-    if (procs === undefined || procs.length === 0) {
+    if (procs === undefined || procs.length === 0 || !ctx.isRunning) {
       return 0;
     }
 
+    return this.#system().run(procs, this.#originOf(ctx));
+  }
+
+  /** Applies one proc for a context's unit, credited to it, while its handler still may; what it did. */
+  #apply(ctx: ScriptContext<G>, proc: Proc<G>): ProcOutcome {
+    return ctx.isRunning ? this.#system().apply(proc, this.#originOf(ctx)) : PROC_SKIPPED;
+  }
+
+  /** The proc system. */
+  #system(): ProcSystem<G> {
+    const { procs } = this.#parts;
+
+    return typeof procs === 'function' ? procs() : procs;
+  }
+
+  /** This level's origin, set for a context: its unit, credited to it, and the event it answers, if any. */
+  #originOf(ctx: ScriptContext<G>): ScriptOrigin<G> {
     const origin = (this.#origins[this.#depth] ??= new ScriptOrigin<G>(ctx.unit));
-    const { procs: system } = this.#parts;
 
     origin.self = ctx.unit;
     origin.target = ctx.unit;
     origin.source = ctx.unit.id;
+    origin.eventUnit = ctx.eventUnit;
+    origin.other = ctx.other;
+    origin.payload = ctx.payload;
 
-    return (typeof system === 'function' ? system() : system).run(procs, origin);
+    return origin;
   }
 }
 

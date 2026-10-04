@@ -18,6 +18,18 @@ export interface ScriptEventBinding<G extends ScriptTypes, Payload> {
    * A unit with no script, or none of whose behaviours handle it, costs one field read.
    */
   unitOf(this: void, payload: Payload): G['bearer'] | undefined;
+
+  /**
+   * The unit the event is about, which its handlers' procs aim `eventUnit` at (a blow's target); none when absent. Read
+   * only as the event reaches a living scripted unit.
+   */
+  eventUnitOf?(this: void, payload: Payload): G['bearer'] | undefined;
+
+  /**
+   * The event's other unit, which its handlers' procs aim `other` at (a blow's attacker, for its target's script); none
+   * when absent. Read only as the event reaches a living scripted unit.
+   */
+  otherOf?(this: void, payload: Payload): G['bearer'] | undefined;
 }
 
 /** The bus a script system subscribes to its bound events on (a core bus). */
@@ -57,6 +69,10 @@ export interface ScriptSystemOptions<G extends ScriptTypes> {
  * template names a script gets a record at spawn (each behaviour's state, then its `spawn` handlers); its timers are
  * gathered once a tick (`collect`) and delivered in its own step (`step`), with its `tick` handlers; bound game events
  * reach the unit their binding names. Units with no script cost nothing.
+ *
+ * `died` handlers run nested inside whatever killed the unit (another handler's procs, a blow), before it returns. A
+ * dead unit's script never hears its own `despawned`, so its `died` does all its cleanup; a living unit's despawn runs
+ * no script moment at all (its record is freed), and a world script that must know binds `despawned` itself.
  */
 export interface ScriptSystem<G extends ScriptTypes> {
   /** The game's scripts. */
@@ -76,7 +92,8 @@ export interface ScriptSystem<G extends ScriptTypes> {
 
   /**
    * Once a tick, before the units' loop: gathers every due timer (`ai.step`) onto its unit, to be delivered in that
-   * unit's step. A due timer of a unit with no script goes to `fire`, when given. Returns how many came due.
+   * unit's step. A due timer of a unit with no script, or whose script has no `timer` handler, is taken at once and goes
+   * to `fire`, when given. Returns how many came due.
    */
   readonly collect: (fire?: (unit: G['bearer'], timer: TimerId) => void) => number;
 
@@ -92,7 +109,10 @@ export interface ScriptSystem<G extends ScriptTypes> {
   /** A behaviour's state on a unit (a view, a debug panel); `undefined` when its script does not list it. */
   readonly stateOf: <State>(unit: G['bearer'], behaviour: Behaviour<G, State>) => State | undefined;
 
-  /** How many units run a script now (a director's overlap rules): kept on attach and detach. */
+  /**
+   * How many units run a script now (a director's overlap rules): its attached records, dead units' among them, kept on
+   * attach and detach.
+   */
   readonly count: (script: ScriptId) => number;
 }
 
@@ -188,12 +208,12 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
 
   readonly count = (script: ScriptId): number => this.#counts[script] ?? 0;
 
-  /** Marks a due timer on its unit's record, or hands it to the fallback. */
+  /** Marks a due timer on its unit's record, or hands it to the fallback when no `timer` handler would hear it. */
   readonly #mark = (unit: G['bearer'], timer: TimerId): void => {
     const record = unit.scriptSlot < 0 ? undefined : this.#records[unit.scriptSlot];
 
     // Delivered now, not in a step of its own: taken at once, so a later hold does not find it waiting to fire again.
-    if (record === undefined) {
+    if (record?.hasTimer !== true) {
       this.#options.ai.take(unit, timer);
       this.#fallback?.(unit, timer);
 
@@ -223,6 +243,7 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     record.isLive = true;
     record.serial += 1;
     record.hasTick = compiled.tick.length > 0;
+    record.hasTimer = compiled.timer.length > 0;
     record.dueCount = 0;
     record.states.length = behaviours.length;
 
@@ -244,12 +265,21 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
     return slot;
   };
 
-  /** Runs a unit's `spawn` handlers. */
+  /**
+   * Runs a unit's `spawn` handlers; a unit a `spawned` listener killed is marked dead as a death would, its `died`
+   * handlers running in place of its `spawn` ones, and its script goes on from its `revived`.
+   */
   readonly #start = (unit: G['bearer']): void => {
     const record = this.#records[unit.scriptSlot];
 
-    if (record !== undefined) {
+    if (record === undefined) {
+      return;
+    }
+
+    if (unit.lifecycle === 'alive') {
       this.#runner.moment(record, 'spawn');
+    } else {
+      this.#died(unit);
     }
   };
 
@@ -313,18 +343,19 @@ class Scripts<G extends ScriptTypes> implements ScriptSystem<G> {
       }
 
       options.bus.on(binding.kind, (payload) => {
-        this.#dispatch(event, binding.unitOf(payload), payload);
+        this.#dispatch(event, binding, payload);
       });
     }
   }
 
-  /** Delivers a bound event to its unit's handlers of it. */
-  #dispatch(event: string, unit: G['bearer'] | undefined, payload: unknown): void {
+  /** Delivers a bound event to its unit's handlers of it, with the event's units its binding names. */
+  #dispatch(event: string, binding: ScriptEventBinding<G, unknown>, payload: unknown): void {
+    const unit = binding.unitOf(payload);
     const record = unit === undefined || unit.scriptSlot < 0 ? undefined : this.#records[unit.scriptSlot];
 
     // A dead unit's script hears no events until its revive.
     if (record?.isLive === true && !record.isDead) {
-      this.#runner.dispatch(record, event, payload);
+      this.#runner.dispatch(record, event, payload, binding.eventUnitOf?.(payload), binding.otherOf?.(payload));
     }
   }
 }
@@ -338,8 +369,8 @@ const isStateOf = <G extends ScriptTypes, State>(_behaviour: Behaviour<G, State>
 
 /**
  * Creates the script system: `createScriptSystem({ registry: SCRIPTS, ai, procs, bus, host, bindings:
- * { damaged: { kind: bus.kind.taken, unitOf: (e) => e.blow?.target } } })`, then `createUnitSystem({ …, scripts: () =>
- * scripts.forUnits })`. Throws for a handled event that is not bound.
+ * { damaged: { kind: bus.kind.taken, unitOf: (e) => e.blow?.target, otherOf: (e) => e.blow?.attacker } } })`, then
+ * `createUnitSystem({ …, scripts: () => scripts.forUnits })`. Throws for a handled event that is not bound.
  */
 export const createScriptSystem = <G extends ScriptTypes>(options: ScriptSystemOptions<G>): ScriptSystem<G> =>
   Object.freeze(new Scripts(options));

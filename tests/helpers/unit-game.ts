@@ -145,13 +145,16 @@ export interface UnitGame extends ScriptTypes {
   /** Open script names. */
   readonly scriptName: string;
 
-  /** The events scripts may handle: a lifecycle change and a death. */
+  /** The events scripts may handle: a lifecycle change, a death and a kill. */
   readonly scriptEvents: {
     /** A unit moved between lifecycle states. */
     readonly changed: UnitEvent<UnitGame>;
 
     /** A unit died. */
     readonly death: DeathEvent<UnitGame>;
+
+    /** A unit killed another. */
+    readonly kill: DeathEvent<UnitGame>;
   };
 
   /** One damage kind. */
@@ -393,7 +396,10 @@ export interface UnitTestGame<Name extends string, Extra extends string = never>
   /** The id of every spell, by name. */
   readonly spellId: Readonly<Record<'swing' | 'channel' | Extra, SpellId>>;
 
-  /** The script system, with `changed` delivered to the unit's owner and `death` to the unit. */
+  /**
+   * The script system, with `changed` delivered to the unit's owner (its `eventUnit` the unit), `death` to the unit,
+   * and `kill` to the killer (its `other` the unit killed).
+   */
   readonly scripts: ScriptSystem<UnitGame>;
 
   /** The AI system, over the pick and raise timers, held by a freeze. */
@@ -563,8 +569,14 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     bus,
     host: {},
     bindings: {
-      changed: { kind: bus.kind.changed, unitOf: (event) => event.unit?.owner },
-      death: { kind: bus.kind.death, unitOf: (event) => event.death?.unit }
+      changed: { kind: bus.kind.changed, unitOf: (event) => event.unit?.owner, eventUnitOf: (event) => event.unit },
+      death: { kind: bus.kind.death, unitOf: (event) => event.death?.unit },
+
+      kill: {
+        kind: bus.kind.kill,
+        unitOf: (event) => event.death?.killer,
+        otherOf: (event) => event.death?.unit
+      }
     }
   });
 
