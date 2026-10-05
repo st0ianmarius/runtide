@@ -17,6 +17,12 @@ describe('a game built by createGame', () => {
     assert.equal(game.procs.host.unitOf, game.units.byId);
   });
 
+  it('names units by entity id to the spell host, so a cast cue’s owner and a cast’s credit are its caster’s id', () => {
+    const { game, hero } = makeTestWorld();
+
+    assert.equal(game.spells.host.idOf?.(hero), hero.id);
+  });
+
   it('keeps its memory world in step with the units', () => {
     const { game, hero, grunts } = makeTestWorld();
     const world = game.memoryWorld;

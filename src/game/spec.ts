@@ -89,7 +89,10 @@ export type GameAurasSpec<G extends GameTypes> = Omit<AuraSystemBase<G>, 'host' 
 
 /** The spell system's options but the systems and clock `createGame` hands it, and the host members it binds. */
 export type GameSpellsSpec<G extends GameTypes> = Omit<SpellSystemBase<G>, 'auras' | 'procs' | 'clock' | 'host'> & {
-  /** The game's own spell host: `canAct`, `statsOf` and `isGone` are the unit system's (`units.hosts.spell`). */
+  /**
+   * The game's own spell host: `canAct`, `statsOf` and `isGone` are the unit system's (`units.hosts.spell`); `idOf` (a
+   * cast cue's owner, a cast's credit) is the unit's entity id when absent.
+   */
   readonly host: Omit<SpellHost<G>, 'canAct' | 'statsOf' | 'isGone'> & G['host'];
 
   /** Makes the game's fields of a pooled cast; they stay `undefined` when absent (a game whose `castExt` admits it). */
@@ -101,7 +104,10 @@ export type GameAreasSpec<G extends GameTypes> = Omit<
   AreaTriggerSystemBase<G>,
   'spells' | 'auras' | 'procs' | 'world' | 'clock' | 'host'
 > & {
-  /** The game's own area host: `isGone` is the units' (`units.hosts.area`), `allocateId` the shared id space's. */
+  /**
+   * The game's own area host: `isGone` is the units' (`units.hosts.area`), `allocateId` the shared id space's; `idOf` is
+   * the unit's entity id when absent.
+   */
   readonly host: Omit<AreaTriggerHost<G>, 'isGone' | 'allocateId'> & G['host'];
 
   /** Makes the game's fields of a pooled area trigger; `undefined` when absent (a game whose `areaExt` admits it). */

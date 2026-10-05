@@ -68,7 +68,7 @@ const buildFront = <G extends GameTypes & GameRecords<G>>(spec: GameSpec<G>, cel
     ...(modifiers === undefined ? {} : { modifiers })
   });
 
-  const spellHost: Bound<SpellHost<G>> & G['host'] = { ...spec.spells.host };
+  const spellHost: Bound<SpellHost<G>> & G['host'] = { idOf: (unit) => unit.id, ...spec.spells.host };
 
   const spells = createSpellSystem<G>({
     ...spec.spells,
@@ -108,8 +108,13 @@ const buildAreas = <G extends GameTypes & GameRecords<G>>(
   }
 
   const query = world.query ?? missingWorld();
-  const host: Bound<AreaTriggerHost<G>> & G['host'] = { ...spec.areas.host, allocateId: ids.next };
   const { spells, auras } = front;
+
+  const host: Bound<AreaTriggerHost<G>> & G['host'] = {
+    idOf: (unit) => unit.id,
+    ...spec.areas.host,
+    allocateId: ids.next
+  };
 
   const areas = createAreaTriggerSystem<G>({
     ...spec.areas,
