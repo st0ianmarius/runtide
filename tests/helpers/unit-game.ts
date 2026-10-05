@@ -1,22 +1,38 @@
-import { type AiProcs, type AiSystem, createAiSystem, defineTimers } from '../../src/ai/index.ts';
+import { type AiProcs, type AiSystem, defineTimers } from '../../src/ai/index.ts';
+import {
+  type AnyAreaTriggerDef,
+  type AreaTriggerId,
+  type AreaTriggerProcs,
+  type AreaTriggerRegistry,
+  type AreaTriggerSystem,
+  type AreaTriggerTypes,
+  defineAreaTriggers
+} from '../../src/area-triggers/index.ts';
 import {
   type AuraApplication,
   type AuraDecision,
+  type AuraDef,
   auraGates,
   type AuraId,
   auraRevision,
   auraStacks,
   type AuraSystem,
-  createAuraSystem,
   defineAura,
   defineAuras,
   defineAuraTags
 } from '../../src/auras/index.ts';
 import { against, defineConditions, defineValues } from '../../src/conditions/index.ts';
-import { type Bitset, createBus, createClock, type SimClock, stream } from '../../src/core/index.ts';
+import {
+  type Bitset,
+  createBus,
+  createClock,
+  createEntityIds,
+  type EntityIds,
+  type SimClock,
+  stream
+} from '../../src/core/index.ts';
 import {
   type Blow,
-  createDamageSystem,
   createDeathEvent,
   type DamageProcs,
   type DamageSystem,
@@ -24,42 +40,23 @@ import {
   defineDamageKinds,
   type Force
 } from '../../src/damage/index.ts';
-import {
-  againstValue,
-  createModifierSystem,
-  defineSources,
-  defineStats,
-  mul,
-  plus
-} from '../../src/modifiers/index.ts';
-import {
-  CORE_PROCS,
-  createProcRegistry,
-  createProcSystem,
-  type Proc,
-  type ProcSystem,
-  run
-} from '../../src/procs/index.ts';
-import {
-  createScriptSystem,
-  defineScripts,
-  type ScriptRegistry,
-  type ScriptSystem,
-  type ScriptTypes
-} from '../../src/scripts/index.ts';
+import { createGame, type Game, type GameSpec } from '../../src/game/index.ts';
+import { circle } from '../../src/math/index.ts';
+import { againstValue, defineSources, defineStats, mul, plus } from '../../src/modifiers/index.ts';
+import { CORE_PROCS, createProcRegistry, type Proc, type ProcSystem, run } from '../../src/procs/index.ts';
+import { defineScripts, type ScriptRegistry, type ScriptSystem, type ScriptTypes } from '../../src/scripts/index.ts';
 import {
   after,
   type AnySpellDef,
-  createSpellSystem,
   defineSpells,
   defineSpellTags,
   type SpellId,
   type SpellProcs,
+  type SpellRegistry,
   type SpellSystem
 } from '../../src/spells/index.ts';
 import {
   createUnitEvent,
-  createUnitSystem,
   defineUnits,
   defineUnitStates,
   defineUnitTags,
@@ -71,11 +68,12 @@ import {
   type UnitEvent,
   type UnitId,
   type UnitProcs,
+  type UnitRegistry,
   type UnitSystem
 } from '../../src/units/index.ts';
 
 /** The unit test game's types. */
-export interface UnitGame extends ScriptTypes {
+export interface UnitGame extends ScriptTypes, AreaTriggerTypes {
   /** A unit of the unit system. */
   readonly bearer: Unit<UnitGame>;
 
@@ -136,8 +134,13 @@ export interface UnitGame extends ScriptTypes {
   /** No game services. */
   readonly host: object;
 
-  /** The damage and spell kinds. */
-  readonly gameProc: AiProcs<UnitGame> | DamageProcs<UnitGame> | SpellProcs<UnitGame> | UnitProcs<UnitGame>;
+  /** Every system's kinds. */
+  readonly gameProc:
+    | AiProcs<UnitGame>
+    | AreaTriggerProcs<UnitGame>
+    | DamageProcs<UnitGame>
+    | SpellProcs<UnitGame>
+    | UnitProcs<UnitGame>;
 
   /** The test timers. */
   readonly timerName: 'pick' | 'raise';
@@ -213,6 +216,21 @@ export interface UnitGame extends ScriptTypes {
     /** The template id and side it was made from, and its spawn's wave when it had one. */
     readonly made: string;
   };
+
+  /** Open area trigger names. */
+  readonly areaTriggerName: string;
+
+  /** No area trigger tags. */
+  readonly areaTag: never;
+
+  /** No area trigger input. */
+  readonly areaInput: undefined;
+
+  /** No game fields on area triggers. */
+  readonly areaExt: undefined;
+
+  /** No end reasons of the game's. */
+  readonly endReason: never;
 }
 
 /** The test timers: a pick gap and a raise. */
@@ -259,42 +277,53 @@ const burst = (owner: 'none' | undefined) =>
         : undefined
   });
 
+/** An aura's modifiers. */
+type AuraModifiers = NonNullable<AuraDef<UnitGame>['modifiers']>;
+
 /**
  * The test auras: control, a vigour that raises maximum health, a haste, a brand bound to whoever put it on, a
- * mark that hears states and goes, and death bursts, one unowned and one owned by the dying unit.
+ * mark that hears states and goes, and death bursts, one unowned and one owned by the dying unit. In a game without a
+ * modifier system (`folds` false) the auras that carry modifiers carry none, under the same names and ids.
  */
-const AURAS = defineAuras<UnitGame, string>({
-  stun: aura({ duration: 1, tags: ['stun'] }),
-  veil: aura({ duration: 3, tags: ['veil'] }),
-  root: aura({ duration: 2, tags: ['root'] }),
-  freeze: aura({ duration: 2, tags: ['freeze'], blockedBy: ['freezeImmune'] }),
-  slow: aura({ duration: 2, tags: ['slow'] }),
-  freezeImmune: aura({ duration: 1, tags: ['freezeImmune'] }),
-  vigour: aura({ duration: 'infinite', modifiers: [plus('maxHealth', 50)] }),
-  frail: aura({ duration: 'infinite', modifiers: [mul('maxHealth', 0.5)] }),
-  haste: aura({ duration: 'infinite', modifiers: [mul('speed', 2)] }),
-  brand: aura({ duration: 'infinite', boundToSource: true }),
-  slayer: aura({ duration: 'infinite', modifiers: [mul('might', 1.5, { when: against({ is: 'elite' }) })] }),
-  executioner: aura({ duration: 'infinite', modifiers: [plus('might', againstValue('missingShare'))] }),
-  scopedMight: aura({ duration: 'infinite', modifiers: [mul('might', 2, { scope: SPELL_TAGS.id.attack })] }),
-  lastStand: aura({
-    duration: 'infinite',
-    removedOn: ['dead'],
-    onState: (_ctx, state) => (state === 'dead' ? [revive<UnitGame>({ to: 'self', health: 50 })] : undefined)
-  }),
-  burst: burst('none'),
-  ownedBurst: burst(undefined),
-  mark: aura({
-    duration: 'infinite',
-    removedOn: ['dead', 'despawned'],
+const aurasOf = (folds: boolean) => {
+  const mods = (modifiers: AuraModifiers) => (folds ? { modifiers } : {});
 
-    onState: (ctx, state) => {
-      HEARD.push(`${state} ${ctx.bearer.id}`);
+  return defineAuras<UnitGame, string>({
+    stun: aura({ duration: 1, tags: ['stun'] }),
+    veil: aura({ duration: 3, tags: ['veil'] }),
+    root: aura({ duration: 2, tags: ['root'] }),
+    freeze: aura({ duration: 2, tags: ['freeze'], blockedBy: ['freezeImmune'] }),
+    slow: aura({ duration: 2, tags: ['slow'] }),
+    freezeImmune: aura({ duration: 1, tags: ['freezeImmune'] }),
+    vigour: aura({ duration: 'infinite', ...mods([plus('maxHealth', 50)]) }),
+    frail: aura({ duration: 'infinite', ...mods([mul('maxHealth', 0.5)]) }),
+    haste: aura({ duration: 'infinite', ...mods([mul('speed', 2)]) }),
+    brand: aura({ duration: 'infinite', boundToSource: true }),
+    slayer: aura({ duration: 'infinite', ...mods([mul('might', 1.5, { when: against({ is: 'elite' }) })]) }),
+    executioner: aura({ duration: 'infinite', ...mods([plus('might', againstValue('missingShare'))]) }),
+    scopedMight: aura({ duration: 'infinite', ...mods([mul('might', 2, { scope: SPELL_TAGS.id.attack })]) }),
+    lastStand: aura({
+      duration: 'infinite',
+      removedOn: ['dead'],
+      onState: (_ctx, state) => (state === 'dead' ? [revive<UnitGame>({ to: 'self', health: 50 })] : undefined)
+    }),
+    burst: burst('none'),
+    ownedBurst: burst(undefined),
+    mark: aura({
+      duration: 'infinite',
+      removedOn: ['dead', 'despawned'],
 
-      return undefined;
-    }
-  })
-});
+      onState: (ctx, state) => {
+        HEARD.push(`${state} ${ctx.bearer.id}`);
+
+        return undefined;
+      }
+    })
+  });
+};
+
+/** The test auras of a game that folds stats. */
+const AURAS = aurasOf(true);
 
 /** The id of a test aura by name. */
 export const auraId = (name: string): AuraId => {
@@ -327,24 +356,55 @@ const UNIT_STATES = defineUnitStates(AURA_TAGS, {
   hidden: { tags: ['veil'], blocks: ['target'] }
 });
 
-/** A unit test game's options. */
-export interface UnitGameOptions<Extra extends string = never> {
-  /** The area trigger system's lifecycle side. */
-  readonly areaTriggers?: {
-    /** Ends the dependent areas of an owner that died or despawned. */
-    readonly ownerGone: (owner: Unit<UnitGame>) => number;
+/**
+ * An area trigger kind that lives while its owner does: as its owner dies or despawns (the unit system telling the
+ * area triggers `ownerGone`), it ends as `source-gone`, running `onEnd` with the owner.
+ */
+export const ward = (onEnd: (owner: Unit<UnitGame>) => void): AnyAreaTriggerDef<UnitGame> => ({
+  shape: circle(1),
+  lifetime: 60,
+  bound: { owner: 'present' },
+
+  onEnd: (c) => {
+    onEnd(c.owner);
+
+    return undefined;
+  }
+});
+
+/**
+ * A shared id space and a reserve over it that draws the counter past a spawn's own id, so the next id drawn comes
+ * after it: what a game whose spawns may name their ids gives the unit system.
+ */
+export const reserving = (): { readonly ids: EntityIds; readonly reserveId: (id: number) => void } => {
+  const ids = createEntityIds();
+
+  return {
+    ids,
+
+    reserveId: (id) => {
+      while (ids.count() < id) {
+        ids.next();
+      }
+    }
   };
+};
+
+/** A unit test game's options. */
+export interface UnitGameOptions<Extra extends string = never, Area extends string = never> {
+  /** The area trigger kinds; none when absent. */
+  readonly areaTriggers?: Readonly<Record<Area, AnyAreaTriggerDef<UnitGame>>>;
 
   /** The health policy. */
   readonly policy?: HealthPolicy<UnitGame>;
 
-  /** The shared entity id counter the unit system draws from; its own when absent. */
-  readonly allocateId?: () => number;
+  /** The shared entity id space units draw from; a new one when absent. */
+  readonly ids?: EntityIds;
 
   /** Takes an id a spawn names out of the shared counter's hands; refused when absent. */
   readonly reserveId?: (id: number) => void;
 
-  /** What a living unit whose health `syncHealth` left at 0 does; it stays alive when absent. */
+  /** What a living unit whose health `syncHealth` left at 0 does; the damage system's `kill` when absent. */
   readonly onLethal?: (unit: Unit<UnitGame>) => void;
 
   /** The aura host's application policy, handed the unit system. */
@@ -354,7 +414,7 @@ export interface UnitGameOptions<Extra extends string = never> {
     application: AuraApplication<UnitGame>
   ) => AuraDecision<UnitGame> | undefined;
 
-  /** Whether units fold their stats through the modifier system; true when absent. */
+  /** Whether the game has a modifier system its auras fold into and its units fold their stats through; true when absent. */
   readonly folds?: boolean;
 
   /** A custom mapping from damage spells to modifier scopes. */
@@ -371,7 +431,7 @@ export interface UnitGameOptions<Extra extends string = never> {
 }
 
 /** A small unit test game. */
-export interface UnitTestGame<Name extends string, Extra extends string = never> {
+export interface UnitTestGame<Name extends string, Extra extends string = never, Area extends string = never> {
   /** The clock. */
   readonly clock: SimClock;
 
@@ -387,14 +447,20 @@ export interface UnitTestGame<Name extends string, Extra extends string = never>
   /** The unit system. */
   readonly units: UnitSystem<UnitGame>;
 
-  /** The proc system, with the unit system's kinds. */
+  /** The proc system, with every system's kinds. */
   readonly procs: ProcSystem<UnitGame>;
+
+  /** The area trigger system, over the options' kinds, in a memory world that follows the units. */
+  readonly areas: AreaTriggerSystem<UnitGame>;
 
   /** The id of every template, by name. */
   readonly id: Readonly<Record<Name, UnitId>>;
 
   /** The id of every spell, by name. */
   readonly spellId: Readonly<Record<'swing' | 'channel' | Extra, SpellId>>;
+
+  /** The id of every area trigger kind, by name. */
+  readonly areaId: Readonly<Record<Area, AreaTriggerId>>;
 
   /**
    * The script system, with `changed` delivered to the unit's owner (its `eventUnit` the unit), `death` to the unit,
@@ -412,35 +478,9 @@ export interface UnitTestGame<Name extends string, Extra extends string = never>
   readonly on: (kind: 'spawned' | 'changed' | 'despawned', listener: (event: UnitEvent<UnitGame>) => void) => void;
 }
 
-/**
- * A unit test game over `templates`: auras folding through a modifier system (a unit's bases at `base`, auras at
- * `auras`), a spell system with a cast that lasts a second, a damage system whose unit host and force stage are the
- * unit system's, and the unit system over them, logging its events.
- */
-export const makeUnitGame = <const Name extends string, const Extra extends string = never>(
-  templates: Readonly<Record<Name, UnitDef<UnitGame>>>,
-  options: UnitGameOptions<Extra> = {}
-): UnitTestGame<Name, Extra> => {
-  const log: string[] = [];
-  const clock = createClock({ dt: 0.25 });
-  const registry = defineUnits<UnitGame, Name>(templates, { stats: STATS, tags: UNIT_TAGS });
-  const sources = defineSources(['base', 'auras']);
-
-  const modifiers = createModifierSystem({
-    stats: STATS,
-    sources,
-    stacks: auraStacks,
-    held: auraGates,
-    revision: auraRevision,
-    conditions: CONDITIONS,
-    values: VALUES
-  });
-
-  const late: {
-    units?: UnitSystem<UnitGame>;
-  } = {};
-
-  const bus = createBus({
+/** The test bus: the unit events, deaths and kills. */
+const busOf = () =>
+  createBus({
     spawned: (): UnitEvent<UnitGame> => createUnitEvent<UnitGame>(),
     changed: (): UnitEvent<UnitGame> => createUnitEvent<UnitGame>(),
     despawned: (): UnitEvent<UnitGame> => createUnitEvent<UnitGame>(),
@@ -449,25 +489,14 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     kill: (): DeathEvent<UnitGame> => createDeathEvent<UnitGame>()
   });
 
-  const auras = createAuraSystem<UnitGame>({
-    registry: AURAS,
-    tags: AURA_TAGS,
-    clocks: { world: clock },
-    states: ['dead', 'despawned'],
-    modifiers,
-    fold: 'auras',
-    host: {
-      onIncomingAura: (unit, application) =>
-        late.units === undefined ? undefined : options.onIncomingAura?.(late.units, unit, application),
+/** The test game's bus. */
+type TestBus = ReturnType<typeof busOf>;
 
-      onTagsChanged: (unit) => late.units?.syncStates(unit),
-      run: (list, ctx) => holder.procs?.runAura(list, ctx)
-    }
-  });
-
-  const spellRegistry = defineSpells<UnitGame, 'swing' | 'channel' | Extra>(
+/** The swing, the channel, and a game's more spells. */
+const spellsOf = <Extra extends string>(extra: Readonly<Record<Extra, AnySpellDef<UnitGame>>> | undefined) =>
+  defineSpells<UnitGame, 'swing' | 'channel' | Extra>(
     {
-      ...(options.spells ?? spellTable<Extra>({})),
+      ...(extra ?? table<Extra, AnySpellDef<UnitGame>>({})),
       swing: { tags: ['attack'], activation: { kind: 'auto', interval: 1 }, release: () => undefined },
       channel: {
         activation: { kind: 'trigger' },
@@ -478,45 +507,42 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
     { tags: SPELL_TAGS }
   );
 
-  const holder: { procs?: ProcSystem<UnitGame> } = {};
+/** What a test game's hooks read once it is built: the game. */
+interface UnitRef {
+  /** The game. */
+  game?: Game<UnitGame>;
+}
 
-  // The unit system's spell host members, read late: the spell system is made before it.
-  const spellHost = {
-    canAct: (unit: Unit<UnitGame>, spell: SpellId) => late.units?.hosts.spell.canAct(unit, spell) ?? true,
+/** The parts of a test game's spec that its options and its log shape. */
+interface SpecParts {
+  /** The unit templates. */
+  readonly registry: UnitRegistry<UnitGame>;
 
-    statsOf: (unit: Unit<UnitGame>, spell: SpellId) =>
-      late.units === undefined ? undefined : late.units.hosts.spell.statsOf(unit, spell),
+  /** The spells. */
+  readonly spells: SpellRegistry<UnitGame>;
 
-    isGone: (unit: Unit<UnitGame>) => late.units?.hosts.spell.isGone(unit) ?? false
-  };
+  /** The area trigger kinds. */
+  readonly areas: AreaTriggerRegistry<UnitGame>;
 
-  const spells = createSpellSystem<UnitGame>({
-    registry: spellRegistry,
-    auras,
-    procs: () => holder.procs ?? missing(),
-    clock,
-    host: spellHost
-  });
+  /** The options. */
+  readonly options: UnitGameOptions<string, string>;
 
-  const ai = createAiSystem<UnitGame>({
-    spells,
-    clock,
-    timers: TIMERS,
-    holds: ['intro', 'freeze']
-  });
+  /** The bus. */
+  readonly bus: TestBus;
 
-  const holdScripts: { system?: ScriptSystem<UnitGame> } = {};
+  /** The log the damage host's forces go to. */
+  readonly log: string[];
 
-  const units = createUnitSystem<UnitGame>({
-    scripts: () => holdScripts.system?.forUnits ?? missing(),
+  /** What the hooks read once the game is built. */
+  readonly ref: UnitRef;
+}
+
+/** The unit system's options: the templates, health, states, events, ext, and the options' ids, admission and scopes. */
+const unitsOf = (parts: SpecParts): GameSpec<UnitGame>['units'] => {
+  const { registry, options, bus } = parts;
+
+  return {
     registry,
-    auras,
-    ai,
-    spells,
-    ...(options.folds === false
-      ? {}
-      : { modifiers: { system: modifiers, ...(options.scopeOf === undefined ? {} : { scopeOf: options.scopeOf }) } }),
-    ...(options.areaTriggers === undefined ? {} : { areaTriggers: options.areaTriggers }),
     health: {
       stat: 'maxHealth',
       ...(options.policy === undefined ? {} : { policy: options.policy }),
@@ -530,69 +556,112 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
       despawned: bus.kind.despawned,
       sideChanged: bus.kind.sideChanged
     },
-    ...(options.allocateId === undefined ? {} : { allocateId: options.allocateId }),
-    ...(options.reserveId === undefined ? {} : { reserveId: options.reserveId }),
 
     createExt: (template, spawn) => ({
       marks: 0,
       made: `${template}/${spawn.side}${spawn.data === undefined ? '' : ` wave ${spawn.data.wave}`}`
     }),
 
+    ...(options.scopeOf === undefined ? {} : { scopeOf: options.scopeOf }),
+    ...(options.reserveId === undefined ? {} : { reserveId: options.reserveId }),
     ...(options.admit === undefined ? {} : { admit: options.admit })
-  });
+  };
+};
 
-  const damage: DamageSystem<UnitGame> = createDamageSystem<UnitGame>({
-    auras,
-    kinds: defineDamageKinds({ physical: {} }),
-    stats: STATS,
-    outgoing: ['might'],
-    host: {
-      ...units.damageHost,
+/** The aura host of a test game: the options' application policy, handed the game's unit system. */
+const auraHostOf = (options: UnitGameOptions<string, string>, ref: UnitRef) => {
+  const policy = options.onIncomingAura;
 
-      applyForce: (force) => {
-        log.push(`force ${force.target.id} ${force.amount}`);
+  return policy === undefined
+    ? {}
+    : {
+        host: {
+          onIncomingAura: (unit: Unit<UnitGame>, application: AuraApplication<UnitGame>) =>
+            ref.game === undefined ? undefined : policy(ref.game.units, unit, application)
+        }
+      };
+};
+
+/** The spec `createGame` builds a unit test game from. */
+const specOf = (parts: SpecParts): GameSpec<UnitGame> => {
+  const { options, bus, log, ref } = parts;
+  const clock = createClock({ dt: 0.25 });
+  const folds = options.folds !== false;
+
+  return {
+    clock,
+    bus,
+    ...(options.ids === undefined ? {} : { ids: options.ids }),
+    ...(folds
+      ? {
+          modifiers: {
+            stats: STATS,
+            sources: defineSources(['base', 'auras']),
+            stacks: auraStacks,
+            held: auraGates,
+            revision: auraRevision,
+            conditions: CONDITIONS,
+            values: VALUES
+          }
+        }
+      : {}),
+    auras: {
+      registry: folds ? AURAS : aurasOf(false),
+      tags: AURA_TAGS,
+      clocks: { world: clock },
+      states: ['dead', 'despawned'],
+      ...(folds ? { fold: 'auras' } : {}),
+      ...auraHostOf(options, ref)
+    },
+    spells: { registry: parts.spells, host: {} },
+    ai: { timers: TIMERS, holds: ['intro', 'freeze'] },
+    world: { memory: { bounds: { minX: -100, minZ: -100, maxX: 100, maxZ: 100 } } },
+    areas: { registry: parts.areas, host: {} },
+    units: unitsOf(parts),
+    damage: {
+      kinds: defineDamageKinds({ physical: {} }),
+      stats: STATS,
+      outgoing: ['might'],
+      events: { bus, death: bus.kind.death, kill: bus.kind.kill },
+      host: {
+        applyForce: (force) => {
+          log.push(`force ${force.target.id} ${force.amount}`);
+        }
       }
     },
-    events: { bus, death: bus.kind.death, kill: bus.kind.kill }
-  });
+    procs: {
+      kinds: (k) =>
+        createProcRegistry<UnitGame>({
+          ...CORE_PROCS,
+          ...k.damage,
+          ...k.spells,
+          ...k.units,
+          ...k.ai,
+          ...(k.areas ?? missing('area trigger kinds'))
+        }),
+      host: {},
+      random: stream(3)
+    },
+    scripts: {
+      registry: options.scripts ?? defineScripts<UnitGame, never>({}),
+      bus,
+      host: {},
+      bindings: {
+        changed: { kind: bus.kind.changed, unitOf: (event) => event.unit?.owner, eventUnitOf: (event) => event.unit },
+        death: { kind: bus.kind.death, unitOf: (event) => event.death?.unit },
 
-  const procs = createProcSystem<UnitGame>({
-    kinds: createProcRegistry<UnitGame>({
-      ...CORE_PROCS,
-      ...damage.procKinds,
-      ...spells.procKinds,
-      ...units.procKinds,
-      ...ai.procKinds
-    }),
-    auras,
-    host: { idOf: (unit) => unit.id, unitOf: (id) => units.byId(id) },
-    random: stream(3)
-  });
-
-  holder.procs = procs;
-  late.units = units;
-
-  const scripts = createScriptSystem<UnitGame>({
-    registry: options.scripts ?? defineScripts<UnitGame, never>({}),
-    ai,
-    procs,
-    bus,
-    host: {},
-    bindings: {
-      changed: { kind: bus.kind.changed, unitOf: (event) => event.unit?.owner, eventUnitOf: (event) => event.unit },
-      death: { kind: bus.kind.death, unitOf: (event) => event.death?.unit },
-
-      kill: {
-        kind: bus.kind.kill,
-        unitOf: (event) => event.death?.killer,
-        otherOf: (event) => event.death?.unit
+        kill: {
+          kind: bus.kind.kill,
+          unitOf: (event) => event.death?.killer,
+          otherOf: (event) => event.death?.unit
+        }
       }
     }
-  });
+  };
+};
 
-  holdScripts.system = scripts;
-  units.checkWiring({ spells, auras, ai, procs });
-
+/** Logs every unit event, death and kill. */
+const logEvents = (bus: TestBus, log: string[]): void => {
   const line = (what: string) => (event: UnitEvent<UnitGame>) => {
     log.push(`${what} ${event.unit?.id ?? '?'} ${event.from}>${event.to}`);
   };
@@ -615,18 +684,47 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
   });
   bus.on(bus.kind.death, (event) => log.push(`death ${event.death?.unit.id ?? '?'}`));
   bus.on(bus.kind.kill, (event) => log.push(`kill by ${event.death?.killer?.id ?? '?'}`));
+};
+
+/**
+ * A unit test game over `templates`, built by `createGame`: auras folding through a modifier system (a unit's bases at
+ * `base`, auras at `auras`), a spell system with a cast that lasts a second, AI held by an intro and a freeze, a
+ * damage system whose force stage logs, scripts over a lifecycle change, a death and a kill, area triggers in a memory
+ * world that follows the units, and the unit system over them, logging its events.
+ */
+export const makeUnitGame = <
+  const Name extends string,
+  const Extra extends string = never,
+  const Area extends string = never
+>(
+  templates: Readonly<Record<Name, UnitDef<UnitGame>>>,
+  options: UnitGameOptions<Extra, Area> = {}
+): UnitTestGame<Name, Extra, Area> => {
+  const log: string[] = [];
+  const bus = busOf();
+  const ref: UnitRef = {};
+  const registry = defineUnits<UnitGame, Name>(templates, { stats: STATS, tags: UNIT_TAGS });
+  const spells = spellsOf<Extra>(options.spells);
+  const kinds = options.areaTriggers ?? table<Area, AnyAreaTriggerDef<UnitGame>>({});
+  const areas = defineAreaTriggers<UnitGame, Area>(kinds);
+  const game = createGame(specOf({ registry, spells, areas, options, bus, log, ref }));
+
+  ref.game = game;
+  logEvents(bus, log);
 
   return {
-    clock,
-    auras,
-    spells,
-    damage,
-    units,
-    procs,
-    ai,
-    scripts,
+    clock: game.clock,
+    auras: game.auras,
+    spells: game.spells,
+    damage: game.damage,
+    units: game.units,
+    procs: game.procs,
+    areas: game.areas ?? missing('area triggers'),
+    ai: game.ai,
+    scripts: game.scripts ?? missing('scripts'),
     id: registry.id,
-    spellId: spellRegistry.id,
+    spellId: spells.id,
+    areaId: areas.id,
     log,
 
     on: (kind, listener) => {
@@ -635,20 +733,20 @@ export const makeUnitGame = <const Name extends string, const Extra extends stri
   };
 };
 
-/** Throws: the proc system is wired after the systems that name it. */
-const missing = (): never => {
-  throw new Error('The test proc system is not wired.');
+/** Throws: the test game was built without a system it always has. */
+const missing = (what: string): never => {
+  throw new Error(`The test game has no ${what}.`);
 };
 
-/** A table typed as a table of spells by the names its type says: the empty one when a game adds none. */
-const spellTable = <Name extends string>(table: object): Readonly<Record<Name, AnySpellDef<UnitGame>>> => {
-  if (!isSpellTable<Name>(table)) {
-    throw new TypeError('A spell table was lost.');
+/** Whether a table holds the names its type says: always, for the empty table of a game that adds none. */
+const isTable = <Name extends string, Value>(value: object): value is Readonly<Record<Name, Value>> =>
+  typeof value === 'object';
+
+/** An empty table typed as a table by the names its type says (none, where a game adds none). */
+const table = <Name extends string, Value>(value: object): Readonly<Record<Name, Value>> => {
+  if (!isTable<Name, Value>(value)) {
+    throw new TypeError('A table was lost.');
   }
 
-  return table;
+  return value;
 };
-
-/** Whether a table is a table of spells by the names its type says: always, since it is typed. */
-const isSpellTable = <Name extends string>(table: object): table is Readonly<Record<Name, AnySpellDef<UnitGame>>> =>
-  typeof table === 'object';

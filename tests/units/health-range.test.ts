@@ -76,12 +76,22 @@ describe('a unit’s health range', () => {
         ...(onLethal === undefined ? {} : { onLethal })
       });
 
-    const quiet = make();
+    // An onLethal that leaves it be: it stays alive at 0.
+    const quiet = make(() => undefined);
     const hero = quiet.units.spawn(quiet.id.hero, { side: 0 });
 
     quiet.auras.apply(hero, auraId('vigour'));
     assert.equal(quiet.units.syncHealth(hero), 0);
     assert.deepEqual([hero.lifecycle, hero.health], ['alive', 0]);
+
+    // None of the game's: createGame's, the damage system's kill.
+    const fallen = make();
+    const victim = fallen.units.spawn(fallen.id.hero, { side: 0 });
+
+    fallen.auras.apply(victim, auraId('vigour'));
+    assert.equal(fallen.units.syncHealth(victim), 0);
+    assert.deepEqual([victim.lifecycle, victim.health], ['dead', 0]);
+    assert.ok(fallen.log.includes(`death ${victim.id}`));
 
     late.game = make((unit) => {
       lethal.push(unit.id);

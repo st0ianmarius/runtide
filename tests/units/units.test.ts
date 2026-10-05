@@ -5,7 +5,7 @@ import { createEntityIds, POOL_MIN_FREE } from '../../src/core/index.ts';
 import { run } from '../../src/procs/index.ts';
 import { after } from '../../src/spells/index.ts';
 import { defineUnits, type UnitDef } from '../../src/units/index.ts';
-import { AURA_TAGS, auraId, HEARD, makeUnitGame, STATS, UNIT_TAGS, type UnitGame } from '../helpers/unit-game.ts';
+import { AURA_TAGS, auraId, HEARD, makeUnitGame, STATS, UNIT_TAGS, type UnitGame, ward } from '../helpers/unit-game.ts';
 
 /** The test templates: a hero with no auto-attack, a grunt, an elite, a boss, a wall and a totem. */
 const TEMPLATES = {
@@ -16,6 +16,9 @@ const TEMPLATES = {
   wall: { tags: ['objective'] }
 } satisfies Record<string, UnitDef<UnitGame>>;
 
+/** Where the tests' wards stand. */
+const ORIGIN = { x: 0, z: 0 };
+
 describe('owned effects on leaving life', () => {
   for (const to of ['dead', 'despawned'] as const) {
     it(`ends dependent areas and withdraws delayed lists on ${to}, including lists from area end hooks`, () => {
@@ -24,12 +27,10 @@ describe('owned effects on leaving life', () => {
 
       const game = makeUnitGame(TEMPLATES, {
         areaTriggers: {
-          ownerGone: (owner) => {
+          ward: ward((owner) => {
             gone.push(owner.id);
             game.procs.run([after(1, [])], { self: owner });
-
-            return 1;
-          }
+          })
         },
         spells: {
           delayed: {
@@ -45,9 +46,10 @@ describe('owned effects on leaving life', () => {
         }
       });
 
-      const owner = game.units.spawn(game.id.hero, { side: 0 });
+      const owner = game.units.spawn(game.id.hero, { side: 0, at: ORIGIN });
       const other = game.units.spawn(game.id.hero, { side: 0 });
 
+      game.areas.spawn(game.areaId.ward, { owner, at: ORIGIN });
       game.spells.cast(owner, game.spellId.delayed);
       game.spells.cast(other, game.spellId.delayed);
       assert.equal(game.spells.delayed.pending, 2);
@@ -72,9 +74,9 @@ describe('owned effects on leaving life', () => {
   it('withdraws delayed lists and releases a despawned unit when an area end hook throws', () => {
     const game = makeUnitGame(TEMPLATES, {
       areaTriggers: {
-        ownerGone: () => {
+        ward: ward(() => {
           throw new Error('area hook');
-        }
+        })
       },
       spells: {
         delayed: {
@@ -84,8 +86,9 @@ describe('owned effects on leaving life', () => {
       }
     });
 
-    const owner = game.units.spawn(game.id.hero, { side: 0 });
+    const owner = game.units.spawn(game.id.hero, { side: 0, at: ORIGIN });
 
+    game.areas.spawn(game.areaId.ward, { owner, at: ORIGIN });
     game.spells.cast(owner, game.spellId.delayed);
     assert.throws(() => game.units.despawn(owner), /area hook/);
     assert.equal(game.spells.delayed.pending, 0);
@@ -101,10 +104,9 @@ describe('owned effects on leaving life', () => {
 
     const game = makeUnitGame(TEMPLATES, {
       areaTriggers: {
-        ownerGone: (owner) => {
+        ward: ward((owner) => {
           gone.push(owner.id);
-          return 1;
-        }
+        })
       },
       spells: {
         delayed: { activation: { kind: 'trigger' }, release: () => [after(1, [])] },
@@ -119,8 +121,9 @@ describe('owned effects on leaving life', () => {
       }
     });
 
-    const owner = game.units.spawn(game.id.hero, { side: 0 });
+    const owner = game.units.spawn(game.id.hero, { side: 0, at: ORIGIN });
 
+    game.areas.spawn(game.areaId.ward, { owner, at: ORIGIN });
     game.spells.cast(owner, game.spellId.delayed);
     game.spells.cast(owner, game.spellId.broken);
     assert.throws(() => game.units.kill(owner), /cast hook/);
@@ -256,7 +259,7 @@ describe('sides, targeting and ids', () => {
 
   it('draws entity ids from a shared counter, a summon’s too', () => {
     const ids = createEntityIds(40);
-    const game = makeUnitGame(TEMPLATES, { allocateId: ids.next });
+    const game = makeUnitGame(TEMPLATES, { ids });
     const hero = game.units.spawn(game.id.hero, { side: 0 });
 
     ids.next();

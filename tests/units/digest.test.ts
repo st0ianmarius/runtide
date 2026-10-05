@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { DIGEST_START } from '../../src/core/index.ts';
 import type { Unit } from '../../src/units/index.ts';
-import { makeUnitGame, type UnitGame } from '../helpers/unit-game.ts';
+import { makeUnitGame, reserving, type UnitGame } from '../helpers/unit-game.ts';
 
 /** The test templates: a hero and a grunt. */
 const TEMPLATES = { hero: { stats: { maxHealth: 200 } }, grunt: {} };
@@ -13,7 +13,7 @@ const idsOf = (out: readonly Unit<UnitGame>[], count: number): number[] => out.s
 
 describe('units.list', () => {
   it('fills a reused array with every unit not despawned, dead ones too, in ascending id order', () => {
-    const game = makeUnitGame(TEMPLATES);
+    const game = makeUnitGame(TEMPLATES, reserving());
     const { units } = game;
     const a = units.spawn(game.id.hero, { side: 0 });
     const b = units.spawn(game.id.grunt, { side: 1 });
@@ -41,7 +41,7 @@ describe('units.list', () => {
 describe('units.digest', () => {
   /** A game with units spawned under the given ids, in the given order, each a grunt of side 1. */
   const spawned = (ids: readonly number[]) => {
-    const game = makeUnitGame(TEMPLATES);
+    const game = makeUnitGame(TEMPLATES, reserving());
 
     for (const id of ids) {
       game.units.spawn(game.id.grunt, { side: 1, id });

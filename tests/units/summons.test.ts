@@ -393,9 +393,9 @@ describe('spawn admission and spawn data', () => {
 
 describe('the escape report over a unit game', () => {
   it('counts the unit and AI proc kinds as the framework’s own, not as hatches', () => {
-    const { procs, spells, damage, units, ai } = summoning();
+    const { procs, spells, damage, units, ai, areas } = summoning();
 
-    assert.deepEqual(escapeReport({ procs, spells, damage }).procKinds, [
+    assert.deepEqual(escapeReport({ procs, spells, damage, areaTriggers: areas }).procKinds, [
       'revive',
       'summon',
       'despawn',
@@ -404,6 +404,6 @@ describe('the escape report over a unit game', () => {
       'cancelTimer',
       'setFocus'
     ]);
-    assert.deepEqual(escapeReport({ procs, spells, damage, units, ai }).procKinds, []);
+    assert.deepEqual(escapeReport({ procs, spells, damage, areaTriggers: areas, units, ai }).procKinds, []);
   });
 });

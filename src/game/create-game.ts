@@ -59,7 +59,15 @@ interface Cells<G extends GameTypes & GameRecords<G>> {
 const buildFront = <G extends GameTypes & GameRecords<G>>(spec: GameSpec<G>, cells: Cells<G>): Front<G> => {
   const { clock } = spec;
   const modifiers = spec.modifiers === undefined ? undefined : createModifierSystem(spec.modifiers);
-  const auraHost: Bound<AuraHost<G>> = { ...spec.auras.host };
+
+  // `onTagsChanged` is there from the start, forwarding to the units until it is bound: the aura system reads at build
+  // which auras' changes are tag edges, and hears none for a host without it.
+  const auraHost: Bound<AuraHost<G>> = {
+    ...spec.auras.host,
+    onTagsChanged: (unit) => {
+      cells.units.get().hosts.aura.onTagsChanged(unit);
+    }
+  };
 
   const auras = createAuraSystem<G>({
     ...spec.auras,

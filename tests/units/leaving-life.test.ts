@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { summon, type UnitDef } from '../../src/units/index.ts';
-import { auraId, HEARD, makeUnitGame, type UnitGame } from '../helpers/unit-game.ts';
+import { auraId, HEARD, makeUnitGame, type UnitGame, ward } from '../helpers/unit-game.ts';
 
 /** The test templates: a hero and a pet. */
 const TEMPLATES = { hero: {}, pet: {} } satisfies Record<string, UnitDef<UnitGame>>;
+
+/** Where the tests' wards stand. */
+const ORIGIN = { x: 0, z: 0 };
 
 /** Whether an error is a `SuppressedError` whose first error and later one carry these messages. */
 const suppressed = (first: string, later: string) => (error: unknown) =>
@@ -25,20 +28,20 @@ describe('what a unit owns as it leaves life', () => {
 
       const game = makeUnitGame(TEMPLATES, {
         areaTriggers: {
-          ownerGone: (owner) => {
+          ward: ward((owner) => {
             if (late.other !== undefined) {
               late.game?.auras.apply(late.other, { aura: auraId('brand'), source: owner.id });
             }
-
-            return 1;
-          }
+          })
         }
       });
 
       late.game = game;
 
-      const hero = game.units.spawn(game.id.hero, { side: 0 });
+      const hero = game.units.spawn(game.id.hero, { side: 0, at: ORIGIN });
       const other = game.units.spawn(game.id.pet, { side: 1 });
+
+      game.areas.spawn(game.areaId.ward, { owner: hero, at: ORIGIN });
 
       late.other = other;
       game.auras.apply(other, { aura: auraId('brand'), source: hero.id });
@@ -72,9 +75,9 @@ describe('what a unit owns as it leaves life', () => {
   it('surfaces the first error of its cleanup, the later ones suppressed behind it', () => {
     const game = makeUnitGame(TEMPLATES, {
       areaTriggers: {
-        ownerGone: () => {
+        ward: ward(() => {
           throw new Error('area hook');
-        }
+        })
       },
       spells: {
         broken: {
@@ -88,8 +91,9 @@ describe('what a unit owns as it leaves life', () => {
       }
     });
 
-    const hero = game.units.spawn(game.id.hero, { side: 0 });
+    const hero = game.units.spawn(game.id.hero, { side: 0, at: ORIGIN });
 
+    game.areas.spawn(game.areaId.ward, { owner: hero, at: ORIGIN });
     game.spells.cast(hero, game.spellId.broken);
     assert.throws(() => game.units.kill(hero), suppressed('cast hook', 'area hook'));
     assert.equal(hero.lifecycle, 'dead');
@@ -123,13 +127,15 @@ describe('what a unit owns as it leaves life', () => {
   it('raises its change and runs the revive its death asked for when its cleanup throws, then surfaces the error', () => {
     const game = makeUnitGame(TEMPLATES, {
       areaTriggers: {
-        ownerGone: () => {
+        ward: ward(() => {
           throw new Error('area hook');
-        }
+        })
       }
     });
 
-    const hero = game.units.spawn(game.id.hero, { side: 0 });
+    const hero = game.units.spawn(game.id.hero, { side: 0, at: ORIGIN });
+
+    game.areas.spawn(game.areaId.ward, { owner: hero, at: ORIGIN });
 
     game.auras.apply(hero, auraId('lastStand'));
     assert.throws(() => game.units.kill(hero), /area hook/);

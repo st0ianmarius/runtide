@@ -5,8 +5,8 @@ import { createAiSystem } from '../../src/ai/index.ts';
 import { createBitset, createEntityIds } from '../../src/core/index.ts';
 import { CORE_PROCS, createProcRegistry, createProcSystem } from '../../src/procs/index.ts';
 import type { SpellId } from '../../src/spells/index.ts';
-import type { UnitDef } from '../../src/units/index.ts';
-import { auraId, makeUnitGame, SPELL_TAGS, STATS, TIMERS, type UnitGame } from '../helpers/unit-game.ts';
+import { createUnitSystem, defineUnits, type UnitDef, type UnitSystemOptions } from '../../src/units/index.ts';
+import { auraId, makeUnitGame, reserving, SPELL_TAGS, STATS, TIMERS, type UnitGame } from '../helpers/unit-game.ts';
 
 /** The test templates: a hero and a grunt. */
 const TEMPLATES = { hero: {}, grunt: {} } satisfies Record<string, UnitDef<UnitGame>>;
@@ -57,18 +57,18 @@ describe('spell-scoped stats', () => {
 describe('a spawn’s own entity id', () => {
   it('is refused where the shared counter owns ids, unless the counter can reserve it', () => {
     const ids = createEntityIds();
-    const strict = makeUnitGame(TEMPLATES, { allocateId: ids.next });
+    const strict = makeUnitGame(TEMPLATES, { ids });
 
     assert.throws(() => strict.units.spawn(strict.id.grunt, { side: 1, id: 7 }), /allocateId owns the ids/);
     assert.equal(strict.units.live(), 0);
 
     const reserved: number[] = [];
-    const game = makeUnitGame(TEMPLATES, { allocateId: ids.next, reserveId: (id) => reserved.push(id) });
+    const game = makeUnitGame(TEMPLATES, { ids, reserveId: (id) => reserved.push(id) });
 
     assert.equal(game.units.spawn(game.id.grunt, { side: 1, id: 7 }).id, 7);
     assert.deepEqual(reserved, [7]);
 
-    const own = makeUnitGame(TEMPLATES);
+    const own = makeUnitGame(TEMPLATES, reserving());
 
     assert.equal(own.units.spawn(own.id.grunt, { side: 1, id: 7 }).id, 7);
     assert.equal(own.units.spawn(own.id.grunt, { side: 1 }).id, 8);
@@ -94,6 +94,7 @@ describe('the wiring check', () => {
       ...spells.procKinds,
       ...units.procKinds,
       ...ai.procKinds,
+      ...game.areas.procKinds,
       revive: { ...units.procKinds.revive }
     });
 
@@ -108,14 +109,29 @@ describe('the wiring check', () => {
     assert.throws(() => {
       units.checkWiring({ spells, auras, procs: nameless });
     }, /procs.host: idOf and unitOf/);
+    units.checkWiring({ spells, auras, ai, procs, damage: game.damage, areaTriggers: game.areas });
+  });
+
+  it('names the area trigger gates a hand-wired unit system left open, which createGame always wires', () => {
+    const { spells, auras } = makeUnitGame(TEMPLATES);
+    const registry = defineUnits<UnitGame, keyof typeof TEMPLATES>(TEMPLATES, { stats: STATS });
+
+    const base: UnitSystemOptions<UnitGame> = {
+      registry,
+      auras,
+      spells,
+      health: { stat: 'maxHealth' },
+      createExt: () => ({ marks: 0, made: '' })
+    };
+
     assert.throws(() => {
-      units.checkWiring({ spells, auras, areaTriggers: {} });
+      createUnitSystem<UnitGame>(base).checkWiring({ spells, auras, areaTriggers: {} });
     }, /wiring, areaTriggers:/);
 
-    const areas = makeUnitGame(TEMPLATES, { areaTriggers: { ownerGone: () => 0 } });
+    const ownIds = createUnitSystem<UnitGame>({ ...base, areaTriggers: { ownerGone: () => 0 } });
 
     assert.throws(() => {
-      areas.units.checkWiring({ spells: areas.spells, auras: areas.auras, areaTriggers: {} });
+      ownIds.checkWiring({ spells, auras, areaTriggers: {} });
     }, /wiring, allocateId:/);
   });
 });
