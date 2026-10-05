@@ -106,7 +106,8 @@ export type GameAreasSpec<G extends GameTypes> = Omit<
 > & {
   /**
    * The game's own area host: `isGone` is the units' (`units.hosts.area`), `allocateId` the shared id space's; `idOf` is
-   * the unit's entity id when absent.
+   * the unit's entity id and `sideOf` the unit's own side when absent, so a unit with no body in the world (a world
+   * script's director) may own area triggers.
    */
   readonly host: Omit<AreaTriggerHost<G>, 'isGone' | 'allocateId'> & G['host'];
 

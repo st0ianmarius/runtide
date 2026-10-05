@@ -120,6 +120,8 @@ const buildAreas = <G extends GameTypes & GameRecords<G>>(
 
   const host: Bound<AreaTriggerHost<G>> & G['host'] = {
     idOf: (unit) => unit.id,
+    // A unit's own side: a bodiless world unit (a director's script) owns area triggers too, and the world knows it not.
+    sideOf: (unit) => unit.side,
     ...spec.areas.host,
     allocateId: ids.next
   };
